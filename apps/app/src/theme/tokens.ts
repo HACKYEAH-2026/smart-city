@@ -247,6 +247,10 @@ export const opacity = {
   onPrimarySubtitle: 0.9,
   /** Halo around the current-location pin on the login map illustration. */
   routeHalo: 0.18,
+  /** Light streets on the red hero banner (design: rgba(255,255,255,0.09)). */
+  heroStreet: 0.09,
+  /** Halo around the pin on the red hero banner. */
+  heroHalo: 0.25,
   /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
   scrim: 0.55,
 } as const;

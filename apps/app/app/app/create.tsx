@@ -1,1 +1,1 @@
-export { default } from "../../src/screens/CreatePlace";
+export { default } from "../../src/screens/CreatePlaceForm";

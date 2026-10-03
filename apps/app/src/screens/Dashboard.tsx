@@ -46,7 +46,7 @@ function NoPlaces() {
       <Text variant="bodyL" color="textSecondary">
         {t.dashboard_empty_body}
       </Text>
-      <Button label={t.place_create} onPress={() => router.push("/app/create")} />
+      <Button label={t.place_create} onPress={() => router.push("/app/create-place")} />
       <Button label={t.place_join} variant="secondary" onPress={() => router.push("/app/join")} />
     </Screen>
   );
@@ -108,7 +108,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
             label={t.place_create}
             onPress={() => {
               setSwitching(false);
-              router.push("/app/create");
+              router.push("/app/create-place");
             }}
           />
         </BottomSheet>

@@ -43,9 +43,25 @@ test("clicking the place name opens the places sheet with set-as-default", async
   await expect(page.getByRole("button", { name: t.place_set_default })).toBeVisible();
 });
 
-test("creating a place makes it the current place", async ({ page }) => {
+test("the places sheet offers create, which opens the create-place screen", async ({ page, api }) => {
+  await register(page, "sheet-create@example.test");
+  await joinKrakow(api.url, "sheet-create@example.test");
+  await page.goto("/app");
+  await page.getByRole("button", { name: "Kraków", exact: true }).click();
+  await page.getByRole("button", { name: t.place_create }).click();
+  await expect(page.getByRole("heading", { name: t.first_place_title, level: 1 })).toBeVisible();
+});
+
+test("create from the empty state opens the create-place screen, from there a new place becomes current", async ({
+  page,
+}) => {
   await register(page, "creator@example.test");
   await page.getByRole("button", { name: t.place_create }).click();
+  await expect(page.getByRole("heading", { name: t.first_place_title, level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: t.first_place_qr })).toBeVisible();
+  await expect(page.getByRole("link", { name: t.first_place_code })).toBeVisible();
+  await expect(page.getByRole("link", { name: t.first_place_link })).toBeVisible();
+  await page.getByRole("link", { name: t.first_place_create_own }).click();
   await page.getByLabel(t.create_name).fill("Osiedle Testowe");
   await page.getByRole("button", { name: t.create_submit }).click();
   await expect(page.getByRole("heading", { name: "Osiedle Testowe", level: 1 })).toBeVisible();
