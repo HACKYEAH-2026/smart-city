@@ -55,7 +55,7 @@ const signOut = async (page: Page) => {
 const login = async (page: Page, email: string) => {
   await page.goto("/login");
   await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByLabel(t.auth_password).fill("password");
   await page.getByRole("button", { name: t.auth_submit_login }).click();
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 };

@@ -10,7 +10,7 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 ## Odbiorcy
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
 - Administrator społeczności (np. urząd miasta): zarządza treściami wtyczek (np. zmienia status zgłoszeń).
-  Demo: `admin@krakow.test` / `password123`.
+  Demo: `admin@krakow.test` / `password`.
 - Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie

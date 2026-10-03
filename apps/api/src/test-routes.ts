@@ -23,7 +23,7 @@ import { syncPluginTables } from "./services/db/service";
 export const DEMO_COMMUNITY = { slug: "krakow", name: "Kraków" } as const;
 /** The demo place's invite code (shown as "KRK-MST"); anyone with it may join (join rule "open"). */
 export const DEMO_INVITE_CODE = "KRKMST";
-export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password123", name: "Urząd Miasta" } as const;
+export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password", name: "Urząd Miasta" } as const;
 
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
 
