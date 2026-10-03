@@ -38,21 +38,72 @@ const mapPlace = (slug: string, name: string, kind: PlaceKind, address: string, 
   lng,
 });
 /**
- * More public places around Kraków for the map of places in local dev, so it is not a single pin. No members and no
- * plugins: a pin with a card. Points from OpenStreetMap (looked up with Photon).
+ * Public places all over Kraków for the map of places in local dev, so it is not a single pin. No members and no
+ * plugins: a pin with a card. The pins are a hexagonal grid 3.1 km apart inside Kraków's OpenStreetMap boundary
+ * (Nominatim), anchored at the demo place (its grid point is the demo place itself: 40 pins in all). Each is named
+ * after its OpenStreetMap district or neighbourhood, with the nearest address (Photon).
  */
 export const DEMO_MAP_PLACES = [
-  mapPlace("nowa-huta", "Nowa Huta", "district", "pl. Centralny, Kraków", 50.07146, 20.03781),
-  mapPlace("podgorze", "Podgórze", "district", "Rynek Podgórski, Kraków", 50.04422, 19.94921),
-  mapPlace("kazimierz", "Kazimierz", "district", "pl. Nowy, Kraków", 50.05174, 19.94462),
-  mapPlace("czyzyny", "Czyżyny", "district", "Czyżyny, Kraków", 50.06652, 20.00884),
-  mapPlace("pradnik-bialy", "Prądnik Biały", "district", "Prądnik Biały, Kraków", 50.10357, 19.9536),
-  mapPlace("bronowice", "Bronowice", "district", "Bronowice, Kraków", 50.08332, 19.86978),
-  mapPlace("podwawelskie", "Osiedle Podwawelskie", "estate", "os. Podwawelskie, Kraków", 50.0438, 19.93043),
-  mapPlace("ruczaj", "Osiedle Ruczaj", "estate", "ul. Ruczaj, Kraków", 50.02497, 19.90617),
-  mapPlace("kamienica-dluga", "Kamienica przy Długiej", "building", "ul. Długa, Kraków", 50.06692, 19.93888),
-  mapPlace("biurowiec-zablocie", "Biurowiec na Zabłociu", "company", "ul. Lipowa, Kraków", 50.04788, 19.96137),
-  mapPlace("szkola-krowodrza", "Szkoła na Krowodrzy", "school", "Krowodrza, Kraków", 50.07088, 19.91656),
+  mapPlace("sidzina", "Sidzina", "estate", "Chlebiczna 3a, 30-399 Kraków", 49.98718, 19.873),
+  mapPlace("opatkowice", "Opatkowice", "estate", "Poronińska 13, 30-498 Kraków", 49.98718, 19.91617),
+  mapPlace("swoszowice", "Swoszowice", "district", "Dróżka 38, 30-327 Kraków", 49.98718, 19.95933),
+  mapPlace("barycz", "Barycz", "estate", "Romana Żelazowskiego 57, 30-694 Kraków", 49.98718, 20.0025),
+  mapPlace("tyniec", "Tyniec", "estate", "Walgierza Wdałego 7, 30-398 Kraków", 50.01135, 19.80825),
+  mapPlace("skotniki", "Skotniki", "estate", "Kozienicka, 30-050 Kraków", 50.01135, 19.85142),
+  mapPlace("kobierzyn", "Kobierzyn", "estate", "Zamiejska 21b, 30-382 Kraków", 50.01135, 19.89458),
+  mapPlace("lagiewniki", "Łagiewniki-Borek Fałęcki", "district", "Totus Tuus, 30-608 Kraków", 50.01135, 19.93775),
+  mapPlace("podgorze-duchackie", "Podgórze Duchackie", "district", "Mokra 7, 30-690 Kraków", 50.01135, 19.98092),
+  mapPlace("nowy-biezanow", "Nowy Bieżanów", "estate", "Mała Góra 57, 30-864 Kraków", 50.01135, 20.02408),
+  mapPlace(
+    "biezanow-prokocim",
+    "Bieżanów-Prokocim",
+    "district",
+    "Czarnochowicka 133, 30-789 Kraków",
+    50.01135,
+    20.06725,
+  ),
+  mapPlace("kostrze", "Kostrze", "estate", "Kolna, Kraków", 50.03551, 19.82983),
+  mapPlace("bodzow", "Bodzów", "estate", "Tyniecka, 30-376 Kraków", 50.03551, 19.873),
+  mapPlace("zakrzowek", "Zakrzówek", "other", "Świętego Jacka 61, 30-364 Kraków", 50.03551, 19.91617),
+  mapPlace("podgorze", "Podgórze", "district", "Wapienna, 30-544 Kraków", 50.03551, 19.95933),
+  mapPlace(
+    "mierzeja-wislana-6b",
+    "Mierzeja Wiślana 6B",
+    "building",
+    "Mierzeja Wiślana 6B, 30-752 Kraków",
+    50.03551,
+    20.0025,
+  ),
+  mapPlace("rybitwy", "Rybitwy", "company", "Półłanki, 30-742 Kraków", 50.03551, 20.04567),
+  mapPlace("las-wolski", "Las Wolski", "other", "Wolski Dół, 30-232 Kraków", 50.05967, 19.85142),
+  mapPlace("zwierzyniec", "Zwierzyniec", "district", "Królowej Jadwigi, 30-212 Kraków", 50.05967, 19.89458),
+  mapPlace("grzegorzki", "Grzegórzki", "district", "Widok 19, 31-564 Kraków", 50.05967, 19.98092),
+  mapPlace("czyzyny", "Czyżyny", "district", "Longinusa Podbipięty, 31-589 Kraków", 50.05967, 20.02408),
+  mapPlace("mogila", "Mogiła", "estate", "Stanisława Samostrzelnika, 31-979 Kraków", 50.05967, 20.06725),
+  mapPlace("pleszow", "Pleszów", "estate", "Suchy Jar 12, 31-983 Kraków", 50.05967, 20.11042),
+  mapPlace("przylasek-rusiecki", "Przylasek Rusiecki", "other", "Rzepakowa, 31-989 Kraków", 50.05967, 20.15359),
+  mapPlace("wolica", "Wolica", "estate", "Brzeska 12c, 31-998 Kraków", 50.05967, 20.19675),
+  mapPlace("olszanica", "Olszanica", "estate", "Pięciu Stawów, Kraków", 50.08383, 19.82983),
+  mapPlace("bronowice", "Bronowice", "district", "Pod Strzechą, 31-398 Kraków", 50.08383, 19.873),
+  mapPlace("azory", "Osiedle Azory", "estate", "Piotra Stachiewicza 12, 31-303 Kraków", 50.08383, 19.91617),
+  mapPlace("pradnik-czerwony", "Prądnik Czerwony", "district", "Gdańska 35, 31-411 Kraków", 50.08383, 19.95933),
+  mapPlace("dywizjonu-303", "Osiedle Dywizjonu 303", "estate", "os. Dywizjonu 303, 31-872 Kraków", 50.08383, 20.0025),
+  mapPlace("bienczyce", "Bieńczyce", "district", "Odmogile, 31-965 Kraków", 50.08383, 20.04567),
+  mapPlace("kombinat", "Kombinat", "company", "Ujastek, 31-752 Kraków", 50.08383, 20.08884),
+  mapPlace("nowa-huta", "Nowa Huta", "district", "Michała Badeniego, 31-987 Kraków", 50.08383, 20.132),
+  mapPlace("koscielniki", "Kościelniki", "estate", "Andrzeja Waligórskiego, 31-999 Kraków", 50.08383, 20.17517),
+  mapPlace("tonie", "Tonie", "estate", "Maciejkowa 48, 31-336 Kraków", 50.10799, 19.89458),
+  mapPlace("witkowice", "Witkowice", "estate", "Zielone Wzgórze, 31-222 Kraków", 50.10799, 19.93775),
+  mapPlace("kantorowice", "Kantorowice", "estate", "Stary Gościniec, 31-764 Kraków", 50.10799, 20.06725),
+  mapPlace(
+    "wzgorza-krzeslawickie",
+    "Wzgórza Krzesławickie",
+    "district",
+    "Cypriana Godebskiego, 31-990 Kraków",
+    50.10799,
+    20.11042,
+  ),
+  mapPlace("wegrzynowice", "Węgrzynowice", "estate", "Węgrzynowicka, 31-992 Kraków", 50.10799, 20.15359),
 ];
 
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
@@ -87,8 +138,8 @@ export async function seedDemo({ db, auth, plugins }: Deps) {
 }
 
 /**
- * Local dev only (idempotent): the public places of DEMO_MAP_PLACES. Not part of seedDemo, so /__test/reset and the
- * integration tests keep the demo place alone on the map.
+ * Local dev only (idempotent): the public places of DEMO_MAP_PLACES. Not part of seedDemo, so /__test/reset (E2E)
+ * and t.seed() keep the demo place alone on the map.
  */
 export async function seedDemoMap(db: Db) {
   const places = DEMO_MAP_PLACES.map(({ lat, lng, ...place }) => ({
@@ -96,7 +147,12 @@ export async function seedDemoMap(db: Db) {
     location: geoPoint({ lat, lng }),
     on_map: true,
   }));
-  await db.query(surql`INSERT IGNORE INTO community ${places};`);
+  // The seed owns the public places nobody belongs to: it replaces them, so a changed list moves or drops old pins.
+  // Places with members are never touched (and keep their slug if the list has it too).
+  await db.query(
+    surql`DELETE community WHERE on_map AND id NOT IN (SELECT VALUE community FROM membership);
+          INSERT IGNORE INTO community ${places};`,
+  );
 }
 
 /**

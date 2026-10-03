@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { GeoAddress, MapPlace, PlaceDetails } from "@app/shared";
+import { surql } from "surrealdb";
+import { geoPoint } from "../src/db";
 import { TEST_ADDRESSES } from "../src/test-geocoder";
 import { DEMO_ADDRESS, DEMO_LOCATION, DEMO_MAP_PLACES, seedDemoMap } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
@@ -114,13 +116,22 @@ describe("the map of places", () => {
     expect(await mapOf(member)).toContainEqual(expect.objectContaining({ ...demo, slug: "krakow" }));
   });
 
-  test("local dev seeds more public places around Kraków: pins for everyone, once", async () => {
+  test("local dev seeds public places all over Kraków: replaces the ones nobody belongs to, keeps the rest", async () => {
     t = await setup();
+    const owner = await t.signUp({ place: null });
+    const { slug } = await create(owner, { name: "Tyniec", location: FLORIANSKA, onMap: true });
+    expect(slug).toBe("tyniec"); // the seed has a "tyniec" too
+    await t.db.query(surql`CREATE community CONTENT { slug: "stare", name: "Stare", location: ${geoPoint(FLORIANSKA)},
+                                                      on_map: true };`);
     await seedDemoMap(t.db);
     await seedDemoMap(t.db);
-    const stranger = await t.signUp({ place: null });
-    const map = await mapOf(stranger);
+
+    const map = await mapOf(await t.signUp({ place: null }));
     expect(map).toHaveLength(DEMO_MAP_PLACES.length);
-    for (const place of DEMO_MAP_PLACES) expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null }));
+    expect(map.filter((p) => p.name === "Tyniec")).toEqual([expect.objectContaining(FLORIANSKA)]);
+    expect(map.map((p) => p.name)).not.toContain("Stare");
+    for (const place of DEMO_MAP_PLACES.filter((p) => p.slug !== "tyniec")) {
+      expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null }));
+    }
   });
 });
