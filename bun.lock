@@ -17,6 +17,7 @@
         "@app/shared": "workspace:*",
         "@hono/zod-validator": "^0.9.1",
         "@plugins/announcements": "workspace:*",
+        "@plugins/discussions": "workspace:*",
         "@plugins/issues": "workspace:*",
         "@strands-agents/sdk": "^1.19.0",
         "@surrealdb/node": "3.0.3",
@@ -109,12 +110,6 @@
     },
     "plugins/announcements": {
       "name": "@plugins/announcements",
-      "dependencies": {
-        "@app/plugin-sdk": "workspace:*",
-      },
-    },
-    "plugins/benches": {
-      "name": "@plugins/benches",
       "dependencies": {
         "@app/plugin-sdk": "workspace:*",
       },
@@ -550,8 +545,6 @@
     "@playwright/test": ["@playwright/test@1.63.0", "", { "dependencies": { "playwright": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ=="],
 
     "@plugins/announcements": ["@plugins/announcements@workspace:plugins/announcements"],
-
-    "@plugins/benches": ["@plugins/benches@workspace:plugins/benches"],
 
     "@plugins/discussions": ["@plugins/discussions@workspace:plugins/discussions"],
 

@@ -41,11 +41,12 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
 
 Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
 `plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
-`plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key), `plugins/benches` (minimal).
+`plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key). All three are built in; the smallest
+plugin is the upload-test fixture `apps/api/test/fixtures/notes-plugin.ts`.
 
 ## Creating a plugin package
 
-1. `plugins/<id>/package.json` (copy from `plugins/benches`):
+1. `plugins/<id>/package.json` (copy from `plugins/announcements`):
 
    ```json
    {
@@ -70,35 +71,35 @@ Reference plugins: `plugins/discussions` (best full example: two tables, refs, m
    ```ts
    import type { PluginModule } from "@app/plugin-sdk";
 
-   const benches: PluginModule = ({ definePlugin, ui, z, t }) =>
+   const notes: PluginModule = ({ definePlugin, ui, z, t }) =>
      definePlugin({
-       id: "benches",
-       name: "Ławki",
+       id: "notes",
+       name: "Notatki",
        version: "1.0.0",
        permissions: ["db"],
-       nav: [{ view: "main", label: "Ławki" }],
+       nav: [{ view: "main", label: "Notatki" }],
        tables: {
-         benches: t.table({ park: t.text(), problem: t.text().default(""), reporter: t.ref("user").optional() }),
+         notes: t.table({ title: t.text(), body: t.text().default(""), author: t.ref("user").optional() }),
        },
        views: {
          main: async (ctx) => {
-           const items = await ctx.db.benches.findMany();
-           return ui.screen("Ławki w parkach", items.map((b) => ui.card({ title: b.park, subtitle: b.problem })));
+           const items = await ctx.db.notes.findMany();
+           return ui.screen("Tablica notatek", items.map((n) => ui.card({ title: n.title, subtitle: n.body })));
          },
        },
        tools: {
-         report: {
-           description: "Zgłoś zepsutą ławkę w parku",
-           input: z.object({ park: z.string().trim().min(1), problem: z.string().trim().max(200).default("") }),
+         add: {
+           description: "Dodaj notatkę",
+           input: z.object({ title: z.string().trim().min(1), body: z.string().trim().max(200).default("") }),
            handler: async (ctx, input) => {
-             await ctx.db.benches.insert({ ...input, reporter: ctx.user.id });
-             return { toast: "Dziękujemy!", refresh: true };
+             await ctx.db.notes.insert({ ...input, author: ctx.user.id });
+             return { toast: "Notatka dodana.", refresh: true };
            },
          },
        },
      });
 
-   export default benches;
+   export default notes;
    ```
 
 5. `plugins/<id>/<id>.test.ts` — see [Testing](#testing).
@@ -834,7 +835,7 @@ is that source line):
 
 ```ts
 { status: "ok", plugin: { id, version, views, dashboardWidgets, tools, streams, tables } }
-{ status: "error", stage: "types", errors: [{ message: "Property 'benchez' does not exist on type 'Database<…'. Did you mean 'benches'?", line: 22, column: 36, snippet: "const items = await ctx.db.benchez.findMany();" }] }
+{ status: "error", stage: "types", errors: [{ message: "Property 'notez' does not exist on type 'Database<…'. Did you mean 'notes'?", line: 21, column: 36, snippet: "const items = await ctx.db.notez.findMany();" }] }
 ```
 
 `syntax`, `imports` and `types` only read the source; `load` runs it in the API process (see Security below).

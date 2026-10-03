@@ -8,7 +8,7 @@ default:
 install:
     bun install
 
-# API + Expo + USB port forwarding (+ on-demand benches upload) in one terminal (mprocs.yaml)
+# API + Expo + USB port forwarding in one terminal (mprocs.yaml)
 dev: install
     mprocs
 
@@ -24,7 +24,7 @@ app:
 usb:
     bun scripts/adb-reverse.ts
 
-# Upload a plugin into a running API, e.g. `just plugin plugins/benches krakow`
+# Upload a new plugin into a running API, e.g. `just plugin plugins/<id> krakow`
 plugin path community="krakow":
     bun run plugin:upload {{path}} {{community}}
 

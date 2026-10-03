@@ -1,6 +1,6 @@
 /**
  * Uploads a plugin to a running API and installs it in a community (dev / live demo).
- *   bun run plugin:upload plugins/benches [community=krakow]     (directory or .ts file)
+ *   bun run plugin:upload plugins/<id> [community=krakow]     (directory or .ts file; not a built-in plugin)
  * API_URL (default http://localhost:4000), PLUGIN_ADMIN_TOKEN (default: the local dev server token).
  */
 import { statSync } from "node:fs";

@@ -2,7 +2,6 @@
 # api: in-memory SurrealDB with the "Kraków" demo, :4000 (restart = fresh database)
 # app: Expo dev server on localhost:8081 (w = web, a = Android: installs Expo Go if needed and opens the app)
 # usb: Android phone over USB / emulator: adb reverse of :4000 and :8081, so the phone's localhost is this machine
-# benches: uploads the benches plugin into "krakow" on demand (s to start, again after an api restart)
 procs:
   api:
     shell: bun run dev
@@ -12,6 +11,3 @@ procs:
     cwd: apps/app
   usb:
     shell: bun scripts/adb-reverse.ts
-  benches:
-    shell: bun run plugin:upload plugins/benches
-    autostart: false

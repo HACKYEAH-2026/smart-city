@@ -11,6 +11,7 @@ import { createAdminRoutes } from "./routes/admin";
 import { communitiesRoutes } from "./routes/communities";
 import { filesRoutes } from "./routes/files";
 import { meRoutes } from "./routes/me";
+import { pluginsRoutes } from "./routes/plugins";
 import { AIService } from "./services/ai/service";
 import { StrandsLanguageModel } from "./services/ai/strands";
 import type { AIProviders } from "./services/ai/types";
@@ -94,6 +95,7 @@ export function createApp({
     .route("/api/communities", communitiesRoutes)
     .route("/api/files", filesRoutes)
     .route("/api/me", meRoutes)
+    .route("/api/plugins", pluginsRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
   return { app: routes, auth, plugins, notifications };

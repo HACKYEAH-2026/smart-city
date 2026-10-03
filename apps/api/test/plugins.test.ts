@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolResult, UINode } from "@app/plugin-sdk";
 import { textsOf } from "@app/plugin-sdk/testing";
-import type { CommunityNavItem } from "@app/shared";
+import type { CommunityNavItem, PluginCatalogItem } from "@app/shared";
 import { createApp } from "../src/app";
 import { loadEnv } from "../src/env";
 import type { LanguageModel } from "../src/services/ai/types";
@@ -28,7 +28,7 @@ afterEach(async () => {
 
 const base = `/api/communities/${DEMO_COMMUNITY.slug}`;
 const platform = { authorization: `Bearer ${TEST_ENV.PLUGIN_ADMIN_TOKEN}` };
-const BENCHES = readFileSync(join(import.meta.dir, "../../../plugins/benches/index.ts"), "utf8");
+const NOTES = readFileSync(join(import.meta.dir, "fixtures/notes-plugin.ts"), "utf8");
 
 const view = async (headers: Record<string, string>, path: string) => {
   const res = await t.request(`${base}/plugins/${path}`, { headers });
@@ -55,6 +55,7 @@ describe("communities, navigation, roles", () => {
     expect(nav).toEqual([
       { pluginId: "issues", icon: "🛠️", view: "list", label: "Zgłoszenia" },
       { pluginId: "announcements", icon: "📢", view: "list", label: "Ogłoszenia" },
+      { pluginId: "discussions", icon: "💬", view: "list", label: "Dyskusje" },
     ]);
     expect((await t.request("/api/communities/nie-ma", { headers: u.headers })).status).toBe(404);
     expect((await view(u.headers, "nie-ma/views/list")).res.status).toBe(404);
@@ -134,13 +135,31 @@ describe("files", () => {
     });
     expect(stolen.res.status).toBe(400);
 
-    await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: BENCHES } });
+    await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: NOTES } });
     await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
       method: "POST",
       headers: platform,
-      json: { pluginId: "benches" },
+      json: { pluginId: "notes" },
     });
-    expect((await upload(alice.headers, jpeg(), "benches")).status).toBe(404);
+    expect((await upload(alice.headers, jpeg(), "notes")).status).toBe(404);
+  });
+});
+
+describe("plugin catalog", () => {
+  test("no session 401; the built-in plugins in order, not uploaded ones", async () => {
+    await start();
+    expect((await t.request("/api/plugins")).status).toBe(401);
+    await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: NOTES } });
+    const u = await t.signUp();
+    const res = await t.request("/api/plugins", { headers: u.headers });
+    expect(res.status).toBe(200);
+    const catalog = (await res.json()) as PluginCatalogItem[];
+    expect(catalog.map(({ id, name, icon }) => ({ id, name, icon }))).toEqual([
+      { id: "issues", name: "Zgłoszenia", icon: "🛠️" },
+      { id: "announcements", name: "Ogłoszenia", icon: "📢" },
+      { id: "discussions", name: "Dyskusje", icon: "💬" },
+    ]);
+    expect(catalog.every((plugin) => plugin.description.length > 0)).toBe(true);
   });
 });
 
@@ -202,26 +221,26 @@ describe("isolation and plugins uploaded on the fly", () => {
   test("no platform token 401; upload → install → navigation and usage; survives restart", async () => {
     await start();
     const u = await t.signUp();
-    expect((await uploadPlugin(BENCHES, {})).status).toBe(401);
-    expect((await uploadPlugin(BENCHES)).status).toBe(201);
-    expect((await install("benches")).status).toBe(201);
+    expect((await uploadPlugin(NOTES, {})).status).toBe(401);
+    expect((await uploadPlugin(NOTES)).status).toBe(201);
+    expect((await install("notes")).status).toBe(201);
 
     const nav = (await (await t.request(`${base}/nav`, { headers: u.headers })).json()) as CommunityNavItem[];
-    expect(nav.map((n) => n.pluginId)).toEqual(["issues", "announcements", "benches"]);
-    expect((await tool(u.headers, "benches/tools/report", { park: "Park Jordana" })).res.status).toBe(200);
-    expect(textsOf((await view(u.headers, "benches/views/main")).node!)).toContain("Park Jordana");
+    expect(nav.map((n) => n.pluginId)).toEqual(["issues", "announcements", "discussions", "notes"]);
+    expect((await tool(u.headers, "notes/tools/add", { title: "Klucz do piwnicy" })).res.status).toBe(200);
+    expect(textsOf((await view(u.headers, "notes/views/main")).node!)).toContain("Klucz do piwnicy");
 
     const restarted = createApp({ db: t.db, env: loadEnv(TEST_ENV) }).app;
     const res = await restarted.request(`${base}/nav`, { headers: u.headers });
-    expect(((await res.json()) as CommunityNavItem[]).map((n) => n.pluginId)).toContain("benches");
+    expect(((await res.json()) as CommunityNavItem[]).map((n) => n.pluginId)).toContain("notes");
   });
 
   test("onInstall writes seed data on first install (once)", async () => {
     await start();
     const u = await t.signUp();
-    const seeded = BENCHES.replace('id: "benches"', 'id: "seeded"').replace(
+    const seeded = NOTES.replace('id: "notes"', 'id: "seeded"').replace(
       "    views: {",
-      '    onInstall: async (ctx) => {\n      await ctx.db.benches.insert({ park: "Planty", problem: "z instalacji" });\n    },\n    views: {',
+      '    onInstall: async (ctx) => {\n      await ctx.db.notes.insert({ title: "Planty", body: "z instalacji" });\n    },\n    views: {',
     );
     expect((await uploadPlugin(seeded)).status).toBe(201);
     await install("seeded");
@@ -239,23 +258,20 @@ describe("isolation and plugins uploaded on the fly", () => {
       return `${body.stage} ${body.message}`;
     };
     expect(await bad("export default (sdk => {")).toStartWith("syntax");
-    expect(await bad(BENCHES.replace('id: "benches"', 'id: "X"'))).toContain("Invalid manifest");
-    expect(await bad(BENCHES.replace('view: "main"', 'view: "missing"'))).toContain("missing view");
-    expect(await bad(BENCHES.replace('id: "benches"', 'id: "issues"'))).toContain("built-in");
+    expect(await bad(NOTES.replace('id: "notes"', 'id: "X"'))).toContain("Invalid manifest");
+    expect(await bad(NOTES.replace('view: "main"', 'view: "missing"'))).toContain("missing view");
+    expect(await bad(NOTES.replace('id: "notes"', 'id: "issues"'))).toContain("built-in");
   });
 
   test("plugin without db permission or with invalid UI: 500 plugin_error, API keeps working", async () => {
     await start();
     const u = await t.signUp();
-    await uploadPlugin(BENCHES.replace('id: "benches"', 'id: "nostore"').replace('permissions: ["db"],', ""));
+    await uploadPlugin(NOTES.replace('id: "notes"', 'id: "nostore"').replace('permissions: ["db"],', ""));
     await install("nostore");
     expect((await view(u.headers, "nostore/views/main")).res.status).toBe(500);
 
     await uploadPlugin(
-      BENCHES.replace('id: "benches"', 'id: "badui"').replace(
-        'ui.screen("Ławki w parkach", [',
-        "ui.screen(42 as never, [",
-      ),
+      NOTES.replace('id: "notes"', 'id: "badui"').replace('ui.screen("Tablica notatek", [', "ui.screen(42 as never, ["),
     );
     await install("badui");
     const res = await view(u.headers, "badui/views/main");
@@ -271,7 +287,7 @@ describe("isolation and plugins uploaded on the fly", () => {
       const res = await noAdmin.request("/api/admin/plugins", {
         method: "POST",
         headers: platform,
-        json: { source: BENCHES },
+        json: { source: NOTES },
       });
       expect(res.status).toBe(404);
     } finally {
@@ -300,7 +316,7 @@ describe("dashboard", () => {
     });
   };
   const withWidget = (id: string, widget: string) =>
-    BENCHES.replace('id: "benches"', `id: "${id}"`).replace(
+    NOTES.replace('id: "notes"', `id: "${id}"`).replace(
       "    views: {",
       `    dashboardWidgets: { w: ${widget} },\n    views: {`,
     );
@@ -347,7 +363,7 @@ describe("dashboard", () => {
     expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary"]);
 
     await uploadAndInstall(
-      withWidget("tiles", "{ size: { w: 1, h: 1 }, render: () => ui.widget('Ławki', []) }"),
+      withWidget("tiles", "{ size: { w: 1, h: 1 }, render: () => ui.widget('Notatki', []) }"),
       "tiles",
     );
     expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary", "tiles/w"]);
@@ -369,7 +385,7 @@ describe("dashboard", () => {
     await uploadAndInstall(
       withWidget(
         "withform",
-        "{ size: { w: 1, h: 1 }, render: () => ui.widget('x', [ui.button('Usuń', ui.tool('report'))]) }",
+        "{ size: { w: 1, h: 1 }, render: () => ui.widget('x', [ui.button('Usuń', ui.tool('add'))]) }",
       ),
       "withform",
     );

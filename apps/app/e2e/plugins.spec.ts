@@ -107,37 +107,38 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await expect(page.getByRole("status")).toContainText("Naprawione");
 });
 
-const BENCHES = readFileSync(join(import.meta.dirname, "../../../plugins/benches/index.ts"), "utf8");
+/** A test-only plugin (not one of plugins/: those are all built in). */
+const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/notes-plugin.ts"), "utf8");
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test", api.url);
   await page.goto("/app");
   await expect(page.getByRole("link", { name: "Zgłoszenia" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Ławki" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
 
   const headers = { authorization: `Bearer ${TEST_ADMIN_TOKEN}`, "content-type": "application/json" };
   const up = await fetch(`${api.url}/api/admin/plugins`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ source: BENCHES }),
+    body: JSON.stringify({ source: NOTES }),
   });
   expect(up.status).toBe(201);
   const inst = await fetch(`${api.url}/api/admin/communities/krakow/plugins`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ pluginId: "benches" }),
+    body: JSON.stringify({ pluginId: "notes" }),
   });
   expect(inst.status).toBe(201);
 
-  await page.getByRole("link", { name: "Ławki" }).click({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Ławki w parkach" })).toBeVisible();
-  await expect(page.getByText("Wszystkie ławki są całe.")).toBeVisible();
+  await page.getByRole("link", { name: "Notatki" }).click({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Tablica notatek" })).toBeVisible();
+  await expect(page.getByText("Nie ma jeszcze notatek.")).toBeVisible();
 
-  await page.getByLabel("Park").fill("Park Jordana");
-  await page.getByRole("button", { name: "Zgłoś ławkę" }).click();
-  await expect(page.getByRole("status")).toContainText("Ławka trafiła na listę");
-  await expect(page.getByRole("list", { name: "Zepsute ławki" }).getByText("Park Jordana")).toBeVisible();
-  await expect(page.getByLabel("Park")).toHaveValue("");
+  await page.getByLabel("Tytuł").fill("Klucz do piwnicy");
+  await page.getByRole("button", { name: "Dodaj notatkę" }).click();
+  await expect(page.getByRole("status")).toContainText("Notatka dodana.");
+  await expect(page.getByRole("list", { name: "Wszystkie notatki" }).getByText("Klucz do piwnicy")).toBeVisible();
+  await expect(page.getByLabel("Tytuł")).toHaveValue("");
 });
 
 test("home screen widget: announcements show what is new since the last visit", async ({ page, api }) => {

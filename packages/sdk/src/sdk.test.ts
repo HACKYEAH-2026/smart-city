@@ -46,17 +46,17 @@ describe("UI catalog", () => {
 describe("plugin manifest", () => {
   test("fills in defaults", () => {
     const m = pluginManifestSchema.parse({
-      id: "benches",
-      name: "Ławki",
+      id: "notes",
+      name: "Notatki",
       version: "1.0.0",
-      nav: [{ view: "main", label: "Ławki" }],
+      nav: [{ view: "main", label: "Notatki" }],
     });
     expect(m).toMatchObject({ icon: "🧩", permissions: [], description: "" });
   });
 
   test("rejects bad id, version and empty nav", () => {
-    const base = { id: "benches", name: "Ławki", version: "1.0.0", nav: [{ view: "main", label: "Ławki" }] };
-    expect(pluginManifestSchema.safeParse({ ...base, id: "Ławki!" }).success).toBe(false);
+    const base = { id: "notes", name: "Notatki", version: "1.0.0", nav: [{ view: "main", label: "Notatki" }] };
+    expect(pluginManifestSchema.safeParse({ ...base, id: "Notatki!" }).success).toBe(false);
     expect(pluginManifestSchema.safeParse({ ...base, version: "v1" }).success).toBe(false);
     expect(pluginManifestSchema.safeParse({ ...base, nav: [] }).success).toBe(false);
   });
