@@ -7,9 +7,9 @@ import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 /**
- * square: back button in screen headers · plain: back without a background in a step header · round: bell or
- * account avatar · roundSunken: close in a bottom sheet · roundOnDark: close and torch on the dark QR scanner ·
- * floating: over a map (back, "my location"), with a shadow instead of a border.
+ * square: bordered button on a surface (reorder on the dashboard) · plain: back or cancel without a background in
+ * screen and step headers · round: bell or account avatar · roundSunken: close in a bottom sheet · roundOnDark: close
+ * and torch on the dark QR scanner · floating: over a map (back, "my location"), with a shadow instead of a border.
  */
 export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "floating";
 
@@ -79,7 +79,9 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
-  plain: {},
+  // Keeps its 44 dp touch target but is pulled out by the padding around its icon, so the icon lines up with the
+  // content edge (like the title below it) and sits a row's `gap` away from its neighbour.
+  plain: { marginHorizontal: -(sizes.iconButton - sizes.iconM) / 2 },
   round: {
     borderRadius: radii.pill,
     borderWidth: borders.hairline,

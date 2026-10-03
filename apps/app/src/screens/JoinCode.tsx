@@ -47,7 +47,7 @@ export default function JoinCode() {
       <Head>
         <title>{t.join_code_title}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
+      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
       <View style={styles.intro}>
         <Text role="heading" aria-level={1} variant="titleXL">
           {t.join_code_title}

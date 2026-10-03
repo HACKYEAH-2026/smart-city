@@ -40,7 +40,7 @@ export default function RegisterScreen() {
         <title>{t.meta_register_title}</title>
       </Head>
       <View style={styles.topRow}>
-        <IconButton icon={ChevronLeft} label={t.auth_back} onPress={() => goBack(router, "/login")} />
+        <IconButton variant="plain" icon={ChevronLeft} label={t.auth_back} onPress={() => goBack(router, "/login")} />
         <Text variant="label" color="textSecondary">
           {t.auth_step}
         </Text>

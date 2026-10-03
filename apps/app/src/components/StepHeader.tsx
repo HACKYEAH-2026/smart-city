@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
-import { sizes, spacing } from "../theme";
+import { spacing } from "../theme";
 import { IconButton } from "./IconButton";
 import { SegmentedProgress } from "./SegmentedProgress";
 import { Text } from "./Text";
@@ -24,9 +24,7 @@ export interface StepHeaderProps {
 export function StepHeader({ step, total, label, backIcon, backLabel, onBack }: StepHeaderProps) {
   return (
     <View style={styles.row}>
-      <View style={styles.back}>
-        <IconButton variant="plain" icon={backIcon} label={backLabel} onPress={onBack} />
-      </View>
+      <IconButton variant="plain" icon={backIcon} label={backLabel} onPress={onBack} />
       <View style={styles.progress}>
         <SegmentedProgress value={step} segments={total} />
       </View>
@@ -39,8 +37,5 @@ export function StepHeader({ step, total, label, backIcon, backLabel, onBack }: 
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing[8] },
-  // The plain button keeps its 44 dp touch target; pull it out by the padding around its icon so the icon lines up
-  // with the screen edge (like the title below) and sits `gap` away from the progress.
-  back: { marginHorizontal: -(sizes.iconButton - sizes.iconM) / 2 },
   progress: { flex: 1 },
 });

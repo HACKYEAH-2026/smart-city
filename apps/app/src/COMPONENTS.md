@@ -50,8 +50,8 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 
 44×44 dp, ikona 20 dp. Warianty:
 
-- `square` — radius 14, tło `surface`, border `borderSubtle` (przycisk wstecz, w nagłówkach ekranów),
-- `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówku kroku, ikona wyrównana do krawędzi treści),
+- `square` — radius 14, tło `surface`, border `borderSubtle` (przestawianie kafelków na pulpicie),
+- `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówkach ekranów i kroków; wariant sam wysuwa się o margines wokół ikony, więc ikona jest wyrównana do krawędzi treści),
 - `round` — radius 22, tło `surface`, border `borderSubtle` (dzwonek powiadomień, awatar „JK" z inicjałami `typography.buttonS`),
 - `roundDark` — **niezaimplementowany** (brak w `IconButtonVariant`); w projekcie: radius 22, tło `text`, ikona `surface` (zębatka admina; może mieć `CountBadge` w rogu top 2/right 2),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
@@ -166,7 +166,7 @@ W białej grupie: wiersz `space-between`, padding 14/16, tekst 15; etykieta `tex
 
 ### ScreenHeader
 
-Wariant prosty: `IconButton square` (wstecz). Wariant „krok": `IconButton plain` (wstecz) + `StepProgress` + etykieta „Krok N z M" (`stepNumber`, `textSecondary`), gap 16. Wariant z tytułem: etykieta `label` nad `headingS` (np. nazwa miejsca nad „Zarządzaj miejscem"). Pod nagłówkiem blok tytułu: `title` + lead `bodyL` `textSecondary`, gap 8.
+Wariant prosty: `IconButton plain` (wstecz). Wariant „krok": `IconButton plain` (wstecz) + `StepProgress` + etykieta „Krok N z M" (`stepNumber`, `textSecondary`), gap 16. Wariant z tytułem: etykieta `label` nad `headingS` (np. nazwa miejsca nad „Zarządzaj miejscem"). Pod nagłówkiem blok tytułu: `title` + lead `bodyL` `textSecondary`, gap 8.
 
 ### StepProgress
 
