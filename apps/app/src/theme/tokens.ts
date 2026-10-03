@@ -178,6 +178,10 @@ export const sizes = {
   dashboardMapFade: 120,
   /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
   dashboardMapCrop: 48,
+  /** Dashboard header: the tip of the place's pin, this far below the top of the content (beside the place's name). */
+  dashboardPinTop: 104,
+  /** Dashboard header: the place's pin across the screen, a fraction of its width (between the name and the gear). */
+  dashboardPinX: 0.64,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */

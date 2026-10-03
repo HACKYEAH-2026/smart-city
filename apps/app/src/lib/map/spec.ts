@@ -25,9 +25,13 @@ export type MapData = {
 };
 /** [[west, south], [east, north]] in degrees. */
 export type Bounds = [[number, number], [number, number]];
+/** A point of the map's view as fractions of its width and height: { x: 0.5, y: 0.5 } is the middle. */
+export type Anchor = { x: number; y: number };
 export type MapOptions = {
   center: GeoPoint;
   zoom: number;
+  /** Where `center` sits in the view (default the middle): under a pin drawn off centre over the map. */
+  anchor?: Anchor;
   /** The first view fits these bounds instead of `center` and `zoom` (no closer than STREET_ZOOM). */
   fit?: Bounds | null;
   interactive: boolean;
@@ -47,6 +51,7 @@ export type MapSpec = {
   style: string;
   center: [number, number];
   zoom: number;
+  anchor: Anchor;
   bounds: Bounds | null;
   /** How the first view fits `bounds` (MapLibre fitBoundsOptions). */
   fitOptions: { padding: { top: number; right: number; bottom: number; left: number }; maxZoom: number };
@@ -245,6 +250,7 @@ export const mapSpec = (options: MapOptions, data: MapData): MapSpec => ({
   style: STYLE_URL,
   center: lngLat(options.center),
   zoom: options.zoom,
+  anchor: options.anchor ?? { x: 0.5, y: 0.5 },
   bounds: options.fit ?? null,
   fitOptions: {
     padding: {

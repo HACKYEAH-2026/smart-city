@@ -80,7 +80,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
     <Screen
       chrome={false}
       tabBar
-      backdrop={<PlaceBackdrop location={details.data?.location ?? null} />}
+      backdrop={<PlaceBackdrop location={details.data?.location ?? null} kind={place.kind} />}
       overlay={
         // Design E-PrzelacznikMiejsc: picking a row switches the dashboard behind the sheet; the sheet stays open.
         <BottomSheet visible={switching} title={t.places_sheet_title} onClose={closeSwitcher}>
