@@ -14,11 +14,11 @@ const benches: PluginModule = ({ definePlugin, ui, z }) =>
     version: "1.0.0",
     icon: "🪑",
     description: "Zgłaszanie zepsutych ławek w parkach.",
-    permissions: ["storage"],
+    permissions: ["db"],
     nav: [{ view: "main", label: "Ławki" }],
     views: {
       main: async (ctx) => {
-        const items = await ctx.storage.list<Bench>("benches");
+        const items = await ctx.db.list<Bench>("benches");
         return ui.screen("Ławki w parkach", [
           ui.form({
             submitLabel: "Zgłoś ławkę",
@@ -42,7 +42,7 @@ const benches: PluginModule = ({ definePlugin, ui, z }) =>
         description: "Zgłoś zepsutą ławkę w parku",
         input: z.object({ park: z.string().trim().min(1), problem: z.string().trim().max(200).default("") }),
         handler: async (ctx, input) => {
-          await ctx.storage.create("benches", input);
+          await ctx.db.create("benches", input);
           return { toast: "Dziękujemy! Ławka trafiła na listę.", refresh: true };
         },
       },

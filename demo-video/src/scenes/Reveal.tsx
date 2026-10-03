@@ -16,7 +16,7 @@ const CODE_AT = 120;
 
 const CODE = `export default definePlugin({
   id: "issues",
-  permissions: ["members.read", "storage"],
+  permissions: ["members.read", "db"],
   tools: {
     report: async (ctx, { photo, text }) => {…},
     upvote: async (ctx, { id }) => {…},

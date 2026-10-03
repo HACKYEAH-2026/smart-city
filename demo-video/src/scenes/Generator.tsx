@@ -12,11 +12,11 @@ const SWITCH_AT = 215;
 
 const CODE = `export default definePlugin({
   id: "benches",
-  permissions: ["storage", "map"],
+  permissions: ["db", "map"],
   views: { main: mapView("benches") },
   tools: {
     report: async (ctx, { park, photo }) =>
-      ctx.storage.add("benches", { park, photo }),
+      ctx.db.add("benches", { park, photo }),
   },
 });`;
 

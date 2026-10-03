@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { definePlugin, fileRef, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
+import { fileRef } from "./files";
+import { definePlugin, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
 import { ui } from "./ui";
 
 /** Plugin error (bad manifest, exception, invalid result). The message is safe to show the author/admin. */

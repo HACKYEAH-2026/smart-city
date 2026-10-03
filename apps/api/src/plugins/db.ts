@@ -1,4 +1,4 @@
-import type { Doc, Query, Storage } from "@app/plugin-sdk";
+import type { Database, Doc, Query } from "@app/plugin-sdk";
 import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type Db, schema } from "../db";
 
@@ -36,7 +36,7 @@ function whereClause(where: Record<string, unknown> = {}): SQL[] {
  * Document store of a single installation. EVERY query filters by installationId — this is
  * the isolation boundary between communities and plugins.
  */
-export function createStorage(db: Db, installationId: string, userId: string | null): Storage {
+export function createPluginDb(db: Db, installationId: string, userId: string | null): Database {
   const scoped = (collection: string, id?: string) => {
     check(NAME, "collection", collection);
     return and(

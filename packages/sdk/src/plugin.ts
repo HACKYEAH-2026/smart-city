@@ -1,4 +1,7 @@
 import { z } from "zod";
+import type { AI } from "./ai";
+import type { Database } from "./db";
+import type { Files, fileRef } from "./files";
 import type { ToolResult, UI, UINode, ViewParams } from "./ui";
 
 /**
@@ -8,7 +11,7 @@ import type { ToolResult, UI, UINode, ViewParams } from "./ui";
  * and can later run in isolation (Worker/WASM) without changes to the plugin code.
  */
 
-export const PLUGIN_PERMISSIONS = ["storage", "files", "ai"] as const;
+export const PLUGIN_PERMISSIONS = ["db", "files", "ai"] as const;
 export type Permission = (typeof PLUGIN_PERMISSIONS)[number];
 
 export const ROLES = ["admin", "user"] as const;
@@ -31,89 +34,6 @@ export const pluginManifestSchema = z.object({
 export type PluginManifest = z.output<typeof pluginManifestSchema>;
 export type PluginManifestInput = z.input<typeof pluginManifestSchema>;
 
-// ─────────────────────────────── Storage ────────────────────────────────
-
-/** A document in plugin storage. `data` is arbitrary plugin JSON. */
-export type Doc<T = Record<string, unknown>> = {
-  id: string;
-  createdBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  data: T;
-};
-
-export type Query<T> = {
-  /** Equality on top-level `data` fields (string, number, boolean). */
-  where?: Partial<T>;
-  order?: "newest" | "oldest";
-  limit?: number;
-};
-
-/**
- * Document store. Always scoped to ONE installation (plugin × community):
- * a plugin has no way to read data of another community or another plugin.
- */
-export interface Storage {
-  get<T = Record<string, unknown>>(collection: string, id: string): Promise<Doc<T> | null>;
-  list<T = Record<string, unknown>>(collection: string, query?: Query<T>): Promise<Doc<T>[]>;
-  /** New document with a generated id. */
-  create<T extends Record<string, unknown>>(collection: string, data: T): Promise<Doc<T>>;
-  /** Write under a key (id = key): creates or overwrites. The database guarantees uniqueness (e.g. one vote per person). */
-  upsert<T extends Record<string, unknown>>(collection: string, key: string, data: T): Promise<Doc<T>>;
-  /** Shallow merge of `patch` fields into the existing `data`. */
-  update<T = Record<string, unknown>>(collection: string, id: string, patch: Partial<T>): Promise<Doc<T> | null>;
-  remove(collection: string, id: string): Promise<boolean>;
-}
-
-// ──────────────────────────────── Files ─────────────────────────────────
-
-/** Id of a file uploaded by the app (POST …/files). A plugin never sees the bytes or the disk. */
-export type FileId = string & { readonly __brand: "FileId" };
-export const FILE_ID = /^file_[0-9a-f-]{36}$/;
-export const fileRef = () =>
-  z
-    .string()
-    .regex(FILE_ID, "Invalid file id")
-    .transform((v) => v as FileId);
-
-export type FileInfo = { mime: string; size: number };
-
-export interface Files {
-  /** Confirms this user's upload in this plugin. Unconfirmed files disappear after 24 h. */
-  keep(id: FileId): Promise<void>;
-  info(id: FileId): Promise<FileInfo>;
-  remove(id: FileId): Promise<void>;
-}
-
-// ───────────────────────────────── AI ──────────────────────────────────
-
-export type AICall<S extends z.ZodType | undefined = undefined> = {
-  prompt: string;
-  images?: FileId[];
-  /** With a schema the response is a validated object; without one — text. */
-  schema?: S;
-};
-
-export type SimilarOptions<T> = {
-  text: (doc: Doc<T>) => string;
-  image?: (doc: Doc<T>) => FileId | undefined;
-  limit?: number;
-};
-
-export type SimilarMatch<T> = { doc: Doc<T>; score: number; reason: string };
-
-export interface AI {
-  call<S extends z.ZodType | undefined = undefined>(
-    req: AICall<S>,
-  ): Promise<S extends z.ZodType ? z.output<S> : string>;
-  /** Semantically similar documents (most similar first); empty list = none similar. */
-  findSimilar<T>(
-    query: { text: string; image?: FileId },
-    candidates: Doc<T>[],
-    opts: SimilarOptions<T>,
-  ): Promise<SimilarMatch<T>[]>;
-}
-
 // ─────────────────────────────── Context ────────────────────────────────
 
 export type PluginUser = { id: string; name: string; role: Role };
@@ -124,8 +44,8 @@ export type Context = {
   user: PluginUser;
   community: PluginCommunity;
   now(): Date;
-  /** "storage" permission. */
-  storage: Storage;
+  /** "db" permission. */
+  db: Database;
   /** "files" permission. */
   files: Files;
   /** "ai" permission. */
@@ -160,7 +80,6 @@ export function definePlugin<T extends Record<string, z.ZodType>>(
 ): PluginDefinition {
   return plugin as PluginDefinition;
 }
-
 export type PluginSdk = { definePlugin: typeof definePlugin; ui: UI; z: typeof z; fileRef: typeof fileRef };
 
 /** Plugin module shape: `const p: PluginModule = ({ definePlugin, ui, z, fileRef }) => definePlugin({...})`. */
