@@ -508,11 +508,14 @@
                 One model for the whole host, configured only in <code>src/services/ai/model.ts</code>: an
                 OpenAI-compatible API through Strands Agents (<code>AI_API_KEY</code> + <code>AI_MODEL</code>, optional
                 <code>AI_BASE_URL</code>). It powers <code>ctx.ai</code> (<code>StrandsLanguageModel</code>) and the
-                plugin builder's author agent (<code>StrandsPluginAuthor</code>).
+                plugin builder's author agent (<code>StrandsPluginAuthor</code>). An embedding model on the same key
+                and endpoint (<code>AI_EMBEDDING_MODEL</code>, <code>OpenAIEmbeddingModel</code>) powers
+                <code>ctx.ai.embed</code>.
               </p>
               <p class="small muted">
                 Without it: the builder answers <code>503 ai_unavailable</code>, <code>ctx.ai.call</code> throws, and
                 <code>ctx.ai.findSimilar</code> falls back to matching shared words — enough for tests and a keyless demo.
+                Without an embedding model, <code>ctx.ai.embed</code> throws.
               </p>
             </div>
             <div class="detail" data-pane="maps" hidden>

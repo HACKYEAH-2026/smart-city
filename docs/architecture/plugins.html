@@ -1063,12 +1063,14 @@ const { title } = await ctx.ai.call({ prompt, images: [photo], schema: z.object(
 const [match] = await ctx.ai.findSimilar({ text: input.title, image: input.photo ?? null }, candidates, {
   text: (i) =&gt; `${i.title}. ${i.description}`,
   limit: 1,
-});</code></pre>
+});
+const vector = await ctx.ai.embed(input.title); // number[]: stored and compared by the plugin</code></pre>
               <ul>
                 <li>The model is host configuration: Strands Agents on an OpenAI-compatible API (<code>AI_API_KEY</code>, <code>AI_MODEL</code>, optional <code>AI_BASE_URL</code>; <span class="path">apps/api/src/services/ai/</span>). Plugins never see keys.</li>
                 <li>At most 60 calls per minute per installation; images are read only from this installation's files.</li>
+                <li><code>embed</code> uses the embedding model (<code>AI_EMBEDDING_MODEL</code>; without it, it throws): text up to 8000 characters, at most 600 per minute per installation, counted apart from calls. Vectors of different models are not comparable.</li>
                 <li><code>findSimilar</code> sends at most 30 candidates and keeps matches scoring ≥ 0.6. Without a model it falls back to shared words (score ≥ 0.5), so tests and a keyless demo still work.</li>
-                <li>With a <code>schema</code>, the answer is parsed with it; tests use <code>plugin.ai.mockCall</code> / <code>mockSimilar</code>.</li>
+                <li>With a <code>schema</code>, the answer is parsed with it; tests use <code>plugin.ai.mockCall</code> / <code>mockSimilar</code> / <code>mockEmbed</code>.</li>
               </ul>
             </div>
 

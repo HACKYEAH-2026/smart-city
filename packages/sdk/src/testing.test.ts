@@ -88,3 +88,29 @@ describe("ctx.notify in the harness", () => {
     expect(plugin.notifications()).toEqual([]);
   });
 });
+
+describe("ctx.ai.embed in the harness", () => {
+  const lookalike: PluginModule = ({ definePlugin, ui, z }) =>
+    definePlugin({
+      id: "lookalike",
+      name: "Podobne",
+      version: "1.0.0",
+      permissions: ["ai"],
+      nav: [{ view: "main", label: "Podobne" }],
+      views: { main: () => ui.screen("Podobne", []) },
+      tools: {
+        embed: {
+          description: "Wektor tekstu",
+          input: z.object({ text: z.string() }),
+          handler: async (ctx, input) => ({ data: { vector: await ctx.ai.embed(input.text) } }),
+        },
+      },
+    });
+
+  test("no mock: fails with a hint; with mockEmbed: the mocked vector", async () => {
+    const plugin = await testPlugin(lookalike);
+    await expect(plugin.tool("embed", { text: "Latarnia" })).rejects.toThrow("t.ai.mockEmbed");
+    plugin.ai.mockEmbed((text) => [text.length, 1]);
+    expect((await plugin.tool("embed", { text: "Latarnia" })).data).toEqual({ vector: [8, 1] });
+  });
+});

@@ -30,6 +30,8 @@ export const envSchema = z.object({
   AI_MODEL: z.string().min(1).optional(),
   /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */
   AI_BASE_URL: z.url().optional(),
+  /** Embedding model for ctx.ai.embed (same key and endpoint). Unset = ctx.ai.embed is unavailable. */
+  AI_EMBEDDING_MODEL: z.string().min(1).optional(),
   /**
    * Google sign-in: client ID of the "Web application" OAuth client in the Google Cloud project. The phones ask Google
    * for ID tokens issued to it (webClientId), the API checks they are. Unset = no Google sign-in. No client secret:

@@ -1,4 +1,5 @@
 import { OpenAIModel } from "@strands-agents/sdk/models/openai";
+import OpenAI from "openai";
 
 export type ModelConfig = { apiKey: string; model: string; baseUrl?: string | undefined };
 
@@ -10,3 +11,7 @@ export const openAIModel = (config: ModelConfig) =>
     apiKey: config.apiKey,
     ...(config.baseUrl ? { clientConfig: { baseURL: config.baseUrl } } : {}),
   });
+
+/** The client of the same API for what Strands does not wrap (embeddings: POST /embeddings). */
+export const openAIClient = (config: ModelConfig) =>
+  new OpenAI({ apiKey: config.apiKey, ...(config.baseUrl ? { baseURL: config.baseUrl } : {}) });

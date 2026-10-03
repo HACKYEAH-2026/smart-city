@@ -11,5 +11,13 @@ export interface LanguageModel {
   generate(req: { prompt: string; images?: ModelImage[]; schema?: z.ZodType }): Promise<unknown>;
 }
 
-/** Without a language model: ctx.ai.call throws and findSimilar works lexically (shared words). */
-export type AIProviders = { language?: LanguageModel };
+export interface EmbeddingModel {
+  /** The text as a vector; one model always returns vectors of the same length. */
+  embed(text: string): Promise<number[]>;
+}
+
+/**
+ * Without a language model: ctx.ai.call throws and findSimilar works lexically (shared words).
+ * Without an embedding model: ctx.ai.embed throws.
+ */
+export type AIProviders = { language?: LanguageModel; embedding?: EmbeddingModel };

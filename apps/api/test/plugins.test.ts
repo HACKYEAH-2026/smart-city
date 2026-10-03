@@ -6,7 +6,7 @@ import { textsOf } from "@app/plugin-sdk/testing";
 import type { CommunityNavItem, PluginCatalogItem } from "@app/shared";
 import { createApp } from "../src/app";
 import { loadEnv } from "../src/env";
-import type { LanguageModel } from "../src/services/ai/types";
+import type { EmbeddingModel, LanguageModel } from "../src/services/ai/types";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADDRESS, DEMO_COMMUNITY, DEMO_LOCATION } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
@@ -29,6 +29,7 @@ afterEach(async () => {
 const base = `/api/communities/${DEMO_COMMUNITY.slug}`;
 const platform = { authorization: `Bearer ${TEST_ENV.PLUGIN_ADMIN_TOKEN}` };
 const NOTES = readFileSync(join(import.meta.dir, "fixtures/notes-plugin.ts"), "utf8");
+const DEDUPE = readFileSync(join(import.meta.dir, "fixtures/dedupe-plugin.ts"), "utf8");
 
 const view = async (headers: Record<string, string>, path: string) => {
   const res = await t.request(`${base}/plugins/${path}`, { headers });
@@ -193,6 +194,52 @@ describe("AI", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.prompt).toContain("Ciemno przy przystanku");
     expect(seen[0]?.images).toBe(1);
+  });
+
+  const startDedupe = async (embedding?: EmbeddingModel) => {
+    await start(embedding ? { ai: { embedding } } : {});
+    await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: DEDUPE } });
+    await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
+      method: "POST",
+      headers: platform,
+      json: { pluginId: "dedupe" },
+    });
+  };
+
+  test("with an embedding model: a plugin stores ctx.ai.embed vectors and compares them itself", async () => {
+    const embedded: string[] = [];
+    // One axis per topic: texts about the same thing get the same direction.
+    const embedding: EmbeddingModel = {
+      async embed(text) {
+        embedded.push(text);
+        return [/latarni/i.test(text) ? 1 : 0, /dziur/i.test(text) ? 1 : 0, 0.1];
+      },
+    };
+    await startDedupe(embedding);
+    const alice = await t.signUp();
+    const bob = await t.signUp();
+
+    const lamp = await tool(alice.headers, "dedupe/tools/add", { title: "Nie świeci latarnia na Długiej" });
+    const hole = await tool(alice.headers, "dedupe/tools/add", { title: "Dziura w jezdni na Kopernika" });
+    const again = await tool(bob.headers, "dedupe/tools/add", { title: "Zepsuta latarnia przy Długiej" });
+
+    const lampId = (lamp.result?.data as { id?: string } | undefined)?.id;
+    expect(lampId).toBeString();
+    expect(hole.result?.data).toHaveProperty("id");
+    expect(again.result?.data).toEqual({ duplicateOf: lampId });
+    expect(embedded).toEqual([
+      "Nie świeci latarnia na Długiej",
+      "Dziura w jezdni na Kopernika",
+      "Zepsuta latarnia przy Długiej",
+    ]);
+  });
+
+  test("without an embedding model ctx.ai.embed fails (plugin_error)", async () => {
+    await startDedupe();
+    const u = await t.signUp();
+    const { res } = await tool(u.headers, "dedupe/tools/add", { title: "Latarnia" });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "plugin_error" });
   });
 });
 

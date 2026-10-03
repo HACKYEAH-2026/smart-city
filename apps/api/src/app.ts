@@ -20,6 +20,7 @@ import { placeAdminRoutes } from "./routes/placeAdmin";
 import { pluginsRoutes } from "./routes/plugins";
 import { StrandsPluginAuthor } from "./services/ai/author/strands";
 import type { PluginAuthor } from "./services/ai/author/types";
+import { OpenAIEmbeddingModel } from "./services/ai/embedding";
 import { StrandsLanguageModel } from "./services/ai/language";
 import { AIService } from "./services/ai/service";
 import type { AIProviders } from "./services/ai/types";
@@ -35,10 +36,17 @@ import type { PushSender } from "./services/push/types";
 const modelFromEnv = (env: Env) =>
   env.AI_API_KEY && env.AI_MODEL ? { apiKey: env.AI_API_KEY, model: env.AI_MODEL, baseUrl: env.AI_BASE_URL } : null;
 
-/** AI providers for ctx.ai; without a model, none. */
+/** The embedding model from env (same key and endpoint); without AI_API_KEY and AI_EMBEDDING_MODEL — none. */
+const embeddingFromEnv = (env: Env) =>
+  env.AI_API_KEY && env.AI_EMBEDDING_MODEL
+    ? new OpenAIEmbeddingModel({ apiKey: env.AI_API_KEY, model: env.AI_EMBEDDING_MODEL, baseUrl: env.AI_BASE_URL })
+    : null;
+
+/** AI providers for ctx.ai; each one only when configured. */
 function aiFromEnv(env: Env): AIProviders {
   const model = modelFromEnv(env);
-  return model ? { language: new StrandsLanguageModel(model) } : {};
+  const embedding = embeddingFromEnv(env);
+  return { ...(model ? { language: new StrandsLanguageModel(model) } : {}), ...(embedding ? { embedding } : {}) };
 }
 
 /**
