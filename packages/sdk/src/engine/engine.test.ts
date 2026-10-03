@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { RecordId, type SurrealSession } from "surrealdb";
-import { type TableDef, t } from "../services/db";
+import { type TableDef, type Tables, t } from "../services/db";
 import { testDatabase } from "../testing";
 import { createDatabase, DbError } from "./client";
 import { PLATFORM_SCHEMA } from "./platform";
@@ -23,6 +23,11 @@ const tables = {
     { issue: t.ref("issues"), author: t.ref("user"), note: t.text().default("") },
     { unique: [["issue", "author"]] },
   ),
+  labels: t.table(
+    { name: t.text(), scope: t.text().default("global"), color: t.text().optional() },
+    { unique: [["name", "scope"]] },
+  ),
+  pins: t.table({ issue: t.ref("issues", { onDelete: "restrict" }) }),
 };
 
 let surreal: SurrealSession;
@@ -152,6 +157,34 @@ describe("integrity", () => {
     expect(await db("krakow").reports.count()).toBe(0);
   });
 
+  test("upsert matches on the stored value of a defaulted key column, never on a wider set", async () => {
+    const labels = db("krakow").labels;
+    const local = await labels.insert({ name: "pilne", scope: "local", color: "red" });
+    const global = await labels.upsert({ name: "pilne", color: "blue" }, { on: ["name", "scope"] });
+    expect(global).toMatchObject({ name: "pilne", scope: "global", color: "blue" });
+    expect(global.id).not.toBe(local.id);
+    expect(await labels.get(local.id)).toMatchObject({ scope: "local", color: "red" });
+    const again = await labels.upsert({ name: "pilne", color: "green" }, { on: ["name", "scope"] });
+    expect(again).toMatchObject({ id: global.id, color: "green" });
+    expect(await labels.count()).toBe(2);
+  });
+
+  test("concurrent upserts of the same key leave one row", async () => {
+    const labels = db("krakow").labels;
+    const rows = await Promise.all(
+      ["a", "b", "c"].map((color) => labels.upsert({ name: "x", color }, { on: ["name", "scope"] })),
+    );
+    expect(new Set(rows.map((r) => r.id)).size).toBe(1);
+    expect(await labels.count()).toBe(1);
+  });
+
+  test('deleting a row still referenced with onDelete "restrict" throws DbError', async () => {
+    const issue = await db("krakow").issues.insert({ title: "Latarnia", reporter: "alice" });
+    await db("krakow").pins.insert({ issue: issue.id });
+    await expect(db("krakow").issues.delete(issue.id)).rejects.toThrow(DbError);
+    expect(await db("krakow").issues.count()).toBe(1);
+  });
+
   test("references to unknown users are rejected", async () => {
     await expect(db("krakow").issues.insert({ title: "x", reporter: "nobody" })).rejects.toThrow("unknown user");
   });
@@ -206,6 +239,19 @@ describe("watch (snapshot, then live changes)", () => {
     await it.return?.();
   });
 
+  test("events are relative to the rows the subscriber has: entering is create, leaving is delete", async () => {
+    const issues = db("krakow").issues;
+    const fixed = await issues.insert({ title: "Naprawione", reporter: "alice", status: "fixed" });
+    const it = issues.watch({ where: { status: "open" } });
+    expect(await next(it)).toEqual({ type: "snapshot", rows: [] });
+    await issues.update(fixed.id, { votes: 5 });
+    await issues.update(fixed.id, { status: "open" });
+    expect(await next(it)).toMatchObject({ type: "create", row: { id: fixed.id, votes: 5 } });
+    await issues.update(fixed.id, { status: "fixed" });
+    expect(await next(it)).toEqual({ type: "delete", id: fixed.id });
+    await it.return?.();
+  });
+
   test("changes from other installations are not visible", async () => {
     const it = db("krakow").issues.watch();
     expect(await next(it)).toEqual({ type: "snapshot", rows: [] });
@@ -255,13 +301,41 @@ describe("schema sync (no migration files)", () => {
       "must be .optional() or have .default",
     );
     await expect(change(t.table({ ...cols, votes: t.text().default("0") }))).rejects.toThrow("changed type");
-    await expect(change(t.table({ ...cols, title: t.text().optional() }))).rejects.toThrow("changed nullability");
+    await expect(change(t.table({ ...cols, meta: t.json<{ tags: string[] }>() }))).rejects.toThrow("became required");
     const { title: _, ...withoutTitle } = cols;
     await expect(change(t.table(withoutTitle))).rejects.toThrow("was removed");
-    await expect(change(t.table({ ...cols, reporter: t.ref("issues") }))).rejects.toThrow("changed its reference");
+    await expect(change(t.table({ ...cols, reporter: t.ref("issues") }))).rejects.toThrow(
+      "changed its reference target",
+    );
     await expect(change(t.table({ ...cols, status: t.enum(["open"]).default("open") }))).rejects.toThrow(
       "removed enum values",
     );
+  });
+
+  test("compatible changes apply: required → optional, onDelete, removed optional columns and indexes", async () => {
+    const client = <TT extends Tables>(tt: TT) =>
+      createDatabase({ surreal, pluginId: "issues", tables: tt, installationId: "krakow", userId: "alice" });
+    const issue = await db("krakow").issues.insert({ title: "Latarnia", reporter: "alice", meta: { tags: ["a"] } });
+    await db("krakow").labels.insert({ name: "pilne", scope: "x" });
+
+    const relaxedCols = { ...cols, title: t.text().optional(), reporter: t.ref("user", { onDelete: "restrict" }) };
+    const relaxed = {
+      ...withIssues(t.table(relaxedCols, { indexes: [["status"]] })),
+      labels: t.table({ name: t.text(), scope: t.text().default("global") }),
+    };
+    await syncSchema(surreal, "issues", relaxed);
+    expect(await client(relaxed).issues.update(issue.id, { title: null })).toMatchObject({ title: null });
+    // query() returns a lazy thenable; .then() makes it a Promise for expect().rejects.
+    await expect(surreal.query("DELETE user:alice;").then()).rejects.toThrow("ON DELETE REJECT");
+    // The unique index is gone with the declaration.
+    expect(await client(relaxed).labels.insert({ name: "pilne", scope: "x" })).toMatchObject({ name: "pilne" });
+
+    const { meta: _, ...withoutMeta } = relaxedCols;
+    await syncSchema(surreal, "issues", { ...relaxed, issues: t.table(withoutMeta) });
+    const readded = { ...relaxed, issues: t.table({ ...withoutMeta, meta: t.integer().optional() }) };
+    await syncSchema(surreal, "issues", readded);
+    expect(await client(readded).issues.get(issue.id)).toMatchObject({ meta: null });
+    expect(await client(readded).issues.update(issue.id, { meta: 3 })).toMatchObject({ meta: 3 });
   });
 
   test("static validation of declarations", () => {

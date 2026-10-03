@@ -156,12 +156,17 @@ export type Selected<TT extends Tables, D extends TableDef, W> = Omit<Row<D>, ke
 export type FindOptions<D extends TableDef, W> = {
   where?: Where<D>;
   orderBy?: OrderBy<D>;
+  /** Maximum rows; default 100, at most 1000. */
   limit?: number;
   offset?: number;
   with?: W;
 };
 
-/** First event: the current rows; then one event per change of a matching row. */
+/**
+ * First event: the current rows (the snapshot). Then one event per change, relative to the rows the subscriber
+ * has: a row entering the filter is `create`, a change to a row it has is `update`, a row leaving the filter or
+ * deleted is `delete`. `limit` and `orderBy` shape only the snapshot; later events are not limited or reordered.
+ */
 export type WatchEvent<R> =
   | { type: "snapshot"; rows: R[] }
   | { type: "create" | "update"; row: R }

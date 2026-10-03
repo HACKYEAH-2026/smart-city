@@ -2,11 +2,12 @@ import { afterEach } from "bun:test";
 import { createNodeEngines } from "@surrealdb/node";
 import { RecordId, Surreal, type SurrealSession } from "surrealdb";
 import type { z } from "zod";
+import { deniedService } from "./denied";
 import { createDatabase } from "./engine/client";
 import { PLATFORM_SCHEMA } from "./engine/platform";
 import { HOST, syncSchema } from "./engine/schema";
 import { loadPlugin } from "./load";
-import type { Context, PluginCommunity, PluginUser } from "./plugin";
+import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin";
 import type { AI, AICall, SimilarMatch } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
@@ -16,7 +17,7 @@ import { screenSchema, type ToolResult, toolResultSchema, type UINode, type View
  * Test harness for plugin authors: test a plugin like a plain function, without the API or an AI model.
  * The database is the real engine on embedded, in-memory SurrealDB (with the platform tables), so tables,
  * references, unique indexes, defaults and live `watch()` behave exactly as in the host. Also like the host:
- * input validation (Zod), `requires`, UI and result schemas. Each harness gets a fresh database.
+ * manifest permissions, input validation (Zod), `requires`, UI and result schemas. Each harness gets a fresh database.
  *
  *   const t = await testPlugin(issues, { user: alice });
  *   t.ai.mockSimilar(() => []);
@@ -153,9 +154,17 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     });
     return id;
   };
+  const can = (permission: Permission) => manifest.permissions.includes(permission);
   const ctxFor = async (user: PluginUser): Promise<Context> => {
     await ensureUser(user);
-    return { user, community, now, db: dbFor(user), files: filesApi, ai: ai.api };
+    return {
+      user,
+      community,
+      now,
+      db: can("db") ? dbFor(user) : deniedService("db"),
+      files: can("files") ? filesApi : deniedService("files"),
+      ai: can("ai") ? ai.api : deniedService("ai"),
+    };
   };
   const assertRole = (name: string, requires: string | undefined, user: PluginUser) => {
     if (requires === "admin" && user.role !== "admin") throw new ForbiddenError(`${name} requires admin`);

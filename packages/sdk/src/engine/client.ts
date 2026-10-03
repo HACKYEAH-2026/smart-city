@@ -75,8 +75,17 @@ function decode(spec: Spec, raw: unknown): unknown {
 function translateError(err: unknown, table: string): never {
   const message = (err as Error).message ?? String(err);
   if (message.includes("already contains")) throw new DbError(`${table}: unique constraint violated`);
+  if (message.includes("ON DELETE REJECT")) throw new DbError(`${table}: the row is still referenced (restrict)`);
   if (message.includes("Couldn't coerce")) throw new DbError(`${table}: ${message}`);
   throw err;
+}
+
+const MAX_ATTEMPTS = 5;
+const retryable = (err: unknown) => String((err as Error)?.message ?? err).includes("can be retried");
+
+/** Runs a transaction again when the engine reports a retryable conflict (concurrent writes to the same rows). */
+function retrying<T>(run: () => Promise<T>, attempts = MAX_ATTEMPTS): Promise<T> {
+  return run().catch((err) => (attempts > 1 && retryable(err) ? retrying(run, attempts - 1) : Promise.reject(err)));
 }
 
 /** Push-based async queue (live query notifications → async iteration). */
@@ -228,18 +237,22 @@ export function createDatabase<TT extends Tables>(opts: {
       return (await Promise.all(refs.map(([col, spec, value]) => checkRef(col, spec, value)))).flat();
     };
 
-    /** Runs a write and the file confirmations in one transaction; returns the rows of the write. */
-    const write = async (sql: string, vars: Vars, values: Record<string, unknown>): Promise<Raw[]> => {
+    /**
+     * Runs a write (after optional `prelude` statements) and the file confirmations in one transaction;
+     * returns the rows of the write.
+     */
+    const write = async (sql: string, vars: Vars, values: Record<string, unknown>, prelude = ""): Promise<Raw[]> => {
       const files = await checkRefs(values);
       const statements = [
         "BEGIN TRANSACTION;",
+        prelude,
         `LET $result = (${sql});`,
         files.length ? `UPDATE ${HOST.file} SET status = "kept" WHERE id IN $files;` : "",
         "COMMIT TRANSACTION;",
         "RETURN $result;",
       ].join("\n");
       try {
-        return (await query<Raw>(statements, { ...vars, files })) ?? [];
+        return (await retrying(() => query<Raw>(statements, { ...vars, files }))) ?? [];
       } catch (err) {
         return translateError(err, name);
       }
@@ -273,6 +286,14 @@ export function createDatabase<TT extends Tables>(opts: {
           return [col, encode(spec, valueFor(spec, input[col], col), label(col), true, target)];
         }),
       ) as Record<string, unknown>;
+    };
+
+    /** Plain value of a unique-key column as it will be stored: the input, else the default, else null. */
+    const keyValue = (col: string, input: Record<string, unknown>): unknown => {
+      if (col === "createdBy") return userId;
+      if (col in SYSTEM_COLUMNS) throw new DbError(`${name}: upsert cannot match on "${col}"`);
+      const spec = def.columns[col]?.spec;
+      return input[col] !== undefined ? input[col] : spec?.hasDefault ? spec.default : null;
     };
 
     const content = (values: Record<string, unknown>) => {
@@ -341,7 +362,7 @@ export function createDatabase<TT extends Tables>(opts: {
 
     const deleteWhere = async (sql: string, vars: Vars) => {
       try {
-        return (await query<Raw>(sql, vars)).length;
+        return (await retrying(() => query<Raw>(sql, vars))).length;
       } catch (err) {
         return translateError(err, name);
       }
@@ -371,11 +392,16 @@ export function createDatabase<TT extends Tables>(opts: {
         const unique = def.unique.find((cols) => [...cols].sort().join(",") === key);
         if (!unique) throw new DbError(`${name}: upsert "on" must match a declared unique (${o.on.join(", ")})`);
         const values = encodeValues(input, "insert");
-        const match = compileWhere(Object.fromEntries(unique.map((c) => [c, input[c]])));
-        const [existing] = await query<Raw>(`SELECT id FROM ${ident(table)} WHERE ${match.sql} LIMIT 1;`, match.vars);
-        if (!existing) return api.insert(input);
+        // Matched on the values that will be written (defaults applied), so an omitted column cannot widen the match.
+        const match = compileWhere(Object.fromEntries(unique.map((c) => [c, keyValue(c, input)])));
         const set = setClause(values);
-        const [raw] = await write(`UPDATE $rid SET ${set.sql} RETURN AFTER`, { ...set.vars, rid: existing.id }, values);
+        // One transaction: find the row, then update it or create it (a concurrent duplicate fails on the unique index).
+        const [raw] = await write(
+          `IF $existing { (UPDATE $existing SET ${set.sql} RETURN AFTER) } ELSE { (CREATE $rid CONTENT $data RETURN AFTER) }`,
+          { ...match.vars, ...set.vars, rid: recordId(crypto.randomUUID()), data: content(values) },
+          values,
+          `LET $existing = (SELECT VALUE id FROM ${ident(table)} WHERE ${match.sql} LIMIT 1)[0];`,
+        );
         return decodeRow(raw as Raw);
       },
       update: async (id: string, patch: Record<string, unknown>) => {
@@ -414,20 +440,24 @@ export function createDatabase<TT extends Tables>(opts: {
         const queue = asyncQueue<{ action: string; value: Raw }>();
         const off = live.subscribe((m) => queue.push({ action: m.action, value: m.value as Raw }));
         try {
-          yield { type: "snapshot" as const, rows: await findMany(q) };
+          const snapshot = await findMany(q);
+          // Rows the subscriber has: events are relative to this set (a row entering the filter is a create,
+          // leaving it is a delete; changes to rows it never had are skipped).
+          const seen = new Set(snapshot.map((r) => r.id));
+          yield { type: "snapshot" as const, rows: snapshot };
           for await (const message of queue.drain()) {
             const raw = message.value;
             if (!raw?.installation || idOf(raw.installation) !== installationId) continue;
             const row = decodeRow(raw);
-            const visible = matches(row, q.where as Record<string, unknown>);
-            // Outside the filter: a create is irrelevant; an update may have moved the row out (→ delete).
-            if (message.action === "DELETE" || (!visible && message.action === "UPDATE")) {
-              if (visible || message.action === "UPDATE") yield { type: "delete" as const, id: row.id };
+            const had = seen.delete(row.id);
+            const visible = message.action !== "DELETE" && matches(row, q.where as Record<string, unknown>);
+            if (!visible) {
+              if (had) yield { type: "delete" as const, id: row.id };
               continue;
             }
-            if (!visible) continue;
+            seen.add(row.id);
             const [expanded] = await expand([row], q.with as Record<string, unknown>);
-            yield { type: message.action === "CREATE" ? ("create" as const) : ("update" as const), row: expanded };
+            yield { type: had ? ("update" as const) : ("create" as const), row: expanded };
           }
         } finally {
           off();

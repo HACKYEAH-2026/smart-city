@@ -60,7 +60,7 @@ A feature for residents (issue reports, bookings, announcements…) is NOT a new
 | Host test (API) | `apps/api/test/plugins.test.ts` (routing, admin, isolation via `app.request()`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
 A plugin gets no access to the app database and no disk: only `ctx` (user with role, community, now, db, files, ai;
-docs/plugins.md). Do not add tables for a single plugin — its data lives in `ctx.db` (isolated per installation).
+docs/plugins.md). Do not add platform tables for a single plugin — it declares its own `tables` (`ctx.db`, isolated per installation).
 
 ## Single source of truth (no parallel code paths)
 - Types and validation: only `packages/shared` (app contracts) and `packages/sdk` (plugin contract).

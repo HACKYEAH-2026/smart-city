@@ -13,7 +13,8 @@ import {
  * A plugin table (`p_<plugin>__<table>`, SCHEMAFULL) is shared by all installations of the plugin; every row
  * carries `installation` (record → plugin_installation, cascade) and every index is prefixed with it.
  * The declared shape of each table is stored in `plugin_schema`, so changes are compared semantically:
- * additive ones are applied (with defaults backfilled into existing rows), breaking ones are rejected.
+ * additive and relaxing ones are applied (defaults backfilled into existing rows, removed indexes and optional
+ * columns dropped), breaking ones are rejected. A table removed from the declaration keeps its data.
  */
 
 /** A declaration the host cannot apply (invalid names/refs, or a breaking change to an existing table). */
@@ -40,7 +41,7 @@ export const SYSTEM_COLUMNS = {
 } as const;
 
 export const tableName = (pluginId: string, table: string) => `p_${pluginId.replaceAll("-", "_")}__${table}`;
-/** Identifiers are validated (letters, digits, underscores); backticks guard against reserved words. */
+/** Identifiers are validated (letters and digits; generated names add underscores); backticks guard against reserved words. */
 export const ident = (name: string) => `\`${name}\``;
 
 const BASE_TYPES: Record<ColumnKind, (spec: ColumnSpec, pluginId: string) => string> = {
@@ -105,7 +106,7 @@ function validateColumn(where: string, col: string, spec: ColumnSpec | undefined
 
 /** Column description stored in plugin_schema and compared on the next sync. */
 type StoredColumn = Pick<ColumnSpec, "kind" | "nullable" | "values" | "target" | "onDelete">;
-type StoredTable = Record<string, StoredColumn>;
+type StoredTable = { columns: Record<string, StoredColumn>; indexes: string[] };
 
 const stored = (pluginId: string, spec: ColumnSpec): StoredColumn => ({
   kind: spec.kind,
@@ -137,10 +138,13 @@ function systemDdl(table: string): string[] {
 
 const fieldName = (col: string) => (col in SYSTEM_COLUMNS ? SYSTEM_COLUMNS[col as keyof typeof SYSTEM_COLUMNS] : col);
 
+const indexName = (table: string, cols: readonly string[], unique: boolean) =>
+  `${table}__${unique ? "u" : "i"}_${cols.join("_")}`;
+
 function indexDdl(table: string, cols: readonly string[], unique: boolean): string {
-  const name = `${table}__${unique ? "u" : "i"}_${cols.join("_")}`;
   const fields = ["installation", ...cols.map(fieldName)].map(ident).join(", ");
-  return `DEFINE INDEX IF NOT EXISTS ${ident(name)} ON ${ident(table)} FIELDS ${fields}${unique ? " UNIQUE" : ""};`;
+  const name = ident(indexName(table, cols, unique));
+  return `DEFINE INDEX IF NOT EXISTS ${name} ON ${ident(table)} FIELDS ${fields}${unique ? " UNIQUE" : ""};`;
 }
 
 // ─────────────────────────────── planning ───────────────────────────────
@@ -154,21 +158,16 @@ const sameColumn = (a: StoredColumn, b: StoredColumn) =>
   a.onDelete === b.onDelete &&
   JSON.stringify(a.values ?? []) === JSON.stringify(b.values ?? []);
 
-/** Enum that only gained values: compatible (every stored value is still valid). */
-const extendsEnum = (before: StoredColumn, after: StoredColumn) =>
-  before.kind === "enum" &&
-  after.kind === "enum" &&
-  before.nullable === after.nullable &&
-  (before.values ?? []).every((v) => after.values?.includes(v));
-
-function changeError(where: string, before: StoredColumn, after: StoredColumn): SchemaError {
-  if (before.kind !== after.kind)
-    return new SchemaError(`Column "${where}" changed type (${before.kind} → ${after.kind})`);
-  if (before.nullable !== after.nullable) {
-    return new SchemaError(`Column "${where}" changed nullability; add a new column instead`);
-  }
-  if (before.kind === "enum") return new SchemaError(`Column "${where}" removed enum values; add a new column instead`);
-  return new SchemaError(`Column "${where}" changed its reference; add a new column instead`);
+/**
+ * Why a column change would break stored rows, or null when every stored value stays valid: same type and
+ * reference target, nullability only relaxed (required → optional), enum values only added. `onDelete` may change.
+ */
+function breakingChange(before: StoredColumn, after: StoredColumn): string | null {
+  if (before.kind !== after.kind) return `changed type (${before.kind} → ${after.kind})`;
+  if (before.target !== after.target) return "changed its reference target";
+  if (before.nullable && !after.nullable) return "became required";
+  if (!(before.values ?? []).every((v) => after.values?.includes(v))) return "removed enum values";
+  return null;
 }
 
 function newColumn(pluginId: string, table: string, where: string, col: string, spec: ColumnSpec, vars: Plan["vars"]) {
@@ -199,31 +198,54 @@ function planColumn(
   if (!before) return newColumn(pluginId, table, where, col, spec, vars);
   const after = stored(pluginId, spec);
   if (sameColumn(before, after)) return [];
-  if (extendsEnum(before, after)) return [fieldDdl(pluginId, table, col, spec, true)];
-  throw changeError(where, before, after);
+  const breaking = breakingChange(before, after);
+  if (breaking) throw new SchemaError(`Column "${where}" ${breaking}; add a new column instead`);
+  return [fieldDdl(pluginId, table, col, spec, true)];
 }
+
+/** Optional columns removed from the declaration are dropped with their data; required ones are rejected. */
+function removedColumns(table: string, name: string, def: TableDef, before: StoredTable | undefined): string[] {
+  const removed = Object.entries(before?.columns ?? {}).filter(([col]) => !(col in def.columns));
+  const required = removed.find(([, c]) => !c.nullable);
+  if (required)
+    throw new SchemaError(`Required column "${name}.${required[0]}" was removed; make it .optional() first`);
+  return removed.flatMap(([col]) => [
+    `REMOVE FIELD IF EXISTS ${ident(col)} ON ${ident(table)};`,
+    `UPDATE ${ident(table)} UNSET ${ident(col)};`,
+  ]);
+}
+
+const declaredIndexes = (table: string, def: TableDef) => [
+  ...def.indexes.map((cols) => indexName(table, cols, false)),
+  ...def.unique.map((cols) => indexName(table, cols, true)),
+];
 
 function planTable(pluginId: string, name: string, def: TableDef, before: StoredTable | undefined, vars: Plan["vars"]) {
   const table = tableName(pluginId, name);
-  const removed = Object.entries(before ?? {}).find(([col, c]) => !(col in def.columns) && !c.nullable);
-  if (removed) throw new SchemaError(`Required column "${name}.${removed[0]}" was removed; make it .optional() first`);
-  // A new table has no rows yet: every column is created as declared. Existing tables only grow additively.
+  // A new table has no rows yet: every column is created as declared. Existing tables only change compatibly.
   const columns = Object.entries(def.columns as Columns).flatMap(([col, column]) =>
     before
-      ? planColumn(pluginId, table, `${name}.${col}`, col, column.spec, before[col], vars)
+      ? planColumn(pluginId, table, `${name}.${col}`, col, column.spec, before.columns[col], vars)
       : [fieldDdl(pluginId, table, col, column.spec, false)],
   );
+  const indexes = declaredIndexes(table, def);
+  const removedIndexes = (before?.indexes ?? [])
+    .filter((index) => !indexes.includes(index))
+    .map((index) => `REMOVE INDEX IF EXISTS ${ident(index)} ON ${ident(table)};`);
   const schemaKey = `schema_${table}`;
   vars[`id_${schemaKey}`] = new RecordId(HOST.schema, table);
   vars[schemaKey] = Object.fromEntries(
     Object.entries(def.columns as Columns).map(([col, column]) => [col, stored(pluginId, column.spec)]),
   );
+  vars[`indexes_${schemaKey}`] = indexes;
   return [
     ...systemDdl(table),
+    ...removedColumns(table, name, def, before),
     ...columns,
+    ...removedIndexes,
     ...def.indexes.map((cols) => indexDdl(table, cols, false)),
     ...def.unique.map((cols) => indexDdl(table, cols, true)),
-    `UPSERT $id_${schemaKey} SET columns = $${schemaKey};`,
+    `UPSERT $id_${schemaKey} SET columns = $${schemaKey}, indexes = $indexes_${schemaKey};`,
   ];
 }
 
@@ -232,12 +254,12 @@ async function storedSchema(
   pluginId: string,
   names: string[],
 ): Promise<Record<string, StoredTable>> {
-  const [, rows] = await db.query<[unknown, { key: string; columns: StoredTable }[]]>(
+  const [, rows] = await db.query<[unknown, ({ key: string } & Partial<StoredTable>)[]]>(
     `DEFINE TABLE IF NOT EXISTS ${HOST.schema} SCHEMALESS;
-     SELECT meta::id(id) AS key, columns FROM ${HOST.schema} WHERE meta::id(id) IN $ids;`,
+     SELECT meta::id(id) AS key, columns, indexes FROM ${HOST.schema} WHERE meta::id(id) IN $ids;`,
     { ids: names.map((n) => tableName(pluginId, n)) },
   );
-  return Object.fromEntries(rows.map((r) => [r.key, r.columns]));
+  return Object.fromEntries(rows.map((r) => [r.key, { columns: r.columns ?? {}, indexes: r.indexes ?? [] }]));
 }
 
 /** Statements bringing the database to the declared shape; throws SchemaError for breaking changes. */

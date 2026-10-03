@@ -1,16 +1,9 @@
-import type { Context, Permission, PluginCommunity, PluginUser } from "@app/plugin-sdk";
+import { type Context, deniedService, type Permission, type PluginCommunity, type PluginUser } from "@app/plugin-sdk";
 import type { Db } from "../db";
 import type { AIService } from "../services/ai/service";
 import { createPluginDb } from "../services/db/service";
 import type { FileService } from "../services/files/service";
 import type { LoadedPlugin } from "./host";
-
-/** Service without a manifest permission: every use fails with a clear error. */
-function denied<T extends object>(permission: Permission): T {
-  return new Proxy({} as T, {
-    get: () => () => Promise.reject(new Error(`Plugin did not declare the "${permission}" permission`)),
-  });
-}
 
 export type PluginServices = { db: Db; files: FileService; ai: AIService };
 
@@ -29,8 +22,8 @@ export function createPluginContext(
     user,
     community,
     now: () => new Date(),
-    db: can("db") ? createPluginDb(services.db, plugin, installationId, userId) : denied("db"),
-    files: can("files") ? services.files.forPlugin(installationId) : denied("files"),
-    ai: can("ai") ? services.ai.forPlugin(installationId) : denied("ai"),
+    db: can("db") ? createPluginDb(services.db, plugin, installationId, userId) : deniedService("db"),
+    files: can("files") ? services.files.forPlugin(installationId) : deniedService("files"),
+    ai: can("ai") ? services.ai.forPlugin(installationId) : deniedService("ai"),
   };
 }

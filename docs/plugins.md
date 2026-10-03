@@ -126,7 +126,7 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 
 **Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
-(The test harness does **not** enforce permissions — declare them anyway.)
+(The test harness enforces them like the host: an undeclared service rejects on use.)
 
 **Roles** (`ctx.user.role`, per community):
 
@@ -238,7 +238,7 @@ used in `where`/`orderBy`/indexes, and cannot be set.
 ## Schema evolution (no migrations)
 
 There are no migration files. When a plugin loads, the host compares the declared tables with the shape
-stored for the previous version and, in one transaction, applies additive changes or rejects the whole
+stored for the previous version and, in one transaction, applies compatible changes or rejects the whole
 version with `SchemaError` (nothing is changed in the database). Tables are shared by all installations of
 a plugin, so a change applies to every community at once.
 
@@ -253,21 +253,21 @@ a plugin, so a change applies to every community at once.
 | Removing enum value(s) | ❌ `removed enum values; add a new column instead` |
 | New index / unique | ✅ (a new unique fails with `SchemaError` if existing rows contain duplicates) |
 | Changing a column's type | ❌ `changed type (text → integer)` |
-| `.optional()` ↔ required/`.default()` | ❌ `changed nullability; add a new column instead` |
-| Changing a ref's target or `onDelete` | ❌ `changed its reference; add a new column instead` |
+| Required → `.optional()` | ✅ |
+| `.optional()` → required | ❌ `became required; add a new column instead` |
+| Changing a ref's `onDelete` | ✅ |
+| Changing a ref's target | ❌ `changed its reference target; add a new column instead` |
 | Changing a `.default(v)` value | ✅ affects only future inserts |
-| Removing an optional column | ✅ (data is no longer read) |
-| Removing a required column | ❌ `was removed; make it .optional() first` — but required → optional is itself rejected, so in practice a required column cannot be removed |
-| Removing a table / index | ✅ no error, but nothing is dropped: an old **unique** is still enforced |
+| Removing an optional column | ✅ the column **and its data** are dropped; the name can be reused later with any type |
+| Removing a required column | ❌ `was removed; make it .optional() first` (two versions: make it optional, then remove it) |
+| Removing an index / unique | ✅ dropped (no longer enforced) |
+| Removing a table | ✅ no error; its data is kept (re-adding it is checked against the stored shape) |
 
 How to evolve safely:
 
 - Add columns as `.optional()` or `.default(...)`; refs as `.optional()`.
 - Need a different type or nullability? Add a new column (e.g. `priorityLevel`), write both, read the new
   one; old data stays readable.
-- Think before adding `unique` — today it cannot be removed.
-- Do not re-add a removed column name with a different type (the old field definition is kept; writes fail
-  with a coercion `DbError`).
 - Bump `version` with every change; the schema is re-checked on every load, so tests catch rejections
   (`testPlugin` runs the same sync on a fresh database).
 
@@ -358,12 +358,12 @@ for await (const event of ctx.db.issues.watch({ where: { status: "open" }, with:
 `{ type: "delete", id }`. Semantics:
 
 - Only changes of this installation are delivered.
-- `where` is re-evaluated on each change:
-  - create of a non-matching row → nothing;
-  - update that makes a row match → **`update`** (not `create`) — treat `update` of an unknown id as an insert;
-  - update of a non-matching row → **`delete`** (it may have left the filter, or was never in it) —
-    ignore deletes of unknown ids;
-  - delete of a matching row → `delete`.
+- Events are relative to the rows the subscriber has (the snapshot plus later events); `where` is re-evaluated
+  on each change:
+  - a row entering the filter (created, or updated to match) → `create`;
+  - a change to a row the subscriber has → `update`;
+  - a row the subscriber has leaving the filter, or deleted → `delete`;
+  - changes to rows the subscriber never had and that still do not match → nothing.
 - `orderBy` and `limit` apply only to the snapshot (which, like `findMany`, has a **default limit of 100**);
   live events arrive in change order and are not limited.
 - Cascades are streamed too (deleting a discussion yields `delete` for each of its messages).
@@ -373,8 +373,7 @@ for await (const event of ctx.db.issues.watch({ where: { status: "open" }, with:
 
 | Error | When | How it surfaces |
 |---|---|---|
-| `DbError` | invalid value, unknown column/operator/reference, unique violation, file of another user | thrown from the `ctx.db` call |
-| raw DB error | deleting a row referenced by a `restrict` ref | thrown from `delete`/`deleteMany` (not a `DbError` yet) |
+| `DbError` | invalid value, unknown column/operator/reference, unique violation, file of another user, deleting a row still referenced by a `restrict` ref | thrown from the `ctx.db` call |
 | `SchemaError` (→ `PluginError` at load) | invalid declaration or breaking schema change | plugin does not load |
 
 An exception escaping a handler is a plugin bug: the host answers `500 plugin_error` (the harness rethrows
@@ -738,12 +737,8 @@ through the async `ctx` — so moving plugins to a Worker/WASM sandbox changes t
 
 ## Known issues
 
-Current SDK behaviors to be aware of (not yet fixed):
-
-- `upsert` with an `on` column omitted from `values` (relying on its `.default`) ignores that column when
-  looking for the existing row and may overwrite a different row. Always pass every `on` column.
-- `upsert` is not atomic (select, then insert/update): two concurrent calls can hit the unique constraint
-  (`DbError`).
-- Deleting a row protected by `onDelete: "restrict"` throws a raw database error, not `DbError`.
-- Removed unique indexes stay enforced; removed columns keep their old type definition.
-- The test harness does not enforce `permissions`.
+- The system user in `onInstall` has no account: seeded rows get `createdBy: null`, it cannot be stored in a
+  `t.ref("user")` column and cannot attach pending uploads. Use optional user refs for seeded rows.
+- `testPlugin().db` is untyped (`plugin.db.items!`): the harness gets the module, not its table types.
+- Tests share one embedded engine per process (`testEngine()`); never open another `mem://` connection
+  (with @surrealdb/node 3.0.3, Bun 1.4 crashes on exit). See `docs/testing.md`.

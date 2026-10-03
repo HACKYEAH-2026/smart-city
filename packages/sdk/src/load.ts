@@ -69,12 +69,12 @@ function assertTools(definition: PluginDefinition): void {
   const invalid = Object.entries(definition.tools ?? {}).find(
     ([, tool]) => typeof tool?.handler !== "function" || !(tool.input instanceof z.ZodType),
   );
-  if (invalid) throw new PluginError(`Tool "${invalid[0]}" must have an input schema (z.object) and a handler`);
+  if (invalid) throw new PluginError(`Tool "${invalid[0]}" must have an input schema (Zod) and a handler`);
 }
 
 function assertStreams(definition: PluginDefinition): void {
   const invalid = Object.entries(definition.streams ?? {}).find(
     ([, stream]) => typeof stream?.handler !== "function" || !(stream.input instanceof z.ZodType),
   );
-  if (invalid) throw new PluginError(`Stream "${invalid[0]}" must have an input schema (z.object) and a handler`);
+  if (invalid) throw new PluginError(`Stream "${invalid[0]}" must have an input schema (Zod) and a handler`);
 }
