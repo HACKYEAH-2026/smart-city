@@ -5,18 +5,23 @@
     "dev": "remotion studio",
     "render": "remotion render TwojeMiejsceDemo out/demo.mp4",
     "still": "remotion still TwojeMiejsceDemo out/still.png",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "render:ad": "remotion render Reklama out/reklama.mp4",
+    "vo": "bun --env-file=../.env scripts/voiceover.ts"
   },
   "dependencies": {
     "@app/app": "workspace:*",
+    "@app/plugin-sdk": "workspace:*",
     "@expo-google-fonts/schibsted-grotesk": "^0.4.2",
     "@remotion/bundler": "4.0.532",
     "@remotion/cli": "4.0.532",
     "@remotion/google-fonts": "4.0.532",
     "@remotion/transitions": "4.0.532",
+    "lucide-react-native": "^1.51.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.3",
     "remotion": "4.0.532"
   },
