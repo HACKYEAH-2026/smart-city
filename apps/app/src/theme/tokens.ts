@@ -52,6 +52,9 @@ export const colors = {
   mapWater: "#E4EAF3",
   mapRoad: "#E6E2D8",
   mapRoadMinor: "#ECE8DF",
+  // Live maps (OpenFreeMap base recoloured to the tokens above, src/lib/map/spec.ts)
+  mapBuilding: "#E3DFD5", // buildings, a shade darker than mapBase
+  mapMe: "#3D6AE0", // the user's own position (blue dot with a halo)
 
   // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
   googleBlue: "#4285F4",
@@ -162,6 +165,10 @@ export const sizes = {
   sheetHandleHeight: 5,
   /** Dot under the active bottom-bar tab. */
   tabDot: 5,
+  /** The still map with a place's pin in the "new place" wizard. */
+  locationPreview: 140,
+  /** The map of places: the panel under the map (list or a place's card) at most this tall. */
+  mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
 } as const;
@@ -264,6 +271,20 @@ export const shadows = {
     shadowRadius: 4,
     elevation: 0,
   },
+} as const;
+
+/** Marks drawn on live maps (MapLibre style values in px): place pins with labels, the user's position. */
+export const mapMarks = {
+  pinRadius: 9,
+  pinRadiusSelected: 12,
+  pinStroke: 3,
+  meRadius: 7,
+  meHaloRadius: 16,
+  meStroke: 2.5,
+  labelSize: 12,
+  labelHalo: 1.5,
+  /** The label starts this far below the pin's centre, in ems. */
+  labelOffset: 1.3,
 } as const;
 
 export const borders = {

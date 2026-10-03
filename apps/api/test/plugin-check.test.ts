@@ -65,6 +65,9 @@ describe("plugin check", () => {
       plugin: {
         id: "notes",
         version: "1.0.0",
+        name: "Notatki",
+        icon: "📝",
+        description: "Wspólne notatki członków społeczności.",
         views: ["main"],
         dashboardWidgets: [],
         tools: ["add"],
@@ -128,6 +131,41 @@ describe("plugin check", () => {
     expect(result.errors[0]?.message).toBe(
       "Cannot find name 'process': a plugin gets no Bun, Node or browser globals, only ES2023 and the SDK (ctx, ui, z, t, fileRef).",
     );
+  });
+
+  test("safety: escape hatches out of ctx and the SDK, each with its line (the code type-checks)", async () => {
+    const ctx = await start();
+    const escapes = [
+      "const g = globalThis;",
+      "const F = ({}).constructor;",
+      'const key = "prototype";',
+      "JSON.parse = (text: string) => text;",
+      'const f: unknown = ctx.user; if (typeof f === "function") f("return 1");',
+      "const v: any = ctx.db; v.raw();",
+      "// @ts-ignore",
+      'const n: number = "not a number";',
+    ];
+    const source = `declare const secrets: string[];\n${NOTES.replace(
+      "const items =",
+      `${escapes.join("\n        ")}\n        const items =`,
+    )}`;
+    const result = await failed(ctx, source);
+    expect(result.stage).toBe("safety");
+    const expected: [string, string][] = [
+      ["declare const secrets", "Ambient declarations"],
+      ["const g = globalThis", "'globalThis' is not available to plugins"],
+      ["({}).constructor", "'.constructor' is not allowed"],
+      ['"prototype"', 'The string "prototype" is not allowed'],
+      ["JSON.parse =", "Changing 'JSON.parse' is not allowed"],
+      ['f("return 1")', "Calling a value of type 'any' or 'Function'"],
+      ["v.raw()", "Calling a value of type 'any' or 'Function'"],
+      ["// @ts-ignore", "'@ts-ignore' is not allowed"],
+    ];
+    for (const [code, message] of expected) {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining(message), line: at(source, code).line }),
+      );
+    }
   });
 
   test(`at most ${MAX_CHECK_ISSUES} issues, the rest counted`, async () => {

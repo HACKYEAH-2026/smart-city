@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import type { CheckIssue } from "@app/plugin-sdk";
 import type ts from "typescript";
+import { safetyIssues } from "./safety";
 
 type TS = typeof ts;
 
@@ -52,11 +53,14 @@ export async function recordTypeFs(root: string = REPO_ROOT): Promise<TypeFs> {
   return { options, libDir: recorder.key(libDir), ...recorder.snapshot() };
 }
 
+/** One plugin source compiled: its type errors, and the `safety` stage's issues (computed on demand, same program). */
+export type Analysis = { types: CheckIssue[]; safety: () => CheckIssue[] };
+
 /**
- * A type checker over a recorded TypeFs (never the disk). Parsed library files are kept between checks;
+ * Compiles plugin source over a recorded TypeFs (never the disk). Parsed library files are kept between calls;
  * the plugin source is parsed on every call.
  */
-export function createTypeChecker(ts: TS, typeFs: TypeFs): (source: string) => CheckIssue[] {
+export function createAnalyzer(ts: TS, typeFs: TypeFs): (source: string) => Analysis {
   const plugin = `${VIRTUAL_ROOT}/${PLUGIN_FILE}`;
   const mounted = mount(typeFs);
   const parsed = new Map<string, ts.SourceFile>();
@@ -68,24 +72,43 @@ export function createTypeChecker(ts: TS, typeFs: TypeFs): (source: string) => C
   return (source) => {
     const fs: Fs = { ...mounted, read: (path) => (path === plugin ? source : mounted.read(path)) };
     const program = ts.createProgram([plugin], typeFs.options, compilerHost(ts, fs, VIRTUAL_ROOT, libDir, sourceFile));
-    return issuesOf(ts, program, source);
+    const file = program.getSourceFile(plugin);
+    return {
+      types: issuesOf(ts, program, source),
+      safety: () => (file ? safetyIssues(ts, program, file, source) : []),
+    };
   };
 }
 
-let defaultChecker: Promise<(source: string) => CheckIssue[]> | undefined;
+/** A type checker over a recorded TypeFs: the type errors of plugin source (empty = none). */
+export const createTypeChecker = (ts: TS, typeFs: TypeFs): ((source: string) => CheckIssue[]) => {
+  const analyze = createAnalyzer(ts, typeFs);
+  return (source) => analyze(source).types;
+};
 
-/** Type errors in plugin source, checked against the plugin SDK; empty = none. */
-export async function typeIssues(source: string): Promise<CheckIssue[]> {
-  defaultChecker ??= loadChecker();
-  return (await defaultChecker)(source);
+let defaultAnalyzer: Promise<(source: string) => Analysis> | undefined;
+/** The last analysis: the `types` and `safety` stages of one check share a program. */
+let last: { source: string; analysis: Analysis } | undefined;
+
+async function analysis(source: string): Promise<Analysis> {
+  defaultAnalyzer ??= loadAnalyzer();
+  const analyze = await defaultAnalyzer;
+  if (last?.source !== source) last = { source, analysis: analyze(source) };
+  return last.analysis;
 }
 
-async function loadChecker() {
+/** Type errors in plugin source, checked against the plugin SDK; empty = none. */
+export const typeIssues = async (source: string): Promise<CheckIssue[]> => (await analysis(source)).types;
+
+/** Escape hatches out of ctx and the SDK (see safety.ts); empty = none. Run after `typeIssues` found none. */
+export const unsafeIssues = async (source: string): Promise<CheckIssue[]> => (await analysis(source)).safety();
+
+async function loadAnalyzer() {
   const ts = await typescript();
   const typeFs = existsSync(SNAPSHOT_FILE)
     ? (JSON.parse(readFileSync(SNAPSHOT_FILE, "utf8")) as TypeFs)
     : await recordTypeFs();
-  return createTypeChecker(ts, typeFs);
+  return createAnalyzer(ts, typeFs);
 }
 
 /** tsconfig.base.json, without ambient types (no `bun`): a plugin gets only what the SDK passes it. */

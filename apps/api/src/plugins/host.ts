@@ -25,7 +25,7 @@ import { z } from "zod";
 import { first, keyOf, ref, rows, toDate, visitRef } from "../db";
 import { planPluginTables, syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
-import { checkImports, checkSyntax, checkTypes, failAs } from "./check";
+import { checkImports, checkSafety, checkSyntax, checkTypes, failAs } from "./check";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
 export { PluginError };
@@ -223,8 +223,8 @@ export class PluginHost {
   }
 
   /**
-   * The check stages, cheapest first; the first failing one throws PluginCheckError. `syntax`, `imports` and
-   * `types` only read the source; `load` runs the plugin factory (in this process: docs/plugins.md, Security);
+   * The check stages, cheapest first; the first failing one throws PluginCheckError. `syntax`, `imports`, `types`
+   * and `safety` only read the source; `load` runs the plugin factory (in this process: docs/plugins.md, Security);
    * `schema` compares the tables with the stored shape without changing anything.
    */
   private async validate(source: string): Promise<ReturnType<typeof loadPlugin>> {
@@ -232,6 +232,7 @@ export class PluginHost {
     checkSyntax(source);
     checkImports(source);
     await checkTypes(source);
+    await checkSafety(source);
     const loaded = await this.compile(source).catch(failAs("load"));
     if (this.plugins.get(loaded.manifest.id)?.origin === "builtin") {
       throw new PluginCheckError("load", [{ message: `"${loaded.manifest.id}" is a built-in plugin` }]);

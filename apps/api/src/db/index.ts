@@ -4,6 +4,8 @@ export {
   type CommunityRow,
   communityBySlug,
   first,
+  fromGeoPoint,
+  geoPoint,
   keyOf,
   memberRole,
   membershipRef,

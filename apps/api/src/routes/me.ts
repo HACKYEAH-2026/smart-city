@@ -10,9 +10,8 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { first, keyOf, ref, rows } from "../db";
+import { first, geoPoint, keyOf, ref, rows } from "../db";
 import { requireUser } from "../middleware";
-import { geoPoint } from "../services/notifications/service";
 
 type PlaceRow = { id: RecordId; label: string; point: GeometryPoint };
 

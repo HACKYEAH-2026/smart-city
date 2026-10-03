@@ -6,6 +6,7 @@ import {
   DATABASE,
   type Db,
   first,
+  geoPoint,
   keyOf,
   membershipRef,
   migrate,
@@ -24,6 +25,9 @@ export const DEMO_COMMUNITY = { slug: "krakow", name: "Kraków" } as const;
 /** The demo place's invite code (shown as "KRK-MST"); anyone with it may join (join rule "open"). */
 export const DEMO_INVITE_CODE = "KRKMST";
 export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password", name: "Urząd Miasta" } as const;
+/** The demo place on the map of places: Kraków's city hall. */
+export const DEMO_ADDRESS = "pl. Wszystkich Świętych 3-4, 31-004 Kraków";
+export const DEMO_LOCATION = { lat: 50.05967, lng: 19.93775 } as const;
 
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
 
@@ -37,6 +41,11 @@ const userIdByEmail = async (db: Db, email: string) =>
 export async function seedDemo({ db, auth, plugins }: Deps) {
   const data = { ...DEMO_COMMUNITY, kind: "district", join_rule: "open", invite_code: DEMO_INVITE_CODE };
   await db.query(surql`INSERT IGNORE INTO community ${data};`);
+  // Also for a dev database seeded before places had a location.
+  await db.query(
+    surql`UPDATE community SET address = ${DEMO_ADDRESS}, location = ${geoPoint(DEMO_LOCATION)}, on_map = true
+           WHERE slug = ${DEMO_COMMUNITY.slug} AND location IS NONE;`,
+  );
   const row = await communityBySlug(db, DEMO_COMMUNITY.slug);
   if (!row) throw new Error("seed: community missing");
   const community = toCommunity(row);

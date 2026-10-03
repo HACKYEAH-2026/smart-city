@@ -3,9 +3,11 @@ import { surql } from "surrealdb";
 import { createApp } from "../src/app";
 import { communityBySlug, type DbHandle, first, keyOf, membershipRef, migrate, ref } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
+import type { PluginAuthor } from "../src/services/ai/author";
 import type { AIProviders } from "../src/services/ai/types";
 import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
+import { TestGeocoder } from "../src/test-geocoder";
 import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "../src/test-google";
 import { DEMO_ADMIN, DEMO_COMMUNITY, seedDemo } from "../src/test-routes";
 
@@ -44,17 +46,22 @@ export class RecordingPushSender implements PushSender {
 /**
  * Integration test context: fresh database + app called via app.request() (no ports).
  * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV. Google sign-in is on, with
- * fake ID tokens (src/test-google.ts).
+ * fake ID tokens (src/test-google.ts). `author` is the plugin builder's AI (none by default: tests never call a model).
  */
-export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
+export async function setup(
+  env: Partial<Record<keyof Env, string | undefined>> = {},
+  opts: { ai?: AIProviders; author?: PluginAuthor } = {},
+) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
-  const { app, auth, plugins, notifications } = createApp({
+  const { app, auth, plugins, notifications, drafts } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
     verifyGoogleIdToken: verifyTestGoogleIdToken,
+    geocoder: new TestGeocoder(),
     ...(opts.ai ? { ai: opts.ai } : {}),
+    author: opts.author ?? null,
   });
   let seq = 0;
 
@@ -108,6 +115,6 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 
-  return { app, db: handle.db, plugins, notifications, push, request, signUp, seed, join, close: handle.close };
+  return { app, db: handle.db, plugins, notifications, drafts, push, request, signUp, seed, join, close: handle.close };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

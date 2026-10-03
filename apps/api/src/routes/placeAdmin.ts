@@ -9,7 +9,7 @@ import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { type CommunityRow, communityBySlug, first, keyOf, memberRole, ref, rows, toCommunity } from "../db";
+import { type CommunityRow, communityBySlug, first, geoPoint, keyOf, memberRole, ref, rows, toCommunity } from "../db";
 import { requireUser } from "../middleware";
 
 /**
@@ -51,7 +51,10 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     }));
     return c.json(members, 200);
   })
-  /** The built-in plugins (as in GET /api/plugins) with whether each is on in this place. */
+  /**
+   * The plugins an admin can switch in this place, with whether each is on: the built-in ones (as in GET /api/plugins),
+   * then the ones the AI wrote for this place and its admins published (routes/drafts.ts).
+   */
   .get("/:slug/plugins", requireUser, async (c) => {
     const place = await adminPlace(c);
     if (place === "not_found") return c.json({ error: "not_found" }, 404);
@@ -64,26 +67,33 @@ export const placeAdminRoutes = new Hono<AppEnv>()
         )
       ).map((installation) => installation.plugin),
     );
+    const own = await c.var.drafts.publishedPluginIds(place);
     const plugins: PlacePlugin[] = c.var.plugins
       .list()
-      .filter((plugin) => plugin.origin === "builtin")
-      .map(({ manifest: { id, name, icon, description } }) => ({
+      .filter((plugin) => plugin.origin === "builtin" || own.has(plugin.manifest.id))
+      .map(({ origin, manifest: { id, name, icon, description } }) => ({
         id,
         name,
         icon,
         description,
         enabled: enabled.has(id),
+        madeByAi: origin !== "builtin",
       }));
     return c.json(plugins, 200);
   })
-  /** Switches a built-in plugin on (its data from before comes back) or off (the data stays, hidden). */
+  /**
+   * Switches a plugin of the list above on (its data from before comes back) or off (the data stays, hidden). Another
+   * place's AI plugin is not found here.
+   */
   .put("/:slug/plugins/:pluginId", requireUser, zValidator("json", pluginSwitchSchema), async (c) => {
     const place = await adminPlace(c);
     if (place === "not_found") return c.json({ error: "not_found" }, 404);
     if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
     const plugin = c.var.plugins.get(c.req.param("pluginId"));
-    if (plugin?.origin !== "builtin") {
-      return c.json({ error: "not_found", message: "not a built-in plugin" }, 404);
+    const own =
+      plugin?.origin === "builtin" || (await c.var.drafts.publishedPluginIds(place)).has(plugin?.manifest.id ?? "");
+    if (!plugin || !own) {
+      return c.json({ error: "not_found", message: "not a plugin of this place" }, 404);
     }
     if (c.req.valid("json").enabled) await c.var.plugins.enable(plugin, toCommunity(place));
     else {
@@ -97,7 +107,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
   });
 
 /** The place if the signed-in user is its admin; "not_found" for a non-member (or no such place), else "forbidden". */
-async function adminPlace(c: Context<AppEnv>): Promise<CommunityRow | "not_found" | "forbidden"> {
+export async function adminPlace(c: Context<AppEnv>): Promise<CommunityRow | "not_found" | "forbidden"> {
   const place = await communityBySlug(c.var.db, c.req.param("slug") ?? "");
   const role = place ? await memberRole(c.var.db, keyOf(place.id), c.var.user.id) : null;
   if (!place || !role) return "not_found";
@@ -105,5 +115,10 @@ async function adminPlace(c: Context<AppEnv>): Promise<CommunityRow | "not_found
 }
 
 /** The settings as database columns, leaving out the ones not sent. */
-const toColumns = ({ joinRule, ...rest }: PlaceUpdate) =>
-  Object.fromEntries(Object.entries({ ...rest, join_rule: joinRule }).filter(([, value]) => value !== undefined));
+/** The given settings as columns. No pin (null) clears the location: undefined in a MERGE is stored as NONE. */
+const toColumns = ({ joinRule, onMap, location, ...rest }: PlaceUpdate) => ({
+  ...Object.fromEntries(
+    Object.entries({ ...rest, join_rule: joinRule, on_map: onMap }).filter(([, value]) => value !== undefined),
+  ),
+  ...(location === undefined ? {} : { location: location ? geoPoint(location) : undefined }),
+});

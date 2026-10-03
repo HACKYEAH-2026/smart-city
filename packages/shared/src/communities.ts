@@ -1,3 +1,4 @@
+import { type GeoPoint, geoPointSchema } from "@app/plugin-sdk";
 import { z } from "zod";
 import type { PluginCatalogItem } from "./plugins";
 
@@ -31,6 +32,10 @@ const placeFields = {
   address: z.string().trim().max(200),
   description: z.string().trim().max(500),
   joinRule: z.enum(JOIN_RULES),
+  /** The place's pin on the map (null = none). */
+  location: geoPointSchema.nullable(),
+  /** Shown on the map of places to every signed-in user (only with a location); members always see it there. */
+  onMap: z.boolean(),
 };
 
 export const newPlaceSchema = z.object({
@@ -39,6 +44,8 @@ export const newPlaceSchema = z.object({
   address: placeFields.address.default(""),
   description: placeFields.description.default(""),
   joinRule: placeFields.joinRule.default("approval"),
+  location: placeFields.location.default(null),
+  onMap: placeFields.onMap.default(false),
   /** Make it the user's default place (the first place is the default anyway). */
   makeDefault: z.boolean().default(false),
   /** Built-in plugins to enable in the place (ids from GET /api/plugins); its navigation keeps this order. */
@@ -53,9 +60,12 @@ export type PlaceUpdate = z.input<typeof placeUpdateSchema>;
 /** A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name. */
 export type PlaceMember = { id: string; name: string; email: string; role: "admin" | "user" };
 
-/** A built-in plugin and whether it is on in the place (GET /api/communities/:slug/plugins), for its admins. */
-export type PlacePlugin = PluginCatalogItem & { enabled: boolean };
-/** A place's admin switches a built-in plugin on or off (PUT /api/communities/:slug/plugins/:pluginId). */
+/**
+ * A plugin of the place and whether it is on (GET /api/communities/:slug/plugins), for its admins: a built-in one, or
+ * one the AI wrote for this place (`madeByAi`, the plugin builder).
+ */
+export type PlacePlugin = PluginCatalogItem & { enabled: boolean; madeByAi: boolean };
+/** A place's admin switches one of its plugins on or off (PUT /api/communities/:slug/plugins/:pluginId). */
 export const pluginSwitchSchema = z.object({ enabled: z.boolean() });
 
 /** Invite code: 6 characters without look-alikes (no 0/O, 1/I); stored bare, shown as "ABC-DEF". */
@@ -101,6 +111,8 @@ export type PlaceDetails = Community & {
   address: string;
   description: string;
   joinRule: JoinRule;
+  location: GeoPoint | null;
+  onMap: boolean;
   inviteCode: string | null;
 };
 /** A place as someone holding its invite code sees it before joining (GET /api/communities/invite/:code). */

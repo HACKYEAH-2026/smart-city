@@ -59,6 +59,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           DATABASE_URL: "mem://",
           API_URL: url,
           GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID,
+          PLUGIN_AUTHOR: "test",
+          // Address search answers with fixed Kraków addresses (apps/api/src/test-geocoder.ts), never the network.
+          GEOCODER: "test",
           TRUSTED_ORIGINS: web,
         },
         stdio: ["ignore", "inherit", "inherit"],

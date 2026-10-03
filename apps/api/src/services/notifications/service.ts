@@ -1,5 +1,4 @@
 import {
-  type GeoPoint,
   type NavigateAction,
   type Notification,
   type NotificationAudience,
@@ -9,8 +8,8 @@ import {
   parseNotification,
 } from "@app/plugin-sdk";
 import { LOCATION_FRESH_MINUTES, NOTIFICATIONS_PAGE, type NotificationInbox } from "@app/shared";
-import { type BoundQuery, Duration, GeometryPoint, type RecordId, surql } from "surrealdb";
-import { type Db, keyOf, ref, rows, toDate } from "../../db";
+import { type BoundQuery, Duration, type RecordId, surql } from "surrealdb";
+import { type Db, geoPoint, keyOf, ref, rows, toDate } from "../../db";
 import type { PushMessage, PushSender } from "../push/types";
 
 type NotificationRow = {
@@ -24,9 +23,6 @@ type NotificationRow = {
   created_at: Date | { toDate(): Date };
   read: boolean;
 };
-
-/** A point for SurrealDB (GeoJSON order: longitude, latitude). */
-export const geoPoint = ({ lat, lng }: GeoPoint) => new GeometryPoint([lng, lat]);
 
 /** Location updates older than this do not count as "the user is here". */
 const LOCATION_FRESH = new Duration(`${LOCATION_FRESH_MINUTES}m`);

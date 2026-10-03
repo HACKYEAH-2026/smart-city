@@ -72,6 +72,13 @@ const config: ExpoConfig = {
       },
     ],
     "expo-notifications",
+    // System permission prompt (iOS text; Android adds the location permissions): Polish (AGENTS.md: Language).
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission: "Aplikacja potrzebuje lokalizacji, aby pokazać Twoje położenie na mapie.",
+      },
+    ],
     ...googleSignIn,
   ],
   experiments: { typedRoutes: true },

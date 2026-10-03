@@ -3,6 +3,7 @@ import type { JoinPlace, NewPlace, PlaceUpdate } from "@app/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
+import { mapPlacesKey } from "./geo";
 
 /**
  * Community and plugin data (frontend data pattern: useQuery + useMutation). Plugin views arrive from the API as a UI tree
@@ -119,7 +120,11 @@ export function useCreatePlace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (place: NewPlace) => parseResponse(c.$post({ json: place })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: communitiesKey }),
+        qc.invalidateQueries({ queryKey: mapPlacesKey }),
+      ]),
   });
 }
 

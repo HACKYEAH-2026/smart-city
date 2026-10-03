@@ -7,7 +7,9 @@
 import { createApp } from "./app";
 import { createDb, migrate } from "./db";
 import { loadEnv } from "./env";
+import { TestPluginAuthor } from "./test-author";
 import { TEST_ENV } from "./test-env";
+import { TestGeocoder } from "./test-geocoder";
 import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "./test-google";
 import { createTestRoutes, seedDemo } from "./test-routes";
 
@@ -30,6 +32,10 @@ const { app, auth, plugins } = createApp({
   db: handle.db,
   env,
   ...(env.GOOGLE_CLIENT_ID === TEST_GOOGLE_CLIENT_ID ? { verifyGoogleIdToken: verifyTestGoogleIdToken } : {}),
+  // E2E (GEOCODER=test): fixed addresses, no network; local dev keeps the real geocoder.
+  ...(process.env.GEOCODER === "test" ? { geocoder: new TestGeocoder() } : {}),
+  // E2E (PLUGIN_AUTHOR=test): the plugin builder writes a fixed plugin, no model; local dev uses the env's model.
+  ...(process.env.PLUGIN_AUTHOR === "test" ? { author: new TestPluginAuthor() } : {}),
 });
 const deps = { db: handle.db, auth, plugins };
 await seedDemo(deps);

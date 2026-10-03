@@ -23,3 +23,7 @@ export const PLACE_KIND_OPTIONS: { kind: PlaceKind; label: string; hint: string;
 /** Name of a kind of place, e.g. "Budynek" (place switcher rows). */
 export const placeKindLabel = (kind: PlaceKind): string =>
   PLACE_KIND_OPTIONS.find((option) => option.kind === kind)?.label ?? t.place_kind_other;
+
+/** Icon of a kind of place (the pin of a place on a map). */
+export const placeKindIcon = (kind: PlaceKind): LucideIcon =>
+  PLACE_KIND_OPTIONS.find((option) => option.kind === kind)?.icon ?? Ellipsis;

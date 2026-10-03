@@ -62,6 +62,66 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
 });
 
+test("the place's location: found by address, confirmed on the map, then shown on the map of places", async ({
+  page,
+}) => {
+  await register(page, "located@example.test");
+  await page.getByRole("link", { name: t.place_create_own }).click();
+  await page.getByRole("radio", { name: t.place_kind_building }).click();
+  const next = page.getByRole("button", { name: t.create_next });
+  await next.click();
+  await page.getByLabel(t.create_name).fill("Kamienica Floriańska 15");
+  await page.getByRole("button", { name: t.create_location_pick }).click();
+
+  // The test API answers address searches with fixed Kraków addresses (apps/api/src/test-geocoder.ts).
+  const search = page.getByLabel(t.location_search);
+  await search.fill("Floriańska 15");
+  await search.press("Enter");
+  await page
+    .getByRole("list", { name: t.location_results })
+    .getByRole("button", { name: /Floriańska 15/ })
+    .click();
+  await expect(page.getByText("Floriańska 15, 31-019 Kraków")).toBeVisible();
+  await expect(page.getByText(`Kamienica Floriańska 15 · ${t.location_pin_hint}`)).toBeVisible();
+  await page.getByRole("button", { name: t.location_confirm }).click();
+
+  await expect(page.getByRole("heading", { name: t.create_details_title, level: 1 })).toBeVisible();
+  await expect(page.getByLabel(t.create_address)).toHaveValue("Floriańska 15, 31-019 Kraków");
+  await expect(page.getByRole("button", { name: t.create_location_change })).toBeVisible();
+  await next.click();
+  await next.click();
+  const onMap = page.getByRole("switch", { name: t.create_on_map });
+  await expect(onMap).toHaveAttribute("aria-checked", "false");
+  await onMap.click();
+  await expect(onMap).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: t.create_submit }).click();
+  await page.getByRole("button", { name: t.created_go_dashboard }).click();
+
+  await page.getByRole("link", { name: t.tab_map }).click();
+  await expect(page.getByRole("heading", { name: t.map_title, level: 1 })).toBeVisible();
+  await page
+    .getByRole("list", { name: t.map_list_label })
+    .getByRole("button", { name: /Kamienica Floriańska 15/ })
+    .click();
+  const card = page.getByRole("region", { name: "Kamienica Floriańska 15" });
+  await expect(card.getByText("Floriańska 15, 31-019 Kraków")).toBeVisible();
+  await card.getByRole("button", { name: t.map_open_place }).click();
+  await expect(page.getByRole("heading", { name: "Kamienica Floriańska 15", level: 1 })).toBeVisible();
+});
+
+test("without a location a place has no map switch", async ({ page }) => {
+  await register(page, "nolocation@example.test");
+  await page.getByRole("link", { name: t.place_create_own }).click();
+  await page.getByRole("radio", { name: t.place_kind_estate }).click();
+  const next = page.getByRole("button", { name: t.create_next });
+  await next.click();
+  await page.getByLabel(t.create_name).fill("Osiedle Słoneczne");
+  await next.click();
+  await next.click();
+  await expect(page.getByRole("heading", { name: t.create_access_title, level: 1 })).toBeVisible();
+  await expect(page.getByRole("switch", { name: t.create_on_map })).toHaveCount(0);
+});
+
 test("going back a step keeps the answers", async ({ page }) => {
   await register(page, "back@example.test");
   await page.getByRole("link", { name: t.place_create_own }).click();

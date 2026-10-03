@@ -2,20 +2,23 @@ import { Link as RouterLink } from "expo-router";
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, opacity, radii, sizes } from "../theme";
+import { borders, type ColorToken, colors, opacity, radii, shadows, sizes } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 /**
  * square: back button in screen headers · plain: back without a background in a step header · round: bell or
- * account avatar · roundSunken: close in a bottom sheet · roundOnDark: close and torch on the dark QR scanner.
+ * account avatar · roundSunken: close in a bottom sheet · roundOnDark: close and torch on the dark QR scanner ·
+ * floating: over a map (back, "my location"), with a shadow instead of a border.
  */
-export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark";
+export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "floating";
 
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
   label: string;
   variant?: IconButtonVariant;
+  /** Icon colour when it is not the variant's (e.g. the blue "my location" on a map). */
+  color?: ColorToken;
 } & (
   | { onPress: () => void; href?: undefined }
   /** A link to a route of the app instead of an action (role link), e.g. "Zarządzaj miejscem" on the dashboard. */
@@ -28,7 +31,7 @@ export type IconButtonProps = {
   );
 
 /** 44 × 44 icon button (COMPONENTS.md → IconButton). A press gives a light haptic tick. */
-export function IconButton({ label, onPress, href, variant = "square", icon, text }: IconButtonProps) {
+export function IconButton({ label, onPress, href, variant = "square", icon, text, color }: IconButtonProps) {
   const button = (
     <Pressable
       accessibilityRole={href ? "link" : "button"}
@@ -47,7 +50,7 @@ export function IconButton({ label, onPress, href, variant = "square", icon, tex
         <Icon
           icon={icon}
           size={variant === "roundSunken" ? sizes.iconS : sizes.iconM}
-          color={variant === "roundOnDark" ? "onPrimary" : "text"}
+          color={color ?? (variant === "roundOnDark" ? "onPrimary" : "text")}
         />
       ) : (
         <Text variant="buttonS">{text}</Text>
@@ -85,4 +88,5 @@ const styles = StyleSheet.create({
   },
   roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
   roundOnDark: { borderRadius: radii.pill, backgroundColor: colors.onDarkOverlay },
+  floating: { borderRadius: radii.lg, backgroundColor: colors.surface, ...shadows.floating },
 });

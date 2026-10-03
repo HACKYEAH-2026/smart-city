@@ -1,5 +1,5 @@
 import { Link as RouterLink, usePathname } from "expo-router";
-import { LayoutDashboard, type LucideIcon, MapPin, User } from "lucide-react-native";
+import { LayoutDashboard, type LucideIcon, Map as MapIcon, MapPin, User } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tapFeedback } from "../lib/haptics";
@@ -10,8 +10,9 @@ import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 /**
- * Bottom bar with the three main sections (COMPONENTS.md → BottomTabBar). The active tab is the current route.
- * "Miejsca" is not a screen of its own: it opens the place switcher over the dashboard (design E-Dashboard).
+ * Bottom bar with the main sections (COMPONENTS.md → BottomTabBar). The active tab is the current route.
+ * "Miejsca" is not a screen of its own: it opens the place switcher over the dashboard (design E-Dashboard);
+ * "Mapa" is the map of places.
  */
 export function BottomTabBar() {
   const pathname = usePathname();
@@ -19,6 +20,7 @@ export function BottomTabBar() {
   const tabs = [
     { href: "/app", label: t.tab_dashboard, icon: LayoutDashboard },
     { href: "/app?places=1", label: t.tab_places, icon: MapPin },
+    { href: "/app/map", label: t.tab_map, icon: MapIcon },
     { href: "/app/account", label: t.tab_account, icon: User },
   ] as const;
   return (

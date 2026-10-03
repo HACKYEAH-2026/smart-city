@@ -17,13 +17,15 @@ import {
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
-import { type RecordId, surql } from "surrealdb";
+import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import {
   type CommunityRow,
   communityBySlug,
   type Db,
   first,
+  fromGeoPoint,
+  geoPoint,
   keyOf,
   memberRole,
   membershipRef,
@@ -83,7 +85,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json(places);
   })
   .post("/", zValidator("json", newPlaceSchema), async (c) => {
-    const { name, kind, address, description, joinRule, makeDefault, plugins } = c.req.valid("json");
+    const { name, kind, address, description, joinRule, location, onMap, makeDefault, plugins } = c.req.valid("json");
     const chosen = builtinPlugins(c.var.plugins, plugins);
     if (!chosen) return c.json({ error: "unknown_plugin", message: "plugins must be ids of built-in plugins" }, 400);
     const slug = await freeSlug(c.var.db, name);
@@ -91,7 +93,17 @@ export const communitiesRoutes = new Hono<AppEnv>()
     const inviteCode = await freeInviteCode(c.var.db);
     const created = await first<CommunityRow>(
       c.var.db,
-      surql`CREATE community CONTENT ${{ slug, name, kind, address, description, join_rule: joinRule, invite_code: inviteCode }};`,
+      surql`CREATE community CONTENT ${{
+        slug,
+        name,
+        kind,
+        address,
+        description,
+        join_rule: joinRule,
+        invite_code: inviteCode,
+        on_map: onMap,
+        ...(location ? { location: geoPoint(location) } : {}),
+      }};`,
     );
     if (!created) throw new Error("community create returned no row");
     const communityId = keyOf(created.id);
@@ -153,7 +165,12 @@ export const communitiesRoutes = new Hono<AppEnv>()
       description: string | null;
       join_rule: JoinRule | null;
       invite_code: string | null;
-    }>(c.var.db, surql`SELECT kind, address, description, join_rule, invite_code FROM ${member.row.id};`);
+      location: GeometryPoint | null;
+      on_map: boolean | null;
+    }>(
+      c.var.db,
+      surql`SELECT kind, address, description, join_rule, invite_code, location, on_map FROM ${member.row.id};`,
+    );
     // Places created before the wizard have no answers stored: the schema defaults stand in.
     const place: PlaceDetails = {
       ...toCommunity(member.row),
@@ -162,6 +179,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
       address: details?.address ?? "",
       description: details?.description ?? "",
       joinRule: details?.join_rule ?? "approval",
+      location: details?.location ? fromGeoPoint(details.location) : null,
+      onMap: details?.on_map ?? false,
       inviteCode: member.role === "admin" ? (details?.invite_code ?? null) : null,
     };
     return c.json(place, 200);

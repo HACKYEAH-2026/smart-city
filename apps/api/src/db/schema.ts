@@ -21,6 +21,8 @@ export const TABLES = {
   place: "place",
   location: "user_location",
   pushToken: "push_token",
+  draft: "plugin_draft",
+  revision: "plugin_draft_revision",
 } as const;
 
 export const SCHEMA = surql`
@@ -37,6 +39,9 @@ DEFINE FIELD IF NOT EXISTS kind ON community TYPE "estate" | "building" | "compa
 DEFINE FIELD IF NOT EXISTS address ON community TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS description ON community TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS join_rule ON community TYPE "open" | "approval" | "invite" DEFAULT "approval";
+-- The place's pin, and whether every signed-in user sees it on the map of places (members always do; routes/geo.ts).
+DEFINE FIELD IF NOT EXISTS location ON community TYPE option<geometry<point>>;
+DEFINE FIELD IF NOT EXISTS on_map ON community TYPE bool DEFAULT false;
 -- Invite code for joining by code, link or QR (@app/shared INVITE_CODE_ALPHABET); the API keeps it unique.
 DEFINE FIELD IF NOT EXISTS invite_code ON community TYPE option<string>;
 DEFINE INDEX IF NOT EXISTS community_invite_code ON community FIELDS invite_code;
@@ -118,4 +123,30 @@ DEFINE TABLE IF NOT EXISTS push_token SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user ON push_token TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS updated_at ON push_token TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS push_token_user ON push_token FIELDS user;
+
+-- A plugin the AI writes for a place, at its admin's request (routes/drafts.ts). plugin = the generated plugin id
+-- (its plugin_source row once published); published = the revision running in the place.
+DEFINE TABLE IF NOT EXISTS plugin_draft SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS community ON plugin_draft TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS author ON plugin_draft TYPE option<record<user>> REFERENCE ON DELETE UNSET;
+DEFINE FIELD IF NOT EXISTS plugin ON plugin_draft TYPE string;
+DEFINE FIELD IF NOT EXISTS published ON plugin_draft TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS created_at ON plugin_draft TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS plugin_draft_plugin ON plugin_draft FIELDS plugin UNIQUE;
+DEFINE INDEX IF NOT EXISTS plugin_draft_community ON plugin_draft FIELDS community;
+
+-- One request of the admin (the description, then each piece of feedback) and the plugin source the AI wrote for
+-- it, checked like an upload.
+DEFINE TABLE IF NOT EXISTS plugin_draft_revision SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS draft ON plugin_draft_revision TYPE record<plugin_draft> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS n ON plugin_draft_revision TYPE int;
+DEFINE FIELD IF NOT EXISTS request ON plugin_draft_revision TYPE string;
+DEFINE FIELD IF NOT EXISTS status ON plugin_draft_revision TYPE "working" | "ready" | "failed" DEFAULT "working";
+DEFINE FIELD IF NOT EXISTS attempts ON plugin_draft_revision TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS summary ON plugin_draft_revision TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS source ON plugin_draft_revision TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS plugin ON plugin_draft_revision TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS error ON plugin_draft_revision TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_at ON plugin_draft_revision TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS plugin_draft_revision_draft ON plugin_draft_revision FIELDS draft, n UNIQUE;
 `;

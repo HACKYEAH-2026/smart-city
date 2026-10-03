@@ -14,8 +14,18 @@ import { ui } from "./ui";
 /** Plugin error (bad manifest, exception, invalid result). The message is safe to show the author/admin. */
 export class PluginError extends Error {}
 
-/** SDK passed to the plugin module — the only thing a plugin uses at runtime. */
-export const sdk = { definePlugin, ui, z, fileRef, t };
+/**
+ * SDK passed to the plugin module — the only thing a plugin uses at runtime. Frozen: every plugin gets these same
+ * objects, so one plugin must not be able to swap `ui.card` or `t.text` under the others (`z` is a module namespace,
+ * immutable already).
+ */
+export const sdk = Object.freeze({
+  definePlugin: Object.freeze(definePlugin),
+  ui: Object.freeze(ui),
+  z,
+  fileRef: Object.freeze(fileRef),
+  t: Object.freeze(t),
+});
 
 export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDefinition };
 

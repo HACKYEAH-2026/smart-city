@@ -3,10 +3,11 @@ import { type LoadedDefinition, PluginError } from "./load";
 /**
  * Checking plugin source before it is uploaded (`POST /api/admin/plugins/check`, and every upload). Stages run
  * cheapest first and stop at the first failing one: `syntax`, `imports` (only `import type`), `types` (against
- * this SDK, with no Bun/Node globals), `load` (the factory runs, the manifest is validated), `schema` (tables
- * compared with the stored shape, nothing changed). Messages are for the author (a person or an AI agent).
+ * this SDK, with no Bun/Node globals), `safety` (no escape hatches out of ctx and the SDK), `load` (the factory
+ * runs, the manifest is validated), `schema` (tables compared with the stored shape, nothing changed). Messages are
+ * for the author (a person or an AI agent).
  */
-export const CHECK_STAGES = ["syntax", "imports", "types", "load", "schema"] as const;
+export const CHECK_STAGES = ["syntax", "imports", "types", "safety", "load", "schema"] as const;
 export type CheckStage = (typeof CHECK_STAGES)[number];
 
 /** One problem in plugin source. `line` and `column` are 1-based; `snippet` is that source line, trimmed. */
@@ -16,6 +17,9 @@ export type CheckIssue = { message: string; line?: number; column?: number; snip
 export type PluginSummary = {
   id: string;
   version: string;
+  name: string;
+  icon: string;
+  description: string;
   views: string[];
   dashboardWidgets: string[];
   tools: string[];
@@ -32,6 +36,9 @@ export const summarize = ({ manifest, definition }: LoadedDefinition): PluginChe
   plugin: {
     id: manifest.id,
     version: manifest.version,
+    name: manifest.name,
+    icon: manifest.icon,
+    description: manifest.description,
     views: Object.keys(definition.views),
     dashboardWidgets: Object.keys(definition.dashboardWidgets ?? {}),
     tools: Object.keys(definition.tools ?? {}),

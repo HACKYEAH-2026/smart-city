@@ -1,5 +1,5 @@
-import type { Role } from "@app/plugin-sdk";
-import { type BoundQuery, RecordId, surql } from "surrealdb";
+import type { GeoPoint, Role } from "@app/plugin-sdk";
+import { type BoundQuery, GeometryPoint, RecordId, surql } from "surrealdb";
 import type { Db } from "./client";
 import { TABLES } from "./schema";
 
@@ -16,6 +16,12 @@ export const ref = (table: keyof typeof TABLES, key: string) => new RecordId(TAB
 
 /** The string key of a record id (`community:abc` → `abc`). */
 export const keyOf = (id: RecordId) => String(id.id);
+
+/** A point for SurrealDB (GeoJSON order: longitude, latitude). */
+export const geoPoint = ({ lat, lng }: GeoPoint) => new GeometryPoint([lng, lat]);
+
+/** A point read from SurrealDB, as the app and plugins use it. */
+export const fromGeoPoint = ({ coordinates: [lng, lat] }: GeometryPoint): GeoPoint => ({ lat, lng });
 
 /** SurrealDB returns its own DateTime type; the app and plugins get a plain Date. */
 export const toDate = (at: Date | { toDate(): Date }) => (at instanceof Date ? at : at.toDate());

@@ -127,6 +127,8 @@ describe("creating a place", () => {
       address: "ul. Lipowa 12, Kraków",
       description: "Wspólnota mieszkaniowa: ogłoszenia, awarie, zebrania.",
       joinRule: "open",
+      location: null,
+      onMap: false,
       inviteCode,
     });
     expect((await myPlaces(u))[0]).toMatchObject({ slug: "kamienica-lipowa-12", kind: "building" });
