@@ -116,11 +116,11 @@ describe("the map of places", () => {
     expect(await mapOf(member)).toContainEqual(expect.objectContaining({ ...demo, slug: "krakow" }));
   });
 
-  test("local dev seeds public places all over Kraków: replaces the ones nobody belongs to, keeps the rest", async () => {
+  test("local dev seeds public places of Kraków: replaces the ones nobody belongs to, keeps the rest", async () => {
     t = await setup();
     const owner = await t.signUp({ place: null });
-    const { slug } = await create(owner, { name: "Tyniec", location: FLORIANSKA, onMap: true });
-    expect(slug).toBe("tyniec"); // the seed has a "tyniec" too
+    const { slug } = await create(owner, { name: "Wawel", location: FLORIANSKA, onMap: true });
+    expect(slug).toBe("wawel"); // the seed has a "wawel" too
     await t.db.query(surql`CREATE community CONTENT { slug: "stare", name: "Stare", location: ${geoPoint(FLORIANSKA)},
                                                       on_map: true };`);
     await seedDemoMap(t.db);
@@ -128,9 +128,9 @@ describe("the map of places", () => {
 
     const map = await mapOf(await t.signUp({ place: null }));
     expect(map).toHaveLength(DEMO_MAP_PLACES.length);
-    expect(map.filter((p) => p.name === "Tyniec")).toEqual([expect.objectContaining(FLORIANSKA)]);
+    expect(map.filter((p) => p.name === "Wawel")).toEqual([expect.objectContaining(FLORIANSKA)]);
     expect(map.map((p) => p.name)).not.toContain("Stare");
-    for (const place of DEMO_MAP_PLACES.filter((p) => p.slug !== "tyniec")) {
+    for (const place of DEMO_MAP_PLACES.filter((p) => p.slug !== "wawel")) {
       expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null }));
     }
   });
