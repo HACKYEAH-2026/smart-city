@@ -1,0 +1,14 @@
+# Local dev in one terminal: `just dev` (or `mprocs`). Run inside `nix develop` / direnv.
+# api: in-memory SurrealDB with the "Kraków" demo, :4000 (restart = fresh database)
+# app: Expo dev server, :8081 (w = web, a = Android, i = iOS)
+# benches: uploads the benches plugin into "krakow" on demand (s to start, again after an api restart)
+procs:
+  api:
+    shell: bun run dev
+    cwd: apps/api
+  app:
+    shell: bun run dev
+    cwd: apps/app
+  benches:
+    shell: bun run plugin:upload plugins/benches
+    autostart: false

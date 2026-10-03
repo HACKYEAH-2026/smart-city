@@ -43,9 +43,11 @@ plugins/        wtyczki: każda to pakiet zależny tylko od SDK (issues = wbudow
 ## Uruchomienie
 
 ```bash
-nix develop            # bun, node (albo: direnv allow); z Android SDK: nix develop .#android
+nix develop            # bun, node, just, mprocs (albo: direnv allow); z Android SDK: nix develop .#android
+just dev               # bun install + mprocs: API (SurrealDB w pamięci, demo „Kraków”) i Expo w jednym terminalu
+just                   # lista skrótów (api, app, plugin, verify, test, e2e…)
 bun install
-bun run dev            # API (SurrealDB w pamięci, demo: społeczność „Kraków”) + aplikacja Expo
+bun run dev            # to samo bez mprocs: API + aplikacja Expo
 bun run plugin:upload plugins/benches   # wgraj wtyczkę w locie
 bun run verify         # lint, typy, testy, schemat bazy, E2E, build, Android (w nix develop .#android)
 ```

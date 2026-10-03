@@ -48,6 +48,8 @@
             bun
             nodejs_24 # Expo CLI / Metro / Gradle autolinking run on Node
             gh
+            just # justfile: shortcuts for the package.json scripts
+            mprocs # `just dev`: API + Expo in one terminal (mprocs.yaml)
           ];
 
           # mkShellNoCC: does not override DEVELOPER_DIR/SDKROOT on macOS (xcodebuild, CocoaPods).
