@@ -71,6 +71,20 @@ export function createTestRoutes(deps: Deps) {
         await seedDemo(deps);
         return c.json({ ok: true });
       })
+      /** Invites an existing user to Kraków from its admin (the invitations screen shows it). */
+      .post("/__test/invitation", async (c) => {
+        const { email, slug } = await c.req.json<{ email: string; slug: string }>();
+        const invitee = await first<{ id: RecordId }>(deps.db, "SELECT id FROM user WHERE email = $e;", { e: email });
+        const community = await communityBySlug(deps.db, slug);
+        const admin = await userIdByEmail(deps.db, DEMO_ADMIN.email);
+        if (!invitee || !community || !admin) return c.json({ error: "not_found" }, 404);
+        await first(deps.db, "CREATE invitation CONTENT { community: $c, user: $u, invited_by: $i };", {
+          c: ref("community", keyOf(community.id)),
+          u: ref("user", keyOf(invitee.id)),
+          i: ref("user", keyOf(admin)),
+        });
+        return c.json({ ok: true });
+      })
       /** Adds an existing user to a place as a plain member (joining is a separate screen, not in the API yet). */
       .post("/__test/membership", async (c) => {
         const { email, slug } = await c.req.json<{ email: string; slug: string }>();

@@ -96,4 +96,13 @@ export const joinKrakow = async (apiUrl: string, email: string) => {
   });
   if (!res.ok) throw new Error(`joinKrakow ${res.status}`);
 };
+/** Invites an existing user to Kraków from its admin (the invitations screen shows it); the test API exposes this route. */
+export const inviteToKrakow = async (apiUrl: string, email: string) => {
+  const res = await fetch(`${apiUrl}/__test/invitation`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, slug: "krakow" }),
+  });
+  if (!res.ok) throw new Error(`inviteToKrakow ${res.status}`);
+};
 export { expect };

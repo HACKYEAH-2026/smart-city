@@ -89,6 +89,20 @@ export const joinPlaceSchema = z.object({
   makeDefault: z.boolean().default(false),
 });
 export type JoinPlace = z.input<typeof joinPlaceSchema>;
+/** An invitation to a place, as its invitee sees it (GET /api/invitations). */
+export type Invitation = {
+  id: string;
+  placeName: string;
+  placeKind: PlaceKind;
+  inviterName: string;
+  createdAt: string;
+};
+/** An admin invites a user to a place by the email the user signed up with (POST /api/invitations). */
+export const inviteSchema = z.object({
+  slug: z.string().min(1).max(100),
+  email: z.string().trim().toLowerCase().email().max(200),
+});
+export type Invite = z.input<typeof inviteSchema>;
 /** Answer to creating a place: the new place and its invite code. */
 export type CreatedPlace = Community & { inviteCode: string };
 export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };

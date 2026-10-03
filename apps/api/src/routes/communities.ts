@@ -332,7 +332,7 @@ function placeByInviteCode(db: Db, code: string): Promise<PlaceByCode | undefine
  * Makes the user a member of an open place (as a plain member, unless already a member), remembers it as the last
  * visited place, and makes it the default one when asked.
  */
-async function joinAsMember(db: Db, place: CommunityRow, userId: string, makeDefault: boolean): Promise<void> {
+export async function joinAsMember(db: Db, place: CommunityRow, userId: string, makeDefault: boolean): Promise<void> {
   const communityId = keyOf(place.id);
   const u = ref("user", userId);
   const c = ref("community", communityId);

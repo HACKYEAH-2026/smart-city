@@ -122,3 +122,32 @@ export function useCreatePlace() {
     onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
   });
 }
+
+const invitations = api.api.invitations;
+export const invitationsKey = ["invitations"] as const;
+
+/** Invitations to places addressed to the signed-in user. */
+export function useInvitations() {
+  return useQuery({ queryKey: invitationsKey, queryFn: () => parseResponse(invitations.$get()) });
+}
+
+/** Accepting an invitation joins the place, which then becomes the user's last visited one. */
+export function useAcceptInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => parseResponse(invitations[":id"].accept.$post({ param: { id } })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: invitationsKey });
+      qc.invalidateQueries({ queryKey: communitiesKey });
+    },
+  });
+}
+
+/** Declining an invitation removes it. */
+export function useDeclineInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => parseResponse(invitations[":id"].$delete({ param: { id } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: invitationsKey }),
+  });
+}

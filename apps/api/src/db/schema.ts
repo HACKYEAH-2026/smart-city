@@ -10,6 +10,7 @@ export const TABLES = {
   user: "user",
   community: "community",
   membership: "membership",
+  invitation: "invitation",
   installation: "plugin_installation",
   file: "plugin_file",
   source: "plugin_source",
@@ -48,6 +49,14 @@ DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS commun
 -- Per-user place state: when the user last opened the place, and whether it is the user's default place.
 DEFINE FIELD IF NOT EXISTS last_visit ON membership TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS is_default ON membership TYPE bool DEFAULT false;
+
+-- An invitation to a place: an admin invites a user (by email); the invitee accepts (joins) or declines (removed).
+DEFINE TABLE IF NOT EXISTS invitation SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS community ON invitation TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS user ON invitation TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS invited_by ON invitation TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS created_at ON invitation TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS invitation_community_user ON invitation FIELDS community, user UNIQUE;
 
 -- A plugin enabled in a community; plugin tables and files cascade on it.
 DEFINE FIELD IF NOT EXISTS community ON plugin_installation TYPE record<community> REFERENCE ON DELETE CASCADE;

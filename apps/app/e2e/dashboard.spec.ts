@@ -87,7 +87,7 @@ test("join in the place switcher opens the join screen", async ({ page, api }) =
   await page.goto("/app");
   await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
   await page.getByRole("dialog").getByRole("button", { name: t.place_join, exact: true }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.join_hero_title })).toBeVisible();
 });
 
 test("create in the place switcher opens the create form", async ({ page, api }) => {
