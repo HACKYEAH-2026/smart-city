@@ -114,7 +114,7 @@ Min wysokość 128, padding 14, radius 18, gap 14, układ kolumnowy. Zawartość
 Jak SelectableCard, ale w układzie poziomym (padding 16, radius 18, gap 14): po lewej `RadioDot` (koło 22: border 2 `border`, zaznaczone: border `primary` + wypełnienie 10–12 dp `primary`), potem tytuł 16/600 (+ `Badge` „Polecane") i opis `caption` `textSecondary`. Kontener `accessibilityRole="radiogroup"`.
 
 ### CheckCard (funkcje nowego miejsca)
-Jak RadioCard, ale każdą opcję włącza się osobno: po lewej kwadrat 22 (radius 6, border 2 `border`; zaznaczony: tło i border `primary` + ikona `Check` `onPrimary`), potem emoji wtyczki i tytuł 16/600, pod spodem opis `caption` `textSecondary`. Zaznaczona karta: border 2 `primary` + `shadows.selected`. `accessibilityRole="checkbox"`, kontener `role="group"` z etykietą.
+Jak RadioCard, ale każdą opcję włącza się osobno: po lewej kwadrat 22 (radius 6, border 2 `border`; zaznaczony: tło i border `primary` + ikona `Check` `onPrimary`), potem emoji rozszerzenia i tytuł 16/600, pod spodem opis `caption` `textSecondary`. Zaznaczona karta: border 2 `primary` + `shadows.selected`. `accessibilityRole="checkbox"`, kontener `role="group"` z etykietą.
 
 ### DisclosureCard (sekcje „Zarządzaj miejscem")
 Biała karta radius 20, `shadows.card` (otwarta: `cardRaised`). Nagłówek (cały jest przyciskiem, `aria-expanded`): padding 16, gap 14, `IconBox` 44 (zamknięta: wariant `neutral` — tło `surfaceSunken`, ikona `text`; otwarta: `selected`), tytuł `cardTitle` + podsumowanie `small` `textSecondary`, po prawej chevron 18 (otwarta: `ChevronUp` w kole 44 `surfaceSunken`). Treść pod linią 1 px `borderSubtle`, padding 16, gap 14. Otwarta jest jedna sekcja naraz.
@@ -151,7 +151,7 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 - Nagłówek: powitanie `body` `textSecondary` + `IconButton round` (dzwonek); pod nim etykieta „Twoje miejsce" i nazwa miejsca `heading` (lub `headingM` dla długich nazw) z kółkiem 32 dp `primaryTint` z `ChevronDown` 16 (`primary`) — cały blok otwiera BottomSheet przełącznika.
 - Tło nagłówka: dekoracyjna mapa (SVG: ulice `mapRoadMinor` 7 px, woda `mapWater`) — opcjonalne, `aria-hidden`.
 - Siatka widżetów: 2 kolumny, gap 12; widżet pełnej szerokości = span 2. Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
-- Kafelek widżetu: dotknięcie otwiera widok pluginu wskazany przez widżet (`onPress`; przy tytule `ChevronRight` `iconMuted`), karty i przyciski w środku działają osobno. Administrator przytrzymuje kafelek (haptyka „long press"), żeby wejść w tryb edycji: przerywana ramka, uchwyt i strzałki, nad siatką podpowiedź i „Gotowe". Czytnik ekranu: akcja „Edytuj pulpit" na kafelku.
+- Kafelek widżetu: dotknięcie otwiera widok rozszerzenia wskazany przez widżet (`onPress`; przy tytule `ChevronRight` `iconMuted`), karty i przyciski w środku działają osobno. Administrator przytrzymuje kafelek (haptyka „long press"), żeby wejść w tryb edycji: przerywana ramka, uchwyt i strzałki, nad siatką podpowiedź i „Gotowe". Czytnik ekranu: akcja „Edytuj pulpit" na kafelku.
 - `EmptyStateCard`: Card radius 20, padding 20, `IconBox` 48 radius 14 + tytuł 16/600 + opis `caption` (lineHeight 20).
 - `CtaCard` (Zaproś mieszkańców): radius 20, padding 16, tło `primary`, `IconBox` w wariancie `onPrimary`, tytuł 16/600 biały, podtytuł `caption` biały z `opacity.onPrimarySubtitle`, `ChevronRight` po prawej.
 
@@ -201,7 +201,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-PrzelacznikMiejsc | Przełącznik miejsc | BottomSheet, PlaceRow ×N, Button secondary ×2 |
 | E-NoweMiejsceTyp | Nowe miejsce 1/4 | ScreenHeader (krok), SelectableCard ×6, Button primary |
 | E-NoweMiejsceDane | Nowe miejsce 2/4 | TextField, pole adresu z mapą, textarea |
-| — | Nowe miejsce 3/4: funkcje (bez projektu; wzór: RadioCard) | CheckCard × wbudowane wtyczki, Button primary |
+| — | Nowe miejsce 3/4: funkcje (bez projektu; wzór: RadioCard) | CheckCard × wbudowane rozszerzenia, Button primary |
 | E-NoweMiejsceDostep | Nowe miejsce 4/4 | RadioCard ×3, Switch row, notka |
 | E-NoweMiejsceGotowe | Miejsce utworzone | SuccessMark, StatusPill, karta kodu+QR, Button primary + ghost |
 | E-ZaprosOsoby | Zaproś osoby | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary |
