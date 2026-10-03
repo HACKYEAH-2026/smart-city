@@ -53,6 +53,13 @@ const config: ExpoConfig = {
         photosPermission: "Aplikacja potrzebuje dostępu do zdjęć, aby dodać zdjęcie.",
       },
     ],
+    // iOS system permission prompt: user-visible text, so Polish (AGENTS.md: Language).
+    [
+      "expo-camera",
+      {
+        cameraPermission: "Aplikacja potrzebuje aparatu, aby odczytać kod QR miejsca.",
+      },
+    ],
     "expo-notifications",
     ...googleSignIn,
   ],

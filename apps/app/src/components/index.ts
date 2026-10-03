@@ -34,6 +34,7 @@ export type { PlaceRowProps } from "./PlaceRow";
 export { PlaceRow } from "./PlaceRow";
 export type { RadioCardProps } from "./RadioCard";
 export { RadioCard } from "./RadioCard";
+export { ScannerFrame } from "./ScannerFrame";
 export { Screen } from "./Screen";
 export type { TextProps } from "./Text";
 export { Text } from "./Text";

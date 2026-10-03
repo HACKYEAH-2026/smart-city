@@ -5,8 +5,11 @@ import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
-/** square: back button in screen headers · round: bell or account avatar · roundSunken: close in a bottom sheet. */
-export type IconButtonVariant = "square" | "round" | "roundSunken";
+/**
+ * square: back button in screen headers · round: bell or account avatar · roundSunken: close in a bottom sheet ·
+ * roundOnDark: close and torch on the dark QR scanner.
+ */
+export type IconButtonVariant = "square" | "round" | "roundSunken" | "roundOnDark";
 
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
@@ -30,7 +33,11 @@ export function IconButton({ label, onPress, variant = "square", icon, text }: I
       style={({ pressed }) => [styles.button, styles[variant], pressed && { opacity: opacity.pressed }]}
     >
       {icon ? (
-        <Icon icon={icon} size={variant === "roundSunken" ? sizes.iconS : spacing[9]} />
+        <Icon
+          icon={icon}
+          size={variant === "roundSunken" ? sizes.iconS : spacing[9]}
+          color={variant === "roundOnDark" ? "onPrimary" : "text"}
+        />
       ) : (
         <Text variant="buttonS">{text}</Text>
       )}
@@ -58,4 +65,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
+  roundOnDark: { borderRadius: radii.pill, backgroundColor: colors.onDarkOverlay },
 });

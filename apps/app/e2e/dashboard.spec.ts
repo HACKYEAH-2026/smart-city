@@ -28,20 +28,27 @@ test("a user without places sees the ways to join and creating their own place",
   await register(page, "empty@example.test");
   await expect(page.getByText(t.dashboard_empty_label)).toBeVisible();
   await expect(page.getByRole("heading", { name: t.join_methods_title, level: 2 })).toBeVisible();
-  for (const name of [t.join_qr, t.join_code, t.join_link, t.join_invites]) {
-    await expect(page.getByRole("link", { name })).toBeVisible();
+  await expect(page.getByRole("link", { name: t.join_qr })).toBeVisible();
+  for (const name of [t.join_code, t.join_link, t.join_invites]) {
+    await expect(page.getByText(name, { exact: true })).toBeVisible();
   }
   await expect(page.getByRole("link", { name: t.place_create_own })).toBeVisible();
   await expect(page.getByRole("navigation", { name: t.nav_main })).toHaveCount(0);
 });
 
-test("on the no-places screen a way to join opens joining and the avatar opens the account", async ({ page }) => {
+test("on the no-places screen the avatar opens the account", async ({ page }) => {
   await register(page, "ways@example.test");
-  await page.getByRole("link", { name: t.join_code }).click();
-  await expect(page.getByRole("heading", { name: t.join_title, level: 1 })).toBeVisible();
   await page.goto("/app");
   await page.getByRole("button", { name: t.account_title }).click();
   await expect(page.getByRole("heading", { name: t.account_title, level: 1 })).toBeVisible();
+});
+
+test("the QR option opens the scanner with a way back and manual code entry", async ({ page }) => {
+  await register(page, "scan@example.test");
+  await page.getByRole("link", { name: t.join_qr }).click();
+  await expect(page.getByText(t.scan_title)).toBeVisible();
+  await expect(page.getByRole("button", { name: t.close })).toBeVisible();
+  await expect(page.getByRole("button", { name: t.scan_enter_code })).toBeVisible();
 });
 
 test("the dashboard shows the current place, the place's features and the bottom bar", async ({ page, api }) => {
@@ -68,13 +75,22 @@ test("clicking the place name opens the place switcher with set-as-default, join
   await expect(sheet.getByRole("button", { name: t.place_create, exact: true })).toBeVisible();
 });
 
-test("create in the place switcher opens the no-places screen", async ({ page, api }) => {
+test("join in the place switcher opens the join screen", async ({ page, api }) => {
+  await register(page, "sheet-join@example.test");
+  await joinKrakow(api.url, "sheet-join@example.test");
+  await page.goto("/app");
+  await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: t.place_join, exact: true }).click();
+  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+});
+
+test("create in the place switcher opens the create form", async ({ page, api }) => {
   await register(page, "sheet-create@example.test");
   await joinKrakow(api.url, "sheet-create@example.test");
   await page.goto("/app");
   await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
   await page.getByRole("dialog").getByRole("button", { name: t.place_create, exact: true }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+  await expect(page.getByLabel(t.create_name)).toBeVisible();
 });
 
 test("the Places tab opens the place switcher over the dashboard", async ({ page, api }) => {

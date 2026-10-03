@@ -37,7 +37,6 @@ export const colors = {
 
   // Dark mode (QR scanner only)
   scannerBg: "#17171A",
-  scannerFrame: "#242428",
   scannerText: "#C8C8CC",
   scannerHint: "#707078",
   onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
@@ -134,6 +133,11 @@ export const sizes = {
   heroBanner: 172,
   successMark: 64,
   scannerFrame: 268,
+  /** QR scanner frame: corner length and the frame's corner radius (design: 52 and 32). */
+  scannerCorner: 52,
+  scannerRadius: 32,
+  /** Text under the scanner frame: max width. */
+  scannerHint: 280,
   /** Login screen: height of the map illustration at the top. */
   authMap: 300,
   /** Dashboard header: height of the map decoration. */
@@ -253,6 +257,7 @@ export const borders = {
   hairline: 1,
   selected: 2, // selected card, focused field, active code cell
   row: 1.5, // place switcher row, dashed frames
+  scanner: 3, // QR scanner frame corners
 } as const;
 
 export const opacity = {

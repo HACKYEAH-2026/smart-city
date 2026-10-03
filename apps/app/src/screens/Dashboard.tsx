@@ -1,36 +1,10 @@
 import type { MyPlace } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import {
-  ChevronDown,
-  Keyboard,
-  LayoutDashboard,
-  Link as LinkIcon,
-  LogIn,
-  Plus,
-  QrCode,
-  User,
-  UserPlus,
-} from "lucide-react-native";
+import { ChevronDown, LayoutDashboard, LogIn, Plus } from "lucide-react-native";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import {
-  ActionRow,
-  BottomSheet,
-  Brand,
-  Button,
-  Card,
-  CreateRow,
-  DashboardMap,
-  Heading,
-  HeroBanner,
-  Icon,
-  IconButton,
-  Link,
-  PlaceRow,
-  Screen,
-  Text,
-} from "../components";
+import { BottomSheet, Button, Card, DashboardMap, Heading, Icon, Link, PlaceRow, Screen, Text } from "../components";
 import { useCommunities, useCommunityNav, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { useSession } from "../data/session";
 import { tapFeedback } from "../lib/haptics";
@@ -40,7 +14,7 @@ import { Dashboard as DashboardWidgets } from "../plugins/Dashboard";
 import { pluginHref } from "../plugins/href";
 import { t } from "../texts";
 import { colors, radii, sizes, spacing } from "../theme";
-import CreatePlace from "./CreatePlace";
+import JoinPlace from "./JoinPlace";
 
 /**
  * Dashboard after sign-in (design E-Dashboard): greeting, the current place, its widgets, the place switcher and the
@@ -59,7 +33,7 @@ export default function Dashboard() {
   }
   const list = places.data ?? [];
   const current = currentPlace(list);
-  return current ? <PlaceDashboard place={current} places={list} /> : <CreatePlace />;
+  return current ? <PlaceDashboard place={current} places={list} /> : <JoinPlace />;
 }
 
 /** "Dzień dobry, <name>" — the signed-in user's name from the session. */
@@ -112,13 +86,13 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
               variant="secondary"
               leftIcon={<Icon icon={LogIn} size={sizes.iconS} strokeWidth={2} />}
               style={styles.sheetAction}
-              onPress={() => router.push("/app/join")}
+              onPress={() => router.push("/app/join-place")}
             />
             <Button
               label={t.place_create}
               leftIcon={<Icon icon={Plus} size={sizes.iconS} color="onPrimary" strokeWidth={2.2} />}
               style={styles.sheetAction}
-              onPress={() => router.push("/app/create-place")}
+              onPress={() => router.push("/app/create")}
             />
           </View>
         </BottomSheet>

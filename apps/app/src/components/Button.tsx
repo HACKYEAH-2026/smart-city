@@ -4,7 +4,15 @@ import { tapFeedback } from "../lib/haptics";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
 import { Text } from "./Text";
 
-export type ButtonVariant = "primary" | "secondary" | "tint" | "dark" | "onDark" | "ghost" | "destructiveGhost";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "tint"
+  | "dark"
+  | "onDark"
+  | "ghost"
+  | "ghostOnDark"
+  | "destructiveGhost";
 type ButtonSize = "lg" | "md" | "sm" | "xs";
 
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
@@ -38,6 +46,7 @@ const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; 
   dark: { bg: colors.text, fg: colors.surface },
   onDark: { bg: colors.surface, fg: colors.text },
   ghost: { bg: "transparent", fg: colors.text },
+  ghostOnDark: { bg: colors.onDarkOverlay, fg: colors.onPrimary },
   destructiveGhost: { bg: "transparent", fg: colors.primaryPressed },
 };
 
