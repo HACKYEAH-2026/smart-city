@@ -1,1 +1,1 @@
-export { default } from "../../src/screens/Communities";
+export { default } from "../../src/screens/Dashboard";

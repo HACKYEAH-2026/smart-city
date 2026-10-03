@@ -5,6 +5,7 @@ export {
   communityBySlug,
   first,
   keyOf,
+  memberRole,
   membershipRef,
   ref,
   rows,

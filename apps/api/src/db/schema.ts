@@ -37,6 +37,9 @@ DEFINE FIELD IF NOT EXISTS community ON membership TYPE record<community> REFERE
 DEFINE FIELD IF NOT EXISTS user ON membership TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS role ON membership TYPE "admin" | "user" DEFAULT "user";
 DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS community, user UNIQUE;
+-- Per-user place state: when the user last opened the place, and whether it is the user's default place.
+DEFINE FIELD IF NOT EXISTS last_visit ON membership TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS is_default ON membership TYPE bool DEFAULT false;
 
 -- A plugin enabled in a community; plugin tables and files cascade on it.
 DEFINE FIELD IF NOT EXISTS community ON plugin_installation TYPE record<community> REFERENCE ON DELETE CASCADE;

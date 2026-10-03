@@ -68,4 +68,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 });
 
 export { TEST_ADMIN_TOKEN } from "../../api/src/test-env";
+
+/** Makes an existing user a member of Kraków (joining is not a screen yet); the test API exposes this route. */
+export const joinKrakow = async (apiUrl: string, email: string) => {
+  const res = await fetch(`${apiUrl}/__test/membership`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, slug: "krakow" }),
+  });
+  if (!res.ok) throw new Error(`joinKrakow ${res.status}`);
+};
 export { expect };

@@ -1,11 +1,11 @@
 import { testEngine } from "@app/plugin-sdk/testing";
 import { createApp } from "../src/app";
-import { type DbHandle, migrate } from "../src/db";
+import { communityBySlug, type DbHandle, first, keyOf, membershipRef, migrate, ref } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
 import type { AIProviders } from "../src/services/ai/types";
 import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
-import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
+import { DEMO_ADMIN, DEMO_COMMUNITY, seedDemo } from "../src/test-routes";
 
 /**
  * Each test gets a fresh database with the schema applied, on the one embedded engine of the test process
@@ -61,8 +61,21 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return app.request(path, { ...rest, headers, body: json !== undefined ? JSON.stringify(json) : rest.body });
   };
 
-  /** Data factory: registers a user via the real Better Auth endpoint. */
-  const signUp = async (overrides: { email?: string; password?: string; name?: string } = {}) => {
+  /** Makes a user a plain member of a place (joining is not in the API yet). */
+  const join = async (user: TestUser, slug: string = DEMO_COMMUNITY.slug) => {
+    const community = await communityBySlug(handle.db, slug);
+    if (!community) throw new Error(`join: no place ${slug}`);
+    await first(handle.db, "UPSERT $m MERGE { community: $c, user: $u };", {
+      m: membershipRef(keyOf(community.id), user.id),
+      c: ref("community", keyOf(community.id)),
+      u: ref("user", user.id),
+    });
+  };
+
+  /** Data factory: registers a user via the real Better Auth endpoint; member of the demo place unless `place: null`. */
+  const signUp = async (
+    overrides: { email?: string; password?: string; name?: string; place?: string | null } = {},
+  ) => {
     seq += 1;
     const email = overrides.email ?? `user${seq}@example.test`;
     const res = await request("/api/auth/sign-up/email", {
@@ -73,7 +86,10 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     const token = res.headers.get("set-auth-token");
     if (!token) throw new Error("signUp: missing set-auth-token header (bearer plugin?)");
     const body = (await res.json()) as { user: { id: string } };
-    return { id: body.user.id, email, headers: { authorization: `Bearer ${token}` } } satisfies TestUser;
+    const user = { id: body.user.id, email, headers: { authorization: `Bearer ${token}` } } satisfies TestUser;
+    const place = overrides.place === undefined ? DEMO_COMMUNITY.slug : overrides.place;
+    if (place !== null && (await communityBySlug(handle.db, place))) await join(user, place);
+    return user;
   };
 
   /** Demo data ("Kraków" community, built-in plugins, admin account) + signed-in admin. */
@@ -88,6 +104,6 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 
-  return { app, db: handle.db, plugins, notifications, push, request, signUp, seed, close: handle.close };
+  return { app, db: handle.db, plugins, notifications, push, request, signUp, seed, join, close: handle.close };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

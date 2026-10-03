@@ -119,6 +119,16 @@ export const sizes = {
   scannerFrame: 268,
   /** Login screen: height of the map illustration at the top. */
   authMap: 300,
+  /** Dashboard header: height of the map decoration. */
+  dashboardMap: 230,
+  /** Dashboard placeholder tiles: 128 high (two per row), 96 high for the full-width one. */
+  placeholderTile: 128,
+  placeholderTileWide: 96,
+  /** Bottom sheet handle (40 × 5). */
+  sheetHandleWidth: 40,
+  sheetHandleHeight: 5,
+  /** Dot under the active bottom-bar tab. */
+  tabDot: 5,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
 } as const;
@@ -234,6 +244,8 @@ export const opacity = {
   onPrimarySubtitle: 0.9,
   /** Halo around the current-location pin on the login map illustration. */
   routeHalo: 0.18,
+  /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
+  scrim: 0.55,
 } as const;
 
 export const motion = {

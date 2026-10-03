@@ -60,9 +60,25 @@ async function resetDb({ db, plugins }: Deps) {
 }
 
 export function createTestRoutes(deps: Deps) {
-  return new Hono().post("/__test/reset", async (c) => {
-    await resetDb(deps);
-    await seedDemo(deps);
-    return c.json({ ok: true });
-  });
+  return (
+    new Hono()
+      .post("/__test/reset", async (c) => {
+        await resetDb(deps);
+        await seedDemo(deps);
+        return c.json({ ok: true });
+      })
+      /** Adds an existing user to a place as a plain member (joining is a separate screen, not in the API yet). */
+      .post("/__test/membership", async (c) => {
+        const { email, slug } = await c.req.json<{ email: string; slug: string }>();
+        const user = await first<{ id: RecordId }>(deps.db, "SELECT id FROM user WHERE email = $e;", { e: email });
+        const community = await communityBySlug(deps.db, slug);
+        if (!user || !community) return c.json({ error: "not_found" }, 404);
+        await first(deps.db, "UPSERT $m MERGE { community: $c, user: $u };", {
+          m: membershipRef(keyOf(community.id), keyOf(user.id)),
+          c: ref("community", keyOf(community.id)),
+          u: ref("user", keyOf(user.id)),
+        });
+        return c.json({ ok: true });
+      })
+  );
 }

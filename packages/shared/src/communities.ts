@@ -11,6 +11,9 @@ export const communityCreateSchema = z.object({
 });
 export type CommunityCreate = z.input<typeof communityCreateSchema>;
 
+/** A user creates a community (place): only the name; the slug is derived on the server. */
+export const communityNameSchema = z.object({ name: z.string().trim().min(1).max(80) });
+
 export const PLUGIN_SOURCE_MAX = 200_000;
 export const pluginUploadSchema = z.object({ source: z.string().min(1).max(PLUGIN_SOURCE_MAX) });
 export const pluginInstallSchema = z.object({ pluginId: z.string().min(1) });
@@ -18,6 +21,16 @@ export const adminGrantSchema = z.object({ email: z.email() });
 
 /** Plugin tool call arguments (form data + action args). */
 export const toolCallSchema = z.object({ args: z.record(z.string(), z.unknown()).default({}) });
+
+/** A place the signed-in user is a member of (GET /api/communities): membership state included. */
+export type MyPlace = {
+  id: string;
+  slug: string;
+  name: string;
+  role: "admin" | "user";
+  isDefault: boolean;
+  lastVisitAt: string | null;
+};
 
 /** A community and its nav entry (API responses for the app). */
 export type Community = { id: string; slug: string; name: string };

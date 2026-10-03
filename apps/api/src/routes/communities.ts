@@ -1,5 +1,11 @@
 import { type DashboardWidgetSize, type Role, type UINode, viewParamsSchema } from "@app/plugin-sdk";
-import { type CommunityNavItem, dashboardOrderSchema, toolCallSchema } from "@app/shared";
+import {
+  type CommunityNavItem,
+  communityNameSchema,
+  dashboardOrderSchema,
+  type MyPlace,
+  toolCallSchema,
+} from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import type { RecordId } from "surrealdb";
@@ -10,6 +16,7 @@ import {
   type Db,
   first,
   keyOf,
+  memberRole,
   membershipRef,
   ref,
   rows,
@@ -19,7 +26,6 @@ import { requireUser } from "../middleware";
 import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
 
-/** A rendered dashboard widget: `key` = "<pluginId>/<widget>", `size` in grid cells (2 columns wide). */
 type DashboardWidgetItem = {
   key: string;
   pluginId: string;
@@ -29,26 +35,10 @@ type DashboardWidgetItem = {
 };
 
 /**
- * Communities and their plugins (for the app). A plugin's views, tools and uploads are available only
- * when the plugin is installed and enabled in the given community; otherwise 404.
- * Communities are open for now: the first visit creates a membership with the "user" role.
+ * Places (communities) and their plugins, for the app. A user sees only the places they are a member of;
+ * everything else in a place answers 404 (the place may exist, the user does not learn it).
+ * Creating a place makes its creator an admin. Joining a place is not part of the API yet.
  */
-/** User's role in a community; no membership = join as "user" (the role default). */
-async function roleIn(db: Db, communityId: string, userId: string): Promise<Role> {
-  const row = await first<{ role: Role }>(db, "UPSERT $m MERGE { community: $c, user: $u } RETURN role;", {
-    m: membershipRef(communityId, userId),
-    c: ref("community", communityId),
-    u: ref("user", userId),
-  });
-  return row?.role ?? "user";
-}
-
-/** Role without joining (read-only, safe to run next to `roleIn`): no membership = "user". */
-async function currentRole(db: Db, communityId: string, userId: string): Promise<Role> {
-  const row = await first<{ role: Role }>(db, "SELECT role FROM $m;", { m: membershipRef(communityId, userId) });
-  return row?.role ?? "user";
-}
-
 export const communitiesRoutes = new Hono<AppEnv>()
   .use(requireUser)
   .use(async (c, next) => {
@@ -56,16 +46,83 @@ export const communitiesRoutes = new Hono<AppEnv>()
     await next();
   })
   .get("/", async (c) => {
-    const all = await rows<CommunityRow>(c.var.db, "SELECT id, slug, name FROM community ORDER BY name;");
-    return c.json(all.map(toCommunity));
+    const mine = await rows<{
+      id: RecordId;
+      slug: string;
+      name: string;
+      role: Role;
+      is_default: boolean;
+      last_visit: Date | null;
+    }>(
+      c.var.db,
+      `SELECT community.id AS id, community.slug AS slug, community.name AS name, role, is_default, last_visit
+         FROM membership WHERE user = $u ORDER BY name;`,
+      { u: ref("user", c.var.user.id) },
+    );
+    const places: MyPlace[] = mine.map((m) => ({
+      id: keyOf(m.id),
+      slug: m.slug,
+      name: m.name,
+      role: m.role,
+      isDefault: m.is_default,
+      lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
+    }));
+    return c.json(places);
+  })
+  .post("/", zValidator("json", communityNameSchema), async (c) => {
+    const { name } = c.req.valid("json");
+    const slug = await freeSlug(c.var.db, name);
+    if (!slug) return c.json({ error: "conflict", message: "could not derive a free slug" }, 409);
+    const created = await first<CommunityRow>(c.var.db, "CREATE community CONTENT { slug: $slug, name: $name };", {
+      slug,
+      name,
+    });
+    if (!created) throw new Error("community create returned no row");
+    const communityId = keyOf(created.id);
+    // The first place of a user becomes their default place.
+    const hasDefault = await first<{ id: RecordId }>(
+      c.var.db,
+      "SELECT id FROM membership WHERE user = $u AND is_default LIMIT 1;",
+      {
+        u: ref("user", c.var.user.id),
+      },
+    );
+    await first(c.var.db, "CREATE $m CONTENT { community: $c, user: $u, role: 'admin', is_default: $def };", {
+      m: membershipRef(communityId, c.var.user.id),
+      c: ref("community", communityId),
+      u: ref("user", c.var.user.id),
+      def: !hasDefault,
+    });
+    return c.json(toCommunity(created), 201);
   })
   .get("/:slug", async (c) => {
-    const row = await communityBySlug(c.var.db, c.req.param("slug"));
-    if (!row) return c.json({ error: "not_found" }, 404);
-    const role = await roleIn(c.var.db, keyOf(row.id), c.var.user.id);
-    return c.json({ ...toCommunity(row), role }, 200);
+    const member = await memberOf(c, c.req.param("slug"));
+    if (!member) return c.json({ error: "not_found" }, 404);
+    return c.json({ ...toCommunity(member.row), role: member.role }, 200);
+  })
+  /** Opening a place: remembers it as the user's last visited place (shown on the dashboard). */
+  .post("/:slug/visit", async (c) => {
+    const member = await memberOf(c, c.req.param("slug"));
+    if (!member) return c.json({ error: "not_found" }, 404);
+    await first(c.var.db, "UPDATE $m SET last_visit = time::now();", {
+      m: membershipRef(keyOf(member.row.id), c.var.user.id),
+    });
+    return c.json({ ok: true }, 200);
+  })
+  /** Makes this place the user's default place; the previous default is cleared. */
+  .put("/:slug/default", async (c) => {
+    const member = await memberOf(c, c.req.param("slug"));
+    if (!member) return c.json({ error: "not_found" }, 404);
+    await first(
+      c.var.db,
+      `UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;
+       UPDATE $m SET is_default = true;`,
+      { u: ref("user", c.var.user.id), m: membershipRef(keyOf(member.row.id), c.var.user.id) },
+    );
+    return c.json({ ok: true }, 200);
   })
   .get("/:slug/nav", async (c) => {
+    if (!(await memberOf(c, c.req.param("slug")))) return c.json({ error: "not_found" }, 404);
     const installed = await rows<{ plugin: string }>(
       c.var.db,
       "SELECT plugin, created_at FROM plugin_installation WHERE community.slug = $slug AND enabled ORDER BY created_at;",
@@ -84,10 +141,10 @@ export const communitiesRoutes = new Hono<AppEnv>()
    * broken plugin never breaks the dashboard. `canEdit` = the user may reorder it.
    */
   .get("/:slug/dashboard", async (c) => {
-    const row = await communityBySlug(c.var.db, c.req.param("slug"));
-    if (!row) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(row);
-    const role = await currentRole(c.var.db, community.id, c.var.user.id);
+    const member = await memberOf(c, c.req.param("slug"));
+    if (!member) return c.json({ error: "not_found" }, 404);
+    const community = toCommunity(member.row);
+    const role = member.role;
     const user = { id: c.var.user.id, name: c.var.user.name, role };
     const installed = await rows<{ id: RecordId; plugin: string }>(
       c.var.db,
@@ -115,10 +172,10 @@ export const communitiesRoutes = new Hono<AppEnv>()
   })
   /** Community admins set the dashboard order (keys "<pluginId>/<widget>"). */
   .patch("/:slug/dashboard", zValidator("json", dashboardOrderSchema), async (c) => {
-    const row = await communityBySlug(c.var.db, c.req.param("slug"));
-    if (!row) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(row);
-    if ((await currentRole(c.var.db, community.id, c.var.user.id)) !== "admin") {
+    const member = await memberOf(c, c.req.param("slug"));
+    if (!member) return c.json({ error: "not_found" }, 404);
+    const community = toCommunity(member.row);
+    if (member.role !== "admin") {
       return c.json({ error: "forbidden" }, 403);
     }
     const { order } = c.req.valid("json");
@@ -174,6 +231,32 @@ export const communitiesRoutes = new Hono<AppEnv>()
     }
   });
 
+/** The place and the signed-in user's role in it, or null when the place is unknown or the user is not a member. */
+async function memberOf(c: Context<AppEnv>, slug: string) {
+  const row = await communityBySlug(c.var.db, slug);
+  if (!row) return null;
+  const role = await memberRole(c.var.db, keyOf(row.id), c.var.user.id);
+  return role ? { row, role } : null;
+}
+
+/** Slug from the place name (ASCII, lowercase, hyphens), with a numeric suffix when taken. Null after 50 tries. */
+async function freeSlug(db: Db, name: string): Promise<string | null> {
+  const base =
+    name
+      .toLowerCase()
+      .replaceAll("ł", "l") // not a decomposable letter, so NFKD leaves it alone
+      .normalize("NFKD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 36) || "miejsce";
+  for (let i = 1; i <= 50; i++) {
+    const candidate = i === 1 ? base : `${base}-${i}`;
+    if (!(await communityBySlug(db, candidate))) return candidate;
+  }
+  return null;
+}
+
 /** Community + enabled installation + loaded plugin + context with the user's role, or null (→ 404). */
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const row = await first<{ id: RecordId; community: CommunityRow }>(
@@ -185,8 +268,9 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
   const community = toCommunity(row.community);
+  const role = await memberRole(c.var.db, community.id, c.var.user.id);
+  if (!role) return null;
   const installationId = keyOf(row.id);
-  const role = await roleIn(c.var.db, community.id, c.var.user.id);
   const lastVisit = await c.var.plugins.lastVisit(installationId, c.var.user.id);
   const ctx = c.var.plugins.context(plugin, {
     installationId,

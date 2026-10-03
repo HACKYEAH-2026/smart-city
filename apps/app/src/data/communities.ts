@@ -69,3 +69,30 @@ export function useToolCall(slug: string, pluginId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: pluginKey(slug, pluginId) }),
   });
 }
+
+/** Opening a place: it becomes the user's last visited place (the dashboard shows it). */
+export function useVisitPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => parseResponse(c[":slug"].visit.$post({ param: { slug } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}
+
+/** Makes a place the user's default place. */
+export function useSetDefaultPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => parseResponse(c[":slug"].default.$put({ param: { slug } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}
+
+/** Creating a place: the creator becomes its admin. */
+export function useCreatePlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => parseResponse(c.$post({ json: { name } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}

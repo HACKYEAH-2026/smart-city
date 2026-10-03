@@ -2,26 +2,29 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, TEST_ADMIN_TOKEN, test } from "./fixtures";
+import { expect, joinKrakow, TEST_ADMIN_TOKEN, test } from "./fixtures";
 
 /**
  * Plugin system acceptance criteria: a built-in plugin works end to end, and a plugin uploaded
  * through the admin API shows up in the community without reloading the app.
  * Plugin texts are server content, not app texts from src/texts.ts.
  */
-const register = async (page: Page, email: string) => {
+/** Registers, joins Kraków and lands on its dashboard. */
+const register = async (page: Page, email: string, apiUrl: string) => {
   await page.goto("/register");
   await page.getByLabel(t.auth_email).fill(email);
   await page.getByLabel(t.auth_password).fill("password123");
   await page.getByRole("checkbox", { name: t.auth_consent }).click();
   await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+  await joinKrakow(apiUrl, email);
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 };
 
-test("community -> issues plugin: report an issue and find it on the list", async ({ page }) => {
-  await register(page, "issues@example.test");
-  await page.getByRole("link", { name: "Kraków" }).click();
-  await expect(page.getByRole("heading", { name: "Kraków" })).toBeVisible();
+test("community -> issues plugin: report an issue and find it on the list", async ({ page, api }) => {
+  await register(page, "issues@example.test", api.url);
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 
   await page.getByRole("link", { name: "Zgłoszenia" }).click();
   await expect(page.getByRole("heading", { name: "Zgłoszenia" })).toBeVisible();
@@ -44,6 +47,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
 
 const signOut = async (page: Page) => {
   await page.goto("/app");
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_account }).click();
   await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
 };
@@ -53,7 +57,7 @@ const login = async (page: Page, email: string) => {
   await page.getByLabel(t.auth_email).fill(email);
   await page.getByLabel(t.auth_password).fill("password123");
   await page.getByRole("button", { name: t.auth_submit_login }).click();
-  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 };
 
 const openNewIssueForm = async (page: Page) => {
@@ -64,8 +68,8 @@ const openNewIssueForm = async (page: Page) => {
 /** Minimal JPEG header — the server checks the file type, not its content. */
 const PHOTO = { name: "latarnia.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16]) };
 
-test("photo report, then a similar report is merged under it; the city admin closes it", async ({ page }) => {
-  await register(page, "anna@example.test");
+test("photo report, then a similar report is merged under it; the city admin closes it", async ({ page, api }) => {
+  await register(page, "anna@example.test", api.url);
   await openNewIssueForm(page);
   await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Długiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
@@ -78,7 +82,7 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await expect(page.getByRole("img", { name: "Zdjęcie: Nie świeci latarnia na Długiej" })).toBeVisible();
 
   await signOut(page);
-  await register(page, "bartek@example.test");
+  await register(page, "bartek@example.test", api.url);
   await openNewIssueForm(page);
   await page.getByLabel("Co się stało?").fill("Latarnia na Długiej nie świeci");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
@@ -106,7 +110,7 @@ test("photo report, then a similar report is merged under it; the city admin clo
 const BENCHES = readFileSync(join(import.meta.dirname, "../../../plugins/benches/index.ts"), "utf8");
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
-  await register(page, "admin-demo@example.test");
+  await register(page, "admin-demo@example.test", api.url);
   await page.goto("/app/c/krakow");
   await expect(page.getByRole("link", { name: "Zgłoszenia" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Ławki" })).toHaveCount(0);
@@ -136,7 +140,7 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
   await expect(page.getByLabel("Park")).toHaveValue("");
 });
 
-test("home screen widget: announcements show what is new since the last visit", async ({ page }) => {
+test("home screen widget: announcements show what is new since the last visit", async ({ page, api }) => {
   await login(page, "admin@krakow.test");
   await page.goto("/app/c/krakow/announcements/list");
   await page.getByLabel("Tytuł").fill("Zamknięcie ulicy Długiej");
@@ -145,15 +149,14 @@ test("home screen widget: announcements show what is new since the last visit", 
   await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
 
   await signOut(page);
-  await register(page, "mieszkanka@example.test");
-  await page.getByRole("link", { name: "Kraków" }).click();
+  await register(page, "mieszkanka@example.test", api.url);
   const widget = page.getByRole("region", { name: "Ogłoszenia" });
   await expect(widget.getByText("1 nowe ogłoszenie od Twojej ostatniej wizyty")).toBeVisible();
   await widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" }).click();
   await expect(page.getByRole("heading", { name: "Zamknięcie ulicy Długiej" })).toBeVisible();
   await expect(page.getByText("W sobotę od 8:00 do 16:00 remont nawierzchni.")).toBeVisible();
 
-  await page.getByRole("link", { name: t.plugin_back }).click();
+  await page.getByRole("link", { name: t.back }).click();
   await expect(widget.getByText("Nic nowego od Twojej ostatniej wizyty.")).toBeVisible();
   await expect(widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" })).toHaveCount(0);
 });
@@ -168,7 +171,7 @@ const publishAnnouncement = async (page: Page, title: string) => {
   await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
 };
 
-test("admin reorders the dashboard; residents see the new order and cannot edit", async ({ page }) => {
+test("admin reorders the dashboard; residents see the new order and cannot edit", async ({ page, api }) => {
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Zebranie mieszkańców");
   await page.goto("/app/c/krakow");
@@ -182,8 +185,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await expect(page.getByRole("button", { name: t.dashboard_edit })).toBeVisible();
 
   await signOut(page);
-  await register(page, "sasiad@example.test");
-  await page.getByRole("link", { name: "Kraków" }).click();
+  await register(page, "sasiad@example.test", api.url);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
   await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
   await expect(page.getByRole("button", { name: t.dashboard_edit })).toHaveCount(0);

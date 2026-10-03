@@ -1,3 +1,4 @@
+import type { Role } from "@app/plugin-sdk";
 import { RecordId } from "surrealdb";
 import type { Db } from "./client";
 import { TABLES } from "./schema";
@@ -27,6 +28,12 @@ export const membershipRef = (communityId: string, userId: string) =>
 /** Visit record id: one per (installation, user), updated on every view render. */
 export const visitRef = (installationId: string, userId: string) =>
   new RecordId(TABLES.visit, [ref("installation", installationId), ref("user", userId)]);
+
+/** The user's role in a community, or null when the user is not a member. Never creates a membership. */
+export async function memberRole(db: Db, communityId: string, userId: string): Promise<Role | null> {
+  const row = await first<{ role: Role }>(db, "SELECT role FROM $m;", { m: membershipRef(communityId, userId) });
+  return row?.role ?? null;
+}
 
 export type CommunityRow = { id: RecordId; slug: string; name: string };
 

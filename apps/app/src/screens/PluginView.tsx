@@ -61,9 +61,9 @@ export default function PluginView() {
   return (
     <Screen>
       <Head>
-        <title>{screen.data?.type === "Screen" ? screen.data.title : t.communities_title}</title>
+        <title>{screen.data?.type === "Screen" ? screen.data.title : t.app_name}</title>
       </Head>
-      <Link href={`/app/c/${slug}`}>{t.plugin_back}</Link>
+      <Link href="/app">{t.back}</Link>
       {toast ? (
         <View role="status" style={styles.toast}>
           <Text variant="bodyL" color="primaryPressed">

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, layout } from "../theme";
 import { AppFooter, AppHeader } from "./AppHeader";
+import { BottomTabBar } from "./BottomTabBar";
 
 export interface ScreenProps {
   children: ReactNode;
@@ -10,13 +11,15 @@ export interface ScreenProps {
   chrome?: boolean;
   /** Decoration drawn behind the content, from the top edge (e.g. the map on login). Not interactive. */
   backdrop?: ReactNode;
+  /** Show the bottom bar with the main sections (dashboard, places, account). */
+  tabBar?: boolean;
 }
 
 /**
  * Screen shell (COMPONENTS.md → Screen): background, safe-area insets, scrolling content,
  * optional app header and footer. Dedicated CTA buttons go last in `children`.
  */
-export function Screen({ children, chrome = true, backdrop }: ScreenProps) {
+export function Screen({ children, chrome = true, backdrop, tabBar = false }: ScreenProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
@@ -26,6 +29,7 @@ export function Screen({ children, chrome = true, backdrop }: ScreenProps) {
         </View>
       ) : null}
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           {
@@ -40,12 +44,14 @@ export function Screen({ children, chrome = true, backdrop }: ScreenProps) {
           {chrome ? <AppFooter /> : null}
         </View>
       </ScrollView>
+      {tabBar ? <BottomTabBar /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1 },
   backdrop: { position: "absolute", top: 0, left: 0, right: 0 },
   content: { flexGrow: 1, paddingHorizontal: layout.screenPaddingX },
   frame: {

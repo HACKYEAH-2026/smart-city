@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { type PasswordCheck, passwordStrength } from "../lib/passwordStrength";
 import { t } from "../texts";
-import { borders, colors, radii, sizes, spacing } from "../theme";
+import { colors, sizes, spacing } from "../theme";
 import { Text } from "./Text";
 
 /** One step per segment; a segment is filled when its step is reached by the score. */

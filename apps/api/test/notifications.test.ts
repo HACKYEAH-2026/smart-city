@@ -109,7 +109,7 @@ describe("inbox", () => {
     await start();
     const anna = await member();
     const bartek = await member();
-    const stranger = await t.signUp(); // never opened the community
+    const stranger = await t.signUp({ place: null }); // not a member of the community
     expect(await inbox(anna)).toEqual({ items: [], unread: 0 });
 
     const res = await send(bartek, {
@@ -186,7 +186,7 @@ describe("near: saved places and the current location", () => {
       await member(),
       await member(),
     ];
-    const outsider = await t.signUp(); // a place nearby, but not a member of the community
+    const outsider = await t.signUp({ place: null }); // a place nearby, but not a member of the community
     expect((await addPlace(near, { label: "Dom", ...NEXT_BLOCK })).status).toBe(201);
     expect((await addPlace(far, { label: "Praca", ...MAIN_SQUARE })).status).toBe(201);
     expect((await addPlace(outsider, { label: "Dom", ...SIGHTING })).status).toBe(201);
@@ -310,7 +310,7 @@ describe("push to phones", () => {
   test("every device of each recipient gets a push that opens the notification; not the sender or non-members", async () => {
     await start();
     const [anna, bartek] = [await member(), await member()];
-    const stranger = await t.signUp();
+    const stranger = await t.signUp({ place: null });
     await register(anna, token("anna-phone"));
     await register(anna, token("anna-tablet"));
     await register(bartek, token("bartek-phone"));
