@@ -5,6 +5,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Checkbox, Heading, IconButton, Link, PasswordStrength, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
+import { MIN_PASSWORD_LENGTH } from "../lib/passwordStrength";
 import { t } from "../texts";
 import { spacing } from "../theme";
 
@@ -21,6 +22,8 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
+    // Checked here too: the API would reject it, and its error would read like a taken email.
+    if (password.length < MIN_PASSWORD_LENGTH) return setError(t.auth_password_too_short);
     if (!consent) return setError(t.auth_consent_required);
     setPending(true);
     const ok = await auth.signUp(email, password, name);

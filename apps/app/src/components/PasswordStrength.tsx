@@ -7,14 +7,14 @@ import { Text } from "./Text";
 /** One step per segment; a segment is filled when its step is reached by the score. */
 const STEPS = [1, 2, 3, 4];
 
-/** Four-segment password meter with a hint for the first missing check (COMPONENTS.md → PasswordStrength). */
+/**
+ * Four-segment password meter (COMPONENTS.md → PasswordStrength): fills as the password approaches the minimum
+ * length, with a hint until it is met.
+ */
 export function PasswordStrength({ password }: { password: string }) {
   const { score, missing } = passwordStrength(password);
   const hints: Record<PasswordCheck, string> = {
     length: t.pw_hint_length,
-    digit: t.pw_hint_digit,
-    case: t.pw_hint_case,
-    symbol: t.pw_hint_symbol,
   };
   return (
     <View style={styles.wrap}>
@@ -24,7 +24,7 @@ export function PasswordStrength({ password }: { password: string }) {
         ))}
       </View>
       <Text variant="small" color="textSecondary">
-        {missing ? hints[missing] : t.pw_strong}
+        {missing ? hints[missing] : t.pw_ok}
       </Text>
     </View>
   );

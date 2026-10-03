@@ -16,7 +16,8 @@ export function createAuth(db: Db, env: Env) {
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: env.TRUSTED_ORIGINS,
     database: surrealdbAdapter(db, { schemaMode: "schemaless" }),
-    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: 8 },
+    // The only password rule; must match MIN_PASSWORD_LENGTH in apps/app/src/lib/passwordStrength.ts.
+    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: 5 },
     plugins: [bearer()],
     rateLimit: { enabled: env.NODE_ENV === "production" },
   });
