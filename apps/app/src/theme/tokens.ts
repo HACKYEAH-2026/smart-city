@@ -128,6 +128,8 @@ export const sizes = {
   avatarMd: 36,
   avatarLg: 40,
   avatarXl: 44,
+  /** The signed-in user's initials at the top of the account. */
+  avatarProfile: 64,
   iconBox: 44,
   iconBoxLg: 48,
   radioDot: 22,
@@ -189,6 +191,8 @@ export const sizes = {
   sheetHandleHeight: 5,
   /** Dot under the active bottom-bar tab. */
   tabDot: 5,
+  /** Dot by an unread notification in the account. */
+  unreadDot: 8,
   /** The still map with a place's pin in the "new place" wizard. */
   locationPreview: 140,
   /** A map in a plugin's view; in a dashboard widget it is a still preview of `locationPreview`. */

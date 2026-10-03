@@ -17,12 +17,13 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 
 ## Powierzchnie
 
-| Powierzchnia                      | Tryb    | Cel                                                |
-| --------------------------------- | ------- | -------------------------------------------------- |
-| `/login`, `/register`             | Operate | Wejście do aplikacji (`/` przekierowuje do `/app`) |
-| `/app`                            | Operate | Lista społeczności użytkownika, wylogowanie        |
-| `/app/c/<slug>`                   | Operate | Funkcje (wtyczki) włączone w społeczności          |
-| `/app/c/<slug>/<wtyczka>/<widok>` | Operate | Widok wtyczki (Server-Driven UI z API)             |
+| Powierzchnia                      | Tryb    | Cel                                                                                 |
+| --------------------------------- | ------- | ----------------------------------------------------------------------------------- |
+| `/login`, `/register`             | Operate | Wejście do aplikacji (`/` przekierowuje do `/app`)                                  |
+| `/app`                            | Operate | Pulpit bieżącego miejsca: widżety, funkcje (wtyczki), przełącznik miejsc            |
+| `/app/account`                    | Operate | Konto: powiadomienia, adresy do powiadomień w okolicy, miejsca z rolą, wylogowanie  |
+| `/app/c/<slug>`                   | Operate | Otwiera miejsce na pulpicie (z konta i z powiadomienia bez widoku)                  |
+| `/app/c/<slug>/<wtyczka>/<widok>` | Operate | Widok wtyczki (Server-Driven UI z API)                                              |
 
 ## Status demo
 

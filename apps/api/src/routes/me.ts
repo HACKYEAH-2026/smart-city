@@ -13,11 +13,11 @@ import type { AppEnv } from "../context";
 import { first, geoPoint, keyOf, ref, rows } from "../db";
 import { requireUser } from "../middleware";
 
-type PlaceRow = { id: RecordId; label: string; point: GeometryPoint };
+type PlaceRow = { id: RecordId; label: string; address?: string; point: GeometryPoint };
 
 const toPlace = (row: PlaceRow): Place => {
   const [lng, lat] = row.point.coordinates;
-  return { id: keyOf(row.id), label: row.label, lat, lng };
+  return { id: keyOf(row.id), label: row.label, address: row.address ?? "", lat, lng };
 };
 
 /**
@@ -50,12 +50,12 @@ export const meRoutes = new Hono<AppEnv>()
   .get("/places", async (c) => {
     const places = await rows<PlaceRow>(
       c.var.db,
-      surql`SELECT id, label, point, created_at FROM place WHERE user = ${ref("user", c.var.user.id)} ORDER BY created_at;`,
+      surql`SELECT id, label, address, point, created_at FROM place WHERE user = ${ref("user", c.var.user.id)} ORDER BY created_at;`,
     );
     return c.json(places.map(toPlace), 200);
   })
   .post("/places", zValidator("json", placeCreateSchema), async (c) => {
-    const { label, ...point } = c.req.valid("json");
+    const { label, address, ...point } = c.req.valid("json");
     const user = ref("user", c.var.user.id);
     const count = await first<{ count: number }>(
       c.var.db,
@@ -64,7 +64,7 @@ export const meRoutes = new Hono<AppEnv>()
     if ((count?.count ?? 0) >= PLACES_MAX) return c.json({ error: "too_many_places" }, 400);
     const row = await first<PlaceRow>(
       c.var.db,
-      surql`CREATE place CONTENT ${{ user, label, point: geoPoint(point) }} RETURN id, label, point;`,
+      surql`CREATE place CONTENT ${{ user, label, address, point: geoPoint(point) }} RETURN id, label, address, point;`,
     );
     if (!row) throw new Error("place not created");
     return c.json(toPlace(row), 201);
