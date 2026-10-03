@@ -28,7 +28,8 @@ const tileSize = (size: DashboardWidgetSize, width: number) => ({
 /** `order` first, keys missing from it after, in their given order (the same rule as the API). */
 const arrange = (keys: string[], order: string[]) => {
   const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
-  return keys.toSorted((a, b) => rank(a) - rank(b));
+  // Copy then sort: `toSorted` is missing in Hermes (the phone runtime), so no ES2023 array methods in the app.
+  return [...keys].sort((a, b) => rank(a) - rank(b));
 };
 
 /** `keys` with `key` moved to `index`. */
