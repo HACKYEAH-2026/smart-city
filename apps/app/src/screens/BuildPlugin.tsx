@@ -46,7 +46,7 @@ const FAILURES: Record<VersionError, string> = {
 };
 
 /**
- * The plugin builder (Zarządzaj miejscem → Pluginy → "Stwórz plugin z AI"), for a place's admins: describe a plugin and
+ * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin and
  * the AI writes and checks it; until it is published it is a draft. Every later request is a new version, also after
  * publishing; publishing installs the latest ready version in the place. With `?plugin=` it shows that plugin's
  * versions; without, it starts a new plugin and lists the place's AI plugins.
@@ -76,7 +76,7 @@ export default function BuildPlugin() {
   );
 }
 
-/** Back button, the place's name above "Plugin z AI". */
+/** Back button, the place's name above "Rozszerzenie z AI". */
 function Header({ eyebrow, onBack }: { eyebrow: string; onBack: () => void }) {
   return (
     <View style={styles.header}>

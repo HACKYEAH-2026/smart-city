@@ -3,7 +3,7 @@ import { t } from "../src/texts";
 import { expect, test } from "./fixtures";
 
 /**
- * The plugin builder (Zarządzaj miejscem → Pluginy → "Stwórz plugin z AI"), for a place's admins: describe a plugin,
+ * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin,
  * the AI writes and checks it (in E2E a fake author: a board named after the quoted text, no model); it is a draft
  * until the admin publishes it into the place; a change after that is a new version, published again. Plugin names
  * are data.
