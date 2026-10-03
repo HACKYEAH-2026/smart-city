@@ -22,7 +22,7 @@
   },
   "private": true,
   "scripts": {
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . --incremental",
     "dev": "NODE_ENV=test bun --env-file=../../.env --watch \"$PWD/src/test-server.ts\"",
     "build": "bun scripts/build.ts",
     "start": "bun dist/server.js",

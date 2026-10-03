@@ -31,8 +31,7 @@ const devices = (state: string): string[] =>
     .split("\n")
     .slice(1)
     .map((line) => line.trim().split(/\s+/))
-    .filter(([, s]) => s === state)
-    .map(([serial]) => serial!);
+    .flatMap(([serial, s]) => (serial !== undefined && s === state ? [serial] : []));
 
 const missingPorts = (serial: string): string[] => {
   const reversed = run("-s", serial, "reverse", "--list");

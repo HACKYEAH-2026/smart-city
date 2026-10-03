@@ -6,7 +6,7 @@
       "name": "twoje-miejsce",
       "devDependencies": {
         "@biomejs/biome": "2.5.14",
-        "@types/bun": "latest",
+        "@types/bun": "1.4.2",
         "typescript": "~6.0.3",
       },
     },

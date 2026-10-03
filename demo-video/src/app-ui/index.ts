@@ -26,4 +26,4 @@ const loadFamily = ([name, url]: [string, unknown]) =>
   new FontFace(name, `url(${String(url)})`).load().then((face) => document.fonts.add(face));
 
 const fontsReady = delayRender("Loading design-system fonts");
-Promise.all(Object.entries(families).map(loadFamily)).then(() => continueRender(fontsReady));
+void Promise.all(Object.entries(families).map(loadFamily)).then(() => continueRender(fontsReady));

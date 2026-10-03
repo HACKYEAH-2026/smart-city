@@ -52,7 +52,7 @@ export function MapSurface({ spec, label, onEvent, ref }: MapSurfaceProps) {
       onMessage={onMessage}
       onShouldStartLoadWithRequest={(request) => {
         if (request.url.startsWith(BASE_URL) || request.url === "about:blank") return true;
-        Linking.openURL(request.url);
+        void Linking.openURL(request.url);
         return false;
       }}
       scrollEnabled={false}

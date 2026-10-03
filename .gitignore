@@ -10,7 +10,7 @@ AGENTS.local.md
 !.env.example
 test-results/
 playwright-report/
-# Local SQLite databases (dev)
+# Local database files
 *.db
 *.db-wal
 *.db-shm

@@ -60,7 +60,8 @@ const scene = (beat: (typeof BEATS)[number], from: number): Scene => {
 
 export const SCENES = BEATS.reduce<Scene[]>((list, beat) => {
   const last = list.at(-1);
-  return [...list, scene(beat, last ? last.from + last.duration : 0)];
+  list.push(scene(beat, last ? last.from + last.duration : 0));
+  return list;
 }, []);
 
 export const DURATION = SCENES.reduce((sum, s) => sum + s.duration, 0);

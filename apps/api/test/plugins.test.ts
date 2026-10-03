@@ -302,6 +302,7 @@ describe("maps", () => {
     const u = await t.signUp();
     const located = NOTES.replace('id: "notes"', 'id: "located"').replace(
       'return ui.screen("Tablica notatek", [',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: plugin source text; the plugin evaluates the template
       'return ui.screen("Tablica notatek", [\n          ui.text(`Pinezka: ${JSON.stringify(ctx.community.location)}`),',
     );
     expect(

@@ -142,8 +142,8 @@ export function useAcceptInvitation() {
   return useMutation({
     mutationFn: (id: string) => parseResponse(invitations[":id"].accept.$post({ param: { id } })),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: invitationsKey });
-      qc.invalidateQueries({ queryKey: communitiesKey });
+      void qc.invalidateQueries({ queryKey: invitationsKey });
+      void qc.invalidateQueries({ queryKey: communitiesKey });
     },
   });
 }

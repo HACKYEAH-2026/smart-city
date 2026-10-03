@@ -1,5 +1,5 @@
 {
-  description = "Twoje Miejsce: Bun + Hono + Drizzle/SQLite + Expo (React Native, web)";
+  description = "Twoje Miejsce: Bun + Hono + SurrealDB + Expo (React Native, web)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

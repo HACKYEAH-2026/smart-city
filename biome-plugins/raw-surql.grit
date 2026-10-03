@@ -1,0 +1,12 @@
+language js
+
+JsCallExpression(callee=$callee, arguments=JsCallArguments(args=[$arg, ...])) as $call where {
+  $callee <: JsStaticMemberExpression(member=`query`, object=$obj),
+  $obj <: not `$_.req`,
+  $arg <: or {
+    JsStringLiteralExpression(),
+    JsTemplateExpression(tag=.),
+    JsBinaryExpression()
+  },
+  register_diagnostic(span=$call, message="SurrealQL only through the surql tag, values bound with ${} (AGENTS.md)")
+}

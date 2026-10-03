@@ -314,6 +314,7 @@ export const t = {
   count_people: ["osoba", "osoby", "osób"],
   count_admins: ["administrator", "administratorów", "administratorów"],
   count_plugins: ["rozszerzenie", "rozszerzenia", "rozszerzeń"],
+  count_widgets: ["widżet", "widżety", "widżetów"],
   // Android notification channels (shown in the system notification settings)
   push_channel_alerts: "Alerty i ostrzeżenia",
   push_channel_default: "Powiadomienia",

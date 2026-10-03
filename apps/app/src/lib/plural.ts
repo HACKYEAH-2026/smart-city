@@ -1,3 +1,5 @@
+import { t } from "../texts";
+
 /**
  * Polish count with the noun in its form for `n`: [one, few, many], e.g. ["osoba", "osoby", "osób"] → "1 osoba",
  * "3 osoby", "5 osób" ("few" for 2–4 except 12–14; teens and the rest take "many").
@@ -11,4 +13,4 @@ export function countOf(n: number, [one, few, many]: readonly [string, string, s
 }
 
 /** Polish count of widgets: "1 widżet", "3 widżety", "5 widżetów" (teens and 12–14 take the genitive plural). */
-export const widgetsCount = (n: number): string => countOf(n, ["widżet", "widżety", "widżetów"]);
+export const widgetsCount = (n: number): string => countOf(n, t.count_widgets);

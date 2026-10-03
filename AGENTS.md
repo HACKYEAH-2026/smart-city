@@ -50,7 +50,7 @@ in `nix develop .#android`.
 | API router | `apps/api/src/routes/communities.ts`, mounted in `apps/api/src/app.ts` |
 | Integration test | `apps/api/test/plugins.test.ts` (communities/navigation: 401 without a session, 404) |
 | Frontend data | `apps/app/src/data/communities.ts` (TanStack Query: useQuery + useMutation) |
-| Screen | `apps/app/src/screens/Communities.tsx`, route (thin file) in `apps/app/app/` |
+| Screen | `apps/app/src/screens/Invites.tsx`, route (thin file) in `apps/app/app/` (`app/app/invites.tsx`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
 A feature for residents (issue reports, bookings, announcements…) is NOT a new resource but a plugin (below).
 
@@ -90,6 +90,10 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only
   as compatible with the SDK (`bunx expo install --check` in `apps/app`).
+  `biome.json` enforces several rules above mechanically (Platform/DOM globals/navigation/storage imports in the app,
+  JSX text literals, Polish string literals outside `texts.ts` (only strings with Polish letters), SurrealQL without
+  the `surql` tag (`biome-plugins/*.grit`), `test-*.ts` imports in API code, Node modules and undeclared dependencies
+  in plugins and `packages/shared`, floating promises). Warnings fail `bun run lint` too.
 
 ## Code style
 - Declarative code: a function reads as a sequence of `const x = step()` calls. No `let x; try { x = … } catch`
@@ -97,7 +101,7 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
   or throw (pattern: `loadPlugin` in `packages/sdk/src/load.ts`). Prefer `find`/`map`/`filter` over `for` + mutation.
 
 ## Tests
-- Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`).
+- Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`, `apps/api/src`).
 - Integration: `apps/api/test`, always through `setup()` (a fresh database on the shared in-memory engine +
   `app.request()`), `close()` in `afterEach`.
 - E2E: web (production static export), import `test`/`expect` from `e2e/fixtures.ts`
