@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { GeoPoint, geoLocation } from "./geo";
 import type { AI } from "./services/ai";
 import type { Database, TableBuilders, Tables } from "./services/db";
 import type { Files, fileRef } from "./services/files";
@@ -7,7 +8,8 @@ import type { ToolResult, UI, UINode, ViewParams } from "./ui";
 
 /**
  * Plugin contract. A plugin module imports NOTHING at runtime (only `import type`):
- * its default export is a function that receives the SDK ({ definePlugin, ui, z, fileRef, t }) from the host.
+ * its default export is a function that receives the SDK ({ definePlugin, ui, z, fileRef, geoLocation, t }) from the
+ * host.
  * This way the same file works as a built-in plugin and as a plugin uploaded at runtime via the API,
  * and can later run in isolation (Worker/WASM) without changes to the plugin code.
  */
@@ -38,7 +40,8 @@ export type PluginManifestInput = z.input<typeof pluginManifestSchema>;
 // ─────────────────────────────── Context ────────────────────────────────
 
 export type PluginUser = { id: string; name: string; role: Role };
-export type PluginCommunity = { id: string; slug: string; name: string };
+/** `location`: the place's pin (set by its admins; null = none), e.g. where a plugin's map starts. */
+export type PluginCommunity = { id: string; slug: string; name: string; location: GeoPoint | null };
 
 /** The only API a plugin sees. No raw database, filesystem or network — only what the host provides. */
 export type Context<TT extends Tables = Tables> = {
@@ -147,6 +150,7 @@ export type PluginSdk = {
   ui: UI;
   z: typeof z;
   fileRef: typeof fileRef;
+  geoLocation: typeof geoLocation;
   t: TableBuilders;
 };
 

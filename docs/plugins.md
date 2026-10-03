@@ -21,13 +21,14 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
 
 - A plugin is a package in `plugins/<id>/` that depends **only** on `@app/plugin-sdk`.
 - The module imports **nothing at runtime** (only `import type`). Its default export is a factory
-  `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, t }`
-  (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id).
+  `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, geoLocation, t }`
+  (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id, `geoLocation` = Zod schema for
+  a place picked on the map).
   This lets the same file run built-in, uploaded at runtime, or later in a sandbox.
 - So a plugin is **one file** (`index.ts`; its test sits next to it): an upload sends that file, and the host
   rejects runtime imports and type errors before running it ([Checks](#checks)).
-- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`,
-  `notify`. No app database, no disk, no network, no residents' locations.
+- A plugin sees only `ctx`: `user` (with role in this community), `community` (`id`, `slug`, `name`, `location`),
+  `now()`, `lastVisit`, `db`, `files`, `ai`, `notify`. No app database, no disk, no network, no residents' locations.
 - All data is **isolated per installation** (plugin × community): every query, reference and live
   stream is scoped to it.
 - Code, identifiers and comments are in English; everything a resident sees (view titles, labels, toasts,
@@ -566,8 +567,46 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Image | `ui.image(fileId, alt)` |
 | Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` — field values become tool `args` |
 | TextInput / Select / ImagePicker | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })`, `ui.imagePicker({ name, label })` — inside a Form |
+| LocationInput | `ui.locationInput({ name, label, value? })` — inside a Form: the app's location picker (address search, the user's position, a pin); the tool gets `{ lat, lng, address }`, validate it with `geoLocation()` |
+| Map | `ui.map({ label, layers, center?, zoom? })` — see [Maps](#maps) |
 
 A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Renderer.tsx`.
+
+### Maps
+
+A plugin map is layers over the app's base map (OpenStreetMap): the plugin says what is where and what it means,
+the app draws it in its own colours. Each layer is a titled group of items of one kind (its title goes in the
+legend); every item has an `id` (unique in its layer), a `title`, optionally a `subtitle`, a `tone` (overrides the
+layer's) and an `onPress` action.
+
+```ts
+ui.map({
+  label: "Utrudnienia w okolicy",
+  layers: [
+    ui.map.pins("Awarie", issues.map((i) => ({ id: i.id, at: i.location, title: i.title,
+      onPress: ui.navigate("detail", { id: i.id }) })), "danger"),
+    ui.map.routes("Objazdy", [{ id: "d1", title: "Objazd ul. Długiej", path: [a, b, c], dashed: true }], "info"),
+    ui.map.areas("Brak wody", [{ id: "w1", title: "Do 18:00", center: p, radius: 400 }], "warning"),
+  ],
+})
+```
+
+| Layer | Item geometry |
+|---|---|
+| `ui.map.pins(title, items, tone?)` | `at: { lat, lng }` — places, reports, alerts |
+| `ui.map.routes(title, items, tone?)` | `path: [{ lat, lng }, …]` (2–2000 points), `dashed?` — a route, a detour, a closed street |
+| `ui.map.areas(title, items, tone?)` | `center` + `radius` (metres, ≤ 50 km) or `polygon` (3–500 points) — a zone, a park, a district |
+
+- **View:** the first view fits everything on the map. `center` (and `zoom`, 1–19) set it instead, e.g.
+  `center: ctx.community.location ?? undefined` for a map that may be empty.
+- **Tones** are the Badge tones (`neutral`, `info`, `success`, `warning`, `danger`); no tone is the brand red. There
+  are no colours or styles of your own: every plugin's map looks like the app.
+- **Taps:** tapping an item on the map shows its card under the map; pressing the card runs `onPress`. The app also
+  lists every item under the map ("Pokaż listę"): the map is a canvas, the list is what screen readers use.
+- **Limits:** 8 layers, 1000 items on a map. In a dashboard widget the map is a still preview (`onPress` may only
+  navigate there, like the rest of a widget).
+- **Storing a place:** `location: t.json<GeoLocation>().optional()` (a `t.json` column cannot be used in `where`:
+  filter places in code). `ctx.community.location` is the place's own pin (`null` when its admins have not set one).
 
 ## Dashboard widgets
 
@@ -814,6 +853,12 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
 | `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
 | `POST` / `DELETE /api/me/push-tokens` `{ token }` | this phone gets / stops getting the user's pushes (Expo push token; moves to whoever registered it last) |
+| `GET /api/communities/:slug/plugins` | place admins: the place's plugins with `enabled`, `madeByAi`, `draft`, `working` (built-in ones, then the AI ones) |
+| `PUT /api/communities/:slug/plugins/:id` `{ enabled }` | place admins: switch a built-in or published AI plugin on or off |
+| `POST /api/communities/:slug/plugins` `{ request }` | place admins: the AI makes a new plugin, a draft (201, its first version is being written; 503 `ai_unavailable`, 429 `rate_limited`) |
+| `GET /api/communities/:slug/plugins/:id` | an AI plugin with its versions (`status`, `attempts`, `summary`, `outline`, `source`, `error`) and `published`; poll while `working` |
+| `POST /api/communities/:slug/plugins/:id/versions` `{ request }` | a change → a new version (409 `busy` while one is being written) |
+| `POST /api/communities/:slug/plugins/:id/publish` | install the latest ready version in the place and switch it on (409 `not_ready`; 400 `invalid_plugin`) |
 | `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (`PLUGIN_ADMIN_TOKEN`); a failed [check](#checks) → 400 `{ error: "invalid_plugin", message, stage, errors }` |
 | `POST /api/admin/plugins/check` `{ source }` | the upload's [checks](#checks), storing nothing → 200 `PluginCheck` |
 | `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | enable a plugin in a community (runs `onInstall` once) |
@@ -832,6 +877,7 @@ stages in order and stops at the first one that fails:
 | `syntax` | Bun parses the source | the first syntax error |
 | `imports` | runtime imports (`import type` is erased) | `import` / `export … from` / `import()` of a value |
 | `types` | TypeScript against `@app/plugin-sdk` with `tsconfig.base.json`, but **no ambient types** | wrong tables, columns, UI props, results; Bun/Node/browser globals (`process`, `console`, `fetch`) |
+| `safety` | the same program, walked (`apps/api/src/plugins/safety.ts`) | escape hatches out of ctx and the SDK: host globals (`globalThis`, `Function`, `eval`, `Reflect`, `Proxy`…), `.constructor` / `.prototype` / `__proto__` / `defineProperty` (also as strings), `declare`, `import.meta`, `@ts-ignore` / `@ts-expect-error`, calls through `any` or `Function`, changing objects the plugin did not declare (`JSON.parse = …`) |
 | `load` | the factory runs, `loadPlugin` validates it | invalid manifest, `nav` → missing view, invalid tables, tools without Zod, built-in ids |
 | `schema` | tables vs. the stored shape (`planSchema`, nothing applied) | breaking changes ([Schema evolution](#schema-evolution-no-migrations)) |
 
@@ -843,19 +889,48 @@ is that source line):
 { status: "error", stage: "types", errors: [{ message: "Property 'notez' does not exist on type 'Database<…'. Did you mean 'notes'?", line: 21, column: 36, snippet: "const items = await ctx.db.notez.findMany();" }] }
 ```
 
-`syntax`, `imports` and `types` only read the source; `load` runs it in the API process (see Security below).
+`syntax`, `imports`, `types` and `safety` only read the source; `load` runs it in the API process (see Security below).
 The `types` stage reads no disk: the compiler sees a recorded snapshot of the SDK types and the ES2023 library
 (`apps/api/src/plugins/typecheck.ts`), which the production build writes next to the bundle (`plugin-types.json`).
 
 **Security:** an uploaded plugin runs inside the API process ("trusted administrator" model: the admin token
-grants full trust). The contract is built for isolation — the module imports nothing and all access goes
+grants full trust). Plugins written by AI for a place ([Plugin builder](#plugin-builder-ai)) run there too, so
+the `safety` stage rejects the known ways out of `ctx` and the SDK, and the SDK object a plugin gets is frozen. It is a
+static guard, not a sandbox. The contract is built for isolation — the module imports nothing and all access goes
 through the async `ctx` — so moving plugins to a Worker/WASM sandbox changes the host, not plugin code.
 
+### Plugin builder (AI)
+
+The AI writes plugins for a place at its admin's request (Zarządzaj miejscem → Pluginy → "Stwórz plugin z AI";
+`apps/api/src/plugins/builder.ts`). The admin's description makes a plugin; every later request changes it:
+
+- **Author** (`PluginAuthor`, `apps/api/src/services/ai/author/`): in the host a Strands Agents agent on the env's
+  model (`StrandsPluginAuthor` in `author/strands.ts`; `AI_API_KEY` + `AI_MODEL`, see `.env.example`) with one tool,
+  `check_plugin` = the checks above. Its instructions are the host's rules plus this whole guide. It writes, checks,
+  fixes (at most 8 checks, 5 minutes) and answers with a Polish summary for the admin. Without a model the builder
+  answers `503 ai_unavailable`; tests and E2E use `TestPluginAuthor` (`PLUGIN_AUTHOR=test` in test-server). A place
+  gets 20 requests to the AI a day (`429 rate_limited`).
+- **Plugin and versions** (`place_plugin`, `plugin_version`): the plugin has a generated id (`ai-…`) owned by the place;
+  each request is a version written in the background, with its source, the check outline and the AI's summary stored
+  in SurrealDB. A source under another id never becomes ready, and the host checks the final source itself.
+- **Draft → published:** until its first publication the plugin is a draft that only the place's admins see (it is in
+  the place's plugin list with `draft: true`, and cannot be switched on). Publishing uploads the latest ready version
+  (every check again, `schema` against the published tables) and enables it in that place; from then on it is
+  switchable like a built-in plugin (`madeByAi`), and no other place can see or install it. The AI can change it any
+  time: the new version runs in the place once it is published, and the plugin's data stays.
+
 ## Known issues
+
+- The `safety` stage is a static guard over the source, not a sandbox: a determined author may still find a way out
+  of `ctx` that it does not know. Plugins written by AI for a place
+  run with the same trust as uploads until plugins move to a Worker/WASM sandbox (roadmap in README).
 
 - The system user in `onInstall` has no account: seeded rows get `createdBy: null`, it cannot be stored in a
   `t.ref("user")` column and cannot attach pending uploads. Use optional user refs for seeded rows.
 - `testPlugin().db` is untyped (`plugin.db.items!`): the harness gets the module, not its table types.
+- The `types` and `safety` stages compile the source with TypeScript synchronously in the API process: ~1-2 s per
+  check (the first one in a process much longer; the plugin builder warms the compiler up at start) during which the
+  API answers nothing else. The plugin builder's author runs up to 8 checks per version. Fix: run checks in a Worker.
 - A check that reaches `load` imports the source as a new module into the API process, and Bun never unloads
   modules: many checks (e.g. an AI agent iterating on a plugin) grow memory. Fix: run `load` in a disposable Worker.
 - Tests share one embedded engine per process (`testEngine()`); never open another `mem://` connection

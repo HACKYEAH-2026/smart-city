@@ -41,10 +41,36 @@ export const useSpring = (at: number, damping = 18, mass = 0.8) => {
   return spring({ frame: frame - at, fps, config: { damping, mass, stiffness: 140 } });
 };
 
+const IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
+
+/** The value at `frame` along keyframes [[frame, value], …] (frames increasing), eased between them, held outside. */
+export const keys = (frame: number, points: [number, number][]) =>
+  interpolate(
+    frame,
+    points.map(([f]) => f),
+    points.map(([, v]) => v),
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: IN_OUT },
+  );
+
+/** A short camera shake from `at`: a decaying jitter in pixels. */
+export const shake = (frame: number, at: number, frames = 12, amplitude = 14) => {
+  const t = frame - at;
+  if (t < 0 || t > frames) return { x: 0, y: 0 };
+  const decay = 1 - t / frames;
+  return { x: Math.sin(t * 2.7) * amplitude * decay, y: Math.cos(t * 3.4) * amplitude * decay * 0.6 };
+};
+
 /** Fade and rise in from below (CSS). */
 export const rise = (p: number, distance = 28): CSSProperties => ({
   opacity: Math.min(1, p * 1.4),
   transform: `translateY(${(1 - p) * distance}px)`,
+});
+
+/** Land from large and blurred (CSS). */
+export const slam = (p: number): CSSProperties => ({
+  opacity: Math.min(1, p * 2),
+  transform: `scale(${1 + (1 - p) * 0.6})`,
+  filter: p < 1 ? `blur(${(1 - p) * 14}px)` : undefined,
 });
 
 /** Text typed from `at` at `perFrame` characters a frame. */
@@ -93,6 +119,7 @@ export const Headline = ({
   at,
   stagger = 3,
   spoken = false,
+  variant = "rise",
   size = 88,
   accent = [],
   align = "left",
@@ -102,6 +129,8 @@ export const Headline = ({
   at: number;
   stagger?: number;
   spoken?: boolean;
+  /** rise: each word rises into place; slam: each word lands from large and blurred. */
+  variant?: "rise" | "slam";
   size?: number;
   accent?: string[];
   align?: "left" | "center";
@@ -129,7 +158,10 @@ export const Headline = ({
         <div key={li} style={{ whiteSpace: "nowrap" }}>
           {words.map((word, wi) => {
             const index = lines.slice(0, li).reduce((n, l) => n + l.length, 0) + wi;
-            const p = ramp(frame, startOf(index) - 2, startOf(index) + 14);
+            const p =
+              variant === "slam"
+                ? ramp(frame, startOf(index) - 1, startOf(index) + 8)
+                : ramp(frame, startOf(index) - 2, startOf(index) + 14);
             return (
               <span
                 // biome-ignore lint/suspicious/noArrayIndexKey: a fixed text; a word may repeat in it.
@@ -138,7 +170,7 @@ export const Headline = ({
                   display: "inline-block",
                   marginRight: "0.24em",
                   color: accents.has(wordKey(word)) ? colors.primary : undefined,
-                  ...rise(p, size * 0.4),
+                  ...(variant === "slam" ? slam(p) : rise(p, size * 0.4)),
                 }}
               >
                 {word}
@@ -241,5 +273,55 @@ export const Tap = ({ x, y, at }: { x: number; y: number; at: number }) => {
         }}
       />
     </div>
+  );
+};
+
+/** A colour that grows as a circle from (x, y) over the whole frame, from `at` for `frames`. */
+export const Wipe = ({
+  at,
+  frames = 14,
+  color,
+  x = 960,
+  y = 540,
+  children,
+}: {
+  at: number;
+  frames?: number;
+  color: string;
+  x?: number;
+  y?: number;
+  children?: ReactNode;
+}) => {
+  const frame = useCurrentFrame();
+  const p = ramp(frame, at, at + frames);
+  if (frame < at) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: color,
+        clipPath: `circle(${p * 2300}px at ${x}px ${y}px)`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/** A spinner turned by the frame (the app's ActivityIndicator spins on the clock, which a render does not keep). */
+export const Spinner = ({ size = 22 }: { size?: number }) => {
+  const frame = useCurrentFrame();
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        border: `3px solid ${colors.primaryTint}`,
+        borderTopColor: colors.primary,
+        transform: `rotate(${frame * 18}deg)`,
+      }}
+    />
   );
 };

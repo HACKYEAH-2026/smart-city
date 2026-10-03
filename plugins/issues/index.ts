@@ -1,8 +1,8 @@
-import type { Context, FileId, PluginModule } from "@app/plugin-sdk";
+import type { Context, FileId, GeoLocation, PluginModule } from "@app/plugin-sdk";
 
 /**
  * REFERENCE PLUGIN: issue reports.
- * Flow: form (optional photo) → ctx.ai.findSimilar checks open issues →
+ * Flow: form (optional photo and place on the map) → ctx.ai.findSimilar checks open issues →
  * if one is similar, we ask "is this the same problem?" → merging attaches the resident's report
  * (description + photo) to the earlier issue. Only the community admin changes the status.
  * Data lives in declared tables (`issues`, `reports`) with foreign keys to platform users and files.
@@ -30,9 +30,9 @@ const supporters = (n: number) => {
   return n === 1 ? "1 osoba zgłasza" : few ? `${n} osoby zgłaszają` : `${n} osób zgłasza`;
 };
 
-type Draft = { title: string; description: string; category: Category; photo?: FileId };
+type Draft = { title: string; description: string; category: Category; photo?: FileId; location?: GeoLocation };
 
-const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
+const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) => {
   const tables = {
     issues: t.table(
       {
@@ -41,6 +41,8 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         category: t.enum(CATEGORY_VALUES).default("other"),
         status: t.enum(["open", "accepted", "fixed"]).default("open"),
         photo: t.ref("file").optional(),
+        /** Where the problem is (picked on the app's map), with its address. */
+        location: t.json<GeoLocation>().optional(),
         reporter: t.ref("user"),
       },
       { indexes: [["status"]] },
@@ -63,6 +65,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
     category: z.enum(CATEGORY_VALUES).default("other"),
     description: z.string().trim().max(2000).default(""),
     photo: fileRef().optional(),
+    location: geoLocation().optional(),
   });
   const jsonSchema = z.string().transform((s, ctx) => {
     try {
@@ -92,12 +95,58 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
     return (id: string) => counts.get(id) ?? 0;
   };
 
+  /** What the AI compares: the title, the description and the address (the same lamp post is at the same address). */
+  const describe = (i: { title: string; description: string; location?: GeoLocation | null }) =>
+    [i.title, i.description, i.location?.address].filter(Boolean).join(". ");
+
+  /** The open issues placed on the map, one layer per status (its tone colours the pins); nothing when none is. */
+  const openIssuesMap = (
+    items: { id: string; title: string; status: keyof typeof STATUS; location: GeoLocation | null }[],
+    count: (id: string) => number,
+  ) => {
+    const layer = (status: "open" | "accepted") =>
+      ui.map.pins(
+        STATUS[status].text,
+        items.flatMap((i) =>
+          i.status === status && i.location
+            ? [
+                {
+                  id: i.id,
+                  at: i.location,
+                  title: i.title,
+                  subtitle: supporters(count(i.id)),
+                  onPress: ui.navigate("detail", { id: i.id }),
+                },
+              ]
+            : [],
+        ),
+        STATUS[status].tone,
+      );
+    const layers = [layer("open"), layer("accepted")].filter((l) => l.items.length);
+    return layers.length ? [ui.map({ label: "Mapa zgłoszeń", layers })] : [];
+  };
+
+  /** The issue's address and a map with its pin. */
+  const issuePlace = (id: string, title: string, location: GeoLocation, tone: "info" | "warning" | "success") => [
+    ...(location.address ? [ui.text(location.address, "soft")] : []),
+    ui.map({
+      label: "Miejsce zgłoszenia",
+      layers: [
+        ui.map.pins(
+          "Zgłoszenie",
+          [{ id, at: location, title, ...(location.address ? { subtitle: location.address } : {}) }],
+          tone,
+        ),
+      ],
+    }),
+  ];
+
   return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "3.1.0",
+    version: "3.2.0",
     icon: "🛠️",
-    description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
+    description: "Zgłaszanie usterek ze zdjęciem i miejscem na mapie; AI łączy zgłoszenia tego samego problemu.",
     permissions: ["db", "files", "ai"],
     nav: [{ view: "list", label: "Zgłoszenia" }],
     tables,
@@ -112,6 +161,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         return ui.screen("Zgłoszenia", [
           ui.text(`Usterki zgłoszone przez mieszkańców: ${ctx.community.name}.`, "soft"),
           ui.button("Nowe zgłoszenie", ui.navigate("new")),
+          ...openIssuesMap(items, count),
           ui.list(
             "Lista zgłoszeń",
             items.length
@@ -137,6 +187,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
               ui.textInput({ name: "title", label: "Co się stało?" }),
               ui.select({ name: "category", label: "Kategoria", options: CATEGORIES, value: "other" }),
               ui.textInput({ name: "description", label: "Szczegóły i miejsce", multiline: true }),
+              ui.locationInput({ name: "location", label: "Gdzie to jest? (opcjonalnie)" }),
               ui.imagePicker({ name: "photo", label: "Zdjęcie (opcjonalnie)" }),
             ],
           }),
@@ -177,6 +228,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         return ui.screen(issue.title, [
           ui.row([ui.badge(status.text, status.tone), ui.badge(categoryLabel(issue.category))]),
           ui.text(issue.description || "Brak opisu."),
+          ...(issue.location ? issuePlace(issue.id, issue.title, issue.location, status.tone) : []),
           ...(issue.photo ? [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] : []),
           ui.stat("Poparcie", supporters(reports.length)),
           mine
@@ -245,15 +297,15 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
     tools: {
       report: {
         description:
-          "Zgłoś usterkę w społeczności (opcjonalnie ze zdjęciem). Jeśli AI znajdzie ten sam problem, pyta o połączenie.",
+          "Zgłoś usterkę w społeczności (opcjonalnie ze zdjęciem i miejscem: lat, lng, adres). Jeśli AI znajdzie ten sam problem, pyta o połączenie.",
         input: draftSchema.extend({ force: z.boolean().default(false) }),
         handler: async (ctx, { force, ...draft }) => {
           const open = force ? [] : await ctx.db.issues.findMany({ where: { status: { ne: "fixed" } }, limit: 50 });
-          const [match] = await ctx.ai.findSimilar(
-            { text: `${draft.title}. ${draft.description}`, image: draft.photo ?? null },
-            open,
-            { text: (i) => `${i.title}. ${i.description}`, image: (i) => i.photo, limit: 1 },
-          );
+          const [match] = await ctx.ai.findSimilar({ text: describe(draft), image: draft.photo ?? null }, open, {
+            text: describe,
+            image: (i) => i.photo,
+            limit: 1,
+          });
           if (match) {
             return {
               navigate: ui.navigate("merge", {
@@ -269,6 +321,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             description: draft.description,
             category: draft.category,
             photo: draft.photo ?? null,
+            location: draft.location ?? null,
             reporter: ctx.user.id,
           });
           await addReport(ctx, issue.id, draft);

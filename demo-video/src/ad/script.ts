@@ -1,35 +1,25 @@
 /**
  * The ad's voice-over: one beat per scene, read in one take (scripts/voiceover.ts). The take's timestamps
  * (vo.json) time the video, so a changed line only needs `bun run vo` and the scenes follow.
- * Only what the app really does today (PRODUCT.md: no invented numbers, no features from the roadmap).
+ * Only what the app really does (PRODUCT.md: no invented numbers). The plugin builder (Zarządzaj miejscem →
+ * „Stwórz plugin z AI”) is the hero: a place that misses a feature adds it from inside the app.
  * `text` is what the narrator reads: spell a word the way it should sound if the voice gets it wrong.
  */
 export const BEATS = [
-  { id: "hook", text: "Na Twojej ulicy od tygodnia nie świeci latarnia." },
+  { id: "open", text: "Latarnia, która nie świeci. Dziura w chodniku. Ogłoszenie, którego nikt nie zobaczył." },
+  { id: "problem", text: "Lokalne sprawy giną w grupach i formularzach." },
+  { id: "reveal", text: "Twoje Miejsce. Jedna aplikacja dla każdej społeczności: miasta, osiedla, uczelni." },
+  { id: "join", text: "Skanujesz kod i jesteś w środku." },
   {
-    id: "problem",
-    text: "Piszesz o tym w grupie. Ktoś odpisuje, że już zgłaszał, ktoś inny, że to nic nie da. I sprawa ginie między postami.",
+    id: "report",
+    text: "Problem zgłaszasz zdjęciem. AI wykrywa duplikaty, więc urząd widzi jedno zgłoszenie i to, ile osób je zgłasza.",
   },
+  { id: "city", text: "A status zmienia się na Twoich oczach: przyjęte, naprawione." },
   {
-    id: "reveal",
-    text: "Poznaj Twoje Miejsce: cyfrową społeczność dla prawdziwego miejsca. Miasta, osiedla, uczelni.",
+    id: "builder",
+    text: "Brakuje funkcji? Administrator opisuje ją własnymi słowami. AI pisze rozszerzenie, sprawdza je i pokazuje szkic. Jedno kliknięcie i działa u wszystkich mieszkańców.",
   },
-  { id: "join", text: "Dołączasz kodem QR albo kodem zaproszenia i od razu widzisz, co dzieje się w okolicy." },
-  { id: "report", text: "Zgłoszenie to trzy rzeczy: co się stało, kategoria i zdjęcie." },
-  {
-    id: "duplicate",
-    text: "Jeśli ktoś zgłosił to wcześniej, sztuczna inteligencja to zauważy. Zamiast wielu takich samych zgłoszeń miasto dostaje jedno, z licznikiem osób, które widzą problem.",
-  },
-  {
-    id: "city",
-    text: "Urząd widzi, co przeszkadza najbardziej. Przyjmuje zgłoszenie, oznacza je jako naprawione, a Ty widzisz każdy krok.",
-  },
-  { id: "announce", text: "A kiedy miasto ma coś do przekazania, ogłoszenie trafia prosto na pulpit mieszkańców." },
-  {
-    id: "plugins",
-    text: "Każde miejsce włącza tylko potrzebne funkcje. Każda to osobna wtyczka, więc nowe dochodzą bez przebudowy aplikacji.",
-  },
-  { id: "outro", text: "Na telefonie i w przeglądarce. Twoje Miejsce. Miasto bliżej ludzi." },
+  { id: "outro", text: "Twój dom. Twoje osiedle. Twoje miasto. Twoje Miejsce." },
 ] as const;
 
 export type BeatId = (typeof BEATS)[number]["id"];

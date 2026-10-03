@@ -5,7 +5,8 @@
  * them.) Labels are in Polish where OpenStreetMap has a Polish name. The attribution (OpenStreetMap's licence
  * requires it) sits bottom left, above `bottomInset` (a panel over the map's lower edge); a still preview starts
  * with it folded.
- * Messages in: init (the style and data), data (new GeoJSON for the sources), fly (move the view).
+ * Messages in: init (the style, data and first view: a centre and zoom, or bounds to fit), data (new GeoJSON for the
+ * sources), fly (move the view).
  * Out: ready, press (a pin, by feature id), tap (the map elsewhere, when `tapToCenter`), move (the centre after a
  * move; `user` when the user moved it), error.
  */
@@ -53,14 +54,15 @@ const PAGE_SCRIPT = `
   }
   function init(next) {
     spec = next;
-    map = new maplibregl.Map({
+    var view = spec.bounds
+      ? { bounds: spec.bounds, fitBoundsOptions: spec.fitOptions }
+      : { center: spec.center, zoom: spec.zoom };
+    map = new maplibregl.Map(Object.assign({
       container: "map",
       style: spec.style,
-      center: spec.center,
-      zoom: spec.zoom,
       interactive: spec.interactive,
       attributionControl: false,
-    });
+    }, view));
     if (spec.monochrome) document.getElementById("map").style.filter = "grayscale(1)";
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     document.querySelector(".maplibregl-ctrl-bottom-left").style.marginBottom = spec.bottomInset + "px";

@@ -1,5 +1,6 @@
 export * from "./check";
 export * from "./denied";
+export * from "./geo";
 export * from "./load";
 export * from "./plugin";
 export * from "./services/ai";

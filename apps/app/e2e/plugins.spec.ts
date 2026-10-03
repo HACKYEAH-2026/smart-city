@@ -108,6 +108,51 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await expect(page.getByRole("status")).toContainText("Naprawione");
 });
 
+/**
+ * Plugin maps (ui.map, ui.locationInput): the place of a report is picked on the app's location picker; the issue
+ * shows it on a map, and the list has a map of open reports. The pins are drawn on a canvas (an iframe on the web),
+ * so the map's own list is what E2E (and screen readers) use.
+ */
+test("issues on the map: a report placed on the map shows up on the map of reports", async ({ page, api }) => {
+  await register(page, "mapa@example.test", api.url);
+  await openNewIssueForm(page);
+  await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Floriańskiej");
+  await page.getByRole("radio", { name: "Oświetlenie" }).click();
+
+  // The test API answers address searches with fixed Kraków addresses (apps/api/src/test-geocoder.ts).
+  await page.getByRole("button", { name: t.plugin_location_pick }).click();
+  const search = page.getByLabel(t.location_search);
+  await search.fill("Floriańska 15");
+  await search.press("Enter");
+  await page
+    .getByRole("list", { name: t.location_results })
+    .getByRole("button", { name: /Floriańska 15/ })
+    .click();
+  await page.getByRole("button", { name: t.location_confirm }).click();
+  await expect(page.getByText("Floriańska 15, 31-019 Kraków")).toBeVisible();
+  await expect(page.getByTitle(t.plugin_location_preview)).toBeVisible();
+  await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
+
+  await expect(page.getByRole("status")).toContainText("Dziękujemy");
+  await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Floriańskiej" })).toBeVisible();
+  await expect(page.getByText("Floriańska 15, 31-019 Kraków").last()).toBeVisible();
+  await expect(page.getByTitle("Miejsce zgłoszenia")).toBeVisible();
+
+  await page.getByRole("button", { name: "Wróć do listy" }).click();
+  await expect(page.getByTitle("Mapa zgłoszeń").last()).toBeVisible();
+  await page
+    .getByRole("button", { name: `${t.plugin_map_list_show} (1)` })
+    .last()
+    .click();
+  await page
+    .getByRole("list", { name: "Mapa zgłoszeń" })
+    .last()
+    .getByRole("button", { name: /Nie świeci latarnia na Floriańskiej/ })
+    .click();
+  await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Floriańskiej" }).last()).toBeVisible();
+  await expect(page.getByTitle("Miejsce zgłoszenia").last()).toBeVisible();
+});
+
 /** A test-only plugin (not one of plugins/: those are all built in). */
 const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/notes-plugin.ts"), "utf8");
 

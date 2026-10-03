@@ -3,7 +3,7 @@ import { surql } from "surrealdb";
 import { createApp } from "../src/app";
 import { communityBySlug, type DbHandle, first, keyOf, membershipRef, migrate, ref } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
-import type { PluginAuthor } from "../src/services/ai/author";
+import type { PluginAuthor } from "../src/services/ai/author/types";
 import type { AIProviders } from "../src/services/ai/types";
 import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
@@ -54,7 +54,7 @@ export async function setup(
 ) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
-  const { app, auth, plugins, notifications, drafts } = createApp({
+  const { app, auth, plugins, notifications, builder } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
@@ -115,6 +115,18 @@ export async function setup(
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 
-  return { app, db: handle.db, plugins, notifications, drafts, push, request, signUp, seed, join, close: handle.close };
+  return {
+    app,
+    db: handle.db,
+    plugins,
+    notifications,
+    builder,
+    push,
+    request,
+    signUp,
+    seed,
+    join,
+    close: handle.close,
+  };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

@@ -3,13 +3,11 @@ import { Sequence } from "remotion";
 import "../app-ui";
 import { Captions, SceneProvider } from "./kit";
 import {
-  AnnounceScene,
+  BuilderScene,
   CityScene,
-  DuplicateScene,
-  HookScene,
   JoinScene,
+  OpenScene,
   OutroScene,
-  PluginsScene,
   ProblemScene,
   ReportScene,
   RevealScene,
@@ -18,15 +16,13 @@ import type { BeatId } from "./script";
 import { SCENES } from "./timing";
 
 const SCENE: Record<BeatId, ComponentType> = {
-  hook: HookScene,
+  open: OpenScene,
   problem: ProblemScene,
   reveal: RevealScene,
   join: JoinScene,
   report: ReportScene,
-  duplicate: DuplicateScene,
   city: CityScene,
-  announce: AnnounceScene,
-  plugins: PluginsScene,
+  builder: BuilderScene,
   outro: OutroScene,
 };
 

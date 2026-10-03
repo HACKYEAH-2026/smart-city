@@ -1,12 +1,6 @@
 import { z } from "zod";
+import { geoPointSchema } from "../geo";
 import { navigateActionSchema } from "../ui";
-
-/** A point on the map (WGS 84 degrees), e.g. where a resident saw a boar. */
-export const geoPointSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-});
-export type GeoPoint = z.infer<typeof geoPointSchema>;
 
 /** Largest radius of a "near" notification, in metres (a whole city fits; a whole region does not). */
 export const NOTIFY_RADIUS_MAX = 50_000;

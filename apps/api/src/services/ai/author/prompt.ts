@@ -1,39 +1,6 @@
-/// <reference path="../../text-modules.d.ts" />
-import type { PluginCheck } from "@app/plugin-sdk";
-import pluginDocs from "../../../../../docs/plugins.md" with { type: "text" };
-
-/**
- * An AI that writes plugins (the plugin builder, routes/drafts.ts). Swappable: Strands Agents with the host's model
- * in production and dev (strands.ts), a fake in tests. It gets a `check` that runs the upload's checks on a source and
- * keeps going until a source passes them; the host checks the result again before it stores anything.
- */
-export interface PluginAuthor {
-  write(task: AuthorTask, check: (source: string) => Promise<PluginCheck>, signal: AbortSignal): Promise<AuthorResult>;
-}
-
-/** What to write: a new plugin from a description, or a change to `previous` from the admin's feedback. */
-export type AuthorTask = {
-  pluginId: string;
-  version: string;
-  /** The place the plugin is for (name, kind), so examples and texts fit it. */
-  place: { name: string; kind: string };
-  request: string;
-  /** For feedback: the current source and the earlier requests, oldest first. */
-  previous: { source: string; requests: string[] } | null;
-};
-
-/** `summary`: what was built or changed, in Polish, for the place's admin (2-4 sentences, no code). */
-export type AuthorResult = { source: string; summary: string };
-
-/** The author gave up: no source it wrote passed the checks. `last` is the last check result (for logs). */
-export class AuthorError extends Error {
-  constructor(readonly last: PluginCheck | null) {
-    super(`no plugin source passed the checks${last?.status === "error" ? ` (last: ${last.stage})` : ""}`);
-  }
-}
-
-/** Checks one author may run per revision; after that the check tool tells it to stop. */
-export const MAX_CHECKS = 8;
+/// <reference path="../../../text-modules.d.ts" />
+import pluginDocs from "../../../../../../docs/plugins.md" with { type: "text" };
+import type { AuthorTask } from "./types";
 
 /** Instructions for the author: the rules of this host, then the whole plugin guide (docs/plugins.md). */
 export const AUTHOR_INSTRUCTIONS = `You write plugins for "Twoje Miejsce", an app for real places (a city, an estate, a school, a company).
@@ -63,7 +30,7 @@ The plugin guide (the API you write against):
 
 ${pluginDocs}`;
 
-/** The message for one revision: the plugin to write, or the current source and the change to make. */
+/** The message for one version: the plugin to write, or the current source and the change to make. */
 export function authorPrompt(task: AuthorTask): string {
   const header = [
     `Plugin id: ${task.pluginId}`,

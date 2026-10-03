@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { geoPointSchema } from "./geo";
 
 /**
  * Server-Driven UI: a plugin does NOT ship code to the app, only a tree of nodes from a closed
@@ -47,6 +48,54 @@ export type ToolResult = z.infer<typeof toolResultSchema>;
 const tone = z.enum(["neutral", "info", "success", "warning", "danger"]);
 export type Tone = z.infer<typeof tone>;
 
+/**
+ * Plugin maps (`ui.map`): layers of pins, routes and areas over the app's base map. A plugin says what is where
+ * and what it means (`tone`); the app draws it in its own colours. The map is a canvas, so every item has a `title`:
+ * the app lists the items next to the map (screen readers, keyboards, E2E), and tapping one there or on the map runs
+ * its `onPress`.
+ */
+export const MAP_LIMITS = {
+  layers: 8,
+  /** Items on one map, all layers together. */
+  items: 1000,
+  routePoints: 2000,
+  polygonPoints: 500,
+  /** Largest area radius, in metres (as a "near" notification). */
+  radius: 50_000,
+} as const;
+
+const mapItem = {
+  id: z.string().min(1).max(100),
+  title: z.string().min(1).max(120),
+  subtitle: z.string().max(200).optional(),
+  /** Overrides the layer's tone. */
+  tone: tone.optional(),
+  onPress: actionSchema.optional(),
+};
+const mapPinSchema = z.object({ ...mapItem, at: geoPointSchema });
+const mapRouteSchema = z.object({
+  ...mapItem,
+  path: z.array(geoPointSchema).min(2).max(MAP_LIMITS.routePoints),
+  /** A dashed line: a detour, a planned or a temporary route. */
+  dashed: z.boolean().optional(),
+});
+/** A circle (`center`, `radius` in metres) or a polygon. */
+const mapAreaSchema = z.union([
+  z.object({ ...mapItem, center: geoPointSchema, radius: z.number().positive().max(MAP_LIMITS.radius) }),
+  z.object({ ...mapItem, polygon: z.array(geoPointSchema).min(3).max(MAP_LIMITS.polygonPoints) }),
+]);
+const layerHead = { title: z.string().min(1).max(80), tone: tone.optional() };
+const mapLayerSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("pins"), ...layerHead, items: z.array(mapPinSchema).max(MAP_LIMITS.items) }),
+  z.object({ kind: z.literal("routes"), ...layerHead, items: z.array(mapRouteSchema).max(MAP_LIMITS.items) }),
+  z.object({ kind: z.literal("areas"), ...layerHead, items: z.array(mapAreaSchema).max(MAP_LIMITS.items) }),
+]);
+
+export type MapPinItem = z.infer<typeof mapPinSchema>;
+export type MapRouteItem = z.infer<typeof mapRouteSchema>;
+export type MapAreaItem = z.infer<typeof mapAreaSchema>;
+export type MapLayer = z.infer<typeof mapLayerSchema>;
+
 /** Leaf nodes (no children). */
 const leafSchemas = [
   z.object({ type: z.literal("Heading"), text: z.string(), level: z.union([z.literal(2), z.literal(3)]).optional() }),
@@ -83,6 +132,32 @@ const leafSchemas = [
     label: z.string(),
     options: z.array(z.object({ value: z.string(), label: z.string() })).min(1),
     value: z.string().optional(),
+  }),
+  /**
+   * A map (see MAP_LIMITS). The first view fits everything on it; `center` (and `zoom`, 1–19) set it instead, e.g.
+   * `ctx.community.location` for a map that may be empty. In a dashboard widget it is a still preview.
+   */
+  z
+    .object({
+      type: z.literal("Map"),
+      label: z.string().min(1).max(120),
+      layers: z.array(mapLayerSchema).max(MAP_LIMITS.layers),
+      center: geoPointSchema.optional(),
+      zoom: z.number().min(1).max(19).optional(),
+    })
+    .refine(
+      (map) => map.layers.reduce((n, layer) => n + layer.items.length, 0) <= MAP_LIMITS.items,
+      `A map shows at most ${MAP_LIMITS.items} items`,
+    ),
+  /**
+   * Form field: a place picked on the app's location picker (address search, the user's position, a pin). The tool
+   * gets `{ lat, lng, address }` (validate it with `geoLocation()`); no value = the field is left out of `args`.
+   */
+  z.object({
+    type: z.literal("LocationInput"),
+    name: z.string().min(1),
+    label: z.string(),
+    value: geoPointSchema.extend({ address: z.string().max(200).optional() }).optional(),
   }),
 ] as const;
 
@@ -142,13 +217,17 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
 /** View returned by a plugin: always a Screen at the root. */
 export const screenSchema = uiNodeSchema.refine((n) => n.type === "Screen", "View must return a Screen node");
 
-const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "ImagePicker"];
+const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "ImagePicker", "LocationInput"];
 
 /** No inputs and no tool calls anywhere in the tree: only reading and navigation. */
 function isReadOnly(node: UINode): boolean {
   if (INPUT_NODES.includes(node.type)) return false;
   if (node.type === "Button" && node.action.type === "tool") return false;
   if (node.type === "Card" && node.onPress?.type === "tool") return false;
+  if (node.type === "Map") {
+    const items = node.layers.flatMap((layer): { onPress?: Action }[] => layer.items);
+    if (items.some((item) => item.onPress?.type === "tool")) return false;
+  }
   return !("children" in node && node.children) || node.children.every(isReadOnly);
 }
 
@@ -193,6 +272,31 @@ export const ui = {
   imagePicker: (props: Props<"ImagePicker">): Of<"ImagePicker"> => ({ type: "ImagePicker", ...props }),
   textInput: (props: Props<"TextInput">): Of<"TextInput"> => ({ type: "TextInput", ...props }),
   select: (props: Props<"Select">): Of<"Select"> => ({ type: "Select", ...props }),
+  /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
+  map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
+    /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */
+    pins: (title: string, items: MapPinItem[], tone?: Tone): MapLayer => ({
+      kind: "pins",
+      title,
+      items,
+      ...(tone ? { tone } : {}),
+    }),
+    /** Lines through `path`: a route, a detour (`dashed`), a closed street. */
+    routes: (title: string, items: MapRouteItem[], tone?: Tone): MapLayer => ({
+      kind: "routes",
+      title,
+      items,
+      ...(tone ? { tone } : {}),
+    }),
+    /** Circles (`center`, `radius` in metres) or polygons: an alert zone, a closed park, a district. */
+    areas: (title: string, items: MapAreaItem[], tone?: Tone): MapLayer => ({
+      kind: "areas",
+      title,
+      items,
+      ...(tone ? { tone } : {}),
+    }),
+  }),
+  locationInput: (props: Props<"LocationInput">): Of<"LocationInput"> => ({ type: "LocationInput", ...props }),
 
   navigate: (view: string, params?: ViewParams): NavigateAction => ({
     type: "navigate",

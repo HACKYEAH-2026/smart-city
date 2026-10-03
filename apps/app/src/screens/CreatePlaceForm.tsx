@@ -24,7 +24,7 @@ import { usePluginCatalog } from "../data/plugins";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
 import { STREET_ZOOM } from "../lib/map/spec";
 import { goBack } from "../lib/navigation";
-import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
+import { PLACE_KIND_OPTIONS, placeKindIcon } from "../lib/placeKinds";
 import { t } from "../texts";
 import { borders, colors, fontFamily, radii, sizes, spacing } from "../theme";
 import LocationPicker from "./LocationPicker";
@@ -95,8 +95,8 @@ export default function CreatePlaceForm() {
   if (picking)
     return (
       <LocationPicker
-        name={name}
-        kind={kind ?? "other"}
+        hint={`${name} · ${t.location_pin_hint}`}
+        icon={placeKindIcon(kind ?? "other")}
         initial={location}
         onCancel={() => setPicking(false)}
         onConfirm={(picked) => {

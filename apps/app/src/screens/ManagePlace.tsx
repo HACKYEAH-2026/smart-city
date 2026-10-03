@@ -10,11 +10,13 @@ import {
   Link2,
   Puzzle,
   Settings,
+  Sparkles,
   Users,
 } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import {
+  ActionRow,
   Badge,
   Button,
   CheckCard,
@@ -198,7 +200,8 @@ function InvitesSection({ place, open, onToggle }: SectionProps & { place: Place
 function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
   const plugins = usePlacePlugins(slug);
   const sw = useSwitchPlugin(slug);
-  const list = plugins.data ?? [];
+  // Drafts of AI plugins are switched on by publishing them (the plugin builder), not here.
+  const list = (plugins.data ?? []).filter((plugin) => !plugin.draft);
   const on = list.filter((plugin) => plugin.enabled);
   const summary = on.length
     ? `${countOf(on.length, t.count_plugins)} · ${on.map((plugin) => plugin.name).join(", ")}`
@@ -213,7 +216,7 @@ function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string 
           <CheckCard
             key={plugin.id}
             label={plugin.name}
-            description={plugin.description}
+            description={plugin.madeByAi ? `${t.build_made_by_ai} · ${plugin.description}` : plugin.description}
             emoji={plugin.icon}
             checked={plugin.enabled}
             onChange={(enabled) => sw.mutate({ pluginId: plugin.id, enabled })}
@@ -221,6 +224,12 @@ function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string 
         ))}
       </View>
       <Feedback error={sw.isError ? t.manage_plugins_error : null} />
+      <ActionRow
+        icon={Sparkles}
+        title={t.build_entry_title}
+        subtitle={t.build_entry_subtitle}
+        href={`/app/c/${slug}/build`}
+      />
     </DisclosureCard>
   );
 }

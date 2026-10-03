@@ -1,8 +1,8 @@
-import type { Action, Tone, ToolAction, UINode } from "@app/plugin-sdk";
+import type { Action, GeoLocation, Tone, ToolAction, UINode } from "@app/plugin-sdk";
 import { launchImageLibraryAsync } from "expo-image-picker";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, MapPin } from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
 import {
   Badge,
   type BadgeTone,
@@ -11,12 +11,16 @@ import {
   Card,
   Heading,
   Icon,
+  MapView,
   RadioCard,
   Text,
   TextField,
 } from "../components";
+import { STREET_ZOOM } from "../lib/map/spec";
+import LocationPicker from "../screens/LocationPicker";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
+import { PluginMap } from "./PluginMap";
 
 /**
  * Server-Driven UI renderer: turns the tree from the plugin API into design-system components.
@@ -37,8 +41,11 @@ const ActionsContext = createContext<Actions>({
 /** Inside a dashboard Widget: cards render as compact rows, so a few of them fit in a tile. */
 const InWidgetContext = createContext(false);
 
+/** A form field's value: text, or a place from a LocationInput. */
+type FormValue = string | GeoLocation;
 /** Form values; `undefined` removes the field (e.g. a removed photo does not end up in args). */
-type Form = { values: Record<string, string>; set: (name: string, value: string | undefined) => void };
+type Form = { values: Record<string, FormValue>; set: (name: string, value: FormValue | undefined) => void };
+const text = (value: FormValue | undefined) => (typeof value === "string" ? value : "");
 const FormContext = createContext<Form | null>(null);
 
 /** Plugin button variants (SDK) → design-system button variants. */
@@ -224,6 +231,10 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <FormImagePicker node={node} />;
     case "Select":
       return <FormSelect node={node} />;
+    case "Map":
+      return <PluginMap node={node} still={inWidget} onAction={onAction} />;
+    case "LocationInput":
+      return <FormLocationInput node={node} />;
     default:
       return (
         <Text variant="bodyL" color="textSecondary">
@@ -269,10 +280,11 @@ function WidgetRow({ node }: { node: Extract<UINode, { type: "Card" }> }) {
 }
 
 /** Initial form field values (from `value` on nodes), including nested ones. */
-function initialValues(nodes: UINode[]): Record<string, string> {
-  const out: Record<string, string> = {};
+function initialValues(nodes: UINode[]): Record<string, FormValue> {
+  const out: Record<string, FormValue> = {};
   const walk = (n: UINode) => {
     if ((n.type === "TextInput" || n.type === "Select") && n.value !== undefined) out[n.name] = n.value;
+    if (n.type === "LocationInput" && n.value) out[n.name] = { address: "", ...n.value };
     if ("children" in n) n.children?.forEach(walk);
   };
   nodes.forEach(walk);
@@ -308,7 +320,7 @@ function FormTextInput({ node }: { node: Extract<UINode, { type: "TextInput" }> 
     <TextField
       label={node.label}
       multiline={node.multiline}
-      value={form?.values[node.name] ?? ""}
+      value={text(form?.values[node.name])}
       onChangeText={(v) => form?.set(node.name, v)}
     />
   );
@@ -379,6 +391,76 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
 }
 
 /**
+ * A place on the map: a button opens the app's location picker (address search, the user's position, a pin) over the
+ * form; once picked, a still map with the pin, the address and buttons to change or remove it.
+ */
+function FormLocationInput({ node }: { node: Extract<UINode, { type: "LocationInput" }> }) {
+  const form = useContext(FormContext);
+  const [picking, setPicking] = useState(false);
+  const current = form?.values[node.name];
+  const value = typeof current === "object" ? current : undefined;
+  return (
+    <View style={styles.stackTight}>
+      <Text variant="label" color="textSecondary">
+        {node.label}
+      </Text>
+      {value ? (
+        <>
+          <MapView
+            // A new place starts a new preview: the map's first view is its only one.
+            key={`${value.lat},${value.lng}`}
+            label={t.plugin_location_preview}
+            center={value}
+            zoom={STREET_ZOOM}
+            pins={[{ id: "picked", title: value.address || node.label, lat: value.lat, lng: value.lng }]}
+            interactive={false}
+            style={styles.locationPreview}
+          />
+          {value.address ? <Text variant="body">{value.address}</Text> : null}
+          <View style={styles.row}>
+            <Button
+              label={t.plugin_location_change}
+              variant="secondary"
+              size="sm"
+              fullWidth={false}
+              onPress={() => setPicking(true)}
+            />
+            <Button
+              label={t.plugin_location_remove}
+              variant="destructiveGhost"
+              size="sm"
+              fullWidth={false}
+              onPress={() => form?.set(node.name, undefined)}
+            />
+          </View>
+        </>
+      ) : (
+        <Button
+          label={t.plugin_location_pick}
+          variant="secondary"
+          leftIcon={<Icon icon={MapPin} size={sizes.iconS} color="primary" />}
+          onPress={() => setPicking(true)}
+        />
+      )}
+      {picking ? (
+        <Modal visible animationType="slide" onRequestClose={() => setPicking(false)}>
+          <LocationPicker
+            title={node.label}
+            hint={t.plugin_location_hint}
+            initial={value ?? null}
+            onCancel={() => setPicking(false)}
+            onConfirm={({ location, address }) => {
+              form?.set(node.name, { ...location, address });
+              setPicking(false);
+            }}
+          />
+        </Modal>
+      ) : null}
+    </View>
+  );
+}
+
+/**
  * A photo announced once: the label is on the wrapper. On the web, react-native-web adds a hidden <img> with the
  * Image's own label once the photo loads, which would be a second image with the same name.
  */
@@ -440,6 +522,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: { height: "100%", backgroundColor: colors.primary },
+  locationPreview: {
+    height: sizes.locationPreview,
+    borderRadius: radii.xl,
+    borderWidth: borders.hairline,
+    borderColor: colors.border,
+  },
   image: {
     width: "100%",
     aspectRatio: 4 / 3,
