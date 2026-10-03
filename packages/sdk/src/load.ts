@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { SchemaError, validateTables } from "./engine/schema";
-import { definePlugin, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
+import {
+  definePlugin,
+  type PluginDefinition,
+  type PluginManifest,
+  pluginManifestSchema,
+  widgetSizeSchema,
+} from "./plugin";
 import { t } from "./services/db";
 import { fileRef } from "./services/files";
 import { ui } from "./ui";
@@ -15,12 +21,13 @@ export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDef
 
 /**
  * Calls the plugin module with the SDK and checks the manifest and consistency (nav → existing views,
- * tools have a schema and handler). Used by the API host and by the test harness.
+ * widgets have a size and render, tools have a schema and handler). Used by the API host and by the test harness.
  */
 export function loadPlugin(mod: unknown): LoadedDefinition {
   const definition = callFactory(mod);
   const manifest = parseManifest(definition);
   assertViews(definition, manifest);
+  assertWidgets(definition);
   assertTables(definition);
   assertTools(definition);
   assertStreams(definition);
@@ -54,6 +61,15 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (!definition.views || typeof definition.views !== "object") throw new PluginError("Plugin must define views");
   const missing = manifest.nav.find((entry) => typeof definition.views[entry.view] !== "function");
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
+}
+
+function assertWidgets(definition: PluginDefinition): void {
+  const invalid = Object.entries(definition.widgets ?? {}).find(
+    ([, widget]) => typeof widget?.render !== "function" || !widgetSizeSchema.safeParse(widget.size).success,
+  );
+  if (invalid) {
+    throw new PluginError(`Widget "${invalid[0]}" must have a size ({ w: 1-2, h: 1-3 }) and a render function`);
+  }
 }
 
 function assertTables(definition: PluginDefinition): void {

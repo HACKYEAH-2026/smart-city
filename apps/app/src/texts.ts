@@ -50,6 +50,7 @@ export const t = {
   community_features_label: "Funkcje",
   community_features_empty: "Ta społeczność nie ma jeszcze żadnych funkcji.",
   community_back: "Wszystkie społeczności",
+  community_dashboard_label: "Pulpit miejsca",
   plugin_back: "Wróć do społeczności",
   plugin_load_error: "Nie udało się wczytać tej funkcji.",
   plugin_action_error: "Coś poszło nie tak. Sprawdź formularz i spróbuj ponownie.",

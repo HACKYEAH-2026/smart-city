@@ -30,6 +30,15 @@ export function useCommunityNav(slug: string) {
   });
 }
 
+/** Dashboard widgets, rendered for this user (refetched on every visit to the dashboard and periodically). */
+export function useCommunityWidgets(slug: string) {
+  return useQuery({
+    queryKey: [...communityKey(slug), "widgets"],
+    queryFn: () => parseResponse(c[":slug"].widgets.$get({ param: { slug } })),
+    refetchInterval: 15000,
+  });
+}
+
 export function usePluginView(slug: string, pluginId: string, view: string, params: ViewParams) {
   return useQuery({
     queryKey: [...pluginKey(slug, pluginId), "view", view, params],

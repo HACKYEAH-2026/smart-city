@@ -135,3 +135,25 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
   await expect(page.getByRole("list", { name: "Zepsute ławki" }).getByText("Park Jordana")).toBeVisible();
   await expect(page.getByLabel("Park")).toHaveValue("");
 });
+
+test("home screen widget: announcements show what is new since the last visit", async ({ page }) => {
+  await login(page, "admin@krakow.test");
+  await page.goto("/app/c/krakow/announcements/list");
+  await page.getByLabel("Tytuł").fill("Zamknięcie ulicy Długiej");
+  await page.getByLabel("Treść").fill("W sobotę od 8:00 do 16:00 remont nawierzchni.");
+  await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
+  await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
+
+  await signOut(page);
+  await register(page, "mieszkanka@example.test");
+  await page.getByRole("link", { name: "Kraków" }).click();
+  const widget = page.getByRole("region", { name: "Ogłoszenia" });
+  await expect(widget.getByText("1 nowe ogłoszenie od Twojej ostatniej wizyty")).toBeVisible();
+  await widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" }).click();
+  await expect(page.getByRole("heading", { name: "Zamknięcie ulicy Długiej" })).toBeVisible();
+  await expect(page.getByText("W sobotę od 8:00 do 16:00 remont nawierzchni.")).toBeVisible();
+
+  await page.getByRole("link", { name: t.plugin_back }).click();
+  await expect(widget.getByText("Nic nowego od Twojej ostatniej wizyty.")).toBeVisible();
+  await expect(widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" })).toHaveCount(0);
+});

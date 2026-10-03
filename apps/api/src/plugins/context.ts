@@ -13,7 +13,13 @@ export const SYSTEM_USER: PluginUser = { id: "system", name: "System", role: "ad
 /** Builds a plugin call context: only what its manifest allows. */
 export function createPluginContext(
   services: PluginServices,
-  args: { plugin: LoadedPlugin; installationId: string; community: PluginCommunity; user: PluginUser },
+  args: {
+    plugin: LoadedPlugin;
+    installationId: string;
+    community: PluginCommunity;
+    user: PluginUser;
+    lastVisit?: Date | null;
+  },
 ): Context {
   const { plugin, installationId, community, user } = args;
   const can = (p: Permission) => plugin.manifest.permissions.includes(p);
@@ -22,6 +28,7 @@ export function createPluginContext(
     user,
     community,
     now: () => new Date(),
+    lastVisit: args.lastVisit ?? null,
     db: can("db") ? createPluginDb(services.db, plugin, installationId, userId) : deniedService("db"),
     files: can("files") ? services.files.forPlugin(installationId) : deniedService("files"),
     ai: can("ai") ? services.ai.forPlugin(installationId) : deniedService("ai"),

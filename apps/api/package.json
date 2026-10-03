@@ -4,6 +4,7 @@
     "@app/plugin-sdk": "workspace:*",
     "@app/shared": "workspace:*",
     "@hono/zod-validator": "^0.9.1",
+    "@plugins/announcements": "workspace:*",
     "@plugins/issues": "workspace:*",
     "@strands-agents/sdk": "^1.19.0",
     "@surrealdb/node": "3.0.3",

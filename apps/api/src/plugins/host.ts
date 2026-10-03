@@ -13,11 +13,13 @@ import {
   toolResultSchema,
   type UINode,
   type ViewParams,
+  type WidgetSize,
+  widgetSchema,
 } from "@app/plugin-sdk";
 import { DbError, SchemaError } from "@app/plugin-sdk/engine";
 import type { RecordId } from "surrealdb";
 import { z } from "zod";
-import { keyOf, ref, rows } from "../db";
+import { first, keyOf, ref, rows, visitRef } from "../db";
 import { syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
@@ -109,7 +111,10 @@ export class PluginHost {
     return loaded.manifest;
   }
 
-  context(plugin: LoadedPlugin, args: { installationId: string; community: PluginCommunity; user: Context["user"] }) {
+  context(
+    plugin: LoadedPlugin,
+    args: { installationId: string; community: PluginCommunity; user: Context["user"]; lastVisit?: Date | null },
+  ) {
     return createPluginContext(this.services, { plugin, ...args });
   }
 
@@ -143,6 +148,44 @@ export class PluginHost {
       );
     }
     return this.signImages(parsed.data);
+  }
+
+  /** A dashboard widget, or null when the plugin hides it (e.g. nothing to show). */
+  async renderWidget(plugin: LoadedPlugin, name: string, ctx: Context): Promise<UINode | null> {
+    const widget = plugin.definition.widgets?.[name];
+    if (!widget) throw new PluginError(`widget_not_found:${name}`);
+    const out = await guard(plugin, `widget ${name}`, () => widget.render(ctx));
+    const parsed = widgetSchema.nullable().safeParse(out);
+    if (!parsed.success) {
+      throw new PluginError(
+        `${plugin.manifest.id}: widget "${name}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
+      );
+    }
+    return parsed.data && this.signImages(parsed.data);
+  }
+
+  /** Widgets a plugin declares, in its order. */
+  widgets(plugin: LoadedPlugin): { name: string; size: WidgetSize }[] {
+    return Object.entries(plugin.definition.widgets ?? {}).map(([name, w]) => ({ name, size: w.size }));
+  }
+
+  /** When the user last opened a view of this installation (ctx.lastVisit), or null. */
+  async lastVisit(installationId: string, userId: string): Promise<Date | null> {
+    const row = await first<{ at: Date | { toDate(): Date } }>(this.db, "SELECT at FROM $v;", {
+      v: visitRef(installationId, userId),
+    });
+    return row ? toDate(row.at) : null;
+  }
+
+  /** Best effort: a failed write (e.g. a conflict between parallel views) only logs; the view still renders. */
+  async recordVisit(installationId: string, userId: string): Promise<void> {
+    await this.db
+      .query("UPSERT $v SET installation = $i, user = $u, at = time::now();", {
+        v: visitRef(installationId, userId),
+        i: ref("installation", installationId),
+        u: ref("user", userId),
+      })
+      .catch((err: unknown) => console.error(`visit ${installationId}/${userId} not recorded`, err));
   }
 
   async callTool(plugin: LoadedPlugin, name: string, ctx: Context, args: unknown): Promise<ToolResult> {
@@ -186,6 +229,9 @@ export class PluginHost {
     return loadPlugin(mod.default);
   }
 }
+
+/** SurrealDB returns its own DateTime type; plugins get a plain Date. */
+const toDate = (at: Date | { toDate(): Date }) => (at instanceof Date ? at : at.toDate());
 
 async function guard<T>(plugin: LoadedPlugin, what: string, fn: () => T | Promise<T>): Promise<T> {
   try {

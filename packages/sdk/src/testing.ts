@@ -11,7 +11,7 @@ import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin"
 import type { AI, AICall, SimilarMatch } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
-import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams } from "./ui";
+import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams, widgetSchema } from "./ui";
 
 /**
  * Test harness for plugin authors: test a plugin like a plain function, without the API or an AI model.
@@ -24,6 +24,7 @@ import { screenSchema, type ToolResult, toolResultSchema, type UINode, type View
  *   const photo = await t.files.fake();
  *   await t.tool("report", { title: "Latarnia", photo });
  *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
+ *   await t.widget("latest"); // dashboard widget; `view()` records a visit like the host (ctx.lastVisit)
  */
 export class ForbiddenError extends Error {}
 
@@ -155,12 +156,15 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     return id;
   };
   const can = (permission: Permission) => manifest.permissions.includes(permission);
+  /** Last view render per user, like the host's visit tracking (`ctx.lastVisit`). */
+  const visits = new Map<string, Date>();
   const ctxFor = async (user: PluginUser): Promise<Context> => {
     await ensureUser(user);
     return {
       user,
       community,
       now,
+      lastVisit: visits.get(user.id) ?? null,
       db: can("db") ? dbFor(user) : deniedService("db"),
       files: can("files") ? filesApi : deniedService("files"),
       ai: can("ai") ? ai.api : deniedService("ai"),
@@ -175,7 +179,15 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     async view(name: string, params: ViewParams = {}): Promise<UINode> {
       const fn = definition.views[name];
       if (!fn) throw new Error(`no view ${name}`);
-      return screenSchema.parse(await fn(await ctxFor(user), params));
+      const node = screenSchema.parse(await fn(await ctxFor(user), params));
+      visits.set(user.id, now());
+      return node;
+    },
+    /** Dashboard widget (validated like in the host); null = the widget shows nothing. */
+    async widget(name: string): Promise<UINode | null> {
+      const fn = definition.widgets?.[name];
+      if (!fn) throw new Error(`no widget ${name}`);
+      return widgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];

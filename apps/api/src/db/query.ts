@@ -21,6 +21,10 @@ export const keyOf = (id: RecordId) => String(id.id);
 export const membershipRef = (communityId: string, userId: string) =>
   new RecordId(TABLES.membership, [ref("community", communityId), ref("user", userId)]);
 
+/** Visit record id: one per (installation, user), updated on every view render. */
+export const visitRef = (installationId: string, userId: string) =>
+  new RecordId(TABLES.visit, [ref("installation", installationId), ref("user", userId)]);
+
 export type CommunityRow = { id: RecordId; slug: string; name: string };
 
 export const toCommunity = (row: CommunityRow) => ({ id: keyOf(row.id), slug: row.slug, name: row.name });

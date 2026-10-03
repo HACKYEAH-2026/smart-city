@@ -119,6 +119,8 @@ export const sizes = {
   scannerFrame: 268,
   /** Login screen: height of the map illustration at the top. */
   authMap: 300,
+  /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
+  widgetRow: 112,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */

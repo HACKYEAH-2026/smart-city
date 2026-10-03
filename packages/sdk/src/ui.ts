@@ -92,6 +92,7 @@ type Leaf = z.infer<(typeof leafSchemas)[number]>;
 export type UINode =
   | Leaf
   | { type: "Screen"; title: string; children: UINode[] }
+  | { type: "Widget"; title: string; children: UINode[] }
   | { type: "Stack"; children: UINode[] }
   | { type: "Row"; children: UINode[] }
   | { type: "List"; label: string; children: UINode[] }
@@ -111,6 +112,7 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
   z.discriminatedUnion("type", [
     ...leafSchemas,
     z.object({ type: z.literal("Screen"), title: z.string(), children: z.array(uiNodeSchema) }),
+    z.object({ type: z.literal("Widget"), title: z.string(), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("Stack"), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("Row"), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("List"), label: z.string(), children: z.array(uiNodeSchema) }),
@@ -134,12 +136,31 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
 /** View returned by a plugin: always a Screen at the root. */
 export const screenSchema = uiNodeSchema.refine((n) => n.type === "Screen", "View must return a Screen node");
 
+const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "ImagePicker"];
+
+/** No inputs and no tool calls anywhere in the tree: only reading and navigation. */
+function isReadOnly(node: UINode): boolean {
+  if (INPUT_NODES.includes(node.type)) return false;
+  if (node.type === "Button" && node.action.type === "tool") return false;
+  if (node.type === "Card" && node.onPress?.type === "tool") return false;
+  return !("children" in node && node.children) || node.children.every(isReadOnly);
+}
+
+/**
+ * Widget returned by a plugin for the community dashboard: a Widget node at the root, read-only
+ * (no forms, no tool calls). Its navigate actions open views of the plugin.
+ */
+export const widgetSchema = uiNodeSchema
+  .refine((n) => n.type === "Widget", "Widget must return a Widget node")
+  .refine(isReadOnly, "Widget must be read-only: no forms, inputs or tool actions");
+
 type Of<T extends UINodeType> = Extract<UINode, { type: T }>;
 type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 
 /** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
   screen: (title: string, children: UINode[]): Of<"Screen"> => ({ type: "Screen", title, children }),
+  widget: (title: string, children: UINode[]): Of<"Widget"> => ({ type: "Widget", title, children }),
   stack: (children: UINode[]): Of<"Stack"> => ({ type: "Stack", children }),
   row: (children: UINode[]): Of<"Row"> => ({ type: "Row", children }),
   list: (label: string, children: UINode[]): Of<"List"> => ({ type: "List", label, children }),

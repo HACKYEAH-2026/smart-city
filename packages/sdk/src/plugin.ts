@@ -44,6 +44,11 @@ export type Context<TT extends Tables = Tables> = {
   user: PluginUser;
   community: PluginCommunity;
   now(): Date;
+  /**
+   * When this user last opened a view of this plugin in this community, before the current request
+   * (null = never). Tracked by the host; widgets use it to show what is new since the last visit.
+   */
+  lastVisit: Date | null;
   /** "db" permission: typed clients for the plugin's declared `tables`. */
   db: Database<TT>;
   /** "files" permission. */
@@ -55,6 +60,22 @@ export type Context<TT extends Tables = Tables> = {
 // ──────────────────────────────── Plugin ────────────────────────────────
 
 export type PluginView<TT extends Tables = Tables> = (ctx: Context<TT>, params: ViewParams) => UINode | Promise<UINode>;
+
+/**
+ * Space a widget takes on the community dashboard: a grid 2 columns wide (`w`), in rows of fixed height (`h`).
+ * The app lays widgets out in plugin order; a widget never grows beyond its size (content is clipped).
+ */
+export const widgetSizeSchema = z.object({
+  w: z.union([z.literal(1), z.literal(2)]),
+  h: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+});
+export type WidgetSize = z.infer<typeof widgetSizeSchema>;
+
+/** Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only), or null to hide it. */
+export type PluginWidget<TT extends Tables = Tables> = {
+  size: WidgetSize;
+  render: (ctx: Context<TT>) => UINode | null | Promise<UINode | null>;
+};
 
 export type Tool<S extends z.ZodType = z.ZodType, TT extends Tables = Tables> = {
   /** Description for humans and AI assistants (MCP). */
@@ -84,6 +105,9 @@ export type PluginDefinition = PluginManifestInput & {
   tables?: Tables;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   views: Record<string, PluginView<any>>;
+  /** Widgets on the community dashboard, in this order. */
+  // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
+  widgets?: Record<string, PluginWidget<any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   tools?: Record<string, Tool<z.ZodType, any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
@@ -105,6 +129,7 @@ export function definePlugin<
   plugin: PluginManifestInput & {
     tables?: TT;
     views: Record<string, PluginView<TT>>;
+    widgets?: Record<string, PluginWidget<TT>>;
     tools?: { [K in keyof TS]: Tool<TS[K], TT> };
     streams?: { [K in keyof TR]: Stream<TR[K], TT> };
     onInstall?: (ctx: Context<TT>) => void | Promise<void>;

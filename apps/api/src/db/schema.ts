@@ -13,6 +13,7 @@ export const TABLES = {
   installation: "plugin_installation",
   file: "plugin_file",
   source: "plugin_source",
+  visit: "plugin_visit",
 } as const;
 
 export const SCHEMA = `
@@ -44,4 +45,10 @@ DEFINE TABLE IF NOT EXISTS plugin_source SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS version ON plugin_source TYPE string;
 DEFINE FIELD IF NOT EXISTS source ON plugin_source TYPE string;
 DEFINE FIELD IF NOT EXISTS updated_at ON plugin_source TYPE datetime DEFAULT time::now();
+
+-- When a user last opened a view of an installed plugin (ctx.lastVisit). id = [installation, user].
+DEFINE TABLE IF NOT EXISTS plugin_visit SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS installation ON plugin_visit TYPE record<plugin_installation> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS user ON plugin_visit TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS at ON plugin_visit TYPE datetime;
 `;

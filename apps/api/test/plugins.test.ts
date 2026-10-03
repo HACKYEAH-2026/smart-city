@@ -52,7 +52,10 @@ describe("communities, navigation, roles", () => {
     expect((await t.request(`${base}/nav`)).status).toBe(401);
     const u = await t.signUp();
     const nav = (await (await t.request(`${base}/nav`, { headers: u.headers })).json()) as CommunityNavItem[];
-    expect(nav).toEqual([{ pluginId: "issues", icon: "🛠️", view: "list", label: "Zgłoszenia" }]);
+    expect(nav).toEqual([
+      { pluginId: "issues", icon: "🛠️", view: "list", label: "Zgłoszenia" },
+      { pluginId: "announcements", icon: "📢", view: "list", label: "Ogłoszenia" },
+    ]);
     expect((await t.request("/api/communities/nie-ma", { headers: u.headers })).status).toBe(404);
     expect((await view(u.headers, "nie-ma/views/list")).res.status).toBe(404);
     expect((await view(u.headers, "issues/views/nie-ma")).res.status).toBe(404);
@@ -204,7 +207,7 @@ describe("isolation and plugins uploaded on the fly", () => {
     expect((await install("benches")).status).toBe(201);
 
     const nav = (await (await t.request(`${base}/nav`, { headers: u.headers })).json()) as CommunityNavItem[];
-    expect(nav.map((n) => n.pluginId)).toEqual(["issues", "benches"]);
+    expect(nav.map((n) => n.pluginId)).toEqual(["issues", "announcements", "benches"]);
     expect((await tool(u.headers, "benches/tools/report", { park: "Park Jordana" })).res.status).toBe(200);
     expect(textsOf((await view(u.headers, "benches/views/main")).node!)).toContain("Park Jordana");
 
@@ -275,5 +278,84 @@ describe("isolation and plugins uploaded on the fly", () => {
     } finally {
       await noAdmin.close();
     }
+  });
+});
+
+describe("dashboard widgets", () => {
+  const widgets = async (headers: Record<string, string>) => {
+    const res = await t.request(`${base}/widgets`, { headers });
+    return { res, list: res.status === 200 ? ((await res.json()) as CommunityWidgetBody[]) : [] };
+  };
+  type CommunityWidgetBody = { pluginId: string; widget: string; size: { w: number; h: number }; node: UINode };
+
+  test("no session 401, unknown community 404; a plugin with nothing to show is left out", async () => {
+    await start();
+    expect((await t.request(`${base}/widgets`)).status).toBe(401);
+    const u = await t.signUp();
+    expect((await t.request("/api/communities/nie-ma/widgets", { headers: u.headers })).status).toBe(404);
+    expect((await widgets(u.headers)).list).toEqual([]);
+  });
+
+  test("lastVisit: new announcements until the user opens the plugin, then nothing new", async () => {
+    await start();
+    const u = await t.signUp();
+    await tool(cityAdmin.headers, "announcements/tools/publish", { title: "Zamknięcie ulicy Długiej" });
+
+    const before = await widgets(u.headers);
+    expect(before.list.map(({ pluginId, widget, size }) => ({ pluginId, widget, size }))).toEqual([
+      { pluginId: "announcements", widget: "latest", size: { w: 2, h: 3 } },
+    ]);
+    expect(textsOf(before.list[0]!.node)).toContain("1 nowe ogłoszenie od Twojej ostatniej wizyty");
+
+    expect((await view(u.headers, "announcements/views/list")).res.status).toBe(200);
+    const after = await widgets(u.headers);
+    expect(textsOf(after.list[0]!.node)).toContain("Nic nowego od Twojej ostatniej wizyty.");
+    // Visits are per user: the admin who has not opened the plugin still sees it as new.
+    expect(textsOf((await widgets(cityAdmin.headers)).list[0]!.node)).toContain(
+      "1 nowe ogłoszenie od Twojej ostatniej wizyty",
+    );
+  });
+
+  test("a throwing or invalid widget is skipped; the rest of the dashboard renders", async () => {
+    await start();
+    const u = await t.signUp();
+    await tool(cityAdmin.headers, "announcements/tools/publish", { title: "Zebranie" });
+    const withWidget = (id: string, render: string) =>
+      BENCHES.replace('id: "benches"', `id: "${id}"`).replace(
+        "    views: {",
+        `    widgets: { w: { size: { w: 1, h: 1 }, render: ${render} } },\n    views: {`,
+      );
+    for (const [id, render] of [
+      ["throws", "() => { throw new Error('boom'); }"],
+      ["withform", "() => ui.widget('x', [ui.button('Usuń', ui.tool('report'))])"],
+    ] as const) {
+      expect(
+        (
+          await t.request("/api/admin/plugins", {
+            method: "POST",
+            headers: platform,
+            json: { source: withWidget(id, render) },
+          })
+        ).status,
+      ).toBe(201);
+      await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
+        method: "POST",
+        headers: platform,
+        json: { pluginId: id },
+      });
+    }
+    const { res, list } = await widgets(u.headers);
+    expect(res.status).toBe(200);
+    expect(list.map((w) => w.pluginId)).toEqual(["announcements"]);
+  });
+
+  test("a widget without a valid size is rejected on upload", async () => {
+    await start();
+    const source = BENCHES.replace('id: "benches"', 'id: "huge"').replace(
+      "    views: {",
+      "    widgets: { w: { size: { w: 3, h: 1 }, render: () => null } },\n    views: {",
+    );
+    const res = await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source } });
+    expect(res.status).toBe(400);
   });
 });

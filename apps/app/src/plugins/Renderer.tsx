@@ -74,6 +74,15 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
           <Children nodes={node.children} />
         </View>
       );
+    case "Widget":
+      return (
+        <Card style={styles.widget}>
+          <View role="region" aria-label={node.title} style={styles.widgetBody}>
+            <Heading level={2}>{node.title}</Heading>
+            <Children nodes={node.children} />
+          </View>
+        </Card>
+      );
     case "Stack":
       return (
         <View style={styles.stack}>
@@ -343,6 +352,9 @@ function FormSelect({ node }: { node: Extract<UINode, { type: "Select" }> }) {
 const styles = StyleSheet.create({
   stack: { gap: spacing[9] },
   stackTight: { gap: spacing[2] },
+  /** Fills the dashboard tile (fixed size from the plugin); content beyond it is clipped. */
+  widget: { flex: 1, overflow: "hidden" },
+  widgetBody: { gap: spacing[6] },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[4] },
   list: { gap: spacing[6] },
   cardHead: {

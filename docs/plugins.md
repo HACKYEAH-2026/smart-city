@@ -15,7 +15,7 @@ communities, users and installations; plugins bring everything else: their own t
 Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-package) ·
 [Manifest](#manifest-permissions-roles) · [Tables](#tables) · [Schema evolution](#schema-evolution-no-migrations) ·
 [`ctx.db`](#ctxdb) · [Files](#ctxfiles) · [AI](#ctxai) · [Tools & streams](#tools-streams-oninstall) ·
-[Views](#views-ui) · [Testing](#testing) · [Host](#host)
+[Views](#views-ui) · [Widgets](#widgets-dashboard) · [Testing](#testing) · [Host](#host)
 
 ## Mental model
 
@@ -24,7 +24,7 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
   `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, t }`
   (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id).
   This lets the same file run built-in, uploaded at runtime, or later in a sandbox.
-- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `db`, `files`, `ai`.
+- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`.
   No app database, no disk, no network.
 - All data is **isolated per installation** (plugin × community): every query, reference and live
   stream is scoped to it.
@@ -32,12 +32,13 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
   `error` messages, Zod messages for user input, tool descriptions) is in Polish.
 
 ```
- plugin factory(sdk) ──► definePlugin({ tables, views, tools, streams })
+ plugin factory(sdk) ──► definePlugin({ tables, views, widgets, tools, streams })
                                 │
- host ── ctx { user, community, now, db, files, ai } ──► view / tool / stream handler
+ host ── ctx { user, community, now, lastVisit, db, files, ai } ──► view / widget / tool / stream handler
 ```
 
 Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
+`plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
 `plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key), `plugins/benches` (minimal).
 
 ## Creating a plugin package
@@ -122,7 +123,7 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 | `permissions` | subset of `"db"`, `"files"`, `"ai"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
 | `tables` | optional, see [Tables](#tables) |
-| `views`, `tools`, `streams`, `onInstall` | see below |
+| `views`, `widgets`, `tools`, `streams`, `onInstall` | see below |
 
 **Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
@@ -511,6 +512,7 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Node | Builder |
 |---|---|
 | Screen | `ui.screen(title, children)` — always the root |
+| Widget | `ui.widget(title, children)` — the root of a [widget](#widgets-dashboard) |
 | Stack / Row | `ui.stack([...])`, `ui.row([...])` |
 | List | `ui.list(label, items)` |
 | Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, onPress?, children? })` |
@@ -525,6 +527,36 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 
 A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Renderer.tsx`.
 
+## Widgets (dashboard)
+
+A plugin may put widgets on the community dashboard (optional). Each widget declares a fixed `size` in grid
+cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3 rows — and a `render(ctx)` that
+returns `ui.widget(title, children)`, or `null` to show nothing (e.g. no data yet). Widgets appear in the
+order of installation, then declaration; content beyond the size is clipped.
+
+```ts
+widgets: {
+  latest: {
+    size: { w: 2, h: 3 },
+    render: async (ctx) => {
+      const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
+      const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
+      return ui.widget("Ogłoszenia", [
+        ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
+        ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
+      ]);
+    },
+  },
+},
+```
+
+- **Read-only:** no `Form`, inputs or tool actions anywhere in the tree (validated); `navigate` opens a view
+  of the plugin. A widget that throws or returns invalid UI is left out of the dashboard (logged), the rest renders.
+- **`ctx.lastVisit`:** when this user last opened any view of this plugin in this community, before the
+  current request (`null` = never). The host records it on every view render, so "new since the last
+  visit" works without plugin tables. Available in views too (there it is the previous view render).
+- Full example: `plugins/announcements`.
+
 ## Testing
 
 `testPlugin` from `@app/plugin-sdk/testing` runs the plugin against the **real engine** on embedded
@@ -538,10 +570,11 @@ No API, no AI model; connections close after each test.
 |---|---|
 | `await testPlugin(mod, { user?, community? })` | loads, validates and syncs the schema. Default user `{ id: "u_test", role: "user" }` |
 | `.tool(name, args?)` | → `ToolResult`; rejects with `ForbiddenError` (requires) or a `ZodError` (input) |
-| `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions |
+| `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions. Records a visit (`ctx.lastVisit`) like the host |
+| `.widget(name)` | → validated widget `UINode` or `null` |
 | `.stream(name, args?)` | → `AsyncIterator`; read with `next()`, finish with `return()` |
 | `.invalidInput(name, args)` | Zod issues the host would answer 400 with, or `null` |
-| `.as(user)` | the same harness acting as another user (`.tool/.view/.stream/.files.fake/.invalidInput/.ctx`) |
+| `.as(user)` | the same harness acting as another user (`.tool/.view/.widget/.stream/.files.fake/.invalidInput/.ctx`) |
 | `.files.fake(mime?)` | a pending upload by the acting user → `FileId` |
 | `.files.isKept(id)` | `true` once a `t.ref("file")` column referenced it |
 | `.ai.mockSimilar((query, candidates) => matches)` | `findSimilar` result (default `[]`) |
@@ -720,6 +753,7 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | Endpoint | Description |
 |---|---|
 | `GET /api/communities/:slug/nav` | navigation for the app |
+| `GET /api/communities/:slug/widgets` | dashboard: `[{ pluginId, widget, size, node }]` rendered for the user |
 | `GET /api/communities/:slug/plugins/:id/views/:view?…` | UI tree of a view |
 | `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | tool call |
 | `POST /api/communities/:slug/plugins/:id/files` (multipart `file`) | upload → `{ fileId }` (pending) |
