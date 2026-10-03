@@ -112,6 +112,10 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 ## Frontend
 Patterns, UI text and forbidden APIs: `docs/expo.md`.
 
+## Architecture docs
+Interactive HTML in `docs/architecture/` (open `index.html` in a browser; no build, no external resources). They
+quote real code paths, messages and limits: a change to what they describe updates them in the same commit.
+
 ## Don'ts
 - No secrets in the repo (`.env` is gitignored). Secrets only in GitHub Secrets.
 - No deploys from a local machine.

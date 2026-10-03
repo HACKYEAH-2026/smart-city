@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checks &amp; AI builder · Twoje Miejsce architecture</title>
+    <meta
+      name="description"
+      content="How plugin code gets into Twoje Miejsce: the six check stages, uploads and the registry, schema evolution without migrations, and the AI plugin builder."
+    />
+    <link rel="stylesheet" href="assets/docs.css" />
+    <link rel="stylesheet" href="assets/pipeline.css" />
+    <script src="assets/docs.js" defer></script>
+    <script src="assets/pipeline.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-text">Twoje Miejsce<small>architecture</small></span></a>
+      <nav class="pages" aria-label="Architecture pages">
+        <a href="index.html">Overview</a>
+        <a href="plugins.html">Plugin runtime</a>
+        <a href="pipeline.html" aria-current="page">Checks &amp; AI builder</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" /></svg>
+      </button>
+    </header>
+    <div class="layout">
+      <nav class="toc" data-toc aria-label="On this page"></nav>
+      <main>
+        <header class="hero">
+          <p class="eyebrow">Plugin pipeline</p>
+          <h1>From source code to a running plugin</h1>
+          <p class="lede">
+            Plugin code reaches the API in three ways: compiled in, uploaded by the platform admin, or written by AI for
+            one place. Uploaded and AI-written code passes the same six checks before anyone can use it, and its tables
+            change only in ways that keep every stored row valid.
+          </p>
+          <p>
+            This page follows the <em>code</em>. What a loaded plugin can do at runtime — <code>ctx</code>, isolation per
+            community, the <code>ctx.db</code> engine, Server-Driven UI — is on
+            <a href="plugins.html">Plugin runtime</a>; the system as a whole is on the <a href="index.html">Overview</a>.
+          </p>
+        </header>
+
+        <!-- ───────────────────────────── ways in ───────────────────────────── -->
+        <section id="ways" data-toc="Three ways in">
+          <h2>Three ways in, one gate</h2>
+          <p class="section-intro">
+            Every plugin ends up in the same registry: a <code>Map</code> inside <code>PluginHost</code>
+            (<span class="path">apps/api/src/plugins/host.ts</span>), keyed by plugin id. Pick a path to see who uses it
+            and what it goes through.
+          </p>
+          <div class="wide" data-group>
+            <div class="diagram">
+              <div class="ways">
+                <button class="box" type="button" data-layer="plugin" data-show="builtin">
+                  <span class="box-title">Built-in</span>
+                  <span class="box-sub">compiled into the API image</span>
+                  <span class="path">plugins/&lt;id&gt;/index.ts</span>
+                </button>
+                <button class="box" type="button" data-layer="ext" data-show="upload">
+                  <span class="box-title">Admin upload</span>
+                  <span class="box-sub">the platform admin, with a token</span>
+                  <span class="path">POST /api/admin/plugins</span>
+                </button>
+                <button class="box" type="button" data-layer="app" data-show="ai">
+                  <span class="box-title">AI builder</span>
+                  <span class="box-sub">a place's admin describes a feature</span>
+                  <span class="path">POST /api/communities/:slug/plugins</span>
+                </button>
+              </div>
+              <div class="arrow-down">uploads and AI versions</div>
+              <div class="box gate" data-layer="api">
+                <span class="box-title">PluginHost.validate(source)</span>
+                <span class="box-sub"
+                  >syntax → imports → types → safety → load → schema. <code>check()</code> stops here and stores nothing;
+                  <code>upload()</code> goes on: sync the tables, store the source, register.</span
+                >
+              </div>
+              <div class="arrow-down">registered</div>
+              <div class="box" data-layer="api">
+                <span class="box-title">Registry: Map&lt;id, LoadedPlugin&gt;</span>
+                <span class="box-sub"
+                  >origin <code>"builtin"</code> or <code>"uploaded"</code>; enabled per place in
+                  <code>plugin_installation</code></span
+                >
+              </div>
+            </div>
+
+            <div class="detail ways-detail" data-pane="builtin">
+              <h3>Built-in plugins</h3>
+              <ul>
+                <li>
+                  A package in <code>plugins/&lt;id&gt;/</code> that depends only on <code>@app/plugin-sdk</code>, a
+                  dependency in <code>apps/api/package.json</code> and an entry in
+                  <span class="path">apps/api/src/plugins/builtin/index.ts</span>:
+                  <code>builtinPlugins = [issues, announcements, discussions]</code>.
+                </li>
+                <li>
+                  The <code>PluginHost</code> constructor runs <code>loadPlugin(mod)</code> on each one: the manifest,
+                  nav → views, dashboard widgets, tables, tools and streams are validated. The source stages
+                  (<code>syntax</code>, <code>imports</code>, <code>types</code>, <code>safety</code>) do not run: this
+                  code is type-checked, linted and tested with the repo by <code>bun run verify</code>.
+                </li>
+                <li>Their tables are synced on the first <code>ready()</code> of the process.</li>
+                <li>
+                  Their ids are reserved: an upload that claims one fails the <code>load</code> stage with
+                  <code>"issues" is a built-in plugin</code>.
+                </li>
+                <li>
+                  They are the only plugins offered to every place: the new-place wizard and <code>GET /api/plugins</code>
+                  list built-ins only.
+                </li>
+              </ul>
+            </div>
+            <div class="detail ways-detail" data-pane="upload">
+              <h3>Admin upload</h3>
+              <ul>
+                <li>
+                  For the platform admin, who holds <code>PLUGIN_ADMIN_TOKEN</code> (at least 24 characters). Without the
+                  token in the env, every admin route answers <code>404</code>.
+                </li>
+                <li>
+                  <code>POST /api/admin/plugins { source }</code>: one TypeScript file, up to 200&nbsp;000 characters
+                  (<code>PLUGIN_SOURCE_MAX</code>). In dev, <code>bun run plugin:upload plugins/&lt;id&gt; [community]</code>
+                  uploads the package's <code>index.ts</code> and enables it in a community (default
+                  <code>krakow</code>).
+                </li>
+                <li>
+                  <code>PluginHost.upload()</code> = <code>validate()</code> → sync the tables → store the source in
+                  <code>plugin_source</code> → replace the registry entry. No restart; the next request runs the new code.
+                </li>
+                <li>
+                  Trust model: the token grants full trust, because the code runs inside the API process (see
+                  <a href="#safety">Safety</a>).
+                </li>
+              </ul>
+              <figure class="snippet">
+                <figcaption><span>dev: upload and enable in one go</span><span class="path">scripts/plugin-upload.ts</span></figcaption>
+                <pre class="code"><code data-lang="sh">bun run plugin:upload plugins/announcements krakow
+# a built-in id is refused: copy the package under a new id first
+# API_URL (default http://localhost:4000), PLUGIN_ADMIN_TOKEN (default: the local dev token)</code></pre>
+              </figure>
+            </div>
+            <div class="detail ways-detail" data-pane="ai">
+              <h3>AI builder</h3>
+              <ul>
+                <li>
+                  For a place's admin, in the app: Zarządzaj miejscem → Rozszerzenia → „Stwórz rozszerzenie z AI”. They
+                  describe the feature in their own words.
+                </li>
+                <li>
+                  An agent writes the plugin and runs <code>PluginHost.check()</code> on it, up to 8 times, until a
+                  version passes; the host then checks the final source again itself.
+                </li>
+                <li>
+                  Publishing = <code>PluginHost.upload()</code> (every check again) + <code>enable()</code>, in that place
+                  only. Details in <a href="#builder">The AI plugin builder</a>.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── checks ───────────────────────────── -->
+        <section id="checks" data-toc="Six check stages">
+          <h2>Six check stages</h2>
+          <p class="section-intro">
+            <code>POST /api/admin/plugins/check</code>, every upload and every attempt of the AI author run the same
+            stages in order, cheapest first, and stop at the first one that fails. Pick a sample: the results below are
+            what the host really answered for these sources.
+          </p>
+
+          <div class="runner wide" data-check-runner>
+            <div class="pills" data-sample-pills></div>
+            <p class="sample-intro" data-sample-intro></p>
+            <ol class="stages" aria-label="Check stages">
+              <li data-stage="syntax"><span class="stage-name">syntax</span><span class="stage-state">waiting</span></li>
+              <li data-stage="imports"><span class="stage-name">imports</span><span class="stage-state">waiting</span></li>
+              <li data-stage="types"><span class="stage-name">types</span><span class="stage-state">waiting</span></li>
+              <li data-stage="safety"><span class="stage-name">safety</span><span class="stage-state">waiting</span></li>
+              <li data-stage="load"><span class="stage-name">load</span><span class="stage-state">waiting</span></li>
+              <li data-stage="schema"><span class="stage-name">schema</span><span class="stage-state">waiting</span></li>
+            </ol>
+            <div class="runner-body">
+              <div>
+                <div class="pane-label">
+                  <span>plugin.ts</span
+                  ><span><span class="swatch changed"></span>changed <span class="swatch error"></span>reported</span>
+                </div>
+                <pre class="code src" data-sample-source></pre>
+              </div>
+              <div>
+                <div class="pane-label"><span>PluginCheck</span><span>packages/sdk/src/check.ts</span></div>
+                <pre class="code result" data-sample-result></pre>
+                <p class="http-line" data-sample-http></p>
+                <p class="visually-hidden" aria-live="polite" data-sample-status></p>
+              </div>
+            </div>
+          </div>
+
+          <figure class="snippet">
+            <figcaption><span>the gate shared by check() and upload()</span><span class="path">apps/api/src/plugins/host.ts</span></figcaption>
+            <pre class="code"><code data-lang="ts">private async validate(source: string): Promise&lt;ReturnType&lt;typeof loadPlugin&gt;&gt; {
+  await this.ready();
+  checkSyntax(source);
+  checkImports(source);
+  await checkTypes(source);
+  await checkSafety(source);
+  const loaded = await this.compile(source).catch(failAs("load"));
+  if (this.plugins.get(loaded.manifest.id)?.origin === "builtin") {
+    throw new PluginCheckError("load", [{ message: `"${loaded.manifest.id}" is a built-in plugin` }]);
+  }
+  await planPluginTables(this.db, loaded).catch(failAs("schema"));
+  return loaded;
+}</code></pre>
+          </figure>
+
+          <h3>What each stage does</h3>
+          <div class="table-wrap wide">
+            <table class="stage-table">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>How</th>
+                  <th>Catches</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>syntax</code></td>
+                  <td>
+                    <code>new Bun.Transpiler({ loader: "ts" }).transformSync(source)</code>: Bun parses the source exactly
+                    as it will run it.
+                  </td>
+                  <td>The first syntax error, with line, column and the source line.</td>
+                </tr>
+                <tr>
+                  <td><code>imports</code></td>
+                  <td><code>transpiler.scan(source).imports</code>: what is left once <code>import type</code> is erased.</td>
+                  <td>
+                    Every <code>import</code>, <code>export … from</code> and <code>import()</code> of a value. The SDK
+                    (<code>definePlugin</code>, <code>ui</code>, <code>z</code>, <code>fileRef</code>,
+                    <code>geoLocation</code>, <code>t</code>) is the factory's argument.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>types</code></td>
+                  <td>
+                    A TypeScript program over a recorded, read-only file system: the SDK sources, the types they import
+                    and the ES2023 library, with <code>tsconfig.base.json</code> but <code>types: []</code> (no Bun, Node
+                    or DOM). Whatever was not recorded does not exist. In production the snapshot is
+                    <code>plugin-types.json</code>, written next to the bundle by <span class="path">apps/api/scripts/build.ts</span>
+                    (the image has no repo to read).
+                  </td>
+                  <td>
+                    Wrong tables, columns, UI props and results (“Did you mean …?”), and host globals such as
+                    <code>process</code>, <code>console</code>, <code>fetch</code>: “a plugin gets no Bun, Node or browser
+                    globals, only ES2023 and the SDK”.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>safety</code></td>
+                  <td>
+                    Walks the same program (<span class="path">apps/api/src/plugins/safety.ts</span>), with the type
+                    checker at hand to spot calls through <code>any</code>.
+                  </td>
+                  <td>Escape hatches out of <code>ctx</code> and the SDK — see <a href="#safety">Safety</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>load</code></td>
+                  <td>
+                    <code>compile()</code> writes the source to <code>&lt;PLUGINS_DIR&gt;/&lt;hash&gt;/plugin.ts</code> and
+                    <code>import()</code>s it; <code>loadPlugin(mod.default)</code> calls the factory with the frozen SDK
+                    and validates what it returns. <strong>Plugin code runs here, in the API process</strong> — also for a
+                    check that stores nothing.
+                  </td>
+                  <td>
+                    A module that does not compile or does not export a factory, a factory that throws, an invalid
+                    manifest (id, name, semver, icon, permissions), nav → missing view, invalid tables, widgets without a
+                    size or <code>render</code>, tools and streams without a Zod <code>input</code> or a handler, built-in
+                    ids.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>schema</code></td>
+                  <td>
+                    <code>planPluginTables()</code> → <code>planSchema()</code>: the declared tables against the shapes
+                    stored in <code>plugin_schema</code>. Nothing is applied.
+                  </td>
+                  <td>Breaking table changes — see <a href="#schema">Schema evolution</a>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cols">
+            <div class="callout">
+              <span class="callout-title">The result is for the author</span>
+              <p>
+                <code>PluginCheck</code> is <code>{ status: "ok", plugin }</code> (what the plugin declares, so the author
+                can confirm it is what they meant) or <code>{ status: "error", stage, errors }</code>. At most 10 issues
+                (<code>MAX_CHECK_ISSUES</code>, the rest counted as “…and N more”); <code>line</code> and
+                <code>column</code> are 1-based and <code>snippet</code> is that source line, trimmed. The author may be a
+                person or the AI agent: both read the same messages.
+              </p>
+            </div>
+            <div class="callout warn">
+              <span class="callout-title">types and safety block the API</span>
+              <p>
+                Both compile TypeScript synchronously in the API process; while they run, the API answers nothing else.
+                <a href="../plugins.md">docs/plugins.md</a> puts it at ~1–2 s per check, the first one in a process much
+                longer (the type checker loads the compiler and the SDK types; the builder warms it up at start). Warm
+                checks of the samples above took 0.13–0.17 s on a dev laptop. The fix on the list: run checks in a
+                Worker.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── safety ───────────────────────────── -->
+        <section id="safety" data-toc="Safety">
+          <h2>Safety: a static guard, not a sandbox</h2>
+          <p class="section-intro">
+            A plugin runs inside the API process. The contract keeps it to <code>ctx</code> and the SDK — no imports, no
+            globals — and the <code>safety</code> stage rejects the known ways around that contract. Every message below
+            is what the stage reports, verbatim.
+          </p>
+
+          <div class="wide" data-group>
+            <div class="pills" role="tablist" aria-label="What safety rejects">
+              <button class="pill" type="button" role="tab" data-show="globals">Host globals</button>
+              <button class="pill" type="button" role="tab" data-show="props">Prototypes</button>
+              <button class="pill" type="button" role="tab" data-show="strings">Strings naming them</button>
+              <button class="pill" type="button" role="tab" data-show="untyped">Untyped calls</button>
+              <button class="pill" type="button" role="tab" data-show="mutation">Changing built-ins</button>
+              <button class="pill" type="button" role="tab" data-show="ambient">Ambient declarations</button>
+              <button class="pill" type="button" role="tab" data-show="meta">import.meta</button>
+              <button class="pill" type="button" role="tab" data-show="directives">@ts- directives</button>
+            </div>
+
+            <div class="detail" data-pane="globals" role="tabpanel">
+              <h3>Host globals</h3>
+              <p>Identifiers that reach the host (process, network, code evaluation) or the realm itself:</p>
+              <ul class="rule-list">
+                <li><code>globalThis</code></li><li><code>global</code></li><li><code>self</code></li><li><code>window</code></li>
+                <li><code>process</code></li><li><code>Bun</code></li><li><code>Deno</code></li><li><code>require</code></li>
+                <li><code>module</code></li><li><code>exports</code></li><li><code>Function</code></li><li><code>eval</code></li>
+                <li><code>Reflect</code></li><li><code>Proxy</code></li><li><code>WebAssembly</code></li><li><code>fetch</code></li>
+                <li><code>WebSocket</code></li><li><code>XMLHttpRequest</code></li><li><code>Worker</code></li>
+                <li><code>SharedArrayBuffer</code></li><li><code>Atomics</code></li><li><code>importScripts</code></li>
+              </ul>
+              <pre class="code"><code data-lang="ts">const g = globalThis;</code></pre>
+              <p class="message">'globalThis' is not available to plugins: use only ctx and the SDK (ui, z, t, fileRef)</p>
+              <p>
+                Names that do not exist in ES2023 (<code>process</code>, <code>console</code>, <code>fetch</code>) already
+                fail <code>types</code>; this list catches the ones that do exist (<code>globalThis</code>,
+                <code>Function</code>, <code>eval</code>, <code>Reflect</code>, <code>Proxy</code>…). The same word as a
+                property name is fine: <code>x.process</code>, <code>{ process: … }</code>.
+              </p>
+            </div>
+            <div class="detail" data-pane="props" role="tabpanel">
+              <h3>Constructors, prototypes, descriptors</h3>
+              <ul class="rule-list">
+                <li><code>.constructor</code></li><li><code>.prototype</code></li><li><code>.__proto__</code></li>
+                <li><code>.caller</code></li><li><code>.callee</code></li><li><code>.__defineGetter__</code></li>
+                <li><code>.__defineSetter__</code></li><li><code>.__lookupGetter__</code></li>
+                <li><code>.__lookupSetter__</code></li><li><code>.defineProperty</code></li>
+                <li><code>.defineProperties</code></li><li><code>.setPrototypeOf</code></li>
+              </ul>
+              <pre class="code"><code data-lang="ts">const AsyncFunction = (async () =&gt; {}).constructor;
+Object.defineProperty(o, "a", { value: 1 });</code></pre>
+              <p class="message">'.constructor' is not allowed in plugins: it reaches the host's constructors and prototypes</p>
+              <p>
+                <code>(async () =&gt; {}).constructor</code> is the classic way from any function to a code-evaluating
+                constructor; property descriptors would let a plugin redefine shared objects.
+              </p>
+            </div>
+            <div class="detail" data-pane="strings" role="tabpanel">
+              <h3>Strings that name them</h3>
+              <pre class="code"><code data-lang="ts">const key = "constructor";
+const value = record[key];</code></pre>
+              <p class="message">The string "constructor" is not allowed in plugins: it names a host global or an unsafe property</p>
+              <p>
+                Computed access (<code>o["constructor"]</code>) would sidestep the property check, so a string literal (or a
+                template without substitutions) that equals one of the names above is rejected. Only exact matches: a
+                label such as <code>"Mój proces"</code> is fine, but a string that is exactly <code>"module"</code> or
+                <code>"self"</code> is not.
+              </p>
+            </div>
+            <div class="detail" data-pane="untyped" role="tabpanel">
+              <h3>Calls through <code>any</code> or <code>Function</code></h3>
+              <pre class="code"><code data-lang="ts">const run: any = loadSomething();
+run();
+if (typeof f === "function") f(); // f: unknown → Function</code></pre>
+              <p class="message">Calling a value of type 'any' or 'Function' is not allowed: give it a function type</p>
+              <p>
+                The type checker cannot vouch for what such a call reaches. Calls, <code>new</code> and tagged templates
+                are checked; give the value a real function type instead.
+              </p>
+            </div>
+            <div class="detail" data-pane="mutation" role="tabpanel">
+              <h3>Changing objects the plugin did not declare</h3>
+              <pre class="code"><code data-lang="ts">JSON.parse = (s: string) =&gt; s;
+Math.random = () =&gt; 4;</code></pre>
+              <p class="message">Changing 'Math.random' is not allowed: a plugin cannot modify built-in objects</p>
+              <p>
+                An assignment (any <code>=</code>, <code>+=</code>…), <code>++</code>/<code>--</code> or
+                <code>delete</code> on a member chain is allowed only when the chain starts at a name the plugin declared
+                itself (a variable, parameter, function, class or destructured binding). Built-ins are shared by every
+                plugin and by the host.
+              </p>
+              <pre class="code"><code data-lang="ts">const counts: Record&lt;string, number&gt; = {};
+counts.open = 1; // fine: the plugin's own object</code></pre>
+            </div>
+            <div class="detail" data-pane="ambient" role="tabpanel">
+              <h3>Ambient declarations</h3>
+              <pre class="code"><code data-lang="ts">declare const Bun: { env: Record&lt;string, string&gt; };
+namespace Tools { export const x = 1; }</code></pre>
+              <p class="message">
+                Ambient declarations ('declare', 'namespace', 'module') are not allowed: a plugin gets only ctx and the SDK
+              </p>
+              <p>
+                <code>declare</code> would tell the type checker that something exists when it should not (here
+                <code>Bun</code> is also reported as a host global).
+              </p>
+            </div>
+            <div class="detail" data-pane="meta" role="tabpanel">
+              <h3><code>import.meta</code></h3>
+              <pre class="code"><code data-lang="ts">const m = import.meta;</code></pre>
+              <p class="message">'import.meta' is not available to plugins</p>
+              <p>It describes the module on the host's disk (its path, its environment), which a plugin has no business knowing.</p>
+            </div>
+            <div class="detail" data-pane="directives" role="tabpanel">
+              <h3><code>@ts-ignore</code>, <code>@ts-expect-error</code>, <code>@ts-nocheck</code></h3>
+              <pre class="code"><code data-lang="ts">// @ts-expect-error
+const n: number = "x";</code></pre>
+              <p class="message">'@ts-expect-error' is not allowed: plugin code must type-check</p>
+              <p>Switching the type checker off would switch off these checks too, since they rely on the types.</p>
+            </div>
+          </div>
+
+          <h3>Two more guards, at runtime</h3>
+          <div class="cards">
+            <div class="card">
+              <h4>A frozen SDK</h4>
+              <p>
+                <code>sdk = Object.freeze({ definePlugin, ui, z, fileRef, geoLocation, t })</code>, each part frozen too
+                (also <code>ui.map</code>; <code>z</code> is a module namespace, immutable already). Every plugin gets the
+                same objects, so one plugin must not be able to swap <code>ui.card</code> or <code>t.text</code> under the
+                others.
+              </p>
+              <p class="path">packages/sdk/src/load.ts</p>
+            </div>
+            <div class="card">
+              <h4>Undeclared permissions</h4>
+              <p>
+                A <code>ctx</code> service missing from <code>permissions</code> is a Proxy that rejects any use, at any
+                depth, with <code>Plugin did not declare the "ai" permission</code>. It is not thenable, so
+                <code>await ctx.db</code> does not hang.
+              </p>
+              <p class="path">packages/sdk/src/denied.ts</p>
+            </div>
+          </div>
+
+          <div class="callout warn">
+            <span class="callout-title">The honest trust model</span>
+            <p>
+              Uploaded plugins run inside the API process: the admin token grants full trust (“trusted administrator”).
+              Plugins written by AI for a place run there too — and the <code>load</code> stage executes their source
+              during every check, including each attempt of the AI author, before a person has read it.
+              <code>safety</code> rejects the escape hatches it knows; a determined author may find one it does not. The
+              contract was built for isolation (no runtime imports, everything through the async <code>ctx</code>), so
+              moving plugins into a Worker/WASM sandbox — on the README roadmap — changes the host, not plugin code.
+            </p>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── upload ───────────────────────────── -->
+        <section id="upload" data-toc="Upload &amp; registry">
+          <h2>Upload, registry and restarts</h2>
+          <p class="section-intro">
+            What happens between <code>bun run plugin:upload</code> and a resident opening the new plugin, and what
+            happens to it when the API restarts. Step through with the buttons or the arrow keys.
+          </p>
+
+          <div class="stepper wide" data-stepper>
+            <div class="stepper-head"><h3>An upload, end to end</h3></div>
+            <div class="lanes">
+              <div class="box" data-layer="ext" data-node="cli"><span class="box-title">Admin / CLI</span><span class="box-sub">plugin-upload.ts</span></div>
+              <div class="box" data-layer="api" data-node="routes"><span class="box-title">Admin routes</span><span class="box-sub">routes/admin.ts</span></div>
+              <div class="box" data-layer="api" data-node="host"><span class="box-title">PluginHost</span><span class="box-sub">plugins/host.ts</span></div>
+              <div class="box" data-layer="sdk" data-node="sdk"><span class="box-title">loadPlugin</span><span class="box-sub">packages/sdk</span></div>
+              <div class="box" data-layer="ext" data-node="disk"><span class="box-title">Disk</span><span class="box-sub">PLUGINS_DIR</span></div>
+              <div class="box" data-layer="db" data-node="db"><span class="box-title">SurrealDB</span><span class="box-sub">tables, plugin_source</span></div>
+              <div class="box" data-layer="api" data-node="registry"><span class="box-title">Registry</span><span class="box-sub">Map in PluginHost</span></div>
+            </div>
+            <ol class="stepper-steps">
+              <li data-hl="cli routes">
+                <button class="step-title" type="button">The CLI sends the file</button>
+                <div class="step-body">
+                  <p>
+                    <code>bun run plugin:upload plugins/&lt;id&gt; [community]</code> reads <code>&lt;dir&gt;/index.ts</code>
+                    and posts it with the admin token. <code>API_URL</code> defaults to
+                    <code>http://localhost:4000</code>; the token defaults to the local dev token from
+                    <span class="path">apps/api/src/test-env.ts</span>.
+                  </p>
+                  <pre class="code"><code data-lang="http">POST /api/admin/plugins
+authorization: Bearer $PLUGIN_ADMIN_TOKEN
+{ "source": "import type { PluginModule } from \"@app/plugin-sdk\"; …" }</code></pre>
+                </div>
+              </li>
+              <li data-hl="routes">
+                <button class="step-title" type="button">The admin routes let it in</button>
+                <div class="step-body">
+                  <p>
+                    No <code>PLUGIN_ADMIN_TOKEN</code> in the env → <code>404 not_found</code> on every admin route (the API
+                    looks as if it had none). A wrong token → <code>401 unauthorized</code>, compared with
+                    <code>timingSafeEqual</code>. The body is validated with Zod: <code>source</code>, 1–200&nbsp;000
+                    characters.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host">
+                <button class="step-title" type="button">validate(): the source stages</button>
+                <div class="step-body">
+                  <p>
+                    First <code>await this.ready()</code> (once per process: built-in tables synced, stored plugins loaded). Then <code>syntax</code>, <code>imports</code>, <code>types</code> and <code>safety</code>,
+                    which only read the source.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host disk sdk">
+                <button class="step-title" type="button">compile() and load: the code runs</button>
+                <div class="step-body">
+                  <p>
+                    The source is written to <code>&lt;PLUGINS_DIR&gt;/&lt;Bun.hash(source) in hex&gt;/plugin.ts</code>
+                    (<code>PLUGINS_DIR</code> defaults to <code>$TMPDIR/twoje-miejsce-plugins</code>) and imported.
+                    <code>loadPlugin(mod.default)</code> calls the factory with the frozen SDK and validates the result.
+                  </p>
+                  <p>
+                    Why one directory per content hash: <code>import()</code> caches modules by path, and Bun's resolver
+                    does not see files added to a directory it has already read. So every version is a new module — and
+                    Bun never unloads modules (a <a href="#limits">known limit</a>).
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host db">
+                <button class="step-title" type="button">schema: plan against the stored shape</button>
+                <div class="step-body">
+                  <p>
+                    <code>planPluginTables()</code> reads <code>plugin_schema</code> and plans the change without applying
+                    it. A breaking change ends the upload here: <code>400 invalid_plugin</code>, stage
+                    <code>schema</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host db">
+                <button class="step-title" type="button">Sync the tables, in one transaction</button>
+                <div class="step-body">
+                  <p>
+                    <code>syncPluginTables()</code> runs the plan between <code>BEGIN TRANSACTION</code> and
+                    <code>COMMIT TRANSACTION</code>. A statement that fails there (for example a new unique index over
+                    existing duplicates) rolls everything back and is reported as stage <code>schema</code> too — before
+                    anything is stored, so the previous version keeps running.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host db">
+                <button class="step-title" type="button">Store the source</button>
+                <div class="step-body">
+                  <pre class="code"><code data-lang="sql">UPSERT plugin_source:⟨id⟩ SET version = $version, source = $source, updated_at = time::now();</code></pre>
+                  <p>The record id is the plugin id, so a new version replaces the old source.</p>
+                </div>
+              </li>
+              <li data-hl="host registry routes">
+                <button class="step-title" type="button">Register: the next request runs the new code</button>
+                <div class="step-body">
+                  <p>
+                    <code>this.plugins.set(id, { ...loaded, origin: "uploaded" })</code>, then <code>201</code> with the
+                    parsed manifest. Views, tools and widgets look plugins up in this map on every request, so the new
+                    version is live at once — in every place that has the plugin enabled.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="cli routes host db">
+                <button class="step-title" type="button">Enable it in a place</button>
+                <div class="step-body">
+                  <p>
+                    The CLI then calls <code>POST /api/admin/communities/:slug/plugins { pluginId }</code>, which runs
+                    <code>PluginHost.enable()</code>:
+                  </p>
+                  <pre class="code"><code data-lang="sql">UPDATE plugin_installation SET enabled = true WHERE community = $c AND plugin = $id;
+INSERT IGNORE INTO plugin_installation { community: $c, plugin: $id } RETURN id;</code></pre>
+                  <p>
+                    Only a newly created installation runs <code>onInstall</code> (seed data), as the system user
+                    <code>{ id: "system", role: "admin" }</code>. Switching a plugin off and on again keeps its data.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="host db disk registry">
+                <button class="step-title" type="button">After a restart: ready()</button>
+                <div class="step-body">
+                  <p>
+                    <code>ready()</code> runs once per process (a memoised promise; the communities and admin routes await
+                    it): it syncs the tables of every built-in plugin, then compiles and syncs each source in
+                    <code>plugin_source</code>. A stored plugin that fails is logged
+                    (<code>plugin &lt;id&gt;: failed to load stored code</code>) and skipped; the others start. Stored
+                    sources do not go through the source stages again: they passed them when they were uploaded.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <h3>The admin API</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GET /api/admin/plugins</code></td>
+                  <td>Every registered plugin's manifest with its <code>origin</code> (<code>builtin</code> / <code>uploaded</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/admin/plugins { source }</code></td>
+                  <td>
+                    <code>201</code> manifest · <code>400 { error: "invalid_plugin", message, stage, errors }</code> when a
+                    check fails.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/admin/plugins/check { source }</code></td>
+                  <td><code>200 PluginCheck</code>, always; nothing is stored and the database is not changed.</td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/admin/communities</code></td>
+                  <td>Creates a community · <code>409 slug_taken</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/admin/communities/:slug/plugins { pluginId }</code></td>
+                  <td>Enables a plugin (runs <code>onInstall</code> once) · <code>400 unknown_plugin</code> · <code>404</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/admin/communities/:slug/admins { email }</code></td>
+                  <td>Makes an existing account an admin of the community · <code>400 unknown_user</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">
+            Every admin route: <code>404</code> when <code>PLUGIN_ADMIN_TOKEN</code> is not configured, <code>401</code>
+            with a wrong token.
+          </p>
+        </section>
+
+        <!-- ───────────────────────────── schema ───────────────────────────── -->
+        <section id="schema" data-toc="Schema evolution">
+          <h2>Schema evolution without migrations</h2>
+          <p class="section-intro">
+            There are no migration files. A plugin declares its tables; on every load the host compares the declaration
+            with the shape it stored last time and either applies the difference in one transaction or rejects the whole
+            version. The rule: <strong>every row already stored must stay valid</strong>.
+          </p>
+
+          <div class="sim wide" data-schema-sim>
+            <div class="cols">
+              <div>
+                <div class="pane-label"><span>stored shape (version N)</span></div>
+                <pre class="code"><code data-lang="ts">tables: {
+  notes: t.table(
+    {
+      title: t.text(),
+      body: t.text().default(""),
+      status: t.enum(["open", "done"]).default("open"),
+      author: t.ref("user").optional(),
+    },
+    { indexes: [["status"]] },
+  ),
+},</code></pre>
+              </div>
+              <div>
+                <div class="pane-label"><span>version N + 1</span></div>
+                <pre class="code diff" data-change-diff aria-live="polite"></pre>
+              </div>
+            </div>
+            <div class="sim-groups" data-change-groups></div>
+            <div class="sim-body">
+              <div>
+                <div class="verdict" data-change-verdict aria-live="polite"></div>
+                <p data-change-note></p>
+              </div>
+              <div>
+                <div class="pane-label"><span>planSchema(), change-specific statements</span><span>SurrealQL</span></div>
+                <pre class="code statements" data-change-statements></pre>
+                <p class="muted small" data-change-count></p>
+              </div>
+            </div>
+            <p class="muted small">
+              Generated by the real <code>planSchema()</code> on an in-memory SurrealDB; bound values are shown inline and
+              the stored shape object is abbreviated.
+            </p>
+          </div>
+
+          <h3>How it works</h3>
+          <div class="cards">
+            <div class="card">
+              <h4>One physical table per plugin table</h4>
+              <p>
+                <code>p_&lt;plugin&gt;__&lt;table&gt;</code> (a hyphen in the id becomes <code>_</code>), SCHEMAFULL, shared
+                by every installation of the plugin. Each row carries <code>installation</code> (a record that cascades on
+                delete), <code>created_at</code>, <code>updated_at</code>, <code>created_by</code>.
+              </p>
+            </div>
+            <div class="card">
+              <h4>Indexes start with the installation</h4>
+              <p>
+                <code>FIELDS installation, …</code> on every index, so <code>unique</code> means “unique within one
+                community” and every index serves one community's queries.
+              </p>
+            </div>
+            <div class="card">
+              <h4>The stored shape</h4>
+              <p>
+                <code>plugin_schema:&lt;physical table&gt;</code> keeps what was declared — per column <code>kind</code>,
+                <code>nullable</code>, enum <code>values</code>, ref <code>target</code> and <code>onDelete</code> — and
+                the index names. Changes are compared against this, not against the database's own metadata.
+              </p>
+            </div>
+            <div class="card">
+              <h4>One transaction, every community</h4>
+              <p>
+                A sync is applied all at once or not at all. The tables are shared, so a change applies to every community
+                that uses the plugin, at the same moment.
+              </p>
+            </div>
+            <div class="card">
+              <h4>When it runs</h4>
+              <p>
+                On start (<code>ready()</code>: built-in and stored plugins), on every upload and AI publish, as a plan
+                only in every check, and in the test harness (<code>testPlugin</code> syncs on a fresh database).
+              </p>
+            </div>
+          </div>
+
+          <details class="card">
+            <summary><strong>The first sync of the table above</strong> (a fresh database)</summary>
+            <pre class="code"><code data-lang="sql">DEFINE TABLE IF NOT EXISTS p_notes__notes SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS installation ON p_notes__notes TYPE record&lt;plugin_installation&gt; REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS created_at ON p_notes__notes TYPE datetime;
+DEFINE FIELD IF NOT EXISTS updated_at ON p_notes__notes TYPE datetime;
+DEFINE FIELD IF NOT EXISTS created_by ON p_notes__notes TYPE option&lt;record&lt;user&gt;&gt; REFERENCE ON DELETE UNSET;
+DEFINE INDEX IF NOT EXISTS p_notes__notes__created ON p_notes__notes FIELDS installation, created_at;
+DEFINE FIELD IF NOT EXISTS title ON p_notes__notes TYPE string;
+DEFINE FIELD IF NOT EXISTS body ON p_notes__notes TYPE string;
+DEFINE FIELD IF NOT EXISTS status ON p_notes__notes TYPE "open" | "done";
+DEFINE FIELD IF NOT EXISTS author ON p_notes__notes TYPE option&lt;record&lt;user&gt;&gt; REFERENCE ON DELETE UNSET;
+DEFINE INDEX IF NOT EXISTS p_notes__notes__i_status ON p_notes__notes FIELDS installation, status;
+UPSERT plugin_schema:p_notes__notes SET columns = { …stored shape… }, indexes = ["p_notes__notes__i_status"];</code></pre>
+            <p class="muted small">
+              Note what is <em>not</em> there: no <code>DEFAULT</code> clauses. Defaults are applied by the engine when a
+              plugin inserts a row, which is why changing a default needs no statement at all.
+            </p>
+          </details>
+        </section>
+
+        <!-- ───────────────────────────── builder ───────────────────────────── -->
+        <section id="builder" data-toc="AI plugin builder">
+          <h2>The AI plugin builder</h2>
+          <p class="section-intro">
+            A place's admin describes a feature; an agent writes it as a plugin and keeps fixing it until the host's checks
+            pass. Until it is published the plugin is a draft only the place's admins see; it can be changed by AI at any
+            time, also after publishing. Code: <span class="path">apps/api/src/plugins/builder.ts</span>,
+            <span class="path">apps/api/src/routes/builder.ts</span>,
+            <span class="path">apps/api/src/services/ai/author/</span>.
+          </p>
+
+          <div class="stepper wide" data-stepper>
+            <div class="stepper-head"><h3>From a description to a running plugin</h3></div>
+            <div class="lanes">
+              <div class="box" data-layer="app" data-node="app"><span class="box-title">Admin in the app</span><span class="box-sub">BuildPlugin screen</span></div>
+              <div class="box" data-layer="api" data-node="routes"><span class="box-title">Builder routes</span><span class="box-sub">routes/builder.ts</span></div>
+              <div class="box" data-layer="api" data-node="builder"><span class="box-title">PluginBuilder</span><span class="box-sub">plugins/builder.ts</span></div>
+              <div class="box" data-layer="ext" data-node="agent"><span class="box-title">Strands agent</span><span class="box-sub">+ the model</span></div>
+              <div class="box" data-layer="api" data-node="host"><span class="box-title">PluginHost</span><span class="box-sub">check · upload · enable</span></div>
+              <div class="box" data-layer="db" data-node="db"><span class="box-title">SurrealDB</span><span class="box-sub">place_plugin, plugin_version</span></div>
+            </div>
+            <ol class="stepper-steps">
+              <li data-hl="app routes">
+                <button class="step-title" type="button">The admin describes the feature</button>
+                <div class="step-body">
+                  <p>
+                    Zarządzaj miejscem → Rozszerzenia → „Stwórz rozszerzenie z AI”. The description (10–2000 characters)
+                    goes to <code>POST /api/communities/:slug/plugins { request }</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="routes builder db">
+                <button class="step-title" type="button">Guards: admin, a model, the daily limit</button>
+                <div class="step-body">
+                  <ul>
+                    <li>
+                      <code>requirePlaceAdmin</code>: a non-member gets <code>404</code>, a member who is not an admin
+                      <code>403</code>.
+                    </li>
+                    <li>No model configured (<code>AI_API_KEY</code> + <code>AI_MODEL</code>) → <code>503 ai_unavailable</code>.</li>
+                    <li>
+                      20 requests per place in any 24 hours (<code>REQUESTS_PER_DAY</code>; every version counts, failed
+                      ones too) → <code>429 rate_limited</code>.
+                    </li>
+                  </ul>
+                </div>
+              </li>
+              <li data-hl="builder db routes">
+                <button class="step-title" type="button">A draft and its first version</button>
+                <div class="step-body">
+                  <pre class="code"><code data-lang="sql">CREATE place_plugin:⟨ai-3f9c0b1d2e⟩ CONTENT { community, author };
+CREATE plugin_version CONTENT { plugin, n: 1, request };   -- status "working", attempts 0</code></pre>
+                  <p>
+                    The plugin id is generated (<code>ai-</code> + 10 hex characters) and owned by the place. The version
+                    string is <code>1.(n−1).0</code>. The route answers <code>201</code> with the draft right away:
+                    <code>{ id, status: "working", published: null, versions }</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="builder app">
+                <button class="step-title" type="button">Written in the background</button>
+                <div class="step-body">
+                  <p>
+                    <code>track()</code> starts the job after <code>Bun.sleep(0)</code>: checks compile TypeScript
+                    synchronously, so the request that started the version answers first. The app polls
+                    <code>GET …/plugins/:id</code> every 2 s while the latest version is <code>working</code> and shows
+                    <code>attempts</code> as progress.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="agent">
+                <button class="step-title" type="button">The agent gets the rules and the whole guide</button>
+                <div class="step-body">
+                  <p>
+                    <code>StrandsPluginAuthor</code> creates one agent per version, with a single tool,
+                    <code>check_plugin</code>, and <code>AbortSignal.timeout(5 min)</code>. Its system prompt,
+                    <code>AUTHOR_INSTRUCTIONS</code>, is the host's rules (one file, <code>import type</code> only, the given
+                    id and version, Polish for residents, no host globals, only the permissions it uses, compatible table
+                    changes…) followed by the whole of <a href="../plugins.md">docs/plugins.md</a>.
+                  </p>
+                  <p>
+                    The message (<code>authorPrompt</code>) names the plugin id, version and place; for a change it also
+                    carries the earlier requests, the current source and the admin's feedback.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="agent builder host db">
+                <button class="step-title" type="button">Write, check, fix — at most 8 checks</button>
+                <div class="step-body">
+                  <p>
+                    Each <code>check_plugin</code> call increments <code>attempts</code>, runs
+                    <code>PluginHost.check()</code> (all six stages; <code>schema</code> against the tables stored so far)
+                    and <code>ownedBy()</code>: a source under any other id fails with
+                    <code>The plugin id must be "ai-…"</code> at stage <code>load</code>. After 8 calls the tool only
+                    answers <code>Check limit reached: stop and answer the admin now.</code>
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>the shape of a run (illustrative)</span><span>TestPluginAuthor with firstTry: "typo" does exactly this</span></figcaption>
+                    <pre class="code transcript"><code data-lang="json">check_plugin(source)  →  { "status": "error", "stage": "types", "errors": [{ "message": "Property 'notez' does not exist on type 'Database&lt;…'. Did you mean 'notes'?", "line": 21, "column": 36, … }] }
+check_plugin(source)  →  { "status": "ok", "plugin": { "id": "ai-3f9c0b1d2e", "version": "1.0.0", "views": ["main"], "tools": ["add"], … } }
+answer                →  "Plugin „Tablica ogłoszeń” to tablica, na której członkowie miejsca dodają krótkie wpisy."</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="agent builder">
+                <button class="step-title" type="button">The answer: a source and a summary</button>
+                <div class="step-body">
+                  <p>
+                    The result is the <em>last source that passed</em> a check; the agent's final answer, 2–4 sentences in
+                    Polish for the admin, is the summary. If no source passed, the author throws
+                    <code>AuthorError</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="builder host db">
+                <button class="step-title" type="button">The host checks it again, then stores it</button>
+                <div class="step-body">
+                  <p>
+                    “The author's word is not enough”: <code>host.check()</code> and <code>ownedBy()</code> run once more on
+                    the final source. Then <code>UPDATE plugin_version MERGE</code> stores
+                    <code>status: "ready"</code>, the source, the summary and the outline (name, icon, description, views,
+                    tools, tables, dashboard widgets).
+                  </p>
+                  <p>
+                    Otherwise the version is <code>failed</code> with an error: <code>check_failed</code> (no passing
+                    source), <code>timeout</code> (5 minutes), <code>internal</code>, or <code>ai_unavailable</code>. A
+                    version still <code>working</code> 6 minutes after it started belonged to a process that is gone (a
+                    restart) and reads as <code>failed</code> / <code>timeout</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="app routes builder">
+                <button class="step-title" type="button">Changes: a new version</button>
+                <div class="step-body">
+                  <p>
+                    The admin reads the summary and outline, and can ask for a change at any time:
+                    <code>POST …/plugins/:id/versions { request }</code>. While a version is being written the answer is
+                    <code>409 busy</code>. The new version starts from the latest <em>ready</em> source, with every earlier
+                    request listed for context, and gets the next version string (<code>1.1.0</code>, <code>1.2.0</code>…).
+                  </p>
+                </div>
+              </li>
+              <li data-hl="app routes builder host db">
+                <button class="step-title" type="button">Publish: upload + enable, in this place</button>
+                <div class="step-body">
+                  <p>
+                    <code>POST …/plugins/:id/publish</code> takes the latest ready version (<code>409 not_ready</code> if
+                    there is none) and runs <code>host.upload(source)</code>: every check again, with <code>schema</code>
+                    against the tables of the published version (<code>400 invalid_plugin</code> if it fails now). Then
+                    <code>host.enable()</code> installs it in the place and <code>published</code> becomes that version's
+                    <code>n</code>.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="app routes db">
+                <button class="step-title" type="button">After publishing</button>
+                <div class="step-body">
+                  <p>
+                    The plugin is switchable like a built-in one (<code>PUT …/plugins/:id { enabled }</code>,
+                    <code>madeByAi: true</code>), but only in its own place: the catalog lists built-ins only, and the
+                    place routes accept an AI plugin only if this place published it. A later version runs once it is
+                    published again; the plugin id stays, so its tables and data stay — the
+                    <a href="#schema">schema rules</a> decide whether the new version may publish.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <h3>States</h3>
+          <div class="diagram wide">
+            <div class="states">
+              <div class="state-row">
+                <span class="state-label">Version</span>
+                <span class="box state-wait"><span class="box-title">working</span><span class="box-sub">attempts 0…8</span></span>
+                <span class="arrow">→ passes, re-checked →</span>
+                <span class="box state-ok"><span class="box-title">ready</span><span class="box-sub">source · summary · outline</span></span>
+              </div>
+              <div class="state-row">
+                <span class="state-label"></span>
+                <span class="box state-wait"><span class="box-title">working</span></span>
+                <span class="arrow">→ no passing source / 5 min / error →</span>
+                <span class="box state-bad"><span class="box-title">failed</span><span class="box-sub">check_failed · timeout · internal · ai_unavailable</span></span>
+              </div>
+              <div class="state-row">
+                <span class="state-label"></span>
+                <span class="box state-wait"><span class="box-title">working &gt; 6 min</span></span>
+                <span class="arrow">→ read as →</span>
+                <span class="box state-bad"><span class="box-title">failed</span><span class="box-sub">timeout (the process died)</span></span>
+              </div>
+              <div class="state-row">
+                <span class="state-label">Plugin</span>
+                <span class="box state-draft"><span class="box-title">draft</span><span class="box-sub">published = null · admins only</span></span>
+                <span class="arrow">→ publish →</span>
+                <span class="box state-ok"><span class="box-title">published = n</span><span class="box-sub">installed, switchable</span></span>
+                <span class="arrow">→ change, publish →</span>
+                <span class="box state-ok"><span class="box-title">published = n + k</span><span class="box-sub">same id, same data</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cards">
+            <div class="card">
+              <h4>What admins see</h4>
+              <p>
+                <code>GET /api/communities/:slug/plugins</code> lists the built-in plugins, then the place's AI plugins:
+                drafts with <code>draft: true</code> (named after their latest ready outline, or the request), with
+                <code>working</code> while a version is written. A draft cannot be switched on; it is enabled by
+                publishing.
+              </p>
+            </div>
+            <div class="card">
+              <h4>The model</h4>
+              <p>
+                Strands Agents with an OpenAI-compatible model (<code>AI_API_KEY</code>, <code>AI_MODEL</code>, optional
+                <code>AI_BASE_URL</code>) from <span class="path">services/ai/model.ts</span>. With a model configured,
+                the plugin type checker warms up in the background when the API starts.
+              </p>
+            </div>
+            <div class="card">
+              <h4>Tests never call a model</h4>
+              <p>
+                <code>TestPluginAuthor</code> (<span class="path">apps/api/src/test-author.ts</span>; in E2E via
+                <code>PLUGIN_AUTHOR=test</code> in <span class="path">test-server.ts</span>) writes a fixed board of notes
+                named after the quoted text in the request, and checks it like the real author. <code>firstTry: "typo"</code>
+                makes its first check fail on <code>ctx.db.notez</code> to exercise the loop.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── limits ───────────────────────────── -->
+        <section id="limits" data-toc="Known limits">
+          <h2>Known limits</h2>
+          <p class="section-intro">From the Known issues of <a href="../plugins.md">docs/plugins.md</a>, with the planned fix.</p>
+          <div class="cards">
+            <div class="card">
+              <h4>A static guard, not a sandbox</h4>
+              <p><code>safety</code> knows the escape hatches it knows. AI-written plugins run with the same trust as uploads.</p>
+              <p class="small"><span class="chip info">fix</span> Plugins in a Worker/WASM sandbox (README roadmap).</p>
+            </div>
+            <div class="card">
+              <h4>Checks block the API</h4>
+              <p>
+                <code>types</code> and <code>safety</code> compile synchronously; the AI author runs up to 8 checks per
+                version.
+              </p>
+              <p class="small"><span class="chip info">fix</span> Run checks in a Worker.</p>
+            </div>
+            <div class="card">
+              <h4>Modules are never unloaded</h4>
+              <p>
+                Every check that reaches <code>load</code> imports a new module; an agent iterating on a plugin grows
+                memory.
+              </p>
+              <p class="small"><span class="chip info">fix</span> Run <code>load</code> in a disposable Worker.</p>
+            </div>
+            <div class="card">
+              <h4>onInstall has no real user</h4>
+              <p>
+                The system user has no account: seeded rows get <code>createdBy: null</code>, it cannot fill a
+                <code>t.ref("user")</code> column or attach uploads.
+              </p>
+              <p class="small"><span class="chip">workaround</span> Optional user refs for seeded rows.</p>
+            </div>
+            <div class="card">
+              <h4>The test harness db is untyped</h4>
+              <p><code>testPlugin().db</code> gets the module, not its table types: <code>plugin.db.items!</code>.</p>
+            </div>
+            <div class="card">
+              <h4>One embedded engine per test process</h4>
+              <p>
+                Never open another <code>mem://</code> connection in tests: with @surrealdb/node 3.0.3, Bun 1.4 crashes on
+                exit. See <a href="../testing.md">docs/testing.md</a>.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <footer class="foot">
+      Written against commit e16f82d (4 October 2026). The code is the source of truth: when this page and the code
+      disagree, the page is wrong — fix it in the same commit.
+    </footer>
+  </body>
+</html>

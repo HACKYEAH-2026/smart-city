@@ -57,7 +57,7 @@ bun run plugin:upload <katalog-wtyczki>   # wgraj nową wtyczkę w locie
 bun run verify         # lint, typy, testy, schemat bazy, E2E, build, Android (w nix develop .#android)
 ```
 
-Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md).
+Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md). Jak działa architektura (interaktywnie, otwórz w przeglądarce): [docs/architecture/index.html](docs/architecture/index.html).
 
 ## HackYeah 2026
 

@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plugin runtime · Twoje Miejsce architecture</title>
+    <meta
+      name="description"
+      content="How a Twoje Miejsce plugin runs: the factory and the SDK, loading, ctx and permissions, isolation per installation, the ctx.db engine on SurrealDB, live watch() and Server-Driven UI."
+    />
+    <link rel="stylesheet" href="assets/docs.css" />
+    <link rel="stylesheet" href="assets/plugins.css" />
+    <script src="assets/docs.js" defer></script>
+    <script src="assets/plugins.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-text">Twoje Miejsce<small>architecture</small></span></a>
+      <nav class="pages" aria-label="Architecture pages">
+        <a href="index.html">Overview</a>
+        <a href="plugins.html" aria-current="page">Plugin runtime</a>
+        <a href="pipeline.html">Checks &amp; AI builder</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="layout">
+      <nav class="toc" data-toc aria-label="On this page"></nav>
+      <main>
+        <header class="hero">
+          <p class="eyebrow">Plugin runtime</p>
+          <h1>How a plugin actually runs</h1>
+          <p class="lede">
+            Every feature of a place (issue reports, announcements, discussions, the plugins the AI writes) is a
+            plugin: one TypeScript file that imports nothing at runtime, gets the SDK from the host, declares its
+            tables, views, widgets and tools, and reaches the world only through <code>ctx</code>. This page follows
+            that file from loading to a resident's tap, with the real code paths.
+          </p>
+          <div class="cards">
+            <div class="card">
+              <h3>One file, no runtime imports</h3>
+              <p class="small">The default export is a factory <code>(sdk) =&gt; definePlugin({…})</code>. The host hands in the SDK.</p>
+            </div>
+            <div class="card">
+              <h3>Only <code>ctx</code></h3>
+              <p class="small">No app database, no disk, no network. Services exist only if the manifest declares them.</p>
+            </div>
+            <div class="card">
+              <h3>Isolated per installation</h3>
+              <p class="small">Every query, reference and live event is scoped to one plugin × community.</p>
+            </div>
+            <div class="card">
+              <h3>UI is data</h3>
+              <p class="small">Views return a JSON tree from a closed catalog. The app renders it; actions are data too.</p>
+            </div>
+          </div>
+        </header>
+
+        <!-- ─────────────────────────── mental model ─────────────────────────── -->
+        <section id="model" data-toc="Mental model">
+          <h2>The mental model</h2>
+          <p class="section-intro">
+            Three things are easy to mix up: the <strong>plugin</strong> (code with an <code>id</code>), the
+            <strong>installation</strong> (that plugin enabled in one community: a <code>plugin_installation</code> row)
+            and the <strong>context</strong> (<code>ctx</code>, built for every single request from the installation,
+            the signed-in user and their role in that community).
+          </p>
+
+          <div class="diagram wide">
+            <div class="legend">
+              <span class="chip" data-layer="app">App (Expo)</span>
+              <span class="chip" data-layer="api">API host</span>
+              <span class="chip" data-layer="sdk">SDK</span>
+              <span class="chip" data-layer="plugin">Plugin code</span>
+              <span class="chip" data-layer="db">SurrealDB</span>
+            </div>
+            <div class="model-grid">
+              <div class="box" data-layer="app">
+                <span class="box-title">App</span>
+                <span class="box-sub">Renders UI trees, sends actions. Never runs plugin code.</span>
+                <span class="path">apps/app/src/plugins/Renderer.tsx</span>
+              </div>
+              <div class="model-arrow"><span>HTTP</span><span>views · tools · files</span></div>
+              <div class="box model-host" data-layer="api">
+                <span class="box-title">PluginHost</span>
+                <span class="box-sub">Registry, routing, validation of everything a plugin returns, error mapping.</span>
+                <span class="path">apps/api/src/plugins/host.ts</span>
+                <div class="model-inner">
+                  <div class="box" data-layer="plugin">
+                    <span class="box-title">Plugin</span>
+                    <span class="box-sub">views · dashboardWidgets · tools · streams · onInstall</span>
+                  </div>
+                  <div class="model-ctx">
+                    <span class="model-ctx-label">ctx</span>
+                    <span>user · community · now · lastVisit</span>
+                    <span>db · files · ai · notify</span>
+                  </div>
+                </div>
+              </div>
+              <div class="model-arrow"><span>surql</span><span>scoped to the installation</span></div>
+              <div class="box" data-layer="db">
+                <span class="box-title">SurrealDB</span>
+                <span class="box-sub">Platform tables + one physical table per plugin table: <code>p_&lt;plugin&gt;__&lt;table&gt;</code></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrap wide">
+            <table>
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>What it is</th>
+                  <th>Where</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Plugin module</strong></td>
+                  <td>Default export <code>PluginModule = (sdk: PluginSdk) =&gt; PluginDefinition</code></td>
+                  <td><span class="path">packages/sdk/src/plugin.ts</span></td>
+                </tr>
+                <tr>
+                  <td><strong>SDK</strong></td>
+                  <td>The frozen object the host passes in: <code>{ definePlugin, ui, z, fileRef, geoLocation, t }</code></td>
+                  <td><span class="path">packages/sdk/src/load.ts</span> (<code>sdk</code>)</td>
+                </tr>
+                <tr>
+                  <td><strong>Loaded plugin</strong></td>
+                  <td><code>{ manifest, definition, origin: "builtin" | "uploaded" }</code> in the host's registry</td>
+                  <td><span class="path">apps/api/src/plugins/host.ts</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Installation</strong></td>
+                  <td>Plugin × community, <code>enabled</code> flag; every plugin row and file belongs to one and cascades with it</td>
+                  <td><code>plugin_installation</code> in <span class="path">apps/api/src/db/schema.ts</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Context</strong></td>
+                  <td><code>ctx</code> for one call: user with role, community, clock, last visit and the declared services</td>
+                  <td><span class="path">apps/api/src/plugins/context.ts</span></td>
+                </tr>
+                <tr>
+                  <td><strong>View / widget</strong></td>
+                  <td>Functions returning a UI tree (<code>ui.screen</code> / <code>ui.widget</code>) for the app to render</td>
+                  <td><span class="path">packages/sdk/src/ui.ts</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Tool</strong></td>
+                  <td>A Zod-validated action with a handler; called by the app's buttons and forms (and meant for AI assistants)</td>
+                  <td><code>tools</code> in the definition</td>
+                </tr>
+                <tr>
+                  <td><strong>Stream</strong></td>
+                  <td>An async generator (usually <code>ctx.db.x.watch()</code>); runs in the test harness, no HTTP endpoint yet</td>
+                  <td><code>streams</code> in the definition</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── anatomy ─────────────────────────── -->
+        <section id="anatomy" data-toc="Anatomy of a plugin">
+          <h2>Anatomy of a plugin file</h2>
+          <p class="section-intro">
+            A complete, working plugin. Click the numbers to see what the host does with each part. The built-in
+            plugins in <span class="path">plugins/</span> follow exactly this shape; <span class="path">plugins/announcements/index.ts</span>
+            is the closest real one.
+          </p>
+
+          <div class="annotated wide" data-annotated>
+            <figure class="snippet">
+              <figcaption><span>plugins/notes/index.ts (example)</span><span>TypeScript</span></figcaption>
+              <pre class="code"><code data-lang="ts"><span class="ann" data-note="imports">import type { PluginModule } from "@app/plugin-sdk";</span>
+
+<span class="ann" data-note="factory">const notes: PluginModule = ({ definePlugin, ui, z, t }) =&gt; {</span>
+  <span class="ann" data-note="tables">const tables = {</span>
+    notes: t.table(
+      {
+        title: t.text(),
+        body: t.text().default(""),
+        author: t.ref("user").optional(),
+      },
+      { indexes: [["createdAt"]] },
+    ),
+  };
+
+  return definePlugin({
+    <span class="ann" data-note="manifest">id: "notes",</span>
+    name: "Notatki",
+    version: "1.0.0",
+    icon: "📝",
+    <span class="ann" data-note="permissions">permissions: ["db"],</span>
+    <span class="ann" data-note="nav">nav: [{ view: "main", label: "Notatki" }],</span>
+    tables,
+
+    views: {
+      <span class="ann" data-note="view">main: async (ctx) =&gt; {</span>
+        const items = await ctx.db.notes.findMany({
+          orderBy: { createdAt: "desc" },
+        });
+        return ui.screen("Tablica notatek", [
+          ui.form({
+            submitLabel: "Dodaj",
+            <span class="ann" data-note="action">submit: ui.tool("add"),</span>
+            children: [ui.textInput({ name: "title", label: "Tytuł" })],
+          }),
+          ui.list(
+            "Notatki",
+            items.map((n) =&gt; ui.card({ title: n.title, subtitle: n.body })),
+          ),
+        ]);
+      },
+    },
+
+    <span class="ann" data-note="widget">dashboardWidgets: {</span>
+      latest: {
+        size: { w: 2, h: 1 },
+        render: async (ctx) =&gt; {
+          const count = await ctx.db.notes.count();
+          if (!count) return null;
+          return ui.widget(
+            "Notatki",
+            [ui.stat("Wszystkie", String(count))],
+            ui.navigate("main"),
+          );
+        },
+      },
+    },
+
+    tools: {
+      add: {
+        description: "Dodaj notatkę",
+        <span class="ann" data-note="input">input: z.object({</span>
+          title: z.string().trim().min(1),
+          body: z.string().trim().max(200).default(""),
+        }),
+        <span class="ann" data-note="handler">handler: async (ctx, input) =&gt; {</span>
+          await ctx.db.notes.insert({ ...input, author: ctx.user.id });
+          return { toast: "Notatka dodana.", refresh: true };
+        },
+      },
+      clear: {
+        description: "Usuń wszystkie notatki (tylko administrator)",
+        input: z.object({}),
+        <span class="ann" data-note="requires">requires: "admin",</span>
+        handler: async (ctx) =&gt; {
+          const removed = await ctx.db.notes.deleteMany({});
+          return { refresh: true, data: { removed } };
+        },
+      },
+    },
+  });
+};
+
+<span class="ann" data-note="export">export default notes;</span></code></pre>
+            </figure>
+
+            <div class="notes">
+              <div data-note-body="imports">
+                <h4>Type-only imports</h4>
+                <p>
+                  <code>import type</code> is erased at compile time, so the module has <strong>no runtime
+                  dependencies</strong>. The <code>imports</code> check stage rejects any value import, including
+                  <code>import { z } from "zod"</code> (<span class="path">apps/api/src/plugins/check.ts</span>).
+                </p>
+                <p>That is what lets the same file run built in, uploaded at runtime, or later in a Worker/WASM sandbox.</p>
+              </div>
+              <div data-note-body="factory">
+                <h4>The factory receives the SDK</h4>
+                <p>
+                  The host calls the default export with one frozen object:
+                  <code>{ definePlugin, ui, z, fileRef, geoLocation, t }</code> (<code>sdk</code> in
+                  <span class="path">packages/sdk/src/load.ts</span>). Frozen, because every plugin gets the same
+                  objects: one plugin must not be able to replace <code>ui.card</code> under the others.
+                </p>
+                <p><code>loadPlugin</code> wraps the call: a factory that throws becomes <code>PluginError("Plugin factory threw: …")</code>.</p>
+              </div>
+              <div data-note-body="tables">
+                <h4>Declared tables</h4>
+                <p>
+                  <code>t.table(columns, { indexes, unique })</code>. The host turns each into one physical SCHEMAFULL
+                  table, <code>p_notes__notes</code>, shared by every installation of the plugin, and syncs it without
+                  migration files (see <a href="pipeline.html">schema evolution</a>).
+                </p>
+                <p>
+                  The type of <code>ctx.db.notes</code> (inserts, filters, <code>with</code> expansions) is inferred from
+                  this object by <code>definePlugin</code>.
+                </p>
+              </div>
+              <div data-note-body="manifest">
+                <h4>Manifest</h4>
+                <p>
+                  Parsed with <code>pluginManifestSchema</code>: <code>id</code> matches
+                  <code>^[a-z][a-z0-9-]{1,39}$</code>, <code>name</code> 1–60 chars, <code>version</code> semver,
+                  <code>icon</code> ≤ 8 chars (default 🧩), <code>description</code> ≤ 280.
+                </p>
+                <p>The id is the registry key; uploading a plugin with a built-in id is rejected.</p>
+              </div>
+              <div data-note-body="permissions">
+                <h4>Permissions</h4>
+                <p>
+                  A subset of <code>"db"</code>, <code>"files"</code>, <code>"ai"</code>, <code>"notify"</code>. A
+                  service that is not declared is still on <code>ctx</code>, but every use of it rejects with
+                  <code>Plugin did not declare the "…" permission</code>. Try it in <a href="#ctx">ctx: the only door</a>.
+                </p>
+              </div>
+              <div data-note-body="nav">
+                <h4>Navigation</h4>
+                <p>
+                  At least one entry. <code>loadPlugin</code> checks that every <code>nav.view</code> is a function in
+                  <code>views</code>: <code>Nav entry "…" points to missing view "…"</code>.
+                </p>
+                <p>
+                  <code>GET /api/communities/:slug/nav</code> lists the entries of the enabled plugins in installation
+                  order; the app polls it every 5 s, so a newly enabled plugin shows up without a reload.
+                </p>
+              </div>
+              <div data-note-body="view">
+                <h4>A view</h4>
+                <p>
+                  <code>(ctx, params) =&gt; UINode</code>. <code>params</code> are flat strings from the query string.
+                  The result must be a <code>Screen</code> at the root: the host validates it with
+                  <code>screenSchema</code>, and an invalid tree is a plugin error (500 for that request only).
+                </p>
+                <p>Rendering a view records a visit, which becomes <code>ctx.lastVisit</code> next time.</p>
+              </div>
+              <div data-note-body="action">
+                <h4>Actions are data</h4>
+                <p>
+                  <code>ui.tool("add")</code> is just <code>{ type: "tool", tool: "add" }</code>. The app merges the
+                  form's field values into its <code>args</code> and POSTs them. <code>ui.navigate(view, params)</code>
+                  is <code>{ type: "navigate", … }</code> and opens another view of the same plugin.
+                </p>
+              </div>
+              <div data-note-body="widget">
+                <h4>Dashboard widgets</h4>
+                <p>
+                  A fixed <code>size</code> on a two-column grid (<code>w</code> 1–2, <code>h</code> 1–3) and a
+                  <code>render(ctx)</code> returning <code>ui.widget(…)</code> or <code>null</code> to hide it.
+                </p>
+                <p>
+                  Widgets must be <strong>read-only</strong> (<code>dashboardWidgetSchema</code>): no forms, inputs or
+                  tool actions anywhere in the tree. A widget that throws is left out; the rest of the dashboard renders.
+                </p>
+              </div>
+              <div data-note-body="input">
+                <h4>Input is a Zod schema</h4>
+                <p>
+                  The host parses <code>args</code> with it before the handler runs; invalid input answers
+                  <code>400 invalid_input</code> with the Zod issues. The handler gets <code>z.output</code>, with
+                  defaults applied. Messages for residents go in the schema, in Polish.
+                </p>
+              </div>
+              <div data-note-body="handler">
+                <h4>The handler</h4>
+                <p>
+                  Runs inside <code>guard()</code>. It returns a <code>ToolResult</code>:
+                  <code>toast</code>, <code>error</code>, <code>navigate</code>, <code>refresh</code>,
+                  <code>close</code>, <code>data</code> (validated with <code>toolResultSchema</code>). Returning
+                  nothing means <code>{}</code>.
+                </p>
+                <p>Expected problems (not found, not allowed) are returned as <code>{ error: "…" }</code>, not thrown.</p>
+              </div>
+              <div data-note-body="requires">
+                <h4>Role check</h4>
+                <p>
+                  <code>requires: "admin"</code> is enforced by the host <em>before</em> input parsing:
+                  non-admins get <code>403 forbidden</code>. The role is per community (<code>membership.role</code>).
+                  Rules like "author or moderator" are checked in the handler instead.
+                </p>
+              </div>
+              <div data-note-body="export">
+                <h4>Default export</h4>
+                <p>
+                  Built-in plugins are listed in <span class="path">apps/api/src/plugins/builtin/index.ts</span>;
+                  uploaded and AI-written ones arrive as source text and go through the
+                  <a href="pipeline.html">six check stages</a> first. All of them end up in <code>loadPlugin</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── loading ─────────────────────────── -->
+        <section id="loading" data-toc="From file to installation">
+          <h2>From file to installation</h2>
+          <p class="section-intro">
+            What happens between <code>bun run dev</code> and the first view a resident sees. Uploads and the AI
+            builder add a check pipeline in front of step 2; that path has <a href="pipeline.html">its own page</a>.
+          </p>
+
+          <div class="stepper wide" data-stepper>
+            <div class="stepper-head"><h3>Loading and enabling a plugin</h3></div>
+            <div class="flow-row load-flow">
+              <div class="box" data-layer="plugin" data-node="module"><span class="box-title">Module</span><span class="box-sub">default export</span></div>
+              <span class="arrow">→</span>
+              <div class="box" data-layer="sdk" data-node="load"><span class="box-title">loadPlugin</span><span class="box-sub">validate</span></div>
+              <span class="arrow">→</span>
+              <div class="box" data-layer="api" data-node="registry"><span class="box-title">Registry</span><span class="box-sub">Map&lt;id, LoadedPlugin&gt;</span></div>
+              <span class="arrow">→</span>
+              <div class="box" data-layer="db" data-node="tables"><span class="box-title">Tables</span><span class="box-sub">syncSchema</span></div>
+              <span class="arrow">→</span>
+              <div class="box" data-layer="db" data-node="installation"><span class="box-title">Installation</span><span class="box-sub">plugin_installation</span></div>
+              <span class="arrow">→</span>
+              <div class="box" data-layer="plugin" data-node="oninstall"><span class="box-title">onInstall</span><span class="box-sub">once, as system</span></div>
+            </div>
+            <ol class="stepper-steps">
+              <li data-hl="module">
+                <button class="step-title" type="button">The module is imported</button>
+                <div class="step-body">
+                  <p>
+                    Built-in plugins are ordinary workspace packages (<code>@plugins/issues</code>,
+                    <code>@plugins/announcements</code>, <code>@plugins/discussions</code>) imported by the API and
+                    listed in one array. Importing them runs nothing: the module only defines a function.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/plugins/builtin/index.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export const builtinPlugins: PluginModule[] = [issues, announcements, discussions];</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="module load">
+                <button class="step-title" type="button"><code>loadPlugin</code> calls the factory and validates</button>
+                <div class="step-body">
+                  <p>
+                    The same function is used by the API host and by the test harness, so a plugin that loads in tests
+                    loads in production. Each step throws a <code>PluginError</code> with a message meant for the
+                    plugin's author (a person or the AI builder).
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>packages/sdk/src/load.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export function loadPlugin(mod: unknown): LoadedDefinition {
+  const definition = callFactory(mod);       // default export is a function; factory(sdk) returns an object
+  const manifest = parseManifest(definition); // pluginManifestSchema
+  assertViews(definition, manifest);          // every nav.view exists
+  assertDashboardWidgets(definition);         // size { w: 1-2, h: 1-3 } and render()
+  assertTables(definition);                   // validateTables: names, refs, indexes
+  assertTools(definition);                    // Zod input + handler
+  assertStreams(definition);                  // Zod input + handler
+  return { manifest, definition };
+}</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="registry">
+                <button class="step-title" type="button">Registered in the host</button>
+                <div class="step-body">
+                  <p>
+                    <code>createApp</code> builds one <code>PluginHost</code> with the services plugins may get
+                    (db, files, AI, notifications). Its constructor loads every built-in synchronously and keeps them in
+                    a <code>Map</code> keyed by plugin id, marked <code>origin: "builtin"</code>.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/app.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">const plugins = new PluginHost(
+  { db, files, ai: new AIService(ai ?? aiFromEnv(env), files), notifications },
+  env.PLUGINS_DIR ?? defaultPluginsDir(),
+  builtinPlugins,
+);</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="registry tables">
+                <button class="step-title" type="button"><code>ready()</code>: tables synced, stored plugins reloaded</button>
+                <div class="step-body">
+                  <p>
+                    Once per process, before the first plugin request (the communities router awaits it in a
+                    middleware): <code>syncPluginTables</code> for every built-in, then every row of
+                    <code>plugin_source</code> (plugins uploaded at runtime or published by the AI builder) is compiled,
+                    synced and registered as <code>"uploaded"</code>. A stored plugin that no longer loads is logged and
+                    skipped, so one broken upload never takes the API down.
+                  </p>
+                </div>
+              </li>
+              <li data-hl="installation">
+                <button class="step-title" type="button">Enabled in a community</button>
+                <div class="step-body">
+                  <p>
+                    <code>PluginHost.enable(plugin, community)</code> runs when a place is created with chosen built-in
+                    plugins, when a place admin switches one on (<code>PUT /api/communities/:slug/plugins/:id</code>),
+                    when an AI plugin is published, or through the admin API. Re-enabling flips <code>enabled</code>
+                    back on and keeps the data.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/plugins/host.ts</span></figcaption>
+                    <pre class="code"><code data-lang="sql">UPDATE plugin_installation SET enabled = true WHERE community = $c AND plugin = $id;
+INSERT IGNORE INTO plugin_installation { community: $c, plugin: $id } RETURN id;</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="installation oninstall">
+                <button class="step-title" type="button"><code>onInstall</code> seeds data, once</button>
+                <div class="step-body">
+                  <p>
+                    Only when the <code>INSERT IGNORE</code> actually created the installation. <code>ctx.user</code> is
+                    <code>SYSTEM_USER</code> (<code>{ id: "system", role: "admin" }</code>, no account): rows get
+                    <code>createdBy: null</code>, it cannot be stored in a <code>t.ref("user")</code> column and
+                    cannot attach pending uploads.
+                  </p>
+                  <p>From now on the plugin appears in the place's navigation and dashboard, and its views and tools answer.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── request ─────────────────────────── -->
+        <section id="request" data-toc="A tap, step by step">
+          <h2>A tap, step by step</h2>
+          <p class="section-intro">
+            A resident (or an admin) presses a button in a plugin screen. Pick a scenario and walk through it with the
+            buttons or the <kbd>←</kbd> <kbd>→</kbd> keys; the strip shows which layer is working. The example is the
+            built-in <code>announcements</code> plugin's <code>publish</code> tool, which <code>requires: "admin"</code>.
+          </p>
+
+          <div class="stepper wide" data-stepper id="request-stepper">
+            <div class="stepper-head">
+              <div class="pills" role="tablist" aria-label="Scenario" id="request-scenarios"></div>
+            </div>
+            <div class="lanes" aria-hidden="true">
+              <div class="box lane" data-layer="app" data-node="app"><span class="box-title">App</span><span class="path">PluginView.tsx</span></div>
+              <div class="box lane" data-layer="api" data-node="route"><span class="box-title">Route</span><span class="path">routes/communities.ts</span></div>
+              <div class="box lane" data-layer="api" data-node="host"><span class="box-title">PluginHost</span><span class="path">plugins/host.ts</span></div>
+              <div class="box lane" data-layer="plugin" data-node="plugin"><span class="box-title">Plugin</span><span class="path">handler(ctx, input)</span></div>
+              <div class="box lane" data-layer="sdk" data-node="engine"><span class="box-title">ctx.db engine</span><span class="path">sdk/src/engine/client.ts</span></div>
+              <div class="box lane" data-layer="db" data-node="db"><span class="box-title">SurrealDB</span><span class="path">p_&lt;plugin&gt;__&lt;table&gt;</span></div>
+            </div>
+            <ol class="stepper-steps" id="request-steps"></ol>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>What went wrong</th>
+                  <th>Thrown as</th>
+                  <th>HTTP</th>
+                  <th>Body</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Not a member, plugin not enabled, unknown view/tool</td>
+                  <td>—</td>
+                  <td>404</td>
+                  <td><code>{ error: "not_found" }</code></td>
+                </tr>
+                <tr>
+                  <td><code>requires: "admin"</code>, user is not</td>
+                  <td><code>ForbiddenError</code></td>
+                  <td>403</td>
+                  <td><code>{ error: "forbidden" }</code></td>
+                </tr>
+                <tr>
+                  <td>Zod input fails</td>
+                  <td><code>PluginInputError</code></td>
+                  <td>400</td>
+                  <td><code>{ error: "invalid_input", issues }</code></td>
+                </tr>
+                <tr>
+                  <td><code>DbError</code> or a bad file id from the plugin's write</td>
+                  <td><code>PluginInputError</code> (via <code>guard</code>)</td>
+                  <td>400</td>
+                  <td><code>{ error: "invalid_input", issues: [{ path: [], message }] }</code></td>
+                </tr>
+                <tr>
+                  <td>Handler throws, or returns an invalid result / UI tree</td>
+                  <td><code>PluginError</code></td>
+                  <td>500</td>
+                  <td><code>{ error: "plugin_error" }</code> (details only in the API log)</td>
+                </tr>
+                <tr>
+                  <td>Handler returns <code>{ error: "…" }</code></td>
+                  <td>— (a normal result)</td>
+                  <td>200</td>
+                  <td>the result; the app shows the plugin's Polish message</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── ctx ─────────────────────────── -->
+        <section id="ctx" data-toc="ctx: the only door">
+          <h2><code>ctx</code>: the only door</h2>
+          <p class="section-intro">
+            <code>createPluginContext</code> builds a fresh context for every view, widget, tool call and
+            <code>onInstall</code>. Toggle the manifest's permissions and see what the plugin gets.
+          </p>
+
+          <div class="cols wide">
+            <div class="detail">
+              <h3>Manifest</h3>
+              <fieldset class="perm-set" id="perm-set">
+                <legend class="visually-hidden">Permissions</legend>
+                <label><input type="checkbox" value="db" checked /> <code>db</code> <span class="muted small">typed tables</span></label>
+                <label><input type="checkbox" value="files" /> <code>files</code> <span class="muted small">uploaded photos</span></label>
+                <label><input type="checkbox" value="ai" /> <code>ai</code> <span class="muted small">model calls</span></label>
+                <label><input type="checkbox" value="notify" /> <code>notify</code> <span class="muted small">residents' inboxes</span></label>
+              </fieldset>
+              <figure class="snippet">
+                <figcaption><span>What the plugin calls</span></figcaption>
+                <pre class="code"><code data-lang="ts" id="perm-call"></code></pre>
+              </figure>
+              <p class="perm-outcome" id="perm-outcome" role="status"></p>
+            </div>
+            <figure class="snippet">
+              <figcaption><span>apps/api/src/plugins/context.ts (what ctx holds)</span></figcaption>
+              <pre class="code"><code id="perm-ctx"></code></pre>
+            </figure>
+          </div>
+
+          <div class="cols">
+            <div class="callout key">
+              <span class="callout-title">Why a Proxy and not undefined</span>
+              <code>deniedService(permission)</code> (<span class="path">packages/sdk/src/denied.ts</span>) returns a
+              Proxy that is callable and returns itself for any property, so <code>ctx.db.items.findMany()</code>
+              type-checks and fails with a clear message at the call, not with "cannot read property of undefined".
+              It answers <code>undefined</code> for <code>then</code>, so <code>await ctx.db</code> does not hang.
+            </div>
+            <div class="callout">
+              <span class="callout-title">What is never on ctx</span>
+              The app database, e-mail addresses (a <code>t.ref("user")</code> expands to <code>{ id, name }</code>),
+              the disk, the network, residents' saved places and live positions. <code>ctx.notify</code> resolves
+              recipients inside the host and returns nothing about them, not even a count.
+            </div>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── isolation ─────────────────────────── -->
+        <section id="isolation" data-toc="Isolation">
+          <h2>Isolation: one table, many communities</h2>
+          <p class="section-intro">
+            A plugin's table is <em>one</em> physical SurrealDB table shared by every community that enabled the plugin.
+            Isolation comes from the engine, not from separate databases: every row carries <code>installation</code>,
+            and every statement the engine builds is restricted to the current one. Pick the installation a request
+            runs in.
+          </p>
+
+          <div class="detail wide">
+            <div class="pills" role="tablist" aria-label="Acting installation" id="iso-installations"></div>
+            <div class="iso-grid">
+              <div>
+                <h4 class="small muted">Physical table <code>p_issues__issues</code></h4>
+                <div class="table-wrap">
+                  <table class="iso-table">
+                    <thead>
+                      <tr>
+                        <th>id</th>
+                        <th>installation <span class="muted small">(plugin_installation:…)</span></th>
+                        <th>title</th>
+                        <th>status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="iso-rows"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h4 class="small muted">What the plugin's code sees</h4>
+                <div class="btn-row" id="iso-actions"></div>
+                <figure class="snippet">
+                  <pre class="code"><code data-lang="ts" id="iso-call"></code></pre>
+                </figure>
+                <figure class="snippet">
+                  <figcaption><span>SurrealQL built by the engine</span></figcaption>
+                  <pre class="code"><code data-lang="sql" id="iso-sql"></code></pre>
+                </figure>
+                <p id="iso-result" class="iso-result" role="status"></p>
+              </div>
+            </div>
+          </div>
+
+          <ul>
+            <li>
+              <strong>Reads</strong>: <code>WHERE installation = $installation AND …</code> on every
+              <code>SELECT</code>, <code>count</code>, <code>UPDATE … WHERE</code> and <code>DELETE … WHERE</code>. A row of
+              another community is simply not there: <code>get</code> → <code>null</code>, <code>update</code> →
+              <code>null</code>, <code>delete</code> → <code>false</code>.
+            </li>
+            <li>
+              <strong>References</strong>: before a write, every <code>t.ref</code> value is looked up. A row of the
+              plugin's own table must have the same installation (<code>DbError: issues.x: unknown issues id</code>), a
+              user must exist (<code>unknown user</code>), a file must belong to this installation
+              (<code>unknown file</code>).
+            </li>
+            <li>
+              <strong>Indexes</strong>: every declared index and <code>unique</code> is prefixed with
+              <code>installation</code>, so "unique" means unique within one community.
+            </li>
+            <li>
+              <strong>Live queries</strong>: <code>watch()</code> drops notifications whose row belongs to another
+              installation.
+            </li>
+            <li>
+              <strong>Lifecycle</strong>: <code>installation</code> is <code>record&lt;plugin_installation&gt;</code> with
+              <code>REFERENCE ON DELETE CASCADE</code>. Deleting a place cascades to its installations, and from there to
+              every plugin row and file of that place.
+            </li>
+          </ul>
+        </section>
+
+        <!-- ─────────────────────────── ctx.db ─────────────────────────── -->
+        <section id="db" data-toc="ctx.db → SurrealQL">
+          <h2><code>ctx.db</code> → SurrealQL</h2>
+          <p class="section-intro">
+            Plugins never write SurrealQL. <code>createDatabase</code> (<span class="path">packages/sdk/src/engine/client.ts</span>)
+            turns typed calls into <code>surql</code> statements whose values are always bound variables. Build a query
+            and see the statement the engine sends (the same code runs in the host and in <code>testPlugin</code>).
+            The table is the <code>issues</code> example from <a href="../plugins.md#queries">docs/plugins.md</a>.
+          </p>
+          <figure class="snippet">
+            <figcaption><span>Declared table (plugin id <code>issues</code>)</span></figcaption>
+            <pre class="code"><code data-lang="ts">issues: t.table(
+  {
+    title: t.text(),
+    status: t.enum(["open", "accepted", "fixed"]).default("open"),
+    votes: t.integer().default(0),
+    photo: t.ref("file").optional(),
+    reporter: t.ref("user"),
+  },
+  { indexes: [["status"]] },
+),</code></pre>
+          </figure>
+
+          <div class="cols wide qb">
+            <div class="detail">
+              <h3>Query</h3>
+              <div class="qb-field">
+                <label for="qb-status">status</label>
+                <select id="qb-status">
+                  <option value="">any</option>
+                  <option value="eq">"open"</option>
+                  <option value="in" selected>{ in: ["open", "accepted"] }</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-votes">votes</label>
+                <select id="qb-votes">
+                  <option value="">any</option>
+                  <option value="gte" selected>{ gte: 5 }</option>
+                  <option value="range">{ gte: 1, lt: 10 }</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-mine">reporter</label>
+                <select id="qb-mine">
+                  <option value="">anyone</option>
+                  <option value="me">ctx.user.id</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-photo">photo</label>
+                <select id="qb-photo">
+                  <option value="">any</option>
+                  <option value="null">null (no photo)</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-order">orderBy</label>
+                <select id="qb-order">
+                  <option value="">default</option>
+                  <option value="votes" selected>{ votes: "desc" }</option>
+                  <option value="created">{ createdAt: "asc" }</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-limit">limit</label>
+                <select id="qb-limit">
+                  <option value="">default (100)</option>
+                  <option value="20" selected>20</option>
+                  <option value="5000">5000 (capped at 1000)</option>
+                </select>
+              </div>
+              <div class="qb-field">
+                <label for="qb-with">with</label>
+                <select id="qb-with">
+                  <option value="">nothing</option>
+                  <option value="reporter">{ reporter: true }</option>
+                </select>
+              </div>
+              <figure class="snippet">
+                <figcaption><span>Plugin code</span></figcaption>
+                <pre class="code"><code data-lang="ts" id="qb-call"></code></pre>
+              </figure>
+            </div>
+            <div>
+              <figure class="snippet">
+                <figcaption><span>Statement(s) sent to SurrealDB</span></figcaption>
+                <pre class="code"><code data-lang="sql" id="qb-sql"></code></pre>
+              </figure>
+              <figure class="snippet">
+                <figcaption><span>Bindings</span></figcaption>
+                <pre class="code"><code data-lang="json" id="qb-bindings"></code></pre>
+              </figure>
+              <ul class="small" id="qb-notes"></ul>
+            </div>
+          </div>
+
+          <h3>Writes</h3>
+          <p>
+            Writes validate every value against the column (<code>DbError</code> for a missing required column, a wrong
+            type, an unknown enum value or column), check references, and run as one transaction together with the
+            confirmation of any pending file they reference. A retryable conflict is retried up to 5 times.
+          </p>
+          <div class="tabs" data-group>
+            <div class="tablist" role="tablist" aria-label="Write operations">
+              <button role="tab" type="button" data-show="insert" aria-selected="true">insert</button>
+              <button role="tab" type="button" data-show="update">update</button>
+              <button role="tab" type="button" data-show="upsert">upsert</button>
+              <button role="tab" type="button" data-show="delete">delete</button>
+            </div>
+            <div data-pane="insert">
+              <div class="cols">
+                <pre class="code"><code data-lang="ts">await ctx.db.issues.insert({ title: "Latarnia", reporter: ctx.user.id });</code></pre>
+                <pre class="code"><code data-lang="sql">RETURN [record::exists($bind__1)];   -- the user ref exists
+
+BEGIN TRANSACTION;
+LET $result = (CREATE $bind__2 CONTENT $bind__3 RETURN AFTER);
+COMMIT TRANSACTION;
+RETURN $result;</code></pre>
+              </div>
+              <p class="small">
+                <code>$bind__2</code> is <code>p_issues__issues:⟨uuid⟩</code>; <code>$bind__3</code> holds the values with
+                defaults applied (<code>status: "open"</code>, <code>votes: 0</code>) plus <code>installation</code>,
+                <code>created_at</code>, <code>updated_at</code> and <code>created_by</code>. <code>null</code> values are left
+                out (stored as NONE).
+              </p>
+            </div>
+            <div data-pane="update">
+              <div class="cols">
+                <pre class="code"><code data-lang="ts">await ctx.db.issues.update(id, { status: "fixed" });</code></pre>
+                <pre class="code"><code data-lang="sql">BEGIN TRANSACTION;
+LET $result = (UPDATE $bind__1 SET status = $bind__2, updated_at = $bind__3
+               WHERE installation = $bind__4 RETURN AFTER);
+COMMIT TRANSACTION;
+RETURN $result;</code></pre>
+              </div>
+              <p class="small">
+                A patch: only the given columns; <code>null</code> clears an optional column (<code>= NONE</code>). The
+                <code>WHERE installation</code> makes an id of another community a no-op that returns <code>null</code>.
+              </p>
+            </div>
+            <div data-pane="upsert">
+              <div class="cols">
+                <pre class="code"><code data-lang="ts">await ctx.db.reports.upsert(
+  { issue: issue.id, author: ctx.user.id, description },
+  { on: ["issue", "author"] },  // must equal a declared unique
+);</code></pre>
+                <pre class="code"><code data-lang="sql">BEGIN TRANSACTION;
+LET $existing = (SELECT VALUE id FROM p_issues__reports
+                 WHERE installation = $i AND issue = $a AND author = $b LIMIT 1)[0];
+LET $result = (IF $existing { (UPDATE $existing SET … RETURN AFTER) }
+               ELSE { (CREATE $new CONTENT … RETURN AFTER) });
+COMMIT TRANSACTION;
+RETURN $result;</code></pre>
+              </div>
+              <p class="small">
+                Simplified (bindings named for reading). Matched on the values that will be written, defaults included,
+                so an omitted column cannot widen the match; a concurrent duplicate fails on the unique index.
+              </p>
+            </div>
+            <div data-pane="delete">
+              <div class="cols">
+                <pre class="code"><code data-lang="ts">await ctx.db.issues.delete(id); // → boolean</code></pre>
+                <pre class="code"><code data-lang="sql">DELETE $bind__1 WHERE installation = $bind__2 RETURN BEFORE;</code></pre>
+              </div>
+              <p class="small">
+                References decide what happens to rows pointing here: required refs cascade, optional ones are unset,
+                <code>onDelete: "restrict"</code> rejects the delete (<code>DbError: … the row is still referenced (restrict)</code>).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── watch ─────────────────────────── -->
+        <section id="watch" data-toc="watch(): live queries">
+          <h2><code>watch()</code>: live queries</h2>
+          <p class="section-intro">
+            <code>watch()</code> opens a SurrealDB <code>LIVE</code> query on the plugin's table, takes a snapshot with
+            <code>findMany</code> semantics, then turns raw notifications into events <em>relative to the rows the
+            subscriber already has</em>. Change the data and watch what the subscriber receives.
+          </p>
+
+          <div class="cols wide">
+            <div class="detail">
+              <h3>Data in this installation</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>id</th>
+                      <th>title</th>
+                      <th>status</th>
+                      <th><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody id="watch-rows"></tbody>
+                </table>
+              </div>
+              <div class="btn-row">
+                <button class="btn" type="button" id="watch-add-open">+ open issue</button>
+                <button class="btn" type="button" id="watch-add-fixed">+ fixed issue</button>
+                <button class="btn" type="button" id="watch-other">change in another community</button>
+                <button class="btn" type="button" id="watch-reset">reset</button>
+              </div>
+            </div>
+            <div class="detail">
+              <h3>Subscriber</h3>
+              <pre class="code"><code data-lang="ts">for await (const event of ctx.db.issues.watch({ where: { status: "open" } })) { … }</code></pre>
+              <ol class="event-log" id="watch-log" aria-live="polite"></ol>
+              <p class="small muted">Rows the subscriber has: <span id="watch-seen"></span></p>
+            </div>
+          </div>
+
+          <ul>
+            <li>The first event is always <code>{ type: "snapshot", rows }</code>; <code>orderBy</code> and <code>limit</code> (default 100) apply only to it.</li>
+            <li>A row entering the filter is a <code>create</code>, a change to a row the subscriber has is an <code>update</code>, a row leaving the filter or deleted is a <code>delete</code>; anything else is skipped.</li>
+            <li>Cascades are streamed too: deleting a discussion yields a <code>delete</code> for each of its messages.</li>
+            <li>The generator never ends by itself; <code>break</code> or <code>return()</code> unsubscribes and kills the live query.</li>
+            <li>
+              Plugins expose watches as <code>streams</code>. They run in the test harness; the API has no HTTP transport
+              for them yet, so the app refreshes by polling and by invalidating queries after tool calls.
+            </li>
+          </ul>
+        </section>
+
+        <!-- ─────────────────────────── server-driven UI ─────────────────────────── -->
+        <section id="ui" data-toc="Server-Driven UI">
+          <h2>Server-Driven UI</h2>
+          <p class="section-intro">
+            A plugin ships no React code to the phone. Its views return a tree of nodes from a closed catalog; the host
+            validates it, signs image URLs and sends JSON; the app's <code>PluginRenderer</code> maps each node to a
+            design-system component. Below is a simulation of the real <code>announcements</code> plugin: the JSON on
+            the left is what the view returns for the selected role, the preview on the right renders it. Click around.
+          </p>
+
+          <div class="sdui wide">
+            <div class="sdui-bar">
+              <div class="pills" role="tablist" aria-label="Role" id="sdui-roles">
+                <button class="pill" type="button" role="tab" data-role="admin" aria-selected="true">admin</button>
+                <button class="pill" type="button" role="tab" data-role="user" aria-selected="false">resident</button>
+              </div>
+              <div class="pills" role="tablist" aria-label="Surface" id="sdui-surfaces">
+                <button class="pill" type="button" role="tab" data-surface="view" aria-selected="true">view</button>
+                <button class="pill" type="button" role="tab" data-surface="widget" aria-selected="false">dashboard widget</button>
+              </div>
+              <span class="path" id="sdui-request"></span>
+            </div>
+            <div class="sdui-grid">
+              <figure class="snippet">
+                <figcaption><span id="sdui-json-title">UI tree (JSON)</span></figcaption>
+                <pre class="code sdui-json"><code data-lang="json" id="sdui-json"></code></pre>
+              </figure>
+              <div>
+                <section class="phone" id="sdui-phone" aria-label="Rendered preview"></section>
+              </div>
+            </div>
+            <div class="detail sdui-log-box">
+              <h4>What the app does</h4>
+              <ol class="event-log" id="sdui-log" aria-live="polite"></ol>
+            </div>
+          </div>
+
+          <h3>The catalog</h3>
+          <p>
+            A new node type means three edits in one commit: its Zod schema and builder in
+            <span class="path">packages/sdk/src/ui.ts</span> and a branch in
+            <span class="path">apps/app/src/plugins/Renderer.tsx</span>. An older app that meets an unknown node shows
+            "Ten element wymaga nowszej wersji aplikacji." instead of crashing.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kind</th>
+                  <th>Nodes (builders)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Roots</td>
+                  <td><code>ui.screen(title, children)</code> for views, <code>ui.widget(title, children, onPress?)</code> for dashboard widgets</td>
+                </tr>
+                <tr>
+                  <td>Layout</td>
+                  <td><code>ui.stack</code>, <code>ui.row</code>, <code>ui.list(label, items)</code>, <code>ui.card({ title, subtitle?, badge?, onPress?, children? })</code></td>
+                </tr>
+                <tr>
+                  <td>Content</td>
+                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.badge</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty</code>, <code>ui.image(fileId, alt)</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code></td>
+                </tr>
+                <tr>
+                  <td>Actions</td>
+                  <td><code>ui.button(label, action, variant?)</code>; actions are <code>ui.navigate(view, params?)</code> or <code>ui.tool(name, args?)</code></td>
+                </tr>
+                <tr>
+                  <td>Forms</td>
+                  <td><code>ui.form({ submitLabel, submit: ui.tool(…), children })</code> with <code>ui.textInput</code>, <code>ui.select</code>, <code>ui.imagePicker</code>, <code>ui.locationInput</code>; field values become the tool's <code>args</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cols">
+            <div class="callout">
+              <span class="callout-title">Dashboard</span>
+              <code>GET /api/communities/:slug/dashboard</code> renders every widget of every enabled plugin for this
+              user in parallel, drops the ones that return <code>null</code> or fail, and sorts them by the order the
+              place's admins saved (<code>dashboard</code> table, keys <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>);
+              new widgets go last.
+            </div>
+            <div class="callout">
+              <span class="callout-title">After a tool call</span>
+              The app invalidates every query of that plugin, shows <code>toast</code> as a flash message, follows
+              <code>navigate</code> or <code>close</code>, and remounts the renderer so forms are clean. A result with
+              <code>error</code> keeps the form as typed and shows the message.
+            </div>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── services ─────────────────────────── -->
+        <section id="services" data-toc="Files, AI, notifications">
+          <h2>Files, AI and notifications</h2>
+          <p class="section-intro">
+            The three services beyond the database. Each is created per installation by the host, so a plugin can only
+            ever touch its own files, spend its own AI budget and notify members of its own community.
+          </p>
+
+          <div class="tabs" data-group>
+            <div class="tablist" role="tablist" aria-label="Services">
+              <button role="tab" type="button" data-show="files" aria-selected="true"><code>ctx.files</code></button>
+              <button role="tab" type="button" data-show="ai"><code>ctx.ai</code></button>
+              <button role="tab" type="button" data-show="notify"><code>ctx.notify</code></button>
+            </div>
+
+            <div data-pane="files">
+              <div class="file-flow">
+                <div class="box" data-layer="app"><span class="box-title">1 · Pick</span><span class="box-sub"><code>ui.imagePicker</code> in a form; the app uploads before submit</span></div>
+                <div class="box" data-layer="api"><span class="box-title">2 · Upload</span><span class="box-sub"><code>POST …/plugins/:id/files</code>, JPEG/PNG/WebP ≤ 10 MB → <code>file_&lt;uuid&gt;</code>, status <code>pending</code></span></div>
+                <div class="box" data-layer="plugin"><span class="box-title">3 · Validate</span><span class="box-sub">tool input <code>fileRef()</code> (format check, typed <code>FileId</code>)</span></div>
+                <div class="box" data-layer="sdk"><span class="box-title">4 · Keep</span><span class="box-sub">a <code>t.ref("file")</code> write confirms it (<code>kept</code>) in the same transaction</span></div>
+                <div class="box" data-layer="api"><span class="box-title">5 · Show</span><span class="box-sub"><code>ui.image(fileId)</code>; the host adds a signed URL (HMAC, 1 h)</span></div>
+              </div>
+              <ul>
+                <li>Only the user who uploaded a pending file may reference it (<code>DbError: … file was uploaded by another user</code>); once kept, any row of the installation may.</li>
+                <li>Uploads never referenced are deleted after 24 h (swept on the next upload). Bytes live in a <code>FileStore</code> on disk, metadata in <code>plugin_file</code>.</li>
+                <li><code>ctx.files.info(id)</code> and <code>ctx.files.remove(id)</code> only accept files of this installation.</li>
+                <li>Upload is the app's only hand-written <code>fetch</code> (<span class="path">apps/app/src/lib/upload.ts</span>): multipart has no RPC types.</li>
+              </ul>
+            </div>
+
+            <div data-pane="ai" hidden>
+              <pre class="code"><code data-lang="ts">const summary = await ctx.ai.call({ prompt: "Streść zgłoszenie…" });
+const { title } = await ctx.ai.call({ prompt, images: [photo], schema: z.object({ title: z.string() }) });
+const [match] = await ctx.ai.findSimilar({ text: input.title, image: input.photo ?? null }, candidates, {
+  text: (i) =&gt; `${i.title}. ${i.description}`,
+  limit: 1,
+});</code></pre>
+              <ul>
+                <li>The model is host configuration: Strands Agents on an OpenAI-compatible API (<code>AI_API_KEY</code>, <code>AI_MODEL</code>, optional <code>AI_BASE_URL</code>; <span class="path">apps/api/src/services/ai/</span>). Plugins never see keys.</li>
+                <li>At most 60 calls per minute per installation; images are read only from this installation's files.</li>
+                <li><code>findSimilar</code> sends at most 30 candidates and keeps matches scoring ≥ 0.6. Without a model it falls back to shared words (score ≥ 0.5), so tests and a keyless demo still work.</li>
+                <li>With a <code>schema</code>, the answer is parsed with it; tests use <code>plugin.ai.mockCall</code> / <code>mockSimilar</code>.</li>
+              </ul>
+            </div>
+
+            <div data-pane="notify" hidden>
+              <pre class="code"><code data-lang="ts">await ctx.notify({
+  to: { near: { lat: input.lat, lng: input.lng, radius: 500 } }, // or { users: [...] } or { everyone: true }
+  title: "Dzik z młodymi przy placu zabaw",
+  tone: "danger",
+  open: ui.navigate("sighting", { id: sighting.id }),
+});</code></pre>
+              <ul>
+                <li>Validated like a tool input (<code>parseNotification</code>): title 1–120, body ≤ 500, radius ≤ 50 000 m, <code>open</code> must be a view of this plugin. An invalid call throws and the tool fails with 500.</li>
+                <li>The host resolves recipients in one <code>INSERT INTO notification (SELECT … FROM membership …)</code>: members of this community only, never the sender; <code>near</code> matches saved places and positions shared in the last 30 minutes.</li>
+                <li>The plugin gets nothing back, not even a count, so it cannot be used to locate anyone.</li>
+                <li>Delivery: the in-app inbox plus a push to every registered phone (Expo Push → FCM/APNs) sent in the background; <code>warning</code>/<code>danger</code> go out with high priority on the Android "alerts" channel.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ─────────────────────────── testing ─────────────────────────── -->
+        <section id="testing" data-toc="Testing without the API">
+          <h2>Testing a plugin without the API</h2>
+          <p>
+            <code>testPlugin</code> from <code>@app/plugin-sdk/testing</code> runs a plugin against the same engine on
+            embedded in-memory SurrealDB (platform tables included), with the same <code>loadPlugin</code>, permission
+            proxies, <code>requires</code>, Zod parsing and UI/result schemas as the host. No API, no model, a fresh
+            database per test.
+          </p>
+          <figure class="snippet">
+            <figcaption><span>plugins/notes/notes.test.ts (example)</span></figcaption>
+            <pre class="code"><code data-lang="ts">import { describe, expect, test } from "bun:test";
+import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
+import notes from "./index";
+
+const anna = { id: "anna", name: "Anna", role: "user" } as const;
+const city = { id: "city", name: "Urząd", role: "admin" } as const;
+
+describe("notes", () =&gt; {
+  test("residents add, only admins clear", async () =&gt; {
+    const plugin = await testPlugin(notes, { user: anna });
+    expect((await plugin.tool("add", { title: "Mleko" })).toast).toBe("Notatka dodana.");
+    expect(textsOf(await plugin.view("main"))).toContain("Mleko");
+    await expect(plugin.tool("clear")).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await plugin.as(city).tool("clear")).data).toEqual({ removed: 1 });
+  });
+});</code></pre>
+          </figure>
+          <p>
+            The full harness API (<code>.as(user)</code>, <code>.files.fake()</code>, <code>.stream()</code>,
+            <code>.setNow()</code>, <code>.notifications()</code>, <code>.deleteUser()</code>…) is in
+            <a href="../plugins.md#testing">docs/plugins.md</a>.
+          </p>
+        </section>
+
+        <section id="next" data-toc="Where next">
+          <h2>Where next</h2>
+          <div class="cards">
+            <a class="card" href="pipeline.html">
+              <h3>Checks &amp; AI builder →</h3>
+              <p class="small">How uploaded and AI-written source is checked, how tables evolve without migrations, and how the builder works.</p>
+            </a>
+            <a class="card" href="index.html">
+              <h3>Overview →</h3>
+              <p class="small">The monorepo, the runtime topology, the data model and the quality gates.</p>
+            </a>
+            <a class="card" href="../plugins.md">
+              <h3>docs/plugins.md →</h3>
+              <p class="small">The complete reference for plugin authors: every column type, operator and harness method.</p>
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+    <footer class="foot">
+      Written against commit e16f82d (4 October 2026). The code is the source of truth: when this page and the code
+      disagree, the page is wrong — fix it in the same commit.
+    </footer>
+  </body>
+</html>

@@ -3,6 +3,8 @@
 Every community feature (issue reports, discussions, lost & found…) is a plugin. The core only knows
 communities, users and installations; plugins bring everything else: their own typed tables, tools
 (actions), live streams and views.
+An interactive walkthrough of how the runtime works (a tool call step by step, isolation, the generated
+SurrealQL, `watch()`, Server-Driven UI) is in [architecture/plugins.html](architecture/plugins.html).
 
 > **Status (read first)**
 > - **Ready and tested:** the plugin SDK (`packages/sdk`) — contract, typed tables on SurrealDB, `watch()`
