@@ -1,7 +1,8 @@
+import { t } from "@app/app/src/texts";
 import { Check, GraduationCap, Home, Landmark, Sparkles } from "lucide-react-native";
 import type { CSSProperties, ReactNode } from "react";
 import { View } from "react-native";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { AbsoluteFill, getStaticFiles, OffthreadVideo, staticFile, useCurrentFrame } from "remotion";
 import { BrandMark, colors, Icon } from "../app-ui";
 import { MONO } from "../theme";
 import { Eyebrow, FONT, Headline, keys, ramp, rise, shake, Tap, typed, useCue, useScene, useSpring, Wipe } from "./kit";
@@ -975,7 +976,7 @@ export const BuilderScene = () => {
 
       {frame >= phoneIn && frame < ai - 2 ? (
         <div style={{ position: "absolute", left: 150, top: 330, display: "flex", flexDirection: "column", gap: 30 }}>
-          <Eyebrow style={rise(ramp(frame, phoneIn, phoneIn + 12))}>Zarządzaj miejscem → Plugin z AI</Eyebrow>
+          <Eyebrow style={rise(ramp(frame, phoneIn, phoneIn + 12))}>{`${t.manage_title} → ${t.build_title}`}</Eyebrow>
           <Headline
             text={"Opisz ją\nwłasnymi słowami."}
             at={describes}
@@ -1069,27 +1070,179 @@ export const BuilderScene = () => {
   );
 };
 
-/* ── 8 · outro: the brand and its line ────────────────────────────────────────────────────────────── */
+/* ── 8 · outro: your home, your estate, your city — Twoje Miejsce ──────────────────────────────────────── */
+
+/**
+ * B-roll of the finale, in public/ad/clips: generated video (16:9, 1080p, 4–5 s, no audio). The prompts stay here so
+ * a clip can be generated again and the README can disclose how it was made. A missing clip shows a stand-in frame.
+ */
+const CLIPS = {
+  dom: {
+    file: "ad/clips/dom.mp4",
+    title: "Twój dom.",
+    standIn: "kobieta na kanapie wieczorem, telefon w dłoni",
+    prompt:
+      "Cinematic 16:9 shot, evening in a cozy Polish apartment, warm lamp light. A woman in her 30s sits on a sofa looking at her smartphone with a slight smile. Slow push-in from over her shoulder; the phone screen is out of focus, only its soft glow is visible. Shallow depth of field, realistic, natural warm colors, no text, no logos.",
+  },
+  osiedle: {
+    file: "ad/clips/osiedle.mp4",
+    title: "Twoje osiedle.",
+    standIn: "mężczyzna na zielonym osiedlu o zachodzie słońca sprawdza telefon",
+    prompt:
+      "Cinematic 16:9 shot, golden hour on a green Polish housing estate: modern blocks of flats, trees, a playground. A young man walks along a path, stops and checks his smartphone. Side tracking shot, phone screen not visible. Realistic, warm light, no text, no logos.",
+  },
+  miasto: {
+    file: "ad/clips/miasto.mp4",
+    title: "Twoje miasto.",
+    standIn: "miasto z lotu ptaka o zmierzchu",
+    prompt:
+      "Cinematic aerial drone shot at dusk, slowly flying over a European city with an old town, red roofs, a river and bridges, city lights turning on. Smooth forward motion, realistic, warm light, no text, no logos.",
+  },
+} as const;
+
+type ClipId = keyof typeof CLIPS;
+
+const STAND_IN: Record<"dom" | "osiedle", string> = {
+  dom: "radial-gradient(circle at 70% 35%, #F4B36A 0%, #B5633A 38%, #3A1E17 80%)",
+  osiedle: "radial-gradient(circle at 30% 30%, #F6D27A 0%, #8FA35A 40%, #2C3A23 85%)",
+};
+
+/** Red place pins landing on the map one after another. */
+const MAP_PINS = [
+  [420, 300],
+  [760, 620],
+  [1010, 380],
+  [1290, 700],
+  [1530, 330],
+  [620, 860],
+  [1700, 560],
+  [260, 640],
+] as const;
+
+const Pin = ({ x, y, at }: { x: number; y: number; at: number }) => {
+  const p = useSpring(at, 10, 0.6);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x - 16,
+        top: y - 16,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        background: colors.primary,
+        border: "7px solid #FFFFFF",
+        boxShadow: "0 8px 20px rgba(229,1,1,0.35)",
+        opacity: Math.min(1, p * 2),
+        transform: `translateY(${(1 - p) * -70}px) scale(${0.6 + p * 0.4})`,
+      }}
+    />
+  );
+};
+
+/** One shot of the finale: the clip (or its stand-in) with a slow push, a dark corner and the big line. */
+const Shot = ({ id, at, until, files }: { id: ClipId; at: number; until: number; files: Set<string> }) => {
+  const frame = useCurrentFrame();
+  const clip = CLIPS[id];
+  const found = files.has(clip.file);
+  const scale =
+    keys(frame, [
+      [at, 1.14],
+      [at + 9, 1],
+    ]) *
+    keys(frame, [
+      [at, 1],
+      [until, 1.08],
+    ]);
+  if (frame < at || frame >= until) return null;
+  return (
+    <AbsoluteFill style={{ overflow: "hidden" }}>
+      <AbsoluteFill style={{ transform: `scale(${scale})` }}>
+        {found ? (
+          <OffthreadVideo
+            src={staticFile(clip.file)}
+            muted
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : id === "miasto" ? (
+          <AbsoluteFill
+            style={{
+              background: colors.background,
+              transform: `scale(${keys(frame, [
+                [at, 1.25],
+                [until, 1],
+              ])})`,
+            }}
+          >
+            <CityMap drift={0.4} />
+            {MAP_PINS.map(([x, y], i) => (
+              <Pin key={`${x}-${y}`} x={x} y={y} at={at + 2 + i * 2} />
+            ))}
+          </AbsoluteFill>
+        ) : (
+          <AbsoluteFill style={{ background: STAND_IN[id] }}>
+            <div
+              style={{
+                position: "absolute",
+                right: 60,
+                top: 50,
+                padding: "10px 18px",
+                borderRadius: 999,
+                background: "rgba(0,0,0,0.35)",
+                color: "rgba(255,255,255,0.85)",
+                fontFamily: FONT.medium,
+                fontSize: 22,
+              }}
+            >
+              {`ujęcie: ${clip.standIn}`}
+            </div>
+          </AbsoluteFill>
+        )}
+      </AbsoluteFill>
+      <AbsoluteFill
+        style={{
+          background:
+            "linear-gradient(to top right, rgba(10,10,12,0.72) 0%, rgba(10,10,12,0.25) 45%, rgba(10,10,12,0) 70%)",
+        }}
+      />
+      <Headline
+        text={clip.title}
+        at={at}
+        spoken
+        variant="slam"
+        size={160}
+        style={{ position: "absolute", left: 120, bottom: 120, color: "#FFFFFF" }}
+      />
+    </AbsoluteFill>
+  );
+};
 
 export const OutroScene = () => {
   const frame = useCurrentFrame();
-  const name = useCue("twoje");
-  const grows = useCue("rośnie");
-  const logo = useSpring(name - 4, 12);
+  const home = useCue("twój");
+  const estate = useCue("twoje", 0);
+  const city = useCue("twoje", 1);
+  const place = useCue("twoje", 2);
+  const name = useCue("miejsce");
+  const logo = useSpring(place, 12);
+  const files = new Set(getStaticFiles().map((f) => f.name));
   return (
-    <AbsoluteFill style={{ background: colors.background }}>
-      <Wipe at={0} frames={14} color={colors.primary}>
+    <AbsoluteFill style={{ background: NIGHT }}>
+      <Shot id="dom" at={home} until={estate} files={files} />
+      <Shot id="osiedle" at={estate} until={city} files={files} />
+      <Shot id="miasto" at={city} until={place + 14} files={files} />
+      <Wipe at={place} frames={14} color={colors.primary}>
         <Center style={{ gap: 40 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
             <View style={{ transform: [{ scale: 0.4 + logo * 0.6 }], opacity: Math.min(1, logo * 2) }}>
               <BrandMark size={170} color="onPrimary" />
             </View>
-            <Headline text="Twoje Miejsce" at={name} spoken variant="slam" size={150} style={{ color: "#FFFFFF" }} />
+            <Headline text="Twoje Miejsce" at={place} spoken variant="slam" size={150} style={{ color: "#FFFFFF" }} />
           </div>
           <Headline
             text="Rośnie razem z Twoją społecznością."
-            at={grows}
-            spoken
+            at={name + 14}
+            stagger={3}
             size={60}
             align="center"
             style={{ color: "#FFFFFF", fontFamily: FONT.semibold }}
@@ -1102,7 +1255,7 @@ export const OutroScene = () => {
               letterSpacing: 2.4,
               textTransform: "uppercase",
               color: "rgba(255,255,255,0.75)",
-              ...rise(ramp(frame, grows + 50, grows + 66), 16),
+              ...rise(ramp(frame, name + 40, name + 56), 16),
             }}
           >
             HackYeah 2026 · Smart City

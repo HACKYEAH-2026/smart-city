@@ -17,9 +17,9 @@ export const BEATS = [
   { id: "city", text: "A status zmienia się na Twoich oczach: przyjęte, naprawione." },
   {
     id: "builder",
-    text: "Brakuje funkcji? Administrator opisuje ją własnymi słowami. AI pisze wtyczkę, sprawdza ją i pokazuje szkic. Jedno kliknięcie i działa u wszystkich mieszkańców.",
+    text: "Brakuje funkcji? Administrator opisuje ją własnymi słowami. AI pisze rozszerzenie, sprawdza je i pokazuje szkic. Jedno kliknięcie i działa u wszystkich mieszkańców.",
   },
-  { id: "outro", text: "Twoje Miejsce. Rośnie razem z Twoją społecznością." },
+  { id: "outro", text: "Twój dom. Twoje osiedle. Twoje miasto. Twoje Miejsce." },
 ] as const;
 
 export type BeatId = (typeof BEATS)[number]["id"];

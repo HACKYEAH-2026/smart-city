@@ -404,11 +404,11 @@ const AdminHeader = ({ title }: { title: string }) => (
   </View>
 );
 
-/** Zarządzaj miejscem with „Pluginy” open: the place's plugins and „Stwórz plugin z AI”. */
+/** Zarządzaj miejscem with „Rozszerzenia” open: the place's plugins and „Stwórz rozszerzenie z AI”. */
 export const ManageScreen = () => (
   <AppScreen>
     <AdminHeader title={t.manage_title} />
-    <DisclosureCard icon={Puzzle} title={t.manage_plugins_title} summary="3 pluginy" open onToggle={nothing}>
+    <DisclosureCard icon={Puzzle} title={t.manage_plugins_title} summary="3 rozszerzenia" open onToggle={nothing}>
       <Text variant="bodyL" color="textSecondary">
         {t.manage_plugins_lead}
       </Text>
@@ -438,7 +438,7 @@ export const BUILT = {
 export type BuildStage = "typing" | "working" | "ready" | "published";
 
 /**
- * Plugin z AI (screens/BuildPlugin.tsx): the admin's request, the AI writing and checking (`attempt`), the plugin it
+ * Rozszerzenie z AI (screens/BuildPlugin.tsx): the admin's request, the AI writing and checking (`attempt`), the plugin it
  * built, publishing.
  */
 export const BuildScreen = ({

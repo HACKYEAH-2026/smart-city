@@ -20,7 +20,7 @@ const ROOM: Record<BeatId, { lead: number; tail: number }> = {
   report: { lead: 10, tail: 18 },
   city: { lead: 8, tail: 22 },
   builder: { lead: 12, tail: 40 },
-  outro: { lead: 10, tail: 75 },
+  outro: { lead: 8, tail: 90 },
 };
 
 /** A spoken word; frames are relative to the start of its scene. */
