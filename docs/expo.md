@@ -58,6 +58,10 @@ export const useCommunities = () =>
   focused field and the button below it stay above the keyboard. Forms inside `Screen` need nothing more; do not add
   your own `KeyboardAvoidingView`. `dev` starts Metro with `--clear`: the Metro cache in `$TMPDIR` is shared between
   projects, and a stale transform from a project with another react-native-worklets version breaks worklets.
+- Haptics: pressable controls call `tapFeedback()` from `src/lib/haptics.ts` in `onPressIn` (a light tick; none on
+  the web). `Button`, `Checkbox` and `RadioCard` already do; a new pressable component does the same.
+- Edge-to-edge: content is drawn under the status and navigation bars and `Screen` pads by the safe-area insets.
+  Expo Go does not report edge-to-edge, so `app/_layout.tsx` tells `KeyboardProvider` the bars are translucent.
 - Push notifications (`src/lib/push.ts`, `src/data/push.ts`; web: `push.web.ts`, no pushes): after sign-in the phone
   registers its Expo push token with the API; a tapped push opens the plugin view. They need `EXPO_PROJECT_ID`
   (expo.dev project) and, on Android, `google-services.json` from Firebase (FCM) — see `app.config.ts`. The FCM

@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
+import { tapFeedback } from "../lib/haptics";
 import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
 import { Text } from "./Text";
 
@@ -18,6 +19,7 @@ export function RadioCard({ label, selected, onPress }: RadioCardProps) {
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}
+      onPressIn={tapFeedback}
       onPress={onPress}
       style={[styles.card, selected ? styles.selected : styles.idle]}
     >

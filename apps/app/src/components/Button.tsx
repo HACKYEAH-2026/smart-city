@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps, StyleSheet, View, type ViewStyle } from "react-native";
+import { tapFeedback } from "../lib/haptics";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
 import { Text } from "./Text";
 
@@ -40,7 +41,10 @@ const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; 
   destructiveGhost: { bg: "transparent", fg: colors.primaryPressed },
 };
 
-/** Button from the design system (see COMPONENTS.md → Button). Exposes role=button and the label as its name. */
+/**
+ * Button from the design system (see COMPONENTS.md → Button). Exposes role=button and the label as its name.
+ * A press gives a light haptic tick.
+ */
 export function Button({
   label,
   variant = "primary",
@@ -49,6 +53,7 @@ export function Button({
   fullWidth = true,
   disabled,
   style,
+  onPressIn,
   ...rest
 }: ButtonProps) {
   const v = VARIANT[variant];
@@ -58,6 +63,10 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
+      onPressIn={(event) => {
+        tapFeedback();
+        onPressIn?.(event);
+      }}
       style={({ pressed }) => [
         styles.base,
         {
