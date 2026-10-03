@@ -13,6 +13,7 @@ const register = async (page: Page, email: string) => {
   await page.goto("/register");
   await page.getByLabel(en.auth_email!).fill(email);
   await page.getByLabel(en.auth_password!).fill("password123");
+  await page.getByRole("checkbox", { name: en.auth_consent }).click();
   await page.getByRole("button", { name: en.auth_submit_register }).click();
   await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
 };

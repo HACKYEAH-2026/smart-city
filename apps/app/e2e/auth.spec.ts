@@ -7,6 +7,7 @@ const register = async (page: Page, email: string) => {
   await page.goto("/register");
   await page.getByLabel(en.auth_email!).fill(email);
   await page.getByLabel(en.auth_password!).fill("password123");
+  await page.getByRole("checkbox", { name: en.auth_consent }).click();
   await page.getByRole("button", { name: en.auth_submit_register }).click();
   await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
 };
@@ -66,6 +67,21 @@ test("login screen follows the design: welcome copy, sign-up link, no app chrome
   await expect(page.getByText("Log in to see your places.")).toBeVisible();
   await expect(page.getByRole("link", { name: en.auth_goto_register })).toHaveAttribute("href", "/register");
   await expect(page.getByRole("navigation", { name: en.nav_label })).toHaveCount(0);
+});
+
+test("register screen follows the design: back button, step, consent required", async ({ page }) => {
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: "Create an account", level: 1 })).toBeVisible();
+  await expect(page.getByText("One account — all your places in one app.")).toBeVisible();
+  await expect(page.getByText("Step 1 of 2")).toBeVisible();
+  await expect(page.getByRole("button", { name: en.auth_back })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: en.auth_consent })).not.toBeChecked();
+
+  await page.getByLabel(en.auth_email!).fill("consent@example.test");
+  await page.getByLabel(en.auth_password!).fill("password123");
+  await page.getByRole("button", { name: en.auth_submit_register }).click();
+  await expect(page.getByRole("alert")).toHaveText(en.auth_consent_required!);
+  await expect(page).toHaveURL(/\/register$/);
 });
 
 test("mobile width: no horizontal overflow (RN flex items must be allowed to shrink)", async ({ page }) => {
