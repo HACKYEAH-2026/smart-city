@@ -25,13 +25,14 @@ export const envSchema = z.object({
   PLUGINS_DIR: z.string().optional(),
   /** Directory for plugin files (photos). Defaults to a temp directory. */
   FILES_DIR: z.string().optional(),
-  /** Language model for ctx.ai (Strands, OpenAI-compatible API). Without a key: ctx.ai.call is unavailable. */
+  /**
+   * Language model for ctx.ai (Strands, OpenAI-compatible API). Without a key: ctx.ai.call and ctx.ai.embed are
+   * unavailable (embed needs only the key: its model is EMBEDDING_MODEL in services/ai/model.ts).
+   */
   AI_API_KEY: z.string().min(1).optional(),
   AI_MODEL: z.string().min(1).optional(),
   /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */
   AI_BASE_URL: z.url().optional(),
-  /** Embedding model for ctx.ai.embed (same key and endpoint). Unset = ctx.ai.embed is unavailable. */
-  AI_EMBEDDING_MODEL: z.string().min(1).optional(),
   /**
    * Google sign-in: client ID of the "Web application" OAuth client in the Google Cloud project. The phones ask Google
    * for ID tokens issued to it (webClientId), the API checks they are. Unset = no Google sign-in. No client secret:

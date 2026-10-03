@@ -12,8 +12,8 @@ const EMBEDS_PER_MINUTE = 600;
 const EMBED_TEXT_MAX = 8000;
 
 export class AINotConfiguredError extends Error {
-  constructor(variables = "AI_API_KEY") {
-    super(`AI is not configured on this server (${variables})`);
+  constructor() {
+    super("AI is not configured on this server (AI_API_KEY)");
   }
 }
 
@@ -111,7 +111,7 @@ export class AIService {
 
       embed: async (text) => {
         const model = this.providers.embedding;
-        if (!model) throw new AINotConfiguredError("AI_API_KEY, AI_EMBEDDING_MODEL");
+        if (!model) throw new AINotConfiguredError();
         const input = embeddable(text);
         this.limit(`${installationId}:embed`, EMBEDS_PER_MINUTE);
         return model.embed(input);

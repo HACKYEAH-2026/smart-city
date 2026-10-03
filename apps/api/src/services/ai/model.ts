@@ -3,6 +3,9 @@ import OpenAI from "openai";
 
 export type ModelConfig = { apiKey: string; model: string; baseUrl?: string | undefined };
 
+/** The embedding model of ctx.ai.embed (OpenAI, 1536 numbers per text); it uses the AI_API_KEY key. */
+export const EMBEDDING_MODEL = "text-embedding-3-small";
+
 /** A model via an OpenAI-compatible API (OpenAI or a custom endpoint: AI_BASE_URL). */
 export const openAIModel = (config: ModelConfig) =>
   new OpenAIModel({
