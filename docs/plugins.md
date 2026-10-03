@@ -472,7 +472,10 @@ await ctx.notify({ to: { everyone: true }, title: "Alarm: skażenie wody w sieci
   often a resident can trigger `near` alerts (e.g. one sighting per user per 10 minutes, checked in `ctx.db`).
 - An invalid call (unknown view, bad audience, radius too big) throws: a plugin bug, the tool fails with
   `500 plugin_error` and nothing is sent.
-- Delivery today: the in-app inbox (`GET /api/me/notifications`). Push to phones is not wired yet.
+- Delivery: the in-app inbox (`GET /api/me/notifications`) and a push to every phone the recipient registered
+  (Expo Push Service → FCM/APNs). `warning`/`danger` go out with high priority on the Android channel "alerts";
+  tapping the push opens `open` (or the community). Pushes are sent in the background: a failing push service
+  never fails the tool, and phones Expo reports as uninstalled are forgotten.
 
 ## Tools, streams, onInstall
 
@@ -802,6 +805,7 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `POST /api/me/notifications/read` `{ ids? }` | mark as read (the given ids, or all) → `{ unread }` |
 | `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
 | `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
+| `POST` / `DELETE /api/me/push-tokens` `{ token }` | this phone gets / stops getting the user's pushes (Expo push token; moves to whoever registered it last) |
 | `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (`PLUGIN_ADMIN_TOKEN`) |
 | `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | enable a plugin in a community (runs `onInstall` once) |
 

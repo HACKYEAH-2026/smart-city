@@ -32,3 +32,15 @@ export type Place = { id: string; label: string; lat: number; lng: number };
 /** The current position, shared while the app is open; counts for "near" for LOCATION_FRESH_MINUTES. */
 export const locationSchema = geoPointSchema;
 export const LOCATION_FRESH_MINUTES = 30;
+
+/** The device's Expo push token (expo-notifications `getExpoPushTokenAsync`); registered after sign-in. */
+export const pushTokenSchema = z.object({ token: z.string().regex(/^Expo(nent)?PushToken\[[^\]\s]{1,200}\]$/) });
+
+/** `data` of a push notification: what the app opens (and marks as read) when the user taps it. */
+export type PushData = {
+  notificationId: string;
+  /** Community slug. */
+  community: string;
+  pluginId: string;
+  open: NavigateAction | null;
+};

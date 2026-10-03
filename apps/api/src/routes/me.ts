@@ -1,4 +1,11 @@
-import { locationSchema, notificationsReadSchema, PLACES_MAX, type Place, placeCreateSchema } from "@app/shared";
+import {
+  locationSchema,
+  notificationsReadSchema,
+  PLACES_MAX,
+  type Place,
+  placeCreateSchema,
+  pushTokenSchema,
+} from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import type { GeometryPoint, RecordId } from "surrealdb";
@@ -15,8 +22,8 @@ const toPlace = (row: PlaceRow): Place => {
 };
 
 /**
- * The signed-in user's own data: the notification inbox (ctx.notify), saved places and the shared current
- * position. Places and the position are private: nothing here is visible to plugins or to other users;
+ * The signed-in user's own data: the notification inbox (ctx.notify), phones that get pushes, saved places and
+ * the shared current position. Places and the position are private: nothing here is visible to plugins or to other users;
  * the host only matches them against "near" notifications.
  */
 export const meRoutes = new Hono<AppEnv>()
@@ -25,6 +32,22 @@ export const meRoutes = new Hono<AppEnv>()
   .post("/notifications/read", zValidator("json", notificationsReadSchema), async (c) => {
     const unread = await c.var.notifications.markRead(c.var.user.id, c.req.valid("json").ids);
     return c.json({ unread }, 200);
+  })
+  /** This phone gets pushes for the signed-in user (a token moves to whoever registered it last). */
+  .post("/push-tokens", zValidator("json", pushTokenSchema), async (c) => {
+    await c.var.db.query("UPSERT $device SET user = $user, updated_at = time::now() RETURN NONE;", {
+      device: ref("pushToken", c.req.valid("json").token),
+      user: ref("user", c.var.user.id),
+    });
+    return c.body(null, 204);
+  })
+  /** Sign-out on this phone: stop pushes (only the user's own token is removed). */
+  .delete("/push-tokens", zValidator("json", pushTokenSchema), async (c) => {
+    await c.var.db.query("DELETE $device WHERE user = $user RETURN NONE;", {
+      device: ref("pushToken", c.req.valid("json").token),
+      user: ref("user", c.var.user.id),
+    });
+    return c.body(null, 204);
   })
   .get("/places", async (c) => {
     const places = await rows<PlaceRow>(

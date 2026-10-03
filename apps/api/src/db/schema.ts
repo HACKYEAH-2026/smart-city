@@ -18,6 +18,7 @@ export const TABLES = {
   notification: "notification",
   place: "place",
   location: "user_location",
+  pushToken: "push_token",
 } as const;
 
 export const SCHEMA = `
@@ -90,4 +91,10 @@ DEFINE TABLE IF NOT EXISTS user_location SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user ON user_location TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS point ON user_location TYPE geometry<point>;
 DEFINE FIELD IF NOT EXISTS at ON user_location TYPE datetime;
+
+-- A phone that receives pushes (Expo push token, id = the token). Belongs to whoever registered it last.
+DEFINE TABLE IF NOT EXISTS push_token SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user ON push_token TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS updated_at ON push_token TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS push_token_user ON push_token FIELDS user;
 `;

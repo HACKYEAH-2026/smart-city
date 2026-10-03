@@ -5,11 +5,13 @@ import {
   type NotificationAudience,
   type NotificationTone,
   type Notify,
+  type PluginCommunity,
   parseNotification,
 } from "@app/plugin-sdk";
 import { LOCATION_FRESH_MINUTES, NOTIFICATIONS_PAGE, type NotificationInbox } from "@app/shared";
 import { GeometryPoint, type RecordId } from "surrealdb";
 import { type Db, keyOf, ref, rows, toDate } from "../../db";
+import type { PushMessage, PushSender } from "../push/types";
 
 type NotificationRow = {
   id: RecordId;
@@ -45,50 +47,109 @@ function audienceFilter(to: NotificationAudience): { where: string; vars: Record
   return { where: "true", vars: {} };
 }
 
+type Sender = { pluginId: string; installationId: string; community: PluginCommunity; from: string | null };
+type Delivered = { id: RecordId; user: RecordId };
+type Device = { token: RecordId; user: RecordId };
+
+/** Warnings and alarms wake the phone (high priority, the "alerts" channel); the rest is a normal notification. */
+const URGENT: readonly NotificationTone[] = ["warning", "danger"];
+
+/** One push per device of each recipient; `data` lets the app open the notification on tap. */
+function pushMessages(sender: Sender, n: Notification, delivered: Delivered[], devices: Device[]): PushMessage[] {
+  const urgent = URGENT.includes(n.tone);
+  return devices.flatMap((device) => {
+    const notification = delivered.find((d) => keyOf(d.user) === keyOf(device.user));
+    if (!notification) return [];
+    return [
+      {
+        to: keyOf(device.token),
+        title: n.title,
+        body: n.body,
+        data: {
+          notificationId: keyOf(notification.id),
+          community: sender.community.slug,
+          pluginId: sender.pluginId,
+          open: n.open ?? null,
+        },
+        sound: "default",
+        priority: urgent ? "high" : "default",
+        channelId: urgent ? "alerts" : "default",
+      },
+    ];
+  });
+}
+
 /**
  * Residents' notifications. Plugins send them with ctx.notify (fan-out on write: one row per recipient, all in
- * one statement); residents read them in their inbox (/api/me/notifications) across all their communities.
+ * one statement); residents read them in their inbox (/api/me/notifications) across all their communities, and
+ * every registered phone of a recipient gets a push. Pushes go out in the background: a slow or failing push
+ * service never fails the plugin call (the notification is already in the inbox).
  */
 export class NotificationService {
-  constructor(private readonly db: Db) {}
+  private readonly inFlight = new Set<Promise<void>>();
+
+  constructor(
+    private readonly db: Db,
+    private readonly push: PushSender,
+  ) {}
 
   /** ctx.notify for one installation; `from` (the acting user, null = system) never notifies themselves. */
-  forPlugin(args: {
-    views: Record<string, unknown>;
-    pluginId: string;
-    installationId: string;
-    communityId: string;
-    from: string | null;
-  }): Notify {
+  forPlugin(args: Sender & { views: Record<string, unknown> }): Notify {
     return async (input) => {
       const notification = parseNotification(args.views, input);
-      await this.send(args, notification);
+      const delivered = await this.store(args, notification);
+      const devices = await this.devicesOf(delivered.map((d) => d.user));
+      this.deliver(pushMessages(args, notification, delivered, devices));
     };
   }
 
-  private async send(
-    args: { pluginId: string; installationId: string; communityId: string; from: string | null },
-    n: Notification,
-  ): Promise<void> {
+  /** Waits for pushes still being sent (tests; graceful shutdown). */
+  async drain(): Promise<void> {
+    await Promise.all(this.inFlight);
+  }
+
+  private store(sender: Sender, n: Notification): Promise<Delivered[]> {
     const audience = audienceFilter(n.to);
-    await this.db.query(
+    return rows<Delivered>(
+      this.db,
       `INSERT INTO notification (
          SELECT user, community, $installation AS installation, $plugin AS plugin, $title AS title, $body AS body,
                 $tone AS tone, $open AS open
          FROM membership WHERE community = $community AND user != $from AND ${audience.where}
-       ) RETURN NONE;`,
+       ) RETURN id, user;`,
       {
         ...audience.vars,
-        community: ref("community", args.communityId),
-        installation: ref("installation", args.installationId),
-        plugin: args.pluginId,
-        from: args.from ? ref("user", args.from) : null,
+        community: ref("community", sender.community.id),
+        installation: ref("installation", sender.installationId),
+        plugin: sender.pluginId,
+        from: sender.from ? ref("user", sender.from) : null,
         title: n.title,
         body: n.body,
         tone: n.tone,
         open: n.open,
       },
     );
+  }
+
+  private devicesOf(users: RecordId[]): Promise<Device[]> {
+    if (!users.length) return Promise.resolve([]);
+    return rows<Device>(this.db, "SELECT id AS token, user FROM push_token WHERE user IN $users;", { users });
+  }
+
+  private deliver(messages: PushMessage[]): void {
+    if (!messages.length) return;
+    const sending = this.push
+      .send(messages)
+      .then(({ invalidTokens }) => this.forget(invalidTokens))
+      .catch((err: unknown) => console.error(`push: ${messages.length} message(s) not sent`, err))
+      .finally(() => this.inFlight.delete(sending));
+    this.inFlight.add(sending);
+  }
+
+  /** Devices the push service reports as gone (app uninstalled). */
+  private async forget(tokens: string[]): Promise<void> {
+    if (!tokens.length) return;
+    await this.db.query("DELETE $tokens RETURN NONE;", { tokens: tokens.map((t) => ref("pushToken", t)) });
   }
 
   /** The newest notifications of the user (enabled plugins only) and the unread count. */

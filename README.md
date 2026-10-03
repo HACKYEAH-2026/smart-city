@@ -59,7 +59,8 @@ Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md).
 Projekt zgłaszamy do zadania otwartego **SMART CITY** na HackYeah 2026. Prace hackathonowe trwają od 3.10.2026, 23:00 do 4.10.2026, 23:00.
 
 - **Co istniało przed hackathonem:** platforma, czyli rdzeń społeczności, logowanie, SDK wtyczek, renderer Server-Driven UI i wtyczki `issues` i `benches`. Stan wyjściowy to commit `9533f98`, a wszystko po nim powstało w trakcie HackYeah.
-- **Nowe biblioteki (HackYeah):** `@expo-google-fonts/schibsted-grotesk` (krój pisma Google Fonts dla systemu wizualnego aplikacji) oraz `expo-font` (moduł Expo do ładowania fontów), `react-native-svg` (ilustracja mapy na ekranie logowania) oraz `lucide-react-native` (ikony linii). Nowy system wizualny „Twoje Miejsce” (tokeny i komponenty w `apps/app/src`) również powstał w trakcie hackathonu.
+- **Nowe biblioteki (HackYeah):** `@expo-google-fonts/schibsted-grotesk` (krój pisma Google Fonts dla systemu wizualnego aplikacji) oraz `expo-font` (moduł Expo do ładowania fontów), `react-native-svg` (ilustracja mapy na ekranie logowania) oraz `lucide-react-native` (ikony linii), `expo-notifications` (powiadomienia push na Androidzie i iOS). Nowy system wizualny „Twoje Miejsce” (tokeny i komponenty w `apps/app/src`) również powstał w trakcie hackathonu.
+- **Zewnętrzne usługi (HackYeah):** Expo Push Service (`exp.host`) dostarcza powiadomienia push na telefony; przekazuje je dalej do Firebase Cloud Messaging (Android) i Apple Push Notification service (iOS).
 - **Użycie AI:** kod i dokumentację piszemy z pomocą asystentów AI (Claude Code). Zespół rozumie każdą część rozwiązania i odpowiada za nią.
 - **Zgłoszenie:** tytuł, nazwa zespołu, członkowie, opis i prezentacja PDF (maks. 10 slajdów). Opcjonalnie dochodzą repozytorium, demo i zrzuty ekranu.
 

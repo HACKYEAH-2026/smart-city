@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authClient, tokens } from "../lib/api";
+import { unregisterDevice } from "./push";
 
 /** Token loaded once at startup (natively: Keychain/Keystore — asynchronously). */
 const loading = tokens.load();
@@ -54,6 +55,7 @@ export function useAuthActions() {
       return !error;
     },
     signOut: async () => {
+      await unregisterDevice().catch(() => {});
       await authClient.signOut();
       await tokens.clear();
       qc.clear();

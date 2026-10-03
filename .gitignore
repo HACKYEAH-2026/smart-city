@@ -19,6 +19,9 @@ coverage/
 # Expo: native projects are GENERATED from app.config.ts (expo prebuild) — not committed
 apps/app/android/
 apps/app/ios/
+# Firebase app config for Android pushes (FCM): kept out of the repo, see apps/app/app.config.ts
+google-services.json
+GoogleService-Info.plist
 # xcodebuild derived data and exports (CI: build/ios, build/ios-export)
 /build/
 .expo/

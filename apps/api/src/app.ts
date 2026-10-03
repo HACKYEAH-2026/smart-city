@@ -17,6 +17,8 @@ import type { AIProviders } from "./services/ai/types";
 import { FileService } from "./services/files/service";
 import { DiskFileStore, defaultFilesDir } from "./services/files/store";
 import { NotificationService } from "./services/notifications/service";
+import { ExpoPushSender } from "./services/push/expo";
+import type { PushSender } from "./services/push/types";
 
 /** AI providers from env (Strands + OpenAI-compatible model); without AI_API_KEY and AI_MODEL — no model. */
 function aiFromEnv(env: Env): AIProviders {
@@ -29,8 +31,9 @@ function aiFromEnv(env: Env): AIProviders {
 /**
  * Assembles the app. Receives a connected SurrealDB client (embedded or server — the app does not care).
  * The only place routers are mounted; AppType is exported for the frontend RPC client.
+ * `push` defaults to the Expo Push Service (tests pass a fake).
  */
-export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders }) {
+export function createApp({ db, env, ai, push }: { db: Db; env: Env; ai?: AIProviders; push?: PushSender }) {
   const auth = createAuth(db, env);
   const files = new FileService(
     db,
@@ -38,7 +41,7 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
     env.BETTER_AUTH_SECRET,
     env.API_URL,
   );
-  const notifications = new NotificationService(db);
+  const notifications = new NotificationService(db, push ?? new ExpoPushSender({ accessToken: env.EXPO_ACCESS_TOKEN }));
   const plugins = new PluginHost(
     { db, files, ai: new AIService(ai ?? aiFromEnv(env), files), notifications },
     env.PLUGINS_DIR ?? defaultPluginsDir(),
@@ -78,7 +81,7 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
     .route("/api/me", meRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
-  return { app: routes, auth, plugins };
+  return { app: routes, auth, plugins, notifications };
 }
 
 export type AppType = ReturnType<typeof createApp>["app"];

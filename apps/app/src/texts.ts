@@ -68,4 +68,7 @@ export const t = {
   plugin_photo_uploading: "Wysyłanie zdjęcia…",
   plugin_photo_error: "Nie udało się wysłać zdjęcia. Spróbuj ponownie.",
   plugin_photo_preview: "Wybrane zdjęcie",
+  // Android notification channels (shown in the system notification settings)
+  push_channel_alerts: "Alerty i ostrzeżenia",
+  push_channel_default: "Powiadomienia",
 } as const;

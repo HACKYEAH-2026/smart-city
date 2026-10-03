@@ -38,7 +38,7 @@ export function createPluginContext(
           views: plugin.definition.views,
           pluginId: plugin.manifest.id,
           installationId,
-          communityId: community.id,
+          community,
           from: userId,
         })
       : deniedService("notify"),

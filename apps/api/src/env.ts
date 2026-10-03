@@ -30,6 +30,8 @@ export const envSchema = z.object({
   AI_MODEL: z.string().min(1).optional(),
   /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */
   AI_BASE_URL: z.url().optional(),
+  /** Expo access token, only if the Expo project enables enhanced push security. Unset = plain Expo push. */
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

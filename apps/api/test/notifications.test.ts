@@ -24,7 +24,9 @@ const MAIN_SQUARE = { lat: 50.0617, lng: 19.9373 };
 
 /** A plugin whose only job is to call ctx.notify with what the test passes (`to` is validated by the host). */
 const notifier = (id: string, permissions: string) => `
-export default ({ definePlugin, ui, z }) =>
+import type { PluginModule } from "@app/plugin-sdk";
+
+const notifier: PluginModule = ({ definePlugin, ui, z }) =>
   definePlugin({
     id: "${id}",
     name: "Powiadomienia (test)",
@@ -35,10 +37,15 @@ export default ({ definePlugin, ui, z }) =>
     tools: {
       send: {
         description: "Wyślij powiadomienie",
-        input: z.object({ to: z.unknown(), title: z.string(), tone: z.string().optional(), view: z.string().optional() }),
+        input: z.object({
+          to: z.unknown(),
+          title: z.string(),
+          tone: z.enum(["info", "success", "warning", "danger"]).optional(),
+          view: z.string().optional(),
+        }),
         handler: async (ctx, input) => {
           await ctx.notify({
-            to: input.to,
+            to: input.to as never, // unchecked on purpose: the tests send invalid audiences
             title: input.title,
             body: "Treść",
             ...(input.tone ? { tone: input.tone } : {}),
@@ -49,6 +56,8 @@ export default ({ definePlugin, ui, z }) =>
       },
     },
   });
+
+export default notifier;
 `;
 
 const start = async (pluginId = "notifier", permissions = '["notify"]') => {
@@ -279,5 +288,102 @@ describe("plugin errors", () => {
     ];
     for (const args of bad) expect((await send(anna, args)).status).toBe(500);
     expect(await titles(bartek)).toEqual([]);
+  });
+});
+
+describe("push to phones", () => {
+  const token = (device: string) => `ExponentPushToken[${device}]`;
+  const register = (u: TestUser, value: string) =>
+    t.request("/api/me/push-tokens", { method: "POST", headers: u.headers, json: { token: value } });
+  const unregister = (u: TestUser, value: string) =>
+    t.request("/api/me/push-tokens", { method: "DELETE", headers: u.headers, json: { token: value } });
+  const pushedTo = () => t.push.sent.map((m) => m.to).sort();
+
+  test("no session 401; a token that is not an Expo push token 400", async () => {
+    await start();
+    expect((await t.request("/api/me/push-tokens", { method: "POST", json: { token: token("a") } })).status).toBe(401);
+    const anna = await member();
+    expect((await register(anna, "not-a-token")).status).toBe(400);
+    expect((await register(anna, token("anna-phone"))).status).toBe(204);
+  });
+
+  test("every device of each recipient gets a push that opens the notification; not the sender or non-members", async () => {
+    await start();
+    const [anna, bartek] = [await member(), await member()];
+    const stranger = await t.signUp();
+    await register(anna, token("anna-phone"));
+    await register(anna, token("anna-tablet"));
+    await register(bartek, token("bartek-phone"));
+    await register(stranger, token("stranger-phone"));
+
+    await send(bartek, { to: { everyone: true }, title: "Alarm: brak wody", tone: "danger", view: "detail" });
+    expect(pushedTo()).toEqual([token("anna-phone"), token("anna-tablet")]);
+    const [notification] = (await inbox(anna)).items;
+    expect(t.push.sent.find((m) => m.to === token("anna-phone"))).toEqual({
+      to: token("anna-phone"),
+      title: "Alarm: brak wody",
+      body: "Treść",
+      data: {
+        notificationId: notification!.id,
+        community: DEMO_COMMUNITY.slug,
+        pluginId: "notifier",
+        open: { type: "navigate", view: "detail", params: { id: "42" } },
+      },
+      sound: "default",
+      priority: "high",
+      channelId: "alerts",
+    });
+
+    t.push.sent.length = 0;
+    await send(anna, { to: { users: [bartek.id] }, title: "Dzięki za zgłoszenie" });
+    expect(t.push.sent).toMatchObject([
+      { to: token("bartek-phone"), priority: "default", channelId: "default", data: { open: null } },
+    ]);
+  });
+
+  test("a token belongs to whoever registered it last; removing it stops pushes", async () => {
+    await start();
+    const [anna, bartek, city] = [await member(), await member(), await member()];
+    await register(anna, token("shared-phone"));
+    await register(bartek, token("shared-phone")); // Bartek signs in on Anna's old phone
+    await send(city, { to: { users: [anna.id] }, title: "Do Anny" });
+    expect(pushedTo()).toEqual([]);
+    await send(city, { to: { users: [bartek.id] }, title: "Do Bartka" });
+    expect(pushedTo()).toEqual([token("shared-phone")]);
+
+    t.push.sent.length = 0;
+    expect((await unregister(anna, token("shared-phone"))).status).toBe(204); // not hers: ignored
+    await send(city, { to: { users: [bartek.id] }, title: "Nadal do Bartka" });
+    expect(pushedTo()).toEqual([token("shared-phone")]);
+
+    t.push.sent.length = 0;
+    expect((await unregister(bartek, token("shared-phone"))).status).toBe(204);
+    await send(city, { to: { users: [bartek.id] }, title: "Już bez telefonu" });
+    expect(pushedTo()).toEqual([]);
+    expect(await titles(bartek)).toContain("Już bez telefonu");
+  });
+
+  test("a device the push service reports as unregistered is forgotten", async () => {
+    await start();
+    const [anna, city] = [await member(), await member()];
+    await register(anna, token("old-phone"));
+    await register(anna, token("new-phone"));
+    t.push.unregistered.add(token("old-phone"));
+    await send(city, { to: { users: [anna.id] }, title: "Pierwsze" });
+    await t.notifications.drain();
+
+    t.push.sent.length = 0;
+    await send(city, { to: { users: [anna.id] }, title: "Drugie" });
+    expect(pushedTo()).toEqual([token("new-phone")]);
+  });
+
+  test("a failing push service does not fail the plugin; the notification is in the inbox", async () => {
+    await start();
+    const [anna, city] = [await member(), await member()];
+    await register(anna, token("anna-phone"));
+    t.push.failure = new Error("Expo is down");
+    expect((await send(city, { to: { users: [anna.id] }, title: "Mimo awarii" })).status).toBe(200);
+    await t.notifications.drain();
+    expect(await titles(anna)).toEqual(["Mimo awarii"]);
   });
 });

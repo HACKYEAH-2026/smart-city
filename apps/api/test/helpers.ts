@@ -3,6 +3,7 @@ import { createApp } from "../src/app";
 import { type DbHandle, migrate } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
 import type { AIProviders } from "../src/services/ai/types";
+import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
 
@@ -23,14 +24,32 @@ async function freshTestDb(): Promise<DbHandle> {
 export type TestUser = { id: string; email: string; headers: Record<string, string> };
 
 /**
+ * Push service fake: records what would go to phones (tests never call Expo). `unregistered` tokens are
+ * reported back as uninstalled apps; `failure` makes every send throw.
+ */
+export class RecordingPushSender implements PushSender {
+  readonly sent: PushMessage[] = [];
+  readonly unregistered = new Set<string>();
+  failure?: Error;
+
+  async send(messages: PushMessage[]) {
+    if (this.failure) throw this.failure;
+    this.sent.push(...messages);
+    return { invalidTokens: messages.map((m) => m.to).filter((to) => this.unregistered.has(to)) };
+  }
+}
+
+/**
  * Integration test context: fresh database + app called via app.request() (no ports).
  * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV.
  */
 export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
   const handle = await freshTestDb();
-  const { app, auth, plugins } = createApp({
+  const push = new RecordingPushSender();
+  const { app, auth, plugins, notifications } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, ...env }),
+    push,
     ...(opts.ai ? { ai: opts.ai } : {}),
   });
   let seq = 0;
@@ -69,6 +88,6 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 
-  return { app, db: handle.db, plugins, request, signUp, seed, close: handle.close };
+  return { app, db: handle.db, plugins, notifications, push, request, signUp, seed, close: handle.close };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;
