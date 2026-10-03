@@ -1,7 +1,7 @@
 import type { GeoPoint } from "@app/plugin-sdk";
-import type { GeoAddress, PlaceKind } from "@app/shared";
+import type { GeoAddress } from "@app/shared";
 import Head from "expo-router/head";
-import { ChevronLeft, LocateFixed, MapPin } from "lucide-react-native";
+import { ChevronLeft, LocateFixed, type LucideIcon, MapPin } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,28 +21,37 @@ import { useAddressAt, useAddressSearch } from "../data/geo";
 import { tapFeedback } from "../lib/haptics";
 import { currentPosition } from "../lib/location";
 import { DEFAULT_CENTER, STREET_ZOOM } from "../lib/map/spec";
-import { placeKindIcon } from "../lib/placeKinds";
 import { t } from "../texts";
 import { colors, layout, opacity, radii, sizes, spacing } from "../theme";
 
 export type PickedLocation = { location: GeoPoint; address: string };
 
 export interface LocationPickerProps {
-  /** The place's name and kind: the pin shows the kind's icon, the panel says where the place's pin will be. */
-  name: string;
-  kind: PlaceKind;
+  /** The page title (the wizard: "Lokalizacja miejsca"; a plugin: its field's label). */
+  title?: string;
+  /** Under the address in the panel: what the pin is for ("Kamienica · tu pojawi się pinezka miejsca"). */
+  hint: string;
+  /** In the pin (the wizard: the place kind's icon). */
+  icon?: LucideIcon;
   initial: GeoPoint | null;
   onConfirm: (picked: PickedLocation) => void;
   onCancel: () => void;
 }
 
 /**
- * Where a place is (design: the location picker of the "new place" wizard). The pin stays in the middle: the user
- * moves the map under it, taps the map, finds an address or goes to their own position. The panel shows the address
- * under the pin (the geocoder's; an address picked from the search is kept as it is). Shown by the wizard over its
- * step, so going back keeps the answers; the system back button closes it too.
+ * Where something is (design: the location picker of the "new place" wizard; plugins' location fields reuse it). The
+ * pin stays in the middle: the user moves the map under it, taps the map, finds an address or goes to their own
+ * position. The panel shows the address under the pin (the geocoder's; an address picked from the search is kept as it
+ * is). Shown over the form that opened it, so going back keeps the answers; the system back button closes it too.
  */
-export default function LocationPicker({ name, kind, initial, onConfirm, onCancel }: LocationPickerProps) {
+export default function LocationPicker({
+  title = t.location_title,
+  hint,
+  icon = MapPin,
+  initial,
+  onConfirm,
+  onCancel,
+}: LocationPickerProps) {
   const insets = useSafeAreaInsets();
   const map = useRef<MapViewHandle>(null);
   const [start] = useState(() => initial ?? DEFAULT_CENTER);
@@ -90,7 +99,7 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
   return (
     <View style={styles.root}>
       <Head>
-        <title>{t.location_title}</title>
+        <title>{title}</title>
       </Head>
       <View style={styles.mapArea}>
         <MapView
@@ -104,7 +113,7 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
           onMove={(center, user) => user && movePin(center)}
           style={StyleSheet.absoluteFill}
         />
-        <PlacePin icon={placeKindIcon(kind)} />
+        <PlacePin icon={icon} />
         <View style={styles.locate}>
           <IconButton icon={LocateFixed} label={t.location_my} variant="floating" color="mapMe" onPress={locate} />
         </View>
@@ -145,7 +154,9 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
             <Text variant="cardTitle">
               {address ? address.address : lookup.isFetching ? t.location_looking_up : t.location_unknown}
             </Text>
-            <Text variant="small" color="textSecondary">{`${name} · ${t.location_pin_hint}`}</Text>
+            <Text variant="small" color="textSecondary">
+              {hint}
+            </Text>
           </View>
         </View>
         {meFailed ? (

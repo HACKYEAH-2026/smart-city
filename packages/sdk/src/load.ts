@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SchemaError, validateTables } from "./engine/schema";
+import { geoLocation } from "./geo";
 import {
   dashboardWidgetSizeSchema,
   definePlugin,
@@ -16,14 +17,15 @@ export class PluginError extends Error {}
 
 /**
  * SDK passed to the plugin module — the only thing a plugin uses at runtime. Frozen: every plugin gets these same
- * objects, so one plugin must not be able to swap `ui.card` or `t.text` under the others (`z` is a module namespace,
- * immutable already).
+ * objects, so one plugin must not be able to swap `ui.card`, `ui.map.pins` or `t.text` under the others (`z` is a
+ * module namespace, immutable already).
  */
 export const sdk = Object.freeze({
   definePlugin: Object.freeze(definePlugin),
-  ui: Object.freeze(ui),
+  ui: Object.freeze(Object.assign(ui, { map: Object.freeze(ui.map) })),
   z,
   fileRef: Object.freeze(fileRef),
+  geoLocation: Object.freeze(geoLocation),
   t: Object.freeze(t),
 });
 

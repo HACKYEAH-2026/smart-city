@@ -8,7 +8,7 @@ import { createApp } from "../src/app";
 import { loadEnv } from "../src/env";
 import type { LanguageModel } from "../src/services/ai/types";
 import { TEST_ENV } from "../src/test-env";
-import { DEMO_COMMUNITY } from "../src/test-routes";
+import { DEMO_ADDRESS, DEMO_COMMUNITY, DEMO_LOCATION } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
 
 /**
@@ -293,6 +293,36 @@ describe("isolation and plugins uploaded on the fly", () => {
     } finally {
       await noAdmin.close();
     }
+  });
+});
+
+describe("maps", () => {
+  test("ctx.community.location is the place's pin; a report placed on the map is on the issues map", async () => {
+    await start();
+    const u = await t.signUp();
+    const located = NOTES.replace('id: "notes"', 'id: "located"').replace(
+      'return ui.screen("Tablica notatek", [',
+      'return ui.screen("Tablica notatek", [\n          ui.text(`Pinezka: ${JSON.stringify(ctx.community.location)}`),',
+    );
+    expect(
+      (await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: located } })).status,
+    ).toBe(201);
+    await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
+      method: "POST",
+      headers: platform,
+      json: { pluginId: "located" },
+    });
+    expect(textsOf((await view(u.headers, "located/views/main")).node!)).toContain(
+      `Pinezka: ${JSON.stringify(DEMO_LOCATION)}`,
+    );
+
+    const where = { ...DEMO_LOCATION, address: DEMO_ADDRESS };
+    expect(
+      (await tool(u.headers, "issues/tools/report", { title: "Dziura w jezdni", location: where })).res.status,
+    ).toBe(200);
+    const map = flat((await view(u.headers, "issues/views/list")).node!).find((n) => n.type === "Map");
+    expect(map).toMatchObject({ label: "Mapa zgłoszeń" });
+    expect(textsOf(map!)).toContain("Dziura w jezdni");
   });
 });
 

@@ -32,6 +32,7 @@ import {
   ref,
   rows,
   toCommunity,
+  toPluginCommunity,
 } from "../db";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 import { ForbiddenError, type LoadedPlugin, PluginError, type PluginHost, PluginInputError } from "../plugins/host";
@@ -228,7 +229,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
   .get("/:slug/dashboard", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(member.row);
+    const community = toPluginCommunity(member.row);
     const role = member.role;
     const user = { id: c.var.user.id, name: c.var.user.name, role };
     const installed = await rows<{ id: RecordId; plugin: string }>(
@@ -418,7 +419,7 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   );
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
-  const community = toCommunity(row.community);
+  const community = toPluginCommunity(row.community);
   const role = await memberRole(c.var.db, community.id, c.var.user.id);
   if (!role) return null;
   const installationId = keyOf(row.id);

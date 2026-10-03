@@ -13,6 +13,7 @@ export {
   rows,
   toCommunity,
   toDate,
+  toPluginCommunity,
   visitRef,
 } from "./query";
 export { SCHEMA, TABLES } from "./schema";

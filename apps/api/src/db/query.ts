@@ -1,4 +1,4 @@
-import type { GeoPoint, Role } from "@app/plugin-sdk";
+import type { GeoPoint, PluginCommunity, Role } from "@app/plugin-sdk";
 import { type BoundQuery, GeometryPoint, RecordId, surql } from "surrealdb";
 import type { Db } from "./client";
 import { TABLES } from "./schema";
@@ -40,9 +40,16 @@ export async function memberRole(db: Db, communityId: string, userId: string): P
   return row?.role ?? null;
 }
 
-export type CommunityRow = { id: RecordId; slug: string; name: string };
+/** `location` only where the query selects it (communityBySlug does). */
+export type CommunityRow = { id: RecordId; slug: string; name: string; location?: GeometryPoint };
 
 export const toCommunity = (row: CommunityRow) => ({ id: keyOf(row.id), slug: row.slug, name: row.name });
 
+/** The community as a plugin sees it (`ctx.community`): with its pin, for plugin maps. */
+export const toPluginCommunity = (row: CommunityRow): PluginCommunity => ({
+  ...toCommunity(row),
+  location: row.location ? fromGeoPoint(row.location) : null,
+});
+
 export const communityBySlug = (db: Db, slug: string) =>
-  first<CommunityRow>(db, surql`SELECT id, slug, name FROM community WHERE slug = ${slug};`);
+  first<CommunityRow>(db, surql`SELECT id, slug, name, location FROM community WHERE slug = ${slug};`);

@@ -20,9 +20,9 @@ import {
   type ViewParams,
 } from "@app/plugin-sdk";
 import { DbError } from "@app/plugin-sdk/engine";
-import { type RecordId, surql } from "surrealdb";
+import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import { z } from "zod";
-import { first, keyOf, ref, rows, toDate, visitRef } from "../db";
+import { first, fromGeoPoint, keyOf, ref, rows, toDate, visitRef } from "../db";
 import { planPluginTables, syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
 import { checkImports, checkSafety, checkSyntax, checkTypes, failAs } from "./check";
@@ -132,7 +132,7 @@ export class PluginHost {
    * Enables the plugin in a community. The first installation runs its onInstall (seed data) as the
    * system user; re-enabling keeps the existing data.
    */
-  async enable(plugin: LoadedPlugin, community: PluginCommunity): Promise<void> {
+  async enable(plugin: LoadedPlugin, community: Omit<PluginCommunity, "location">): Promise<void> {
     await this.ready();
     const [c, id] = [ref("community", community.id), plugin.manifest.id];
     const [created] = await rows<{ id: RecordId }>(
@@ -142,8 +142,21 @@ export class PluginHost {
     );
     const onInstall = plugin.definition.onInstall;
     if (!created || !onInstall) return;
-    const ctx = this.context(plugin, { installationId: keyOf(created.id), community, user: SYSTEM_USER });
+    const ctx = this.context(plugin, {
+      installationId: keyOf(created.id),
+      community: await this.withLocation(community),
+      user: SYSTEM_USER,
+    });
     await guard(plugin, "onInstall", () => onInstall(ctx));
+  }
+
+  /** The community with its pin (`ctx.community.location`). */
+  private async withLocation(community: Omit<PluginCommunity, "location">): Promise<PluginCommunity> {
+    const row = await first<{ location?: GeometryPoint }>(
+      this.db,
+      surql`SELECT location FROM ${ref("community", community.id)};`,
+    );
+    return { ...community, location: row?.location ? fromGeoPoint(row.location) : null };
   }
 
   async renderView(plugin: LoadedPlugin, view: string, ctx: Context, params: ViewParams): Promise<UINode> {

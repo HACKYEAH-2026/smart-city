@@ -21,13 +21,14 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
 
 - A plugin is a package in `plugins/<id>/` that depends **only** on `@app/plugin-sdk`.
 - The module imports **nothing at runtime** (only `import type`). Its default export is a factory
-  `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, t }`
-  (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id).
+  `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, geoLocation, t }`
+  (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id, `geoLocation` = Zod schema for
+  a place picked on the map).
   This lets the same file run built-in, uploaded at runtime, or later in a sandbox.
 - So a plugin is **one file** (`index.ts`; its test sits next to it): an upload sends that file, and the host
   rejects runtime imports and type errors before running it ([Checks](#checks)).
-- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`,
-  `notify`. No app database, no disk, no network, no residents' locations.
+- A plugin sees only `ctx`: `user` (with role in this community), `community` (`id`, `slug`, `name`, `location`),
+  `now()`, `lastVisit`, `db`, `files`, `ai`, `notify`. No app database, no disk, no network, no residents' locations.
 - All data is **isolated per installation** (plugin × community): every query, reference and live
   stream is scoped to it.
 - Code, identifiers and comments are in English; everything a resident sees (view titles, labels, toasts,
@@ -566,8 +567,46 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Image | `ui.image(fileId, alt)` |
 | Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` — field values become tool `args` |
 | TextInput / Select / ImagePicker | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })`, `ui.imagePicker({ name, label })` — inside a Form |
+| LocationInput | `ui.locationInput({ name, label, value? })` — inside a Form: the app's location picker (address search, the user's position, a pin); the tool gets `{ lat, lng, address }`, validate it with `geoLocation()` |
+| Map | `ui.map({ label, layers, center?, zoom? })` — see [Maps](#maps) |
 
 A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Renderer.tsx`.
+
+### Maps
+
+A plugin map is layers over the app's base map (OpenStreetMap): the plugin says what is where and what it means,
+the app draws it in its own colours. Each layer is a titled group of items of one kind (its title goes in the
+legend); every item has an `id` (unique in its layer), a `title`, optionally a `subtitle`, a `tone` (overrides the
+layer's) and an `onPress` action.
+
+```ts
+ui.map({
+  label: "Utrudnienia w okolicy",
+  layers: [
+    ui.map.pins("Awarie", issues.map((i) => ({ id: i.id, at: i.location, title: i.title,
+      onPress: ui.navigate("detail", { id: i.id }) })), "danger"),
+    ui.map.routes("Objazdy", [{ id: "d1", title: "Objazd ul. Długiej", path: [a, b, c], dashed: true }], "info"),
+    ui.map.areas("Brak wody", [{ id: "w1", title: "Do 18:00", center: p, radius: 400 }], "warning"),
+  ],
+})
+```
+
+| Layer | Item geometry |
+|---|---|
+| `ui.map.pins(title, items, tone?)` | `at: { lat, lng }` — places, reports, alerts |
+| `ui.map.routes(title, items, tone?)` | `path: [{ lat, lng }, …]` (2–2000 points), `dashed?` — a route, a detour, a closed street |
+| `ui.map.areas(title, items, tone?)` | `center` + `radius` (metres, ≤ 50 km) or `polygon` (3–500 points) — a zone, a park, a district |
+
+- **View:** the first view fits everything on the map. `center` (and `zoom`, 1–19) set it instead, e.g.
+  `center: ctx.community.location ?? undefined` for a map that may be empty.
+- **Tones** are the Badge tones (`neutral`, `info`, `success`, `warning`, `danger`); no tone is the brand red. There
+  are no colours or styles of your own: every plugin's map looks like the app.
+- **Taps:** tapping an item on the map shows its card under the map; pressing the card runs `onPress`. The app also
+  lists every item under the map ("Pokaż listę"): the map is a canvas, the list is what screen readers use.
+- **Limits:** 8 layers, 1000 items on a map. In a dashboard widget the map is a still preview (`onPress` may only
+  navigate there, like the rest of a widget).
+- **Storing a place:** `location: t.json<GeoLocation>().optional()` (a `t.json` column cannot be used in `where`:
+  filter places in code). `ctx.community.location` is the place's own pin (`null` when its admins have not set one).
 
 ## Dashboard widgets
 

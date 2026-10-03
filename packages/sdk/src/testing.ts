@@ -118,10 +118,16 @@ function mockAI() {
   };
 }
 
-export async function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: PluginCommunity } = {}) {
+export async function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: Partial<PluginCommunity> } = {}) {
   const { manifest, definition } = loadPlugin(mod);
   const tables: Tables = definition.tables ?? {};
-  const community = opts.community ?? { id: "c-test", slug: "test", name: "Test Community" };
+  const community: PluginCommunity = {
+    id: "c-test",
+    slug: "test",
+    name: "Test Community",
+    location: null,
+    ...opts.community,
+  };
   const clock = { now: new Date(Date.UTC(2026, 0, 1)) };
   const now = () => new Date(clock.now);
   const surreal = await platform();
@@ -272,5 +278,14 @@ export function textsOf(node: UINode): string[] {
     return typeof v === "string" ? [v] : [];
   });
   const children = "children" in node && node.children ? node.children.flatMap(textsOf) : [];
-  return [...own, ...children];
+  return [...own, ...children, ...mapTexts(node)];
 }
+
+/** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
+const mapTexts = (node: UINode): string[] =>
+  node.type === "Map"
+    ? node.layers.flatMap((layer) => [
+        layer.title,
+        ...layer.items.flatMap((item) => [item.title, ...(item.subtitle ? [item.subtitle] : [])]),
+      ])
+    : [];

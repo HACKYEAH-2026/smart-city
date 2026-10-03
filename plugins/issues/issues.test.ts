@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { UINode } from "@app/plugin-sdk";
 import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import issues from "./index";
 
@@ -43,6 +44,70 @@ describe("issues: reporting", () => {
       "category",
     ]);
     expect(t.invalidInput("report", { title: "Latarnia", photo: "nie-plik" })?.[0]?.path).toEqual(["photo"]);
+  });
+});
+
+describe("issues: on the map", () => {
+  const floriańska = { lat: 50.06274, lng: 19.93986, address: "Floriańska 15, 31-019 Kraków" };
+  type MapNode = Extract<UINode, { type: "Map" }>;
+  const mapsOf = (node: UINode): MapNode[] => [
+    ...(node.type === "Map" ? [node] : []),
+    ...("children" in node && node.children ? node.children.flatMap(mapsOf) : []),
+  ];
+
+  test("the report form has a location field; a located report shows its address and pin", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const form = JSON.stringify(await t.view("new"));
+    expect(form).toContain('"type":"LocationInput","name":"location"');
+
+    const res = await t.tool("report", { title: "Nie świeci latarnia", category: "lighting", location: floriańska });
+    const detail = await t.view("detail", res.navigate!.params);
+    expect(textsOf(detail)).toContain("Floriańska 15, 31-019 Kraków");
+    const [map] = mapsOf(detail);
+    expect(map?.label).toBe("Miejsce zgłoszenia");
+    expect(map?.layers[0]?.items).toEqual([
+      expect.objectContaining({ title: "Nie świeci latarnia", at: { lat: floriańska.lat, lng: floriańska.lng } }),
+    ]);
+  });
+
+  test("the list's map: open issues with a place, one layer per status; fixed and unplaced ones are not on it", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    expect(mapsOf(await t.view("list"))).toEqual([]);
+    const at = (lat: number) => ({ ...floriańska, lat });
+    await t.tool("report", { title: "Dziura w chodniku", category: "roads", location: at(50.061) });
+    const accepted = await t.tool("report", { title: "Złamana ławka", category: "other", location: at(50.062) });
+    const fixed = await t.tool("report", { title: "Graffiti", category: "cleanliness", location: at(50.063) });
+    await t.tool("report", { title: "Śmieci gdzieś w okolicy", category: "cleanliness" });
+    await t.as(admin).tool("setStatus", { id: accepted.navigate!.params!.id, status: "accepted" });
+    await t.as(admin).tool("setStatus", { id: fixed.navigate!.params!.id, status: "fixed" });
+
+    const [map] = mapsOf(await t.view("list"));
+    expect(map?.label).toBe("Mapa zgłoszeń");
+    expect(map?.layers.map((l) => [l.title, l.tone, l.items.map((i) => i.title)])).toEqual([
+      ["Nowe", "info", ["Dziura w chodniku"]],
+      ["Przyjęte", "warning", ["Złamana ławka"]],
+    ]);
+    expect(map?.layers[0]?.items[0]?.onPress).toEqual({
+      type: "navigate",
+      view: "detail",
+      params: { id: expect.any(String) },
+    });
+  });
+
+  test("a bad place is rejected; the address goes to the AI with the description", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    expect(t.invalidInput("report", { title: "Latarnia", location: { lat: 100, lng: 19 } })?.[0]?.path).toEqual([
+      "location",
+      "lat",
+    ]);
+    const asked: string[] = [];
+    t.ai.mockSimilar((query) => {
+      asked.push(query.text);
+      return [];
+    });
+    await t.tool("report", { title: "Pierwsza", category: "other" });
+    await t.tool("report", { title: "Nie świeci latarnia", location: floriańska });
+    expect(asked.at(-1)).toBe("Nie świeci latarnia. Floriańska 15, 31-019 Kraków");
   });
 });
 

@@ -55,6 +55,12 @@ export const colors = {
   // Live maps (OpenFreeMap base recoloured to the tokens above, src/lib/map/spec.ts)
   mapBuilding: "#E3DFD5", // buildings, a shade darker than mapBase
   mapMe: "#3D6AE0", // the user's own position (blue dot with a halo)
+  // What plugin maps mean by a tone (ui.map: pins, routes, areas). The app's UI shows only danger in colour, but on a
+  // map colour is how layers tell apart; danger is the brand red, and info stays clear of the blue "me" dot.
+  mapNeutral: "#5E5E66",
+  mapInfo: "#1F6FA8",
+  mapSuccess: "#2E7D32",
+  mapWarning: "#C26A00",
 
   // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
   googleBlue: "#4285F4",
@@ -167,6 +173,11 @@ export const sizes = {
   tabDot: 5,
   /** The still map with a place's pin in the "new place" wizard. */
   locationPreview: 140,
+  /** A map in a plugin's view; in a dashboard widget it is a still preview of `locationPreview`. */
+  pluginMap: 260,
+  /** The colour mark of a plugin map's layer or item in its legend and list (a route's mark is a wider line). */
+  mapSwatch: 12,
+  mapSwatchRoute: 18,
   /** The map of places: the panel under the map (list or a place's card) at most this tall. */
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
@@ -285,6 +296,15 @@ export const mapMarks = {
   labelHalo: 1.5,
   /** The label starts this far below the pin's centre, in ems. */
   labelOffset: 1.3,
+  /** Plugin routes: the line and the white casing under it. */
+  routeWidth: 4,
+  routeCasing: 7,
+  /** Dashes of a dashed route (in line widths). */
+  routeDash: [2, 1.5],
+  /** Plugin areas: the outline. */
+  areaStroke: 2,
+  /** Room around everything on a plugin map when its first view fits it. */
+  fitPadding: 40,
 } as const;
 
 export const borders = {
@@ -300,6 +320,8 @@ export const opacity = {
   onPrimarySubtitle: 0.9,
   /** Halo around the current-location pin on the login map illustration. */
   routeHalo: 0.18,
+  /** Plugin areas on a map: their fill. */
+  mapArea: 0.16,
   /** Hero banner decoration: white streets and the halo around the white pin. */
   heroRoad: 0.09,
   heroPinHalo: 0.25,
