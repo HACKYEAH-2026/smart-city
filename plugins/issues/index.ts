@@ -24,7 +24,11 @@ const STATUS = {
 } as const;
 
 const categoryLabel = (v: string) => CATEGORIES.find((c) => c.value === v)?.label ?? v;
-const supporters = (n: number) => (n === 1 ? "1 osoba zgłasza" : `${n} osób zgłasza`);
+/** "1 osoba zgłasza", "3 osoby zgłaszają", "5 osób zgłasza" (Polish plural: 2–4 except 12–14 take "osoby"). */
+const supporters = (n: number) => {
+  const few = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
+  return n === 1 ? "1 osoba zgłasza" : few ? `${n} osoby zgłaszają` : `${n} osób zgłasza`;
+};
 
 type Draft = { title: string; description: string; category: Category; photo?: FileId };
 
@@ -81,10 +85,17 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
       { on: ["issue", "author"] },
     );
 
+  /** How many residents report each of the issues (the first reporter included): issue id → count. */
+  const supportOf = async (ctx: Ctx, ids: string[]) => {
+    const reports = await ctx.db.reports.findMany({ where: { issue: { in: ids } }, limit: 1000 });
+    const counts = reports.reduce((m, r) => m.set(r.issue, (m.get(r.issue) ?? 0) + 1), new Map<string, number>());
+    return (id: string) => counts.get(id) ?? 0;
+  };
+
   return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "3.0.0",
+    version: "3.1.0",
     icon: "🛠️",
     description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
     permissions: ["db", "files", "ai"],
@@ -94,11 +105,10 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
     views: {
       list: async (ctx) => {
         const items = await ctx.db.issues.findMany({ orderBy: { createdAt: "desc" } });
-        const reports = await ctx.db.reports.findMany({
-          where: { issue: { in: items.map((i) => i.id) } },
-          limit: 1000,
-        });
-        const count = (id: string) => reports.filter((r) => r.issue === id).length;
+        const count = await supportOf(
+          ctx,
+          items.map((i) => i.id),
+        );
         return ui.screen("Zgłoszenia", [
           ui.text(`Usterki zgłoszone przez mieszkańców: ${ctx.community.name}.`, "soft"),
           ui.button("Nowe zgłoszenie", ui.navigate("new")),
@@ -197,15 +207,37 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
     },
 
     dashboardWidgets: {
+      /** The 3 open issues most residents report; tapping the tile opens the full list. */
       summary: {
-        size: { w: 2, h: 2 },
+        size: { w: 2, h: 3 },
         render: async (ctx) => {
-          const inProgress = await ctx.db.issues.count({ where: { status: { ne: "fixed" } } });
-          const fixed = await ctx.db.issues.count({ where: { status: "fixed" } });
-          return ui.widget("Zgłoszenia", [
-            ui.row([ui.stat("W toku", String(inProgress)), ui.stat("Naprawione", String(fixed))]),
-            ui.button("Zgłoś problem", ui.navigate("new")),
-          ]);
+          const open = await ctx.db.issues.findMany({ where: { status: { ne: "fixed" } }, limit: 1000 });
+          const support = await supportOf(
+            ctx,
+            open.map((i) => i.id),
+          );
+          // A stable sort: equal support keeps the default order, newest first.
+          const top = [...open].sort((a, b) => support(b.id) - support(a.id)).slice(0, 3);
+          return ui.widget(
+            "Zgłoszenia",
+            [
+              top.length
+                ? ui.list(
+                    "Najczęściej zgłaszane",
+                    top.map((i) =>
+                      ui.card({
+                        title: i.title,
+                        subtitle: supporters(support(i.id)),
+                        badge: STATUS[i.status],
+                        onPress: ui.navigate("detail", { id: i.id }),
+                      }),
+                    ),
+                  )
+                : ui.empty("Nie ma otwartych zgłoszeń."),
+              ui.button("Zgłoś problem", ui.navigate("new")),
+            ],
+            ui.navigate("list"),
+          );
         },
       },
     },

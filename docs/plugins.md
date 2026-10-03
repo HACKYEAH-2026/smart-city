@@ -554,7 +554,7 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Node | Builder |
 |---|---|
 | Screen | `ui.screen(title, children)` — always the root |
-| Widget | `ui.widget(title, children)` — the root of a [dashboard widget](#dashboard-widgets) |
+| Widget | `ui.widget(title, children, onPress?)` — the root of a [dashboard widget](#dashboard-widgets); `onPress` (a `navigate` action) is where tapping the tile leads |
 | Stack / Row | `ui.stack([...])`, `ui.row([...])` |
 | List | `ui.list(label, items)` |
 | Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, onPress?, children? })` |
@@ -573,10 +573,11 @@ A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Ren
 
 A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). Each widget declares a fixed `size` in grid
 cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3 rows — and a `render(ctx)` that
-returns `ui.widget(title, children)`, or `null` to show nothing (e.g. no data yet). Content beyond the size
-is clipped. Default order: plugin installation, then declaration. Community admins reorder the dashboard in the
-app (drag, or earlier/later buttons); the order is saved per community and widgets of newly installed plugins go
-last.
+returns `ui.widget(title, children, onPress?)`, or `null` to show nothing (e.g. no data yet). Content beyond the size
+is clipped. With `onPress` (a `navigate` action, usually the plugin's main list) the whole tile is tappable and
+shows a chevron; cards and buttons inside it keep their own actions. Default order: plugin installation, then
+declaration. Community admins long-press a tile to reorder the dashboard (drag, or earlier/later buttons); the order
+is saved per community and widgets of newly installed plugins go last.
 
 ```ts
 dashboardWidgets: {
@@ -585,10 +586,14 @@ dashboardWidgets: {
     render: async (ctx) => {
       const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
       const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
-      return ui.widget("Ogłoszenia", [
-        ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
-        ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
-      ]);
+      return ui.widget(
+        "Ogłoszenia",
+        [
+          ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
+          ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
+        ],
+        ui.navigate("list"), // tapping the tile
+      );
     },
   },
 },

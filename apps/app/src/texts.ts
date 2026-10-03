@@ -177,7 +177,10 @@ export const t = {
   community_features_label: "Funkcje",
   community_features_empty: "Ta społeczność nie ma jeszcze żadnych funkcji.",
   community_dashboard_label: "Pulpit miejsca",
+  /** Screen-reader action on a widget tile (sighted admins long-press the tile). */
   dashboard_edit: "Edytuj pulpit",
+  /** A widget tile's accessible name: "Otwórz: Zgłoszenia". */
+  dashboard_open: "Otwórz",
   dashboard_done: "Gotowe",
   dashboard_edit_hint: "Przeciągnij kafelek albo użyj strzałek. Kolejność zobaczą wszyscy mieszkańcy.",
   dashboard_drag: "Przeciągnij",

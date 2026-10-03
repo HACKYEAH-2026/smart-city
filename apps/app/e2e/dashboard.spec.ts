@@ -62,7 +62,7 @@ test("the dashboard shows the current place, the place's features and the bottom
   await joinKrakow(api.url, "member@example.test");
   await page.goto("/app");
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Zgłoszenia" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Zgłoszenia", exact: true })).toBeVisible();
   const bar = page.getByRole("navigation", { name: t.nav_main });
   await expect(bar.getByRole("link", { name: t.tab_dashboard })).toHaveAttribute("aria-current", "page");
   await expect(bar.getByRole("link", { name: t.tab_places })).toBeVisible();

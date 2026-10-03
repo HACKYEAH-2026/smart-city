@@ -26,7 +26,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await register(page, "issues@example.test", api.url);
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 
-  await page.getByRole("link", { name: "Zgłoszenia" }).click();
+  await page.getByRole("link", { name: "Zgłoszenia", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Zgłoszenia" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze zgłoszeń")).toBeVisible();
 
@@ -94,7 +94,7 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await expect(page.getByRole("status")).toContainText("Dołączyliśmy");
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
   // The list screen stays mounted under the detail screen in the stack, so the newest match is the one on top.
-  await expect(page.getByText("2 osób zgłasza").last()).toBeVisible();
+  await expect(page.getByText("2 osoby zgłaszają").last()).toBeVisible();
   await expect(
     page.getByRole("list", { name: "Zgłoszenia mieszkańców" }).getByText("Ciemno od tygodnia"),
   ).toBeVisible();
@@ -114,7 +114,7 @@ const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/no
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test", api.url);
   await page.goto("/app");
-  await expect(page.getByRole("link", { name: "Zgłoszenia" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Zgłoszenia", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
 
   const headers = { authorization: `Bearer ${TEST_ADMIN_TOKEN}`, "content-type": "application/json" };
@@ -166,6 +166,10 @@ test("home screen widget: announcements show what is new since the last visit", 
 const dashboardRegions = (page: Page) =>
   page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
 
+/** Holds a dashboard tile by its title (away from the buttons inside it): admins enter edit mode this way. */
+const holdTile = (page: Page, title: string) =>
+  dashboardRegions(page).getByRole("heading", { name: title, level: 2 }).click({ delay: 900 });
+
 const publishAnnouncement = async (page: Page, title: string) => {
   await page.goto("/app/c/krakow/announcements/list");
   await page.getByLabel("Tytuł").fill(title);
@@ -180,17 +184,20 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await expect(dashboardRegions(page)).toHaveCount(2);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
 
-  await page.getByRole("button", { name: t.dashboard_edit }).click();
+  await holdTile(page, "Ogłoszenia");
+  await expect(page).toHaveURL(/\/app$/);
   await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
   await page.getByRole("button", { name: t.dashboard_done }).click();
-  await expect(page.getByRole("button", { name: t.dashboard_edit })).toBeVisible();
+  await expect(page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` })).toHaveCount(0);
 
   await signOut(page);
   await register(page, "sasiad@example.test", api.url);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
   await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
-  await expect(page.getByRole("button", { name: t.dashboard_edit })).toHaveCount(0);
+  await holdTile(page, "Zgłoszenia");
+  await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: t.dashboard_done })).toHaveCount(0);
 });
 
 test("admin drags a widget to a new place on the dashboard", async ({ page }) => {
@@ -200,7 +207,7 @@ test("admin drags a widget to a new place on the dashboard", async ({ page }) =>
   await publishAnnouncement(page, "Przerwa w dostawie wody");
   await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
-  await page.getByRole("button", { name: t.dashboard_edit }).click();
+  await holdTile(page, "Zgłoszenia");
 
   const handle = page.getByLabel(`${t.dashboard_drag}: Ogłoszenia`);
   const target = await dashboardRegions(page).nth(0).boundingBox();
@@ -215,4 +222,41 @@ test("admin drags a widget to a new place on the dashboard", async ({ page }) =>
   await page.getByRole("button", { name: t.dashboard_done }).click();
   await page.reload();
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+});
+
+test("issues widget: the most reported open issues; tapping the tile opens the list", async ({ page, api }) => {
+  await register(page, "zglaszajaca@example.test", api.url);
+  const report = async (title: string) => {
+    await openNewIssueForm(page);
+    await page.getByLabel("Co się stało?").fill(title);
+    await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
+    await expect(page.getByRole("status")).toContainText("Dziękujemy");
+  };
+  await report("Dziura w chodniku");
+  await report("Przewrócony kosz przy szkole");
+
+  await signOut(page);
+  await register(page, "sasiadka@example.test", api.url);
+  await page.goto("/app/c/krakow/issues/list");
+  await page.getByRole("button", { name: "Przewrócony kosz przy szkole" }).click();
+  await page.getByRole("button", { name: "Ja też to widzę" }).click();
+  await expect(page.getByRole("status")).toContainText("Dzięki za potwierdzenie");
+
+  await page.goto("/app");
+  const top = page.getByRole("region", { name: "Zgłoszenia" }).getByRole("list", { name: "Najczęściej zgłaszane" });
+  await expect(top.getByRole("listitem")).toHaveText([
+    /Przewrócony kosz przy szkole.*2 osoby zgłaszają/,
+    /Dziura w chodniku.*1 osoba zgłasza/,
+  ]);
+  // A card inside the tile opens its issue, not the list.
+  await top.getByRole("button", { name: "Dziura w chodniku" }).click();
+  await expect(page.getByRole("heading", { name: "Dziura w chodniku", level: 1 })).toBeVisible();
+
+  await page.goto("/app");
+  await page
+    .getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia` })
+    .getByRole("heading", { level: 2 })
+    .click();
+  await expect(page).toHaveURL(/\/app\/c\/krakow\/issues\/list$/);
+  await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
 });

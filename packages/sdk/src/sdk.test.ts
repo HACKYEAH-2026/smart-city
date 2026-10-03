@@ -41,6 +41,12 @@ describe("UI catalog", () => {
       dashboardWidgetSchema.safeParse(ui.widget("x", [ui.stack([ui.button("Usuń", ui.tool("remove"))])])).success,
     ).toBe(false);
   });
+
+  test("dashboard widget: tapping it may only navigate to a view of the plugin", () => {
+    const ok = ui.widget("Zgłoszenia", [ui.text("2 w toku")], ui.navigate("list"));
+    expect(dashboardWidgetSchema.parse(ok)).toEqual(ok);
+    expect(dashboardWidgetSchema.safeParse({ ...ok, onPress: ui.tool("remove") }).success).toBe(false);
+  });
 });
 
 describe("plugin manifest", () => {

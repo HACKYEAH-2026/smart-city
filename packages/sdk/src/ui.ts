@@ -92,7 +92,8 @@ type Leaf = z.infer<(typeof leafSchemas)[number]>;
 export type UINode =
   | Leaf
   | { type: "Screen"; title: string; children: UINode[] }
-  | { type: "Widget"; title: string; children: UINode[] }
+  /** `onPress`: tapping the dashboard tile opens this view of the plugin (e.g. the full list). */
+  | { type: "Widget"; title: string; children: UINode[]; onPress?: NavigateAction }
   | { type: "Stack"; children: UINode[] }
   | { type: "Row"; children: UINode[] }
   | { type: "List"; label: string; children: UINode[] }
@@ -112,7 +113,12 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
   z.discriminatedUnion("type", [
     ...leafSchemas,
     z.object({ type: z.literal("Screen"), title: z.string(), children: z.array(uiNodeSchema) }),
-    z.object({ type: z.literal("Widget"), title: z.string(), children: z.array(uiNodeSchema) }),
+    z.object({
+      type: z.literal("Widget"),
+      title: z.string(),
+      children: z.array(uiNodeSchema),
+      onPress: navigateActionSchema.optional(),
+    }),
     z.object({ type: z.literal("Stack"), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("Row"), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("List"), label: z.string(), children: z.array(uiNodeSchema) }),
@@ -160,7 +166,12 @@ type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 /** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
   screen: (title: string, children: UINode[]): Of<"Screen"> => ({ type: "Screen", title, children }),
-  widget: (title: string, children: UINode[]): Of<"Widget"> => ({ type: "Widget", title, children }),
+  widget: (title: string, children: UINode[], onPress?: NavigateAction): Of<"Widget"> => ({
+    type: "Widget",
+    title,
+    children,
+    ...(onPress ? { onPress } : {}),
+  }),
   stack: (children: UINode[]): Of<"Stack"> => ({ type: "Stack", children }),
   row: (children: UINode[]): Of<"Row"> => ({ type: "Row", children }),
   list: (label: string, children: UINode[]): Of<"List"> => ({ type: "List", label, children }),

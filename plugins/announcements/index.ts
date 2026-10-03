@@ -38,7 +38,7 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
   return definePlugin({
     id: "announcements",
     name: "Ogłoszenia",
-    version: "1.0.0",
+    version: "1.1.0",
     icon: "📢",
     description: "Ogłoszenia administratorów dla mieszkańców, z podglądem nowości na pulpicie.",
     permissions: ["db"],
@@ -77,11 +77,15 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
           const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
           const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
           const total = fresh.length ? await ctx.db.announcements.count({ where: since }) : 0;
-          return ui.widget("Ogłoszenia", [
-            ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft"),
-            ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
-            ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
-          ]);
+          return ui.widget(
+            "Ogłoszenia",
+            [
+              ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft"),
+              ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
+              ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
+            ],
+            ui.navigate("list"),
+          );
         },
       },
     },

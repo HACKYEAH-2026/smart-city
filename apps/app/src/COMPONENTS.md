@@ -151,6 +151,7 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 - Nagłówek: powitanie `body` `textSecondary` + `IconButton round` (dzwonek); pod nim etykieta „Twoje miejsce" i nazwa miejsca `heading` (lub `headingM` dla długich nazw) z kółkiem 32 dp `primaryTint` z `ChevronDown` 16 (`primary`) — cały blok otwiera BottomSheet przełącznika.
 - Tło nagłówka: dekoracyjna mapa (SVG: ulice `mapRoadMinor` 7 px, woda `mapWater`) — opcjonalne, `aria-hidden`.
 - Siatka widżetów: 2 kolumny, gap 12; widżet pełnej szerokości = span 2. Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
+- Kafelek widżetu: dotknięcie otwiera widok pluginu wskazany przez widżet (`onPress`; przy tytule `ChevronRight` `iconMuted`), karty i przyciski w środku działają osobno. Administrator przytrzymuje kafelek (haptyka „long press"), żeby wejść w tryb edycji: przerywana ramka, uchwyt i strzałki, nad siatką podpowiedź i „Gotowe". Czytnik ekranu: akcja „Edytuj pulpit" na kafelku.
 - `EmptyStateCard`: Card radius 20, padding 20, `IconBox` 48 radius 14 + tytuł 16/600 + opis `caption` (lineHeight 20).
 - `CtaCard` (Zaproś mieszkańców): radius 20, padding 16, tło `primary`, `IconBox` w wariancie `onPrimary`, tytuł 16/600 biały, podtytuł `caption` biały z `opacity.onPrimarySubtitle`, `ChevronRight` po prawej.
 

@@ -15,3 +15,17 @@ export function tapFeedback(): void {
         : Promise.resolve();
   feedback.catch(() => {});
 }
+
+/**
+ * Firmer haptic when a long press takes effect (e.g. the dashboard enters edit mode). Android: the system
+ * "long press" haptic; iOS: a medium impact. Web: none. Best effort, like `tapFeedback`.
+ */
+export function longPressFeedback(): void {
+  const feedback =
+    Platform.OS === "android"
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Long_Press)
+      : Platform.OS === "ios"
+        ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        : Promise.resolve();
+  feedback.catch(() => {});
+}

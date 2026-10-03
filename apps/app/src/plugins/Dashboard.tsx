@@ -1,10 +1,18 @@
-import type { Action, DashboardWidgetSize, UINode } from "@app/plugin-sdk";
+import type { Action, DashboardWidgetSize, NavigateAction, UINode } from "@app/plugin-sdk";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react-native";
 import { useMemo, useRef, useState } from "react";
-import { type LayoutRectangle, PanResponder, StyleSheet, View } from "react-native";
+import {
+  type AccessibilityActionEvent,
+  type LayoutRectangle,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Button, Icon, IconButton, Text } from "../components";
 import { useDashboard, useSaveDashboardOrder } from "../data/communities";
+import { longPressFeedback } from "../lib/haptics";
 import { moveTo } from "../lib/order";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
@@ -12,9 +20,11 @@ import { pluginHref } from "./href";
 import { PluginRenderer } from "./Renderer";
 
 /**
- * Community dashboard: plugin widgets in a 2-column grid, each tile as big as its plugin declares.
- * Community admins reorder it in edit mode: drag a tile by its handle, or use the earlier/later buttons
- * (keyboard and screen readers). Every change is saved for the whole community.
+ * Community dashboard: plugin widgets in a 2-column grid, each tile as big as its plugin declares. Tapping a tile
+ * opens the plugin view its widget names (`onPress`, e.g. the full list); what is inside the tile (a card, a button)
+ * keeps its own action. Community admins long-press a tile to enter edit mode (screen readers: the "Edytuj pulpit"
+ * action), then drag a tile by its handle or use the earlier/later buttons. Every change is saved for the whole
+ * community.
  */
 type Widget = { key: string; pluginId: string; size: DashboardWidgetSize; node: UINode };
 
@@ -42,6 +52,15 @@ const tileAt = (rects: Map<string, LayoutRectangle>, key: string, x: number, y: 
 
 const titleOf = (node: UINode) => ("title" in node ? node.title : "");
 
+/** Where tapping the tile leads (the widget's `onPress`), if anywhere. */
+const pressOf = (node: UINode): NavigateAction | undefined => (node.type === "Widget" ? node.onPress : undefined);
+
+/** Screen-reader actions of a tile: open it (instead of a tap in its middle, which may hit a button) and edit. */
+const tileActions = (opens: boolean, canEdit: boolean) => [
+  ...(opens ? [{ name: "activate" }] : []),
+  ...(canEdit ? [{ name: "longpress", label: t.dashboard_edit }] : []),
+];
+
 /** Widgets are read-only (no forms), so they never upload files. */
 const noUpload = () => Promise.reject(new Error("Widgets cannot upload files"));
 
@@ -67,26 +86,23 @@ export function Dashboard({ slug }: { slug: string }) {
   const drag = useDrag(keys, setOrder, reorder);
 
   if (!widgets.length) return null;
+  const canEdit = dashboard.data?.canEdit ?? false;
   const open = (pluginId: string) => (action: Action) => {
     if (action.type === "navigate") router.push(pluginHref(slug, pluginId, action.view, action.params) as never);
+  };
+  const startEditing = () => {
+    longPressFeedback();
+    setEditing(true);
   };
 
   return (
     <View style={styles.section}>
-      {dashboard.data?.canEdit ? (
+      {editing ? (
         <View style={styles.toolbar}>
-          {editing ? (
-            <Text variant="caption" color="textSecondary" style={styles.hint}>
-              {t.dashboard_edit_hint}
-            </Text>
-          ) : null}
-          <Button
-            label={editing ? t.dashboard_done : t.dashboard_edit}
-            variant={editing ? "primary" : "secondary"}
-            size="xs"
-            fullWidth={false}
-            onPress={() => setEditing(!editing)}
-          />
+          <Text variant="caption" color="textSecondary" style={styles.hint}>
+            {t.dashboard_edit_hint}
+          </Text>
+          <Button label={t.dashboard_done} size="xs" fullWidth={false} onPress={() => setEditing(false)} />
         </View>
       ) : null}
       {save.isError ? (
@@ -106,6 +122,8 @@ export function Dashboard({ slug }: { slug: string }) {
               const w = byKey.get(key);
               if (!w) return null;
               const title = titleOf(w.node);
+              const press = pressOf(w.node);
+              const go = press ? () => open(w.pluginId)(press) : undefined;
               return (
                 <View
                   key={key}
@@ -113,9 +131,28 @@ export function Dashboard({ slug }: { slug: string }) {
                   style={[tileSize(w.size, width), editing && styles.editable, drag.active === key && styles.dragged]}
                   onLayout={(e) => drag.rects.current.set(key, e.nativeEvent.layout)}
                 >
-                  <View style={[styles.fill, editing && styles.dimmed]} pointerEvents={editing ? "none" : "auto"}>
-                    <PluginRenderer node={w.node} onAction={open(w.pluginId)} busy={false} upload={noUpload} />
-                  </View>
+                  <Pressable
+                    style={({ pressed }) => [styles.fill, editing ? styles.dimmed : pressed && styles.pressed]}
+                    pointerEvents={editing ? "none" : "auto"}
+                    onPress={go}
+                    onLongPress={canEdit ? startEditing : undefined}
+                    accessible={Boolean(go)}
+                    focusable={Boolean(go)}
+                    accessibilityRole={go ? "link" : undefined}
+                    accessibilityLabel={go ? `${t.dashboard_open}: ${title}` : undefined}
+                    accessibilityActions={tileActions(Boolean(go), canEdit)}
+                    onAccessibilityAction={(e: AccessibilityActionEvent) =>
+                      e.nativeEvent.actionName === "longpress" ? startEditing() : go?.()
+                    }
+                  >
+                    <PluginRenderer
+                      node={w.node}
+                      onAction={open(w.pluginId)}
+                      busy={false}
+                      upload={noUpload}
+                      onLongPress={canEdit ? startEditing : undefined}
+                    />
+                  </Pressable>
                   {editing ? (
                     <View style={styles.controls}>
                       <DragHandle label={`${t.dashboard_drag}: ${title}`} onDrag={drag.handlers(key)} />
@@ -224,6 +261,7 @@ const styles = StyleSheet.create({
   hint: { flex: 1 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
   fill: { flex: 1 },
+  pressed: { opacity: opacity.pressed },
   dragged: { opacity: opacity.pressed, ...shadows.selected },
   /** Edit mode: dashed frame like the empty slots of the dashboard design. */
   editable: {

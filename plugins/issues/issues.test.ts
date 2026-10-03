@@ -80,7 +80,13 @@ describe("issues: similar reports", () => {
 
     const detail = await t.as(bob).view("detail", { id });
     expect(textsOf(detail)).toEqual(
-      expect.arrayContaining(["2 osób zgłasza", "Zgłoszenia mieszkańców (2)", "Bob", "Od tygodnia", "Zdjęcie od: Bob"]),
+      expect.arrayContaining([
+        "2 osoby zgłaszają",
+        "Zgłoszenia mieszkańców (2)",
+        "Bob",
+        "Od tygodnia",
+        "Zdjęcie od: Bob",
+      ]),
     );
   });
 
@@ -99,7 +105,7 @@ describe("issues: similar reports", () => {
     const id = navigate!.params!.id!;
     await t.as(bob).tool("support", { id });
     await t.as(bob).tool("support", { id });
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osób zgłasza");
+    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osoby zgłaszają");
   });
 });
 
@@ -147,26 +153,43 @@ describe("issues: role", () => {
 });
 
 describe("issues: dashboard", () => {
-  test("summary widget counts issues in progress and fixed", async () => {
+  const carol = { id: "carol", name: "Carol", role: "user" } as const;
+  const dave = { id: "dave", name: "Dave", role: "user" } as const;
+
+  test("summary widget: the 3 open issues most residents report, tapping it opens the list", async () => {
     const t = await testPlugin(issues, { user: alice });
-    expect(textsOf((await t.dashboardWidget("summary"))!)).toEqual([
+    const empty = (await t.dashboardWidget("summary"))!;
+    expect(textsOf(empty)).toEqual(["Zgłoszenia", "Nie ma otwartych zgłoszeń.", "Zgłoś problem"]);
+    expect(empty).toMatchObject({ onPress: { type: "navigate", view: "list" } });
+
+    const report = async (title: string) => (await t.tool("report", { title })).navigate!.params!.id!;
+    const support = (id: string, ...users: { id: string; name: string; role: "user" }[]) =>
+      Promise.all(users.map((user) => t.as(user).tool("support", { id })));
+    const bench = await report("Złamana ławka");
+    const hole = await report("Dziura w chodniku");
+    const lamp = await report("Nie świeci lampa");
+    const bin = await report("Przewrócony kosz");
+    await report("Graffiti na przystanku");
+    await support(hole, bob, carol, dave);
+    await support(lamp, bob);
+    await support(bin, bob, carol);
+    await support(bench, bob, carol, dave);
+    await t.as(admin).tool("setStatus", { id: bench, status: "fixed" });
+
+    const widget = (await t.dashboardWidget("summary"))!;
+    expect(textsOf(widget)).toEqual([
       "Zgłoszenia",
-      "W toku",
-      "0",
-      "Naprawione",
-      "0",
+      "Najczęściej zgłaszane",
+      "Dziura w chodniku",
+      "4 osoby zgłaszają",
+      "Przewrócony kosz",
+      "3 osoby zgłaszają",
+      "Nie świeci lampa",
+      "2 osoby zgłaszają",
       "Zgłoś problem",
     ]);
-    await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
-    const res = await t.tool("report", { title: "Przewrócony kosz", category: "cleanliness" });
-    await t.as(admin).tool("setStatus", { id: res.navigate!.params!.id!, status: "fixed" });
-    expect(textsOf((await t.dashboardWidget("summary"))!)).toEqual([
-      "Zgłoszenia",
-      "W toku",
-      "1",
-      "Naprawione",
-      "1",
-      "Zgłoś problem",
-    ]);
+    expect(JSON.stringify(widget)).toContain(
+      JSON.stringify({ type: "navigate", view: "detail", params: { id: hole } }),
+    );
   });
 });

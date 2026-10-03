@@ -1,5 +1,6 @@
 import type { Action, Tone, ToolAction, UINode } from "@app/plugin-sdk";
 import { launchImageLibraryAsync } from "expo-image-picker";
+import { ChevronRight } from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import {
@@ -9,6 +10,7 @@ import {
   type ButtonVariant,
   Card,
   Heading,
+  Icon,
   RadioCard,
   Text,
   TextField,
@@ -24,12 +26,16 @@ import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 /** Uploads a photo from an ImagePicker field → FileId (provided by the screen, which knows the community and plugin). */
 export type UploadImage = (asset: import("expo-image-picker").ImagePickerAsset) => Promise<string>;
 
-type Actions = { onAction: (action: Action) => void; busy: boolean; upload: UploadImage };
+/** `onLongPress`: holding anything pressable inside (the dashboard: admins enter edit mode from anywhere on a tile). */
+type Actions = { onAction: (action: Action) => void; busy: boolean; upload: UploadImage; onLongPress?: () => void };
 const ActionsContext = createContext<Actions>({
   onAction: () => {},
   busy: false,
   upload: () => Promise.reject(new Error("upload unavailable")),
 });
+
+/** Inside a dashboard Widget: cards render as compact rows, so a few of them fit in a tile. */
+const InWidgetContext = createContext(false);
 
 /** Form values; `undefined` removes the field (e.g. a removed photo does not end up in args). */
 type Form = { values: Record<string, string>; set: (name: string, value: string | undefined) => void };
@@ -50,9 +56,12 @@ export function PluginRenderer(props: {
   onAction: (action: Action) => void;
   busy: boolean;
   upload: UploadImage;
+  onLongPress?: () => void;
 }) {
   return (
-    <ActionsContext.Provider value={{ onAction: props.onAction, busy: props.busy, upload: props.upload }}>
+    <ActionsContext.Provider
+      value={{ onAction: props.onAction, busy: props.busy, upload: props.upload, onLongPress: props.onLongPress }}
+    >
       <PluginNode node={props.node} />
     </ActionsContext.Provider>
   );
@@ -65,7 +74,8 @@ const Children = ({ nodes }: { nodes?: UINode[] }) =>
   ));
 
 function PluginNode({ node }: { node: UINode }): ReactNode {
-  const { onAction, busy } = useContext(ActionsContext);
+  const { onAction, busy, onLongPress } = useContext(ActionsContext);
+  const inWidget = useContext(InWidgetContext);
   switch (node.type) {
     case "Screen":
       return (
@@ -74,12 +84,20 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
           <Children nodes={node.children} />
         </View>
       );
+    // With `onPress` the dashboard makes the whole tile pressable (plugins/Dashboard.tsx); the chevron shows it.
     case "Widget":
       return (
         <Card style={styles.widget}>
           <View role="region" aria-label={node.title} style={styles.widgetBody}>
-            <Heading level={2}>{node.title}</Heading>
-            <Children nodes={node.children} />
+            <View style={styles.widgetHead}>
+              <Heading level={2} style={styles.cardTitle}>
+                {node.title}
+              </Heading>
+              {node.onPress ? <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" /> : null}
+            </View>
+            <InWidgetContext.Provider value={true}>
+              <Children nodes={node.children} />
+            </InWidgetContext.Provider>
           </View>
         </Card>
       );
@@ -97,16 +115,17 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       );
     case "List":
       return (
-        <View role="list" aria-label={node.label} style={styles.list}>
+        <View role="list" aria-label={node.label} style={inWidget ? undefined : styles.list}>
           {node.children.map((n, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: as above.
-            <View key={i} role="listitem">
+            <View key={i} role="listitem" style={inWidget && i > 0 ? styles.divider : undefined}>
               <PluginNode node={n} />
             </View>
           ))}
         </View>
       );
     case "Card": {
+      if (inWidget) return <WidgetRow node={node} />;
       const body = (
         <>
           <View style={styles.cardHead}>
@@ -129,6 +148,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
           accessibilityRole="button"
           accessibilityLabel={node.title}
           onPress={() => onAction(onPress)}
+          onLongPress={onLongPress}
           style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
         >
           <Card>{body}</Card>
@@ -156,6 +176,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
           variant={BUTTON_VARIANT[node.variant ?? "primary"]}
           disabled={busy && node.action.type === "tool"}
           onPress={() => onAction(node.action)}
+          onLongPress={onLongPress}
         />
       );
     case "Progress": {
@@ -210,6 +231,41 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
         </Text>
       );
   }
+}
+
+/** A card inside a widget: one row (title on one line, subtitle, badge on the right) between hairline dividers. */
+function WidgetRow({ node }: { node: Extract<UINode, { type: "Card" }> }) {
+  const { onAction, onLongPress } = useContext(ActionsContext);
+  const body = (
+    <View style={styles.widgetRow}>
+      <View style={styles.widgetRowText}>
+        <Text variant="cardTitle" numberOfLines={1}>
+          {node.title}
+        </Text>
+        {node.subtitle ? (
+          <Text variant="caption" color="textSecondary" numberOfLines={1}>
+            {node.subtitle}
+          </Text>
+        ) : null}
+        <Children nodes={node.children} />
+      </View>
+      {node.badge ? <Badge text={node.badge.text} tone={toBadgeTone(node.badge.tone)} /> : null}
+    </View>
+  );
+  const onPress = node.onPress;
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={node.title}
+      onPress={() => onAction(onPress)}
+      onLongPress={onLongPress}
+      style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
+    >
+      {body}
+    </Pressable>
+  ) : (
+    body
+  );
 }
 
 /** Initial form field values (from `value` on nodes), including nested ones. */
@@ -363,8 +419,12 @@ const styles = StyleSheet.create({
   /** Fills the dashboard tile (fixed size from the plugin); content beyond it is clipped. */
   widget: { flex: 1, overflow: "hidden" },
   widgetBody: { gap: spacing[6] },
+  widgetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[4] },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[4] },
   list: { gap: spacing[6] },
+  divider: { borderTopWidth: borders.hairline, borderTopColor: colors.borderSubtle },
+  widgetRow: { flexDirection: "row", alignItems: "center", gap: spacing[6], paddingVertical: spacing[5] },
+  widgetRowText: { flex: 1, gap: spacing[1] },
   cardHead: {
     flexDirection: "row",
     flexWrap: "wrap",

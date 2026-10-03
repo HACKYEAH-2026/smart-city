@@ -339,9 +339,11 @@ describe("dashboard", () => {
 
     const before = await dashboard(u.headers);
     expect(before.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
-      { key: "issues/summary", size: { w: 2, h: 2 } },
+      { key: "issues/summary", size: { w: 2, h: 3 } },
       { key: "announcements/latest", size: { w: 2, h: 3 } },
     ]);
+    // Tapping a tile opens the plugin view its widget names.
+    expect(nodeOf(before, "issues/summary")).toMatchObject({ onPress: { type: "navigate", view: "list" } });
     expect(textsOf(nodeOf(before, "announcements/latest"))).toContain("1 nowe ogłoszenie od Twojej ostatniej wizyty");
 
     expect((await view(u.headers, "announcements/views/list")).res.status).toBe(200);
