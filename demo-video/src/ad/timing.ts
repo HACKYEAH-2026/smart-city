@@ -13,16 +13,14 @@ const PAUSE_AFTER: Record<string, number> = { ",": 0.2, ":": 0.3, ".": 0.45 };
 
 /** Frames of picture before the first word and after the last one, per scene. */
 const ROOM: Record<BeatId, { lead: number; tail: number }> = {
-  hook: { lead: 40, tail: 24 },
-  problem: { lead: 12, tail: 30 },
-  reveal: { lead: 24, tail: 30 },
-  join: { lead: 16, tail: 24 },
-  report: { lead: 16, tail: 30 },
-  duplicate: { lead: 16, tail: 30 },
-  city: { lead: 16, tail: 30 },
-  announce: { lead: 16, tail: 30 },
-  plugins: { lead: 16, tail: 30 },
-  outro: { lead: 16, tail: 90 },
+  open: { lead: 18, tail: 10 },
+  problem: { lead: 6, tail: 16 },
+  reveal: { lead: 14, tail: 14 },
+  join: { lead: 10, tail: 12 },
+  report: { lead: 10, tail: 18 },
+  city: { lead: 8, tail: 22 },
+  builder: { lead: 12, tail: 40 },
+  outro: { lead: 10, tail: 75 },
 };
 
 /** A spoken word; frames are relative to the start of its scene. */

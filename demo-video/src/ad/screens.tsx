@@ -1,16 +1,19 @@
 import { PluginRenderer } from "@app/app/src/plugins/Renderer";
 import { t } from "@app/app/src/texts";
 import { type UINode, ui } from "@app/plugin-sdk";
-import { ChevronDown, Flashlight, Settings, X } from "lucide-react-native";
+import { ChevronDown, ChevronLeft, Flashlight, Puzzle, Settings, Sparkles, X } from "lucide-react-native";
 import { Image, StyleSheet, View } from "react-native";
 import { continueRender, delayRender } from "remotion";
 import {
+  ActionRow,
+  Badge,
   Button,
   Card,
   Checkbox,
   CheckCard,
   colors,
   DashboardMap,
+  DisclosureCard,
   Heading,
   Icon,
   IconButton,
@@ -23,6 +26,7 @@ import {
   Text,
   TextField,
 } from "../app-ui";
+import { Spinner } from "./kit";
 import { AppScreen } from "./Phone";
 
 /**
@@ -74,6 +78,21 @@ export const ISSUE = {
   category: "Oświetlenie",
 };
 const photo = (alt: string): UINode => ({ ...ui.image("lamp", alt), url: LAMP_PHOTO });
+
+/** A dashboard tile of a 2×3 widget (plugins/Dashboard.tsx: rows of sizes.widgetRow, gaps between them). */
+const TILE = 3 * sizes.widgetRow + 2 * spacing[6];
+
+/** The reported issue as a card of the issues plugin, with how many residents report it. */
+export const IssueCard = ({ support }: { support: number }) => (
+  <Plugin
+    node={ui.card({
+      title: ISSUE.title,
+      subtitle: `${ISSUE.category} · ${supporters(support)}`,
+      badge: STATUS.open,
+      children: [photo(`Zdjęcie: ${ISSUE.title}`)],
+    })}
+  />
+);
 
 /** Widget of the issues plugin: the most reported open issues and „Zgłoś problem”. */
 export const issuesWidget = (support: number, status: Status = "open") =>
@@ -146,15 +165,22 @@ export const DashboardScreen = ({
   widgets,
   admin = false,
   scroll = 0,
+  place = "Kraków",
+  name = "Anna",
+  arrive = 1,
 }: {
   widgets: UINode[];
   admin?: boolean;
   scroll?: number;
+  place?: string;
+  name?: string;
+  /** 0 → 1: the first widget arrives (grows into the grid, pushing the others down). */
+  arrive?: number;
 }) => (
   <AppScreen tabBar backdrop={<DashboardMap />} scroll={scroll}>
     <View style={styles.top}>
       <Text variant="body" color="textSecondary">
-        {`${t.dashboard_greeting}, ${admin ? "Urząd Miasta" : "Anna"}`}
+        {`${t.dashboard_greeting}, ${admin ? "Urząd Miasta" : name}`}
       </Text>
       {admin ? <IconButton icon={Settings} label={t.manage_title} variant="round" onPress={nothing} /> : null}
     </View>
@@ -164,7 +190,7 @@ export const DashboardScreen = ({
       </Text>
       <View style={styles.nameRow}>
         <Heading level={1} variant="heading">
-          Kraków
+          {place}
         </Heading>
         <View style={styles.chevron}>
           <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
@@ -181,8 +207,16 @@ export const DashboardScreen = ({
         </Text>
       </View>
       {widgets.map((node, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list of tiles.
-        <View key={i} style={styles.tile}>
+        <View
+          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list of tiles.
+          key={i}
+          style={[
+            styles.tile,
+            i === 0 && arrive < 1
+              ? { height: TILE * arrive, opacity: arrive, transform: [{ scale: 0.9 + arrive * 0.1 }] }
+              : null,
+          ]}
+        >
           <Plugin node={node} />
         </View>
       ))}
@@ -321,26 +355,191 @@ export const FeaturesScreen = ({ on }: { on: number }) => (
       </Text>
     </View>
     <View style={styles.stackMid}>
-      {[
-        {
-          emoji: "🛠️",
-          label: "Zgłoszenia",
-          description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
-        },
-        {
-          emoji: "📢",
-          label: "Ogłoszenia",
-          description: "Ogłoszenia administratorów dla mieszkańców, z podglądem nowości na pulpicie.",
-        },
-        { emoji: "💬", label: "Dyskusje", description: "Forum społeczności: dyskusje, odpowiedzi i moderacja." },
-      ].map((p, i) => (
+      {PLUGINS.map((p, i) => (
         <CheckCard key={p.label} {...p} checked={i < on} onChange={nothing} />
       ))}
     </View>
   </AppScreen>
 );
 
+/** Widget of a plugin the AI wrote in the ad: residents vote on ideas for the city's budget. */
+export const budgetWidget = () =>
+  ui.widget(
+    "Budżet obywatelski",
+    [
+      ui.text("Zagłosuj na pomysły dla Twojej okolicy.", "soft"),
+      ui.progress({ label: "Nowe latarnie przy przystankach", value: 62, max: 100 }),
+      ui.progress({ label: "Zieleń na skwerze przy szkole", value: 38, max: 100 }),
+      ui.button("Zagłosuj", ui.navigate("vote")),
+    ],
+    ui.navigate("list"),
+  );
+
+const PLUGINS = [
+  {
+    emoji: "🛠️",
+    label: "Zgłoszenia",
+    description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
+  },
+  {
+    emoji: "📢",
+    label: "Ogłoszenia",
+    description: "Ogłoszenia administratorów dla mieszkańców, z podglądem nowości na pulpicie.",
+  },
+  { emoji: "💬", label: "Dyskusje", description: "Forum społeczności: dyskusje, odpowiedzi i moderacja." },
+];
+
+/** Back button with the place's name over a title (the header of the admin's screens). */
+const AdminHeader = ({ title }: { title: string }) => (
+  <View style={styles.adminHeader}>
+    <IconButton icon={ChevronLeft} label={t.back} onPress={nothing} />
+    <View style={styles.adminHeaderText}>
+      <Text variant="label" color="textSecondary">
+        Kraków
+      </Text>
+      <Heading level={1} variant="headingS">
+        {title}
+      </Heading>
+    </View>
+  </View>
+);
+
+/** Zarządzaj miejscem with „Pluginy” open: the place's plugins and „Stwórz plugin z AI”. */
+export const ManageScreen = () => (
+  <AppScreen>
+    <AdminHeader title={t.manage_title} />
+    <DisclosureCard icon={Puzzle} title={t.manage_plugins_title} summary="3 pluginy" open onToggle={nothing}>
+      <Text variant="bodyL" color="textSecondary">
+        {t.manage_plugins_lead}
+      </Text>
+      <View style={styles.stackMid}>
+        {PLUGINS.map((p) => (
+          <CheckCard key={p.label} {...p} checked onChange={nothing} />
+        ))}
+      </View>
+      <ActionRow
+        icon={Sparkles}
+        title={t.build_entry_title}
+        subtitle={t.build_entry_subtitle}
+        href="/app/c/krakow/build"
+      />
+    </DisclosureCard>
+  </AppScreen>
+);
+
+/** What the AI built, as the builder's outline card shows it. */
+export const BUILT = {
+  icon: "🗳️",
+  name: "Budżet obywatelski",
+  holds: "2 widoki · 2 akcje · 2 tabele · 1 widżet",
+  description: "Mieszkańcy głosują na pomysły dla okolicy, a wyniki widać na pulpicie miejsca.",
+};
+
+export type BuildStage = "typing" | "working" | "ready" | "published";
+
+/**
+ * Plugin z AI (screens/BuildPlugin.tsx): the admin's request, the AI writing and checking (`attempt`), the plugin it
+ * built, publishing.
+ */
+export const BuildScreen = ({
+  request,
+  stage,
+  attempt = 0,
+}: {
+  request: string;
+  stage: BuildStage;
+  attempt?: number;
+}) => (
+  <AppScreen>
+    <AdminHeader title={t.build_title} />
+    {stage === "typing" ? (
+      <>
+        <Text variant="bodyL" color="textSecondary">
+          {t.build_lead}
+        </Text>
+        <TextField
+          label={t.build_request_label}
+          value={request}
+          placeholder={t.build_request_placeholder}
+          multiline
+          onChangeText={nothing}
+        />
+        <Button
+          label={t.build_create}
+          leftIcon={<Icon icon={Sparkles} size={sizes.iconS} color="onPrimary" strokeWidth={2} />}
+          disabled={request.length < 10}
+          onPress={nothing}
+        />
+      </>
+    ) : (
+      <>
+        <View style={styles.request}>
+          <Text variant="label" color="textSecondary">
+            {`${t.build_you} · ${t.build_version} 1`}
+          </Text>
+          <Text variant="body">{request}</Text>
+        </View>
+        {stage === "working" ? (
+          <Card style={styles.buildCard}>
+            <View style={styles.buildRow}>
+              <Spinner />
+              <Text variant="cardTitle">{attempt > 0 ? `${t.build_working_attempt} ${attempt}` : t.build_working}</Text>
+            </View>
+            <Text variant="caption" color="textSecondary">
+              {t.build_working_hint}
+            </Text>
+          </Card>
+        ) : (
+          <Card style={styles.buildCard}>
+            <View style={styles.buildRow}>
+              <Text variant="heading">{BUILT.icon}</Text>
+              <View style={styles.grow}>
+                <Heading level={3} variant="headingS">
+                  {BUILT.name}
+                </Heading>
+                <Text variant="small" color="textSecondary">
+                  {BUILT.holds}
+                </Text>
+              </View>
+              <Badge text={t.build_made_by_ai} tone="accent" />
+            </View>
+            <Text variant="body">{BUILT.description}</Text>
+          </Card>
+        )}
+        {stage === "ready" ? (
+          <>
+            <Text variant="bodyL" color="textSecondary">
+              {t.build_draft_note}
+            </Text>
+            <Button label={t.build_publish} onPress={nothing} />
+          </>
+        ) : null}
+        {stage === "published" ? (
+          <View style={styles.buildRow}>
+            <Text variant="bodyL" style={styles.grow}>{`${t.build_published} 1`}</Text>
+            <Text variant="link" color="primary">
+              {t.build_open}
+            </Text>
+          </View>
+        ) : null}
+      </>
+    )}
+  </AppScreen>
+);
+
 const styles = StyleSheet.create({
+  adminHeader: { flexDirection: "row", alignItems: "center", gap: spacing[7] },
+  adminHeaderText: { flex: 1, gap: spacing[1] },
+  request: {
+    alignSelf: "flex-end",
+    maxWidth: "90%",
+    gap: spacing[2],
+    padding: spacing[7],
+    borderRadius: radii.xl,
+    backgroundColor: colors.surfaceSunken,
+  },
+  buildCard: { gap: spacing[5] },
+  buildRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[6] },
   place: { gap: spacing[2] },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
@@ -354,7 +553,7 @@ const styles = StyleSheet.create({
   },
   section: { gap: spacing[6] },
   sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tile: { height: 3 * sizes.widgetRow + 2 * spacing[6] },
+  tile: { height: TILE },
   scanner: { flex: 1, backgroundColor: colors.scannerBg, paddingTop: 62, paddingBottom: 60, paddingHorizontal: 24 },
   scanTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   scanMiddle: { flex: 1, alignItems: "center", justifyContent: "center" },

@@ -1,47 +1,43 @@
 import { Check, GraduationCap, Home, Landmark, Sparkles } from "lucide-react-native";
 import type { CSSProperties, ReactNode } from "react";
 import { View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { BrandMark, colors, Icon } from "../app-ui";
-import { Eyebrow, FONT, Headline, ramp, rise, Tap, typed, useCue, useScene, useSpring } from "./kit";
+import { MONO } from "../theme";
+import { Eyebrow, FONT, Headline, keys, ramp, rise, shake, Tap, typed, useCue, useScene, useSpring, Wipe } from "./kit";
 import { Phone, SCREEN } from "./Phone";
 import {
   announcementsWidget,
+  BuildScreen,
+  type BuildStage,
+  budgetWidget,
   DashboardScreen,
   detailView,
-  FeaturesScreen,
+  IssueCard,
   IssueFormScreen,
   issuesWidget,
+  ManageScreen,
   mergeView,
   PluginScreen,
-  PreviewScreen,
   ScannerScreen,
+  type Status,
 } from "./screens";
 
-/** Where the phone stands in the split scenes (its centre) and where the text column starts. */
-const PHONE_X = 1400;
-const TEXT_X = 150;
-const NIGHT = "#15161B";
-const ANNOUNCEMENT = "Remont chodnika przy szkole od poniedziałku";
+const NIGHT = "#141519";
+const OUTER = { width: SCREEN.width + 26, height: SCREEN.height + 26 };
+const REQUEST = "Głosowanie mieszkańców nad pomysłami z budżetu obywatelskiego, z wynikami na pulpicie.";
 
-/** Fades the scene's text out over its last frames, so the next scene's text can rise. */
-const useExit = () => {
-  const frame = useCurrentFrame();
-  const { duration } = useScene();
-  return 1 - ramp(frame, duration - 10, duration);
-};
+/* ── Stage pieces ─────────────────────────────────────────────────────────────────────────────────────── */
 
-/** The city map behind the light scenes: streets, a river and parks in the app's map colours, drifting slowly. */
-const CityMap = ({ opacity = 1 }: { opacity?: number }) => {
+/** The city map behind the light scenes: streets, a river and parks in the app's map colours, drifting. */
+const CityMap = ({ drift = 0.6 }: { drift?: number }) => {
   const frame = useCurrentFrame();
-  const shift = frame * 0.25;
   return (
     <svg
-      width="2200"
-      height="1300"
+      width="2400"
+      height="1400"
       viewBox="0 0 2200 1300"
-      style={{ position: "absolute", left: -140 - shift, top: -110, opacity }}
+      style={{ position: "absolute", left: -180 - frame * drift, top: -140, opacity: 0.8 }}
       aria-hidden
     >
       <path
@@ -70,51 +66,35 @@ const CityMap = ({ opacity = 1 }: { opacity?: number }) => {
   );
 };
 
-const Light = ({ children }: { children: ReactNode }) => (
+const Light = ({ children, drift }: { children: ReactNode; drift?: number }) => (
   <AbsoluteFill style={{ background: colors.background, overflow: "hidden" }}>
-    <CityMap opacity={0.75} />
+    <CityMap drift={drift} />
     {children}
   </AbsoluteFill>
 );
 
-/** Text column on the left of a split scene. */
-const Column = ({ children, style }: { children: ReactNode; style?: CSSProperties }) => (
-  <div
-    style={{
-      position: "absolute",
-      left: TEXT_X,
-      top: 0,
-      bottom: 0,
-      width: 900,
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "center",
-      gap: 36,
-      ...style,
-    }}
-  >
-    {children}
-  </div>
-);
+type Pose = { x: number; y: number; scale?: number; rotY?: number; rotZ?: number; opacity?: number };
 
-/** The phone in its split-scene place; `enter` 0 → 1 slides it up into view. */
-const PhoneAt = ({ children, dark, enter = 1 }: { children: ReactNode; dark?: boolean; enter?: number }) => (
-  <div
-    style={{
-      position: "absolute",
-      left: PHONE_X - (SCREEN.width + 26) / 2,
-      top: 540 - (SCREEN.height + 26) / 2,
-      transform: `translateY(${(1 - enter) * 1100}px)`,
-    }}
-  >
-    <Phone dark={dark} scale={0.98}>
-      {children}
-    </Phone>
-  </div>
-);
+/** A phone placed by its centre on the 1920×1080 frame, turned in 3D. */
+const PhoneAt = ({ pose, dark, children }: { pose: Pose; dark?: boolean; children: ReactNode }) => {
+  const { x, y, scale = 1, rotY = 0, rotZ = 0, opacity = 1 } = pose;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x - OUTER.width / 2,
+        top: y - OUTER.height / 2,
+        opacity,
+        transform: `perspective(2400px) rotateY(${rotY}deg) rotateZ(${rotZ}deg) scale(${scale})`,
+      }}
+    >
+      <Phone dark={dark}>{children}</Phone>
+    </div>
+  );
+};
 
-/** Phone screens pushed one after another (as the app's navigation does): each from the right at its frame. */
-const Pushed = ({ screens }: { screens: { at: number; node: ReactNode; dark?: boolean }[] }) => {
+/** Phone screens pushed one after another, as the app navigates: each from the right at its frame. */
+const Pushed = ({ screens }: { screens: { at: number; node: ReactNode }[] }) => {
   const frame = useCurrentFrame();
   const index = Math.max(
     0,
@@ -122,7 +102,7 @@ const Pushed = ({ screens }: { screens: { at: number; node: ReactNode; dark?: bo
   );
   const current = screens[index];
   const previous = screens[index - 1];
-  const p = current && index > 0 ? ramp(frame, current.at, current.at + 14) : 1;
+  const p = current && index > 0 ? ramp(frame, current.at, current.at + 12) : 1;
   const layer = (x: number, dim: number): CSSProperties => ({
     position: "absolute",
     inset: 0,
@@ -134,16 +114,69 @@ const Pushed = ({ screens }: { screens: { at: number; node: ReactNode; dark?: bo
   return (
     <>
       {previous && p < 1 ? <div style={layer(-p * SCREEN.width * 0.3, p)}>{previous.node}</div> : null}
-      <div
-        style={{ ...layer((1 - p) * SCREEN.width, 0), boxShadow: p < 1 ? "-20px 0 40px rgba(0,0,0,0.12)" : undefined }}
-      >
-        {current?.node}
-      </div>
+      <div style={layer((1 - p) * SCREEN.width, 0)}>{current?.node}</div>
     </>
   );
 };
 
-/* 1 · hook — a street lamp at night goes out as the narrator names it. */
+/** A white flash over the phone screen (the camera's shutter, a scanned code). */
+const Flash = ({ at }: { at: number }) => {
+  const frame = useCurrentFrame();
+  const o = frame < at ? 0 : 1 - ramp(frame, at, at + 10);
+  return o > 0 ? (
+    <div style={{ position: "absolute", inset: 0, background: "#FFFFFF", opacity: o, zIndex: 45 }} />
+  ) : null;
+};
+
+const Center = ({ children, style }: { children: ReactNode; style?: CSSProperties }) => (
+  <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", ...style }}>{children}</AbsoluteFill>
+);
+
+/** A pill that pops in at `at` and, with `hold`, leaves that many frames later. */
+const Pop = ({
+  at,
+  hold,
+  children,
+  style,
+}: {
+  at: number;
+  hold?: number;
+  children: ReactNode;
+  style?: CSSProperties;
+}) => {
+  const frame = useCurrentFrame();
+  const p = useSpring(at, 11, 0.6);
+  const out = hold === undefined ? 0 : ramp(frame, at + hold, at + hold + 8);
+  if (frame < at) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "16px 30px",
+        borderRadius: 999,
+        fontFamily: FONT.semibold,
+        fontSize: 36,
+        whiteSpace: "nowrap",
+        boxShadow: "0 20px 50px rgba(27,27,31,0.18)",
+        opacity: Math.min(1, p * 2) * (1 - out),
+        transform: `scale(${(0.5 + p * 0.5) * (1 - out * 0.2)})`,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const WhiteIcon = ({ icon, size = 30, stroke = 2.2 }: { icon: typeof Check; size?: number; stroke?: number }) => (
+  <View>
+    <Icon icon={icon} size={size} color="onPrimary" strokeWidth={stroke} />
+  </View>
+);
+
+/* ── 1 · open: three quick hits in the dark ─────────────────────────────────────────────────────────── */
 
 const Lamp = ({ glow }: { glow: number }) => (
   <svg width="520" height="560" viewBox="0 0 520 560" aria-hidden>
@@ -153,375 +186,440 @@ const Lamp = ({ glow }: { glow: number }) => (
         <stop offset="1" stopColor="#FFD58A" stopOpacity="0" />
       </radialGradient>
       <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#FFD58A" stopOpacity="0.45" />
+        <stop offset="0" stopColor="#FFD58A" stopOpacity="0.5" />
         <stop offset="1" stopColor="#FFD58A" stopOpacity="0" />
       </linearGradient>
     </defs>
     <g opacity={glow}>
-      <path d="M150 128 L40 560 L340 560 L230 128 Z" fill="url(#beam)" />
-      <circle cx="190" cy="118" r="110" fill="url(#halo)" />
+      <path d="M150 128 L20 560 L360 560 L230 128 Z" fill="url(#beam)" />
+      <circle cx="190" cy="118" r="120" fill="url(#halo)" />
     </g>
-    <rect x="356" y="96" width="16" height="464" rx="5" fill="#2B2C33" />
+    <rect x="356" y="96" width="16" height="464" rx="5" fill="#34353D" />
     <path
       d="M364 112 C 364 80, 330 72, 290 72 L 220 72"
-      stroke="#2B2C33"
+      stroke="#34353D"
       strokeWidth="14"
       fill="none"
       strokeLinecap="round"
     />
-    <path d="M140 96 L240 96 L226 122 L154 122 Z" fill="#2B2C33" />
-    <rect x="156" y="120" width="68" height="10" rx="5" fill={glow > 0.5 ? "#FFE9B8" : "#3A3B44"} />
+    <path d="M140 96 L240 96 L226 122 L154 122 Z" fill="#34353D" />
+    <rect x="156" y="120" width="68" height="10" rx="5" fill={glow > 0.5 ? "#FFE9B8" : "#44454E"} />
   </svg>
 );
 
-export const HookScene = () => {
+const Notice = ({ buried }: { buried: number }) => (
+  <div
+    style={{
+      width: 420,
+      padding: 34,
+      borderRadius: 10,
+      background: "#FFFDF7",
+      boxShadow: "0 30px 60px rgba(0,0,0,0.45)",
+      transform: `rotate(-5deg) scale(${1 - buried * 0.35}) translateY(${buried * 260}px)`,
+      filter: `blur(${buried * 8}px)`,
+      opacity: 1 - buried * 0.8,
+      display: "flex",
+      flexDirection: "column",
+      gap: 16,
+    }}
+  >
+    <div style={{ fontFamily: FONT.bold, fontSize: 34, letterSpacing: 3, color: colors.primary }}>OGŁOSZENIE</div>
+    {[1, 0.9, 0.95, 0.6].map((w) => (
+      <div key={w} style={{ height: 14, width: `${w * 100}%`, borderRadius: 7, background: "#D9D5CB" }} />
+    ))}
+  </div>
+);
+
+export const OpenScene = () => {
   const frame = useCurrentFrame();
-  const out = useCue("nie");
-  const off = useCue("latarnia");
-  const flicker = frame < out ? 1 : frame < off ? [1, 0.2, 0.9, 0.1, 0.6, 0][Math.floor((frame - out) / 3) % 6] : 0;
-  const exit = useExit();
+  const fading = useCue("nie");
+  const dark = useCue("świeci");
+  const hole = useCue("dziura");
+  const notice = useCue("ogłoszenie");
+  const nobody = useCue("nikt");
+  const flicker =
+    frame < fading ? 1 : frame < dark ? ([1, 0.15, 0.85, 0.05, 0.5][Math.floor((frame - fading) / 2) % 5] ?? 0) : 0;
+  const punch = (at: number) =>
+    keys(frame, [
+      [at, 1.14],
+      [at + 9, 1],
+    ]);
+  const jolt = shake(frame, hole, 14, 22);
+  const crack = ramp(frame, hole, hole + 16);
   return (
-    <AbsoluteFill style={{ background: NIGHT, alignItems: "center", opacity: exit }}>
-      <div
-        style={{ marginTop: 120, opacity: ramp(frame, 0, 20), transform: "scale(1.25)", transformOrigin: "top center" }}
-      >
-        <Lamp glow={flicker ?? 0} />
-      </div>
-      <Headline
-        text="Na Twojej ulicy od tygodnia nie świeci latarnia."
-        at={0}
-        spoken
-        size={76}
-        align="center"
-        accent={["latarnia."]}
-        style={{ color: "#FFFFFF", position: "absolute", bottom: 150 }}
-      />
+    <AbsoluteFill style={{ background: NIGHT, overflow: "hidden" }}>
+      {frame < hole - 1 ? (
+        <AbsoluteFill
+          style={{
+            transform: `scale(${keys(frame, [
+              [0, 1.08],
+              [hole, 1],
+            ])})`,
+          }}
+        >
+          <div style={{ position: "absolute", left: 120, top: 150, opacity: ramp(frame, 0, 14) }}>
+            <Lamp glow={flicker} />
+          </div>
+          <Headline
+            text={"Latarnia,\nktóra nie świeci."}
+            at={0}
+            spoken
+            variant="slam"
+            size={124}
+            accent={["nie", "świeci."]}
+            style={{ position: "absolute", left: 760, top: 330, color: "#FFFFFF" }}
+          />
+        </AbsoluteFill>
+      ) : frame < notice - 1 ? (
+        <AbsoluteFill
+          style={{ transform: `translate(${jolt.x}px, ${jolt.y}px) scale(${punch(hole)})`, background: "#202127" }}
+        >
+          <svg width="1920" height="1080" viewBox="0 0 1920 1080" style={{ position: "absolute" }} aria-hidden>
+            <g stroke="#2E2F36" strokeWidth="6">
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                <path key={`h${i}`} d={`M0 ${i * 180 + 40} H1920`} />
+              ))}
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                <path key={`v${i}`} d={`M${i * 190 + (i % 2) * 40} 0 V1080`} />
+              ))}
+            </g>
+            <g
+              stroke="#08080A"
+              strokeWidth="9"
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              strokeDasharray="1800"
+              strokeDashoffset={1800 * (1 - crack)}
+            >
+              <path d="M1180 560 L1240 610 L1228 668 L1300 720 L1290 790 L1352 846 L1340 930 L1400 1000 L1420 1090" />
+              <path d="M1240 610 L1320 600 L1372 640 L1460 626" strokeWidth="6" />
+              <path d="M1300 720 L1230 770 L1180 760" strokeWidth="5" />
+              <path d="M1180 560 L1130 520 L1140 470 L1100 420" strokeWidth="6" />
+            </g>
+          </svg>
+          <Headline
+            text={"Dziura\nw chodniku."}
+            at={hole}
+            spoken
+            variant="slam"
+            size={170}
+            style={{ position: "absolute", left: 150, top: 230, color: "#FFFFFF" }}
+          />
+        </AbsoluteFill>
+      ) : (
+        <AbsoluteFill style={{ transform: `scale(${punch(notice)})` }}>
+          <div style={{ position: "absolute", left: 1220, top: 300 }}>
+            <Notice buried={ramp(frame, nobody - 4, nobody + 16)} />
+          </div>
+          <Headline
+            text={"Ogłoszenie,\nktórego nikt\nnie zobaczył."}
+            at={notice}
+            spoken
+            variant="slam"
+            size={116}
+            accent={["nikt"]}
+            style={{ position: "absolute", left: 150, top: 230, color: "#FFFFFF" }}
+          />
+        </AbsoluteFill>
+      )}
     </AbsoluteFill>
   );
 };
 
-/* 2 · problem — the report drowns in a neighbourhood group's feed. */
+/* ── 2 · problem: a wall of posts and forms, cut by the brand's red ─────────────────────────────────── */
 
-type Post = { who: string; text: string; at: number; mine?: boolean };
+const NOISE = [
+  ["Anonimowy uczestnik", "Już zgłaszałem, nic się nie dzieje."],
+  ["Formularz", "Krok 3 z 9: wybierz właściwy wydział"],
+  ["Marek", "Zaginął rudy kot, okolice parku!"],
+  ["Konto bez zdjęcia", "To nic nie da."],
+  ["Formularz", "Załącznik nr 2 (PDF, maks. 2 MB)"],
+  ["Kasia", "Kto idzie w sobotę na mecz?"],
+  ["Anonimowy uczestnik", "Sprzedam rower, prawie nowy."],
+  ["Formularz", "Podaj numer ewidencyjny działki"],
+  ["Ola", "Polecicie fryzjera w okolicy?"],
+] as const;
 
-const FeedPost = ({ post }: { post: Post }) => {
-  const p = useSpring(post.at, 16);
+const NoiseColumn = ({ offset, speed, x }: { offset: number; speed: number; x: number }) => {
+  const frame = useCurrentFrame();
   return (
     <div
       style={{
+        position: "absolute",
+        left: x,
+        top: -((frame * speed + offset) % 1400),
+        width: 520,
         display: "flex",
+        flexDirection: "column",
         gap: 18,
-        padding: "22px 26px",
-        borderRadius: 22,
-        background: post.mine ? "#FFFFFF" : "#ECEBE8",
-        boxShadow: post.mine ? "0 10px 30px rgba(0,0,0,0.25)" : "none",
-        ...rise(p, 40),
+        filter: `blur(${Math.min(6, speed * 0.25)}px)`,
       }}
     >
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          background: post.mine ? colors.primaryTint : "#C9C7C2",
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ fontFamily: FONT.semibold, fontSize: 22, color: "#6B6B72" }}>{post.who}</div>
-        <div style={{ fontFamily: FONT.regular, fontSize: 28, lineHeight: 1.3, color: colors.text }}>{post.text}</div>
-      </div>
+      {[...NOISE, ...NOISE].map(([who, text], i) => (
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: the list repeats itself on purpose.
+          key={i}
+          style={{
+            padding: "22px 26px",
+            borderRadius: 20,
+            background: who === "Formularz" ? "#2B2C33" : "#E9E8E4",
+            color: who === "Formularz" ? "#C8C8CC" : colors.text,
+            fontFamily: FONT.regular,
+            fontSize: 26,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <span style={{ fontFamily: FONT.semibold, fontSize: 20, opacity: 0.6 }}>{who}</span>
+          {text}
+        </div>
+      ))}
     </div>
   );
 };
 
 export const ProblemScene = () => {
-  const frame = useCurrentFrame();
-  const write = useCue("piszesz");
-  const someone = useCue("ktoś");
-  const other = useCue("inny");
-  const lost = useCue("sprawa");
-  const posts: Post[] = [
-    { who: "Ty", text: "Przy przystanku od tygodnia nie świeci latarnia. Ktoś to zgłaszał?", at: write, mine: true },
-    { who: "Anonimowy uczestnik", text: "Już zgłaszałem w zeszłym miesiącu.", at: someone },
-    { who: "Konto bez zdjęcia", text: "To nic nie da.", at: other },
-    { who: "Anonimowy uczestnik", text: "Sprzedam rower, prawie nowy.", at: lost - 2 },
-    { who: "Marek", text: "Zaginął rudy kot, okolice parku!", at: lost + 4 },
-    { who: "Anonimowy uczestnik", text: "Polecicie fryzjera w okolicy?", at: lost + 9 },
-    { who: "Kasia", text: "Kto idzie w sobotę na mecz?", at: lost + 14 },
-    { who: "Anonimowy uczestnik", text: "Znowu korek na rondzie…", at: lost + 19 },
-  ];
-  const scroll = interpolate(frame, [lost, lost + 40], [0, 1250], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const exit = useExit();
+  const { duration } = useScene();
+  const groups = useCue("grupach");
   return (
-    <AbsoluteFill style={{ background: NIGHT, opacity: exit }}>
-      <div
-        style={{
-          position: "absolute",
-          right: 170,
-          top: 0,
-          bottom: 0,
-          width: 760,
-          overflow: "hidden",
-          maskImage: "linear-gradient(transparent, black 12%, black 88%, transparent)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 18,
-            paddingTop: 330,
-            transform: `translateY(${-scroll}px)`,
-            filter: `blur(${ramp(frame, lost + 10, lost + 40) * 3}px)`,
-          }}
-        >
-          {posts.map((p) => (
-            <FeedPost key={`${p.at}-${p.text}`} post={p} />
-          ))}
-        </div>
-      </div>
-      <Column style={{ width: 820 }}>
-        <Eyebrow style={{ color: "#8A8A92", ...rise(ramp(frame, 0, 16)) }}>Grupa mieszkańców</Eyebrow>
-        {frame < lost - 4 ? (
-          <Headline text={"Piszesz o tym\nw grupie."} at={0} spoken size={92} style={{ color: "#FFFFFF" }} />
-        ) : (
-          <Headline
-            text={"I sprawa ginie\nmiędzy postami."}
-            at={lost - 4}
-            spoken
-            size={92}
-            style={{ color: "#FFFFFF" }}
-          />
-        )}
-      </Column>
+    <AbsoluteFill style={{ background: NIGHT, overflow: "hidden" }}>
+      <AbsoluteFill style={{ transform: "rotate(-8deg) scale(1.25)", opacity: 0.55 }}>
+        <NoiseColumn x={180} offset={0} speed={14} />
+        <NoiseColumn x={720} offset={600} speed={22} />
+        <NoiseColumn x={1260} offset={300} speed={17} />
+      </AbsoluteFill>
+      <AbsoluteFill
+        style={{ background: "radial-gradient(circle at 50% 50%, rgba(20,21,25,0.92) 30%, rgba(20,21,25,0.4) 75%)" }}
+      />
+      <Center style={{ gap: 18 }}>
+        <Headline text="Lokalne sprawy giną" at={0} spoken variant="slam" size={128} style={{ color: "#FFFFFF" }} />
+        <Headline
+          text="w grupach i formularzach."
+          at={groups - 10}
+          spoken
+          size={64}
+          style={{ color: "#9B9BA3", fontFamily: FONT.semibold }}
+        />
+      </Center>
+      <Wipe at={duration - 12} frames={12} color={colors.primary} />
     </AbsoluteFill>
   );
 };
 
-/* 3 · reveal — the brand: pins land on the map, the logo and what it is. */
+/* ── 3 · reveal: the brand on red, then one app for every kind of community ─────────────────────────── */
 
-const PINS = [
-  [310, 230],
-  [520, 760],
-  [860, 180],
-  [1180, 860],
-  [1540, 260],
-  [1660, 700],
-  [240, 520],
-  [1380, 520],
+const FAN = [
+  { key: "estate", place: "Osiedle Słoneczne", label: "Osiedle", icon: Home, x: 520, rot: -9, cue: "osiedla" },
+  { key: "city", place: "Kraków", label: "Miasto", icon: Landmark, x: 960, rot: 0, cue: "miasta" },
+  { key: "campus", place: "Kampus Główny", label: "Uczelnia", icon: GraduationCap, x: 1400, rot: 9, cue: "uczelni" },
 ] as const;
 
-const Pin = ({ x, y, at }: { x: number; y: number; at: number }) => {
-  const p = useSpring(at, 10, 0.6);
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: x - 14,
-        top: y - 14,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        background: colors.primary,
-        border: "6px solid #FFFFFF",
-        boxShadow: "0 6px 16px rgba(229,1,1,0.35)",
-        opacity: Math.min(1, p * 2),
-        transform: `translateY(${(1 - p) * -60}px) scale(${0.6 + p * 0.4})`,
-      }}
-    />
-  );
+const FAN_WIDGETS = {
+  estate: [announcementsWidget("Zebranie wspólnoty w czwartek o 18:00")],
+  city: [issuesWidget(3)],
+  campus: [announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji")],
 };
 
-const Chip = ({ icon, label, at }: { icon: typeof Home; label: string; at: number }) => {
-  const p = useSpring(at, 14);
+const FanPhone = ({ item, at }: { item: (typeof FAN)[number]; at: number }) => {
+  const frame = useCurrentFrame();
+  const named = useCue(item.cue);
+  const enter = useSpring(at, 14);
+  const lift = ramp(frame, named - 2, named + 8) - ramp(frame, named + 14, named + 26);
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "16px 28px",
-        borderRadius: 999,
-        background: "#FFFFFF",
-        boxShadow: "0 10px 30px rgba(27,27,31,0.10)",
-        fontFamily: FONT.semibold,
-        fontSize: 34,
-        color: colors.text,
-        ...rise(p, 30),
-      }}
-    >
-      <View>
-        <Icon icon={icon} size={34} color="primary" strokeWidth={2} />
-      </View>
-      {label}
-    </div>
+    <>
+      <PhoneAt
+        pose={{
+          x: item.x,
+          y: 660 + (1 - enter) * 760 - lift * 34,
+          scale: 0.72,
+          rotZ: item.rot * enter,
+          rotY: -item.rot * 0.8,
+        }}
+      >
+        <DashboardScreen place={item.place} widgets={FAN_WIDGETS[item.key]} />
+      </PhoneAt>
+      <div style={{ position: "absolute", left: item.x, top: 990, transform: "translateX(-50%)" }}>
+        <Pop at={named} style={{ background: "#FFFFFF", color: colors.text }}>
+          <View>
+            <Icon icon={item.icon} size={34} color="primary" strokeWidth={2} />
+          </View>
+          {item.label}
+        </Pop>
+      </div>
+    </>
   );
 };
 
 export const RevealScene = () => {
   const frame = useCurrentFrame();
-  const meet = useCue("poznaj");
   const name = useCue("twoje");
-  const city = useCue("miasta");
-  const estate = useCue("osiedla");
-  const uni = useCue("uczelni");
-  const logo = useSpring(name - 4, 12);
-  const light = ramp(frame, 0, 18);
+  const one = useCue("jedna");
+  const logo = useSpring(0, 12);
+  const toLight = one - 8;
   return (
-    <AbsoluteFill style={{ background: NIGHT }}>
-      <AbsoluteFill style={{ opacity: light }}>
-        <Light>
-          {PINS.map(([x, y], i) => (
-            <Pin key={`${x}-${y}`} x={x} y={y} at={meet + i * 3} />
+    <AbsoluteFill style={{ background: colors.primary, overflow: "hidden" }}>
+      <Center
+        style={{
+          gap: 34,
+          flexDirection: "row",
+          transform: `scale(${keys(frame, [
+            [0, 0.92],
+            [toLight, 1.04],
+          ])})`,
+        }}
+      >
+        <View style={{ transform: [{ scale: 0.4 + logo * 0.6 }], opacity: Math.min(1, logo * 2) }}>
+          <BrandMark size={190} color="onPrimary" />
+        </View>
+        <Headline text="Twoje Miejsce" at={name} spoken variant="slam" size={168} style={{ color: "#FFFFFF" }} />
+      </Center>
+      <Wipe at={toLight} frames={14} color={colors.background}>
+        <Light drift={0.8}>
+          <Headline
+            text="Jedna aplikacja dla każdej społeczności."
+            at={toLight + 4}
+            spoken
+            size={64}
+            align="center"
+            accent={["każdej"]}
+            style={{ position: "absolute", left: 0, right: 0, top: 64 }}
+          />
+          {FAN.map((item, i) => (
+            <FanPhone key={item.key} item={item} at={toLight + 2 + i * 4} />
           ))}
-          <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", gap: 40 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 34, ...rise(logo, 40) }}>
-              <View style={{ transform: [{ scale: 0.6 + logo * 0.4 }] }}>
-                <BrandMark size={150} />
-              </View>
-              <div style={{ fontFamily: FONT.bold, fontSize: 132, letterSpacing: -4, color: colors.text }}>
-                Twoje Miejsce
-              </div>
-            </div>
-            <Headline
-              text="Cyfrowa społeczność dla prawdziwego miejsca."
-              at={name + 18}
-              stagger={2}
-              size={46}
-              align="center"
-              style={{ color: colors.textSecondary, fontFamily: FONT.medium, letterSpacing: -0.5 }}
-            />
-            <div style={{ display: "flex", gap: 22, marginTop: 10 }}>
-              <Chip icon={Landmark} label="Miasto" at={city} />
-              <Chip icon={Home} label="Osiedle" at={estate} />
-              <Chip icon={GraduationCap} label="Uczelnia" at={uni} />
-            </div>
-          </AbsoluteFill>
         </Light>
-      </AbsoluteFill>
+      </Wipe>
     </AbsoluteFill>
   );
 };
 
-/* 4 · join — scan the place's QR code, see the place, join, land on its dashboard. */
+/* ── 4 · join: the camera dives into the city's phone; scan, and you are in ─────────────────────────── */
 
 export const JoinScene = () => {
   const frame = useCurrentFrame();
-  const qr = useCue("qr");
-  const invite = useCue("zaproszenia");
-  const see = useCue("widzisz");
-  const enter = useSpring(0, 16);
-  const found = invite - 6;
-  const preview = found + 8;
-  const joined = see - 4;
-  const exit = useExit();
+  const code = useCue("kod");
+  const inside = useCue("jesteś");
+  const lock = code + 2;
+  const pose: Pose = {
+    x: 960,
+    y: keys(frame, [
+      [0, 660],
+      [12, 545],
+    ]),
+    scale: keys(frame, [
+      [0, 0.72],
+      [12, 1.04],
+      [inside, 1.04],
+      [inside + 14, 1],
+    ]),
+    rotY: keys(frame, [
+      [inside, 0],
+      [inside + 14, -8],
+    ]),
+  };
   return (
-    <Light>
-      <Column style={{ opacity: exit }}>
-        <Eyebrow style={rise(ramp(frame, 4, 20))}>Dołączanie</Eyebrow>
-        {frame < see - 2 ? (
-          <Headline text={"Dołączasz kodem QR\nalbo kodem zaproszenia."} at={4} spoken accent={["QR"]} size={78} />
-        ) : (
-          <Headline
-            text={"I od razu widzisz,\nco dzieje się w okolicy."}
-            at={see - 4}
-            spoken
-            accent={["okolicy."]}
-            size={78}
-          />
-        )}
-      </Column>
-      <PhoneAt dark={frame < preview} enter={enter}>
+    <Light drift={1}>
+      <Headline
+        text={"Skanujesz\nkod"}
+        at={0}
+        spoken
+        variant="slam"
+        size={120}
+        accent={["kod"]}
+        style={{ position: "absolute", left: 150, top: 380 }}
+      />
+      <Headline
+        text={"i jesteś\nw środku."}
+        at={inside - 2}
+        spoken
+        variant="slam"
+        size={120}
+        style={{ position: "absolute", left: 1270, top: 380 }}
+      />
+      <PhoneAt pose={pose} dark={frame < inside}>
         <Pushed
           screens={[
             {
               at: 0,
               node: (
                 <ScannerScreen
-                  seen={ramp(frame, qr - 6, qr + 10)}
-                  line={frame < found ? (Math.sin(frame / 9) + 1) / 2 : 0.5}
+                  seen={ramp(frame, code - 10, code)}
+                  line={frame < lock ? (Math.sin(frame / 4) + 1) / 2 : 0.5}
                 />
               ),
             },
-            { at: preview, node: <PreviewScreen /> },
-            { at: joined + 6, node: <DashboardScreen widgets={[issuesWidget(3)]} /> },
+            { at: inside, node: <DashboardScreen widgets={[issuesWidget(3)]} /> },
           ]}
         />
-        {frame >= found && frame < preview ? (
-          <div
-            style={{ position: "absolute", inset: 0, background: "#FFFFFF", opacity: 1 - ramp(frame, found, preview) }}
-          />
-        ) : null}
-        <Tap x={195} y={751} at={joined} />
+        <Flash at={lock} />
       </PhoneAt>
     </Light>
   );
 };
 
-/* 5 · report — what happened, the category, a photo. */
+/* ── 5 · report: a photo, the AI's duplicate check, one issue with its count ────────────────────────── */
 
-const Step = ({ n, label, at }: { n: number; label: string; at: number }) => {
+const Counter = ({ at }: { at: number }) => {
   const frame = useCurrentFrame();
-  const p = useSpring(at, 14);
-  const done = ramp(frame, at + 6, at + 14);
+  const n = Math.min(4, Math.max(1, 1 + Math.floor((frame - at) / 4)));
+  const bump = frame - at < 16 && (frame - at) % 4 < 2 ? 0.06 : 0;
+  const p = useSpring(at, 12);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 26, ...rise(p, 30) }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 30, ...rise(p, 40) }}>
       <div
         style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: done > 0.5 ? colors.primary : colors.primaryTint,
-          color: done > 0.5 ? "#FFFFFF" : colors.primaryPressed,
           fontFamily: FONT.bold,
-          fontSize: 30,
-          transform: `scale(${1 + Math.sin(done * Math.PI) * 0.15})`,
+          fontSize: 300,
+          lineHeight: 0.9,
+          color: colors.primary,
+          transform: `scale(${1 + bump})`,
         }}
       >
-        {done > 0.5 ? (
-          <View>
-            <Icon icon={Check} size={34} color="onPrimary" strokeWidth={3} />
-          </View>
-        ) : (
-          n
-        )}
+        {n}
       </div>
-      <div style={{ fontFamily: FONT.bold, fontSize: 60, letterSpacing: -1.5, color: colors.text }}>{label}</div>
+      <div style={{ fontFamily: FONT.bold, fontSize: 72, lineHeight: 1.05, color: colors.text }}>
+        osoby
+        <br />
+        zgłaszają
+      </div>
     </div>
   );
 };
 
 export const ReportScene = () => {
   const frame = useCurrentFrame();
-  const what = useCue("co");
-  const category = useCue("kategoria");
-  const picture = useCue("zdjęcie");
+  const report = useCue("zgłaszasz");
+  const photo = useCue("zdjęciem");
+  const ai = useCue("ai");
+  const one = useCue("jedno");
+  const count = useCue("ile");
   const open = 4;
-  const form = open + 8;
-  const scroll = interpolate(frame, [category - 14, category - 2, picture - 16, picture - 4], [0, 200, 200, 520], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const exit = useExit();
+  const form = 12;
+  const send = ai - 10;
+  const merge = ai - 2;
+  const joined = one - 4;
+  const scroll = keys(frame, [
+    [photo - 14, 0],
+    [photo - 4, 520],
+  ]);
+  const pose: Pose = {
+    x: keys(frame, [
+      [0, 960],
+      [14, 620],
+    ]),
+    y: 545,
+    rotY: keys(frame, [
+      [0, -8],
+      [14, 14],
+    ]),
+  };
+  const card = useSpring(ai, 13);
+  const merged = ramp(frame, one - 4, one + 10);
   return (
-    <Light>
-      <Column style={{ opacity: exit, gap: 44 }}>
-        <Eyebrow style={rise(ramp(frame, 0, 14))}>Zgłoszenie</Eyebrow>
-        <Headline text="Trzy rzeczy:" at={0} spoken size={78} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-          <Step n={1} label="Co się stało" at={what} />
-          <Step n={2} label="Kategoria" at={category} />
-          <Step n={3} label="Zdjęcie" at={picture} />
-        </div>
-      </Column>
-      <PhoneAt>
+    <Light drift={0.7}>
+      <PhoneAt pose={pose}>
         <Pushed
           screens={[
             { at: 0, node: <DashboardScreen widgets={[issuesWidget(3)]} /> },
@@ -529,91 +627,12 @@ export const ReportScene = () => {
               at: form,
               node: (
                 <IssueFormScreen
-                  title={typed("Nie świeci latarnia", frame, what, 0.7)}
-                  category={frame >= category ? "Oświetlenie" : "Inne"}
-                  withPhoto={frame >= picture + 2}
+                  title={typed("Nie świeci latarnia", frame, form + 4, 1.2)}
+                  category={frame >= report + 4 ? "Oświetlenie" : "Inne"}
+                  withPhoto={frame >= photo + 2}
                   scroll={scroll}
                 />
               ),
-            },
-          ]}
-        />
-        <Tap x={195} y={516} at={open} />
-        <Tap x={195} y={142} at={category} />
-        <Tap x={95} y={269} at={picture} />
-      </PhoneAt>
-    </Light>
-  );
-};
-
-/* 6 · duplicate — AI notices the same problem; one issue with a count instead of many. */
-
-export const DuplicateScene = () => {
-  const frame = useCurrentFrame();
-  const ai = useCue("sztuczna");
-  const instead = useCue("zamiast");
-  const count = useCue("licznikiem");
-  const send = 4;
-  const merge = send + 8;
-  const joined = instead - 2;
-  const badge = useSpring(ai, 14);
-  const exit = useExit();
-  return (
-    <Light>
-      <Column style={{ opacity: exit }}>
-        <Eyebrow style={rise(ramp(frame, 0, 14))}>Bez duplikatów</Eyebrow>
-        {frame < instead - 4 ? (
-          <>
-            <Headline text={"Ktoś zgłosił\nto wcześniej?"} at={6} spoken size={84} />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                alignSelf: "flex-start",
-                padding: "14px 24px",
-                borderRadius: 999,
-                background: colors.text,
-                color: "#FFFFFF",
-                fontFamily: FONT.semibold,
-                fontSize: 30,
-                ...rise(badge, 24),
-              }}
-            >
-              <View>
-                <Icon icon={Sparkles} size={28} color="onPrimary" strokeWidth={2} />
-              </View>
-              AI wykrywa ten sam problem
-            </div>
-          </>
-        ) : (
-          <>
-            <Headline
-              text={"Jedno zgłoszenie\nzamiast wielu."}
-              at={instead - 2}
-              stagger={3}
-              accent={["jedno"]}
-              size={84}
-            />
-            <div
-              style={{
-                fontFamily: FONT.semibold,
-                fontSize: 40,
-                color: colors.textSecondary,
-                ...rise(ramp(frame, count - 2, count + 12), 20),
-              }}
-            >
-              z licznikiem osób, które widzą problem
-            </div>
-          </>
-        )}
-      </Column>
-      <PhoneAt>
-        <Pushed
-          screens={[
-            {
-              at: 0,
-              node: <IssueFormScreen title="Nie świeci latarnia" category="Oświetlenie" withPhoto scroll={520} />,
             },
             { at: merge, node: <PluginScreen node={mergeView()} /> },
             {
@@ -624,304 +643,472 @@ export const DuplicateScene = () => {
             },
           ]}
         />
+        <Tap x={195} y={516} at={open} />
+        <Tap x={195} y={342} at={report + 2} />
+        <Tap x={95} y={269} at={photo} />
+        <Flash at={photo + 1} />
         <Tap x={195} y={598} at={send} />
         <Tap x={195} y={718} at={joined} />
       </PhoneAt>
+      {frame < ai - 4 ? (
+        <Headline
+          text={"Problem zgłaszasz\nzdjęciem."}
+          at={0}
+          spoken
+          variant="slam"
+          size={96}
+          accent={["zdjęciem."]}
+          style={{ position: "absolute", left: 1010, top: 400 }}
+        />
+      ) : frame < count - 4 ? (
+        <div style={{ position: "absolute", left: 1040, top: 110, display: "flex", flexDirection: "column", gap: 28 }}>
+          <Pop at={ai} style={{ background: colors.text, color: "#FFFFFF", alignSelf: "flex-start" }}>
+            <WhiteIcon icon={Sparkles} />
+            AI wykrywa duplikaty
+          </Pop>
+          <div style={{ position: "relative", width: 560, height: 560 }}>
+            {[2, 1, 0].map((layer) => (
+              <div
+                key={layer}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: SCREEN.width - 48,
+                  transformOrigin: "top left",
+                  transform: `translate(${layer * 40 * (1 - merged)}px, ${layer * 34 * (1 - merged)}px) rotate(${layer * 3 * (1 - merged)}deg) scale(1.3)`,
+                  opacity: layer === 0 ? Math.min(1, card * 1.5) : (1 - merged) * 0.75 * card,
+                }}
+              >
+                <IssueCard support={layer === 0 && frame >= one ? 4 : 1} />
+              </div>
+            ))}
+          </div>
+          <Headline text="Jedno zgłoszenie." at={one} spoken variant="slam" size={84} accent={["jedno"]} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", left: 1040, top: 360 }}>
+          <Counter at={count - 2} />
+        </div>
+      )}
     </Light>
   );
 };
 
-/* 7 · city — the city's view: what bothers people most, accepted, fixed; the resident sees each step. */
-
-const STATUS_STEPS = ["Nowe", "Przyjęte", "Naprawione"] as const;
-
-const Stepper = ({ reached }: { reached: number }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-    {STATUS_STEPS.map((s, i) => {
-      const on = reached >= i;
-      return (
-        <div key={s} style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          {i > 0 ? (
-            <div style={{ width: 46, height: 4, borderRadius: 2, background: on ? colors.primary : colors.border }} />
-          ) : null}
-          <div
-            style={{
-              padding: "14px 26px",
-              borderRadius: 999,
-              fontFamily: FONT.semibold,
-              fontSize: 32,
-              background: on ? colors.primary : "#FFFFFF",
-              color: on ? "#FFFFFF" : colors.textSecondary,
-              boxShadow: "0 8px 24px rgba(27,27,31,0.08)",
-              transform: `scale(${on ? 1 : 0.94})`,
-            }}
-          >
-            {s}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-);
+/* ── 6 · city: the city's phone and the resident's, the same status on both ─────────────────────────── */
 
 export const CityScene = () => {
   const frame = useCurrentFrame();
-  const accepts = useCue("przyjmuje");
+  const accepted = useCue("przyjęte");
   const fixed = useCue("naprawione");
-  const you = useCue("ty");
-  const detail = accepts - 16;
-  const exit = useExit();
-  const status = frame >= fixed + 2 ? "fixed" : frame >= accepts + 2 ? "accepted" : "open";
+  const enter = useSpring(0, 15);
+  const status: Status = frame >= fixed ? "fixed" : frame >= accepted ? "accepted" : "open";
+  const glow = ramp(frame, fixed, fixed + 20);
   return (
-    <Light>
-      <Column style={{ opacity: exit, gap: 44 }}>
-        <Eyebrow style={rise(ramp(frame, 0, 14))}>Urząd miasta</Eyebrow>
-        <Headline text={"Urząd widzi, co\nprzeszkadza najbardziej."} at={0} spoken size={76} />
-        <div style={rise(ramp(frame, accepts - 10, accepts + 6), 24)}>
-          <Stepper reached={status === "fixed" ? 2 : status === "accepted" ? 1 : 0} />
-        </div>
-        <div
-          style={{
-            fontFamily: FONT.semibold,
-            fontSize: 40,
-            color: colors.textSecondary,
-            ...rise(ramp(frame, you - 2, you + 12), 20),
-          }}
-        >
-          Mieszkaniec widzi każdy krok.
-        </div>
-      </Column>
-      <PhoneAt>
-        <Pushed
-          screens={[
-            { at: 0, node: <DashboardScreen admin widgets={[issuesWidget(4)]} /> },
-            { at: detail, node: <PluginScreen node={detailView({ support: 4, status, admin: true })} /> },
-          ]}
-        />
-        <Tap x={154} y={332} at={detail - 8} />
-        <Tap x={75} y={338} at={accepts} />
-        <Tap x={242} y={338} at={fixed} />
-      </PhoneAt>
-    </Light>
-  );
-};
-
-/* 8 · announce — the city's announcement lands on the residents' dashboard. */
-
-export const AnnounceScene = () => {
-  const frame = useCurrentFrame();
-  const lands = useCue("ogłoszenie");
-  const exit = useExit();
-  const p = useSpring(lands, 14);
-  return (
-    <Light>
-      <Column style={{ opacity: exit }}>
-        <Eyebrow style={rise(ramp(frame, 0, 14))}>Ogłoszenia</Eyebrow>
-        <Headline text={"Ogłoszenie trafia\nprosto na pulpit."} at={lands - 6} spoken accent={["pulpit"]} size={84} />
-      </Column>
-      <PhoneAt>
-        <DashboardScreen
-          widgets={
-            frame >= lands ? [announcementsWidget(ANNOUNCEMENT), issuesWidget(4, "fixed")] : [issuesWidget(4, "fixed")]
-          }
-        />
-        {frame >= lands ? (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              pointerEvents: "none",
-              boxShadow: `inset 0 0 0 ${(1 - p) * 8}px ${colors.primary}`,
-              borderRadius: 55,
-              opacity: 1 - p,
-            }}
-          />
-        ) : null}
-      </PhoneAt>
-    </Light>
-  );
-};
-
-/* 9 · plugins — every place turns on what it needs; each feature is a plugin. */
-
-const PluginTile = ({ emoji, label, at, dashed }: { emoji: string; label: string; at: number; dashed?: boolean }) => {
-  const p = useSpring(at, 12);
-  return (
-    <div
-      style={{
-        width: 196,
-        height: 176,
-        borderRadius: 26,
-        background: dashed ? "transparent" : "#FFFFFF",
-        border: dashed ? `3px dashed ${colors.dashed}` : "none",
-        boxShadow: dashed ? "none" : "0 14px 34px rgba(27,27,31,0.10)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 14,
-        fontFamily: FONT.semibold,
-        fontSize: 26,
-        color: dashed ? colors.textSecondary : colors.text,
-        opacity: Math.min(1, p * 1.5),
-        transform: `translateY(${(1 - p) * 60}px) rotate(${(1 - p) * -8}deg)`,
-      }}
-    >
-      <div style={{ fontSize: 56 }}>{emoji}</div>
-      {label}
-    </div>
-  );
-};
-
-export const PluginsScene = () => {
-  const frame = useCurrentFrame();
-  const turns = useCue("włącza");
-  const needed = useCue("potrzebne");
-  const features = useCue("funkcje");
-  const plugin = useCue("wtyczka");
-  const rebuild = useCue("przebudowy");
-  const exit = useExit();
-  const on = frame >= features ? 3 : frame >= needed ? 2 : frame >= turns ? 1 : 0;
-  return (
-    <Light>
-      <Column style={{ opacity: exit, gap: 44 }}>
-        <Eyebrow style={rise(ramp(frame, 0, 14))}>Wtyczki</Eyebrow>
-        <Headline text={"Każde miejsce włącza\ntylko potrzebne funkcje."} at={0} spoken size={72} />
-        <div style={{ display: "flex", gap: 20 }}>
-          <PluginTile emoji="🛠️" label="Zgłoszenia" at={plugin} />
-          <PluginTile emoji="📢" label="Ogłoszenia" at={plugin + 4} />
-          <PluginTile emoji="💬" label="Dyskusje" at={plugin + 8} />
-          <PluginTile emoji="+" label="Kolejna" at={rebuild - 4} dashed />
-        </div>
-      </Column>
-      <PhoneAt>
-        <FeaturesScreen on={on} />
-        <Tap x={54} y={312} at={turns} />
-        <Tap x={54} y={418} at={needed} />
-        <Tap x={54} y={546} at={features} />
-      </PhoneAt>
-    </Light>
-  );
-};
-
-/* 10 · outro — phone and browser, then the brand and its line. */
-
-const Browser = ({ children }: { children: ReactNode }) => (
-  <div
-    style={{
-      width: 980,
-      height: 640,
-      borderRadius: 22,
-      background: "#FFFFFF",
-      overflow: "hidden",
-      boxShadow: "0 50px 100px -30px rgba(27,27,31,0.40)",
-      display: "flex",
-      flexDirection: "column",
-    }}
-  >
-    <div
-      style={{
-        height: 52,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "0 20px",
-        background: colors.surfaceSunken,
-      }}
-    >
-      {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
-        <div key={c} style={{ width: 14, height: 14, borderRadius: 7, background: c }} />
-      ))}
-      <div
+    <Light drift={0.5}>
+      <AbsoluteFill
         style={{
-          marginLeft: 20,
-          flex: 1,
-          height: 32,
-          borderRadius: 10,
-          background: "#FFFFFF",
-          fontFamily: FONT.medium,
-          fontSize: 17,
-          color: colors.textSecondary,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 16px",
+          background: "radial-gradient(circle at 50% 62%, rgba(255,213,138,0.8), rgba(255,213,138,0) 60%)",
+          opacity: glow,
         }}
-      >
-        Twoje Miejsce — Kraków
+      />
+      <Headline
+        text="Status zmienia się na Twoich oczach."
+        at={0}
+        spoken
+        size={68}
+        align="center"
+        style={{ position: "absolute", left: 0, right: 0, top: 54 }}
+      />
+      <PhoneAt pose={{ x: 690 - (1 - enter) * 600, y: 640, scale: 0.8, rotY: 18 }}>
+        <PluginScreen node={detailView({ support: 4, status, admin: true })} />
+        <Tap x={75} y={338} at={accepted - 2} />
+        <Tap x={242} y={338} at={fixed - 2} />
+      </PhoneAt>
+      <PhoneAt pose={{ x: 1230 + (1 - enter) * 600, y: 640, scale: 0.8, rotY: -18 }}>
+        <PluginScreen node={detailView({ support: 4, status, admin: false })} />
+      </PhoneAt>
+      <div style={{ position: "absolute", left: 690, top: 196, transform: "translateX(-50%)", opacity: enter }}>
+        <Eyebrow>Urząd miasta</Eyebrow>
       </div>
-    </div>
-    <div
-      style={{ flex: 1, display: "flex", justifyContent: "center", background: colors.background, overflow: "hidden" }}
-    >
-      <div style={{ width: SCREEN.width, height: 900, display: "flex", flexDirection: "column" }}>
-        <SafeAreaProvider
-          initialMetrics={{
-            frame: { x: 0, y: 0, width: SCREEN.width, height: 900 },
-            insets: { top: 0, bottom: 0, left: 0, right: 0 },
-          }}
-          style={{ flex: 1 }}
+      <div style={{ position: "absolute", left: 1230, top: 196, transform: "translateX(-50%)", opacity: enter }}>
+        <Eyebrow>Mieszkanka</Eyebrow>
+      </div>
+      <div style={{ position: "absolute", left: 960, top: 640, transform: "translate(-50%, -50%)" }}>
+        <Pop
+          at={accepted}
+          hold={fixed - accepted - 6}
+          style={{ background: colors.text, color: "#FFFFFF", fontSize: 44 }}
         >
-          {children}
-        </SafeAreaProvider>
+          Przyjęte
+        </Pop>
       </div>
-    </div>
+      <div style={{ position: "absolute", left: 960, top: 640, transform: "translate(-50%, -50%)" }}>
+        <Pop at={fixed} style={{ background: colors.primary, color: "#FFFFFF", fontSize: 48 }}>
+          <WhiteIcon icon={Check} size={42} stroke={3} />
+          Naprawione
+        </Pop>
+      </div>
+    </Light>
+  );
+};
+
+/* ── 7 · builder: a missing feature, described in the app; the AI writes it, checks it, everyone gets it ─ */
+
+const CODE = `import type { PluginModule } from "@app/plugin-sdk";
+
+const budzet: PluginModule = ({ definePlugin, ui, z, t }) =>
+  definePlugin({
+    id: "budzet",
+    name: "Budżet obywatelski",
+    icon: "🗳️",
+    permissions: ["db"],
+    tables: {
+      ideas: t.table({ title: t.text(), votes: t.integer().default(0) }),
+      votes: t.table(
+        { idea: t.ref("ideas"), voter: t.ref("user") },
+        { unique: [["idea", "voter"]] },
+      ),
+    },
+    views: {
+      list: async (ctx) => {
+        const ideas = await ctx.db.ideas.findMany({ orderBy: { votes: "desc" } });
+        return ui.screen("Budżet obywatelski", ideas.map((i) =>
+          ui.progress({ label: i.title, value: i.votes, max: 100 })));
+      },
+    },
+    tools: {
+      vote: {
+        input: z.object({ idea: z.string() }),
+        handler: async (ctx, { idea }) => {
+          await ctx.db.votes.insert({ idea, voter: ctx.user.id });
+          return { toast: "Dziękujemy za głos!", refresh: true };
+        },
+      },
+    },
+  });`;
+
+const KEYWORD = /^(import|type|from|const|async|await|return|export|default)$/;
+
+/** One line of the plugin's code, lightly coloured: strings warm, keywords red. */
+const CodeLine = ({ text }: { text: string }) => (
+  <div style={{ whiteSpace: "pre", minHeight: 30 }}>
+    {text.split(/("[^"]*"?|\b\w+\b)/).map((part, i) => (
+      <span
+        // biome-ignore lint/suspicious/noArrayIndexKey: tokens of a fixed line.
+        key={i}
+        style={{ color: part.startsWith('"') ? "#F2C46D" : KEYWORD.test(part) ? "#FF7A70" : undefined }}
+      >
+        {part}
+      </span>
+    ))}
   </div>
 );
 
-export const OutroScene = () => {
+const CodePanel = ({ at, enter }: { at: number; enter: number }) => {
   const frame = useCurrentFrame();
-  const brand = useCue("twoje");
-  const line = useCue("miasto");
-  const devices = useSpring(0, 16);
-  const phone = useSpring(6, 16);
-  const away = ramp(frame, brand - 10, brand + 6);
-  const logo = useSpring(brand, 12);
-  const widgets = [announcementsWidget(ANNOUNCEMENT), issuesWidget(4, "fixed")];
+  const lines = typed(CODE, frame, at, 9).split("\n").slice(-15);
   return (
-    <Light>
-      <AbsoluteFill style={{ opacity: 1 - away, transform: `scale(${1 - away * 0.08})` }}>
-        <div style={{ position: "absolute", left: 160, top: 210, ...rise(devices, 80) }}>
-          <Browser>
-            <DashboardScreen widgets={widgets} />
-          </Browser>
-        </div>
-        <div style={{ position: "absolute", left: 1170, top: 105, ...rise(phone, 120) }}>
-          <Phone scale={0.98}>
-            <DashboardScreen widgets={widgets} />
-          </Phone>
-        </div>
-        <Headline
-          text="Na telefonie i w przeglądarce."
-          at={0}
-          spoken
-          size={52}
-          style={{ position: "absolute", left: 160, top: 100 }}
-        />
-      </AbsoluteFill>
-      <AbsoluteFill
-        style={{ alignItems: "center", justifyContent: "center", gap: 36, opacity: Math.min(1, logo * 1.5) }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 34, transform: `scale(${0.85 + logo * 0.15})` }}>
-          <BrandMark size={150} />
-          <div style={{ fontFamily: FONT.bold, fontSize: 132, letterSpacing: -4, color: colors.text }}>
-            Twoje Miejsce
-          </div>
-        </div>
-        <Headline text="Miasto bliżej ludzi." at={line} spoken size={64} align="center" accent={["ludzi."]} />
-        <div
+    <div
+      style={{
+        width: 860,
+        borderRadius: 26,
+        background: "#17171A",
+        boxShadow: "0 40px 90px -20px rgba(27,27,31,0.55)",
+        overflow: "hidden",
+        opacity: Math.min(1, enter * 1.5),
+        transform: `translateX(${(1 - enter) * -900}px) perspective(2400px) rotateY(10deg)`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", background: "#222227" }}>
+        {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
+          <div key={c} style={{ width: 13, height: 13, borderRadius: 7, background: c }} />
+        ))}
+        <span style={{ marginLeft: 14, fontFamily: MONO, fontSize: 19, color: "#8A8A92" }}>budzet/index.ts</span>
+        <span
           style={{
-            marginTop: 40,
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: "#FFFFFF",
             fontFamily: FONT.semibold,
-            fontSize: 24,
-            letterSpacing: 2.4,
-            textTransform: "uppercase",
-            color: colors.textSecondary,
-            ...rise(ramp(frame, line + 20, line + 36), 16),
+            fontSize: 19,
           }}
         >
-          HackYeah 2026 · Smart City
+          <WhiteIcon icon={Sparkles} size={18} />
+          AI pisze
+        </span>
+      </div>
+      <div
+        style={{
+          padding: "22px 28px",
+          height: 470,
+          fontFamily: MONO,
+          fontSize: 20,
+          lineHeight: "30px",
+          color: "#E7E7EA",
+        }}
+      >
+        {lines.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: lines of a fixed text.
+          <CodeLine key={i} text={line} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** The checks every plugin passes before it can run (docs/plugins.md), ticked off one by one. */
+const CHECKS = ["Składnia", "Importy", "Typy", "Bezpieczeństwo", "Wczytanie", "Tabele"];
+
+const Checks = ({ from, to }: { from: number; to: number }) => {
+  const frame = useCurrentFrame();
+  const step = (to - from) / CHECKS.length;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, width: 880 }}>
+      {CHECKS.map((label, i) => {
+        const at = from + step * (i + 1);
+        const done = frame >= at;
+        const p = ramp(frame, at, at + 6);
+        return (
+          <div
+            key={label}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "12px 20px",
+              borderRadius: 999,
+              background: done ? "#FFFFFF" : "rgba(255,255,255,0.55)",
+              boxShadow: done ? "0 10px 24px rgba(27,27,31,0.10)" : "none",
+              fontFamily: FONT.semibold,
+              fontSize: 26,
+              color: done ? colors.text : colors.textSecondary,
+              transform: `scale(${1 + Math.sin(p * Math.PI) * 0.1})`,
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: done ? colors.primary : colors.border,
+              }}
+            >
+              {done ? <WhiteIcon icon={Check} size={18} stroke={3.2} /> : null}
+            </div>
+            {label}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const RESIDENTS = ["Marek", "Ola", "Anna", "Piotr", "Zofia"];
+
+/** The burst of the publish tap: a red ring growing from the button. */
+const Ring = ({ at, x, y }: { at: number; x: number; y: number }) => {
+  const frame = useCurrentFrame();
+  const p = ramp(frame, at, at + 28);
+  if (frame < at || p >= 1) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x - 300,
+        top: y - 300,
+        width: 600,
+        height: 600,
+        borderRadius: 300,
+        border: `8px solid ${colors.primary}`,
+        opacity: 1 - p,
+        transform: `scale(${0.2 + p * 2})`,
+      }}
+    />
+  );
+};
+
+export const BuilderScene = () => {
+  const frame = useCurrentFrame();
+  const missing = useCue("brakuje");
+  const admin = useCue("administrator");
+  const describes = useCue("opisuje");
+  const ai = useCue("ai");
+  const checks = useCue("sprawdza");
+  const draft = useCue("szkic");
+  const click = useCue("kliknięcie");
+  const works = useCue("działa");
+  const phoneIn = admin - 8;
+  const create = ai - 4;
+  const stage: BuildStage =
+    frame >= click + 4 ? "published" : frame >= draft ? "ready" : frame >= create ? "working" : "typing";
+  const grid = works - 10;
+  const toGrid = ramp(frame, grid, grid + 18);
+  const titleOut = ramp(frame, phoneIn - 4, phoneIn + 8);
+  const enter = useSpring(phoneIn, 15);
+  const code = useSpring(ai - 2, 15) - ramp(frame, draft - 2, draft + 10);
+  const main: Pose = {
+    x: 1290 + (1 - enter) * 1000 + toGrid * (960 - 1290),
+    y: 545 + toGrid * 55,
+    scale: 1 - toGrid * 0.5,
+    rotY: -10 * (1 - toGrid),
+  };
+  const residents = [budgetWidget(), issuesWidget(4, "fixed")];
+  return (
+    <Light drift={0.9}>
+      <Center style={{ opacity: 1 - titleOut, transform: `scale(${1 + titleOut * 0.2})` }}>
+        <Headline
+          text={"Brakuje\nfunkcji?"}
+          at={missing}
+          spoken
+          variant="slam"
+          size={230}
+          align="center"
+          accent={["funkcji?"]}
+        />
+      </Center>
+
+      {frame >= phoneIn && frame < ai - 2 ? (
+        <div style={{ position: "absolute", left: 150, top: 330, display: "flex", flexDirection: "column", gap: 30 }}>
+          <Eyebrow style={rise(ramp(frame, phoneIn, phoneIn + 12))}>Zarządzaj miejscem → Plugin z AI</Eyebrow>
+          <Headline
+            text={"Opisz ją\nwłasnymi słowami."}
+            at={describes}
+            spoken
+            variant="slam"
+            size={104}
+            accent={["własnymi"]}
+          />
         </div>
-      </AbsoluteFill>
+      ) : null}
+
+      {frame >= ai - 2 && frame < draft + 10 ? (
+        <div style={{ position: "absolute", left: 120, top: 150, display: "flex", flexDirection: "column", gap: 30 }}>
+          <CodePanel at={ai} enter={code} />
+          <div style={{ opacity: Math.max(0, code) }}>
+            <Checks from={checks - 6} to={draft - 4} />
+          </div>
+        </div>
+      ) : null}
+
+      {frame >= draft + 4 && frame < grid ? (
+        <div style={{ position: "absolute", left: 150, top: 360 }}>
+          <Headline
+            text={"Szkic gotowy.\nJedno kliknięcie."}
+            at={draft + 4}
+            stagger={4}
+            variant="slam"
+            size={104}
+            accent={["kliknięcie."]}
+          />
+        </div>
+      ) : null}
+
+      {frame >= grid ? (
+        <>
+          <Headline
+            text="Działa u wszystkich mieszkańców."
+            at={works}
+            spoken
+            variant="slam"
+            size={78}
+            align="center"
+            accent={["wszystkich"]}
+            style={{ position: "absolute", left: 0, right: 0, top: 56 }}
+          />
+          {RESIDENTS.map((name, i) =>
+            i === 2 ? null : (
+              <PhoneAt
+                key={name}
+                pose={{ x: 960 + (i - 2) * 330, y: 600 + (1 - toGrid) * 800, scale: 0.5, rotY: (2 - i) * 6 }}
+              >
+                <DashboardScreen
+                  name={name}
+                  widgets={residents}
+                  arrive={ramp(frame, works + Math.abs(i - 2) * 5, works + Math.abs(i - 2) * 5 + 14)}
+                />
+              </PhoneAt>
+            ),
+          )}
+        </>
+      ) : null}
+
+      <PhoneAt pose={main}>
+        {frame >= grid ? (
+          <DashboardScreen name="Anna" widgets={residents} arrive={ramp(frame, works - 2, works + 12)} />
+        ) : (
+          <>
+            <Pushed
+              screens={[
+                { at: 0, node: <ManageScreen /> },
+                {
+                  at: describes - 2,
+                  node: (
+                    <BuildScreen
+                      request={typed(REQUEST, frame, describes + 8, 2.2)}
+                      stage={stage}
+                      attempt={frame >= checks + 10 ? 1 : 0}
+                    />
+                  ),
+                },
+              ]}
+            />
+            <Tap x={195} y={717} at={describes - 8} />
+            <Tap x={195} y={461} at={create - 2} />
+            <Tap x={195} y={601} at={click} />
+          </>
+        )}
+      </PhoneAt>
+      <Ring at={click + 2} x={main.x} y={main.y + 100} />
     </Light>
+  );
+};
+
+/* ── 8 · outro: the brand and its line ────────────────────────────────────────────────────────────── */
+
+export const OutroScene = () => {
+  const frame = useCurrentFrame();
+  const name = useCue("twoje");
+  const grows = useCue("rośnie");
+  const logo = useSpring(name - 4, 12);
+  return (
+    <AbsoluteFill style={{ background: colors.background }}>
+      <Wipe at={0} frames={14} color={colors.primary}>
+        <Center style={{ gap: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
+            <View style={{ transform: [{ scale: 0.4 + logo * 0.6 }], opacity: Math.min(1, logo * 2) }}>
+              <BrandMark size={170} color="onPrimary" />
+            </View>
+            <Headline text="Twoje Miejsce" at={name} spoken variant="slam" size={150} style={{ color: "#FFFFFF" }} />
+          </div>
+          <Headline
+            text="Rośnie razem z Twoją społecznością."
+            at={grows}
+            spoken
+            size={60}
+            align="center"
+            style={{ color: "#FFFFFF", fontFamily: FONT.semibold }}
+          />
+          <div
+            style={{
+              marginTop: 50,
+              fontFamily: FONT.semibold,
+              fontSize: 24,
+              letterSpacing: 2.4,
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.75)",
+              ...rise(ramp(frame, grows + 50, grows + 66), 16),
+            }}
+          >
+            HackYeah 2026 · Smart City
+          </div>
+        </Center>
+      </Wipe>
+    </AbsoluteFill>
   );
 };
