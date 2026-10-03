@@ -49,8 +49,9 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await expect(
     page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Ogłoszenia`, exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
+  // No announcement yet, so no tile: the place's other features lead to them.
+  await expect(page.getByRole("link", { name: "Ogłoszenia", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Kamienica Lipowa 12" }).click();
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
 });

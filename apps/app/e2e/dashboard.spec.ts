@@ -152,13 +152,3 @@ test("creating a place makes it the current place", async ({ page }) => {
   await register(page, "creator@example.test");
   await createPlace(page, "Osiedle Testowe");
 });
-
-test("the Account tab is a placeholder with sign out", async ({ page, api }) => {
-  await register(page, "account@example.test");
-  await joinKrakow(api.url, "account@example.test");
-  await page.goto("/app");
-  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_account }).click();
-  await expect(page.getByRole("heading", { name: t.account_title, level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: t.sign_out }).click();
-  await expect(page).toHaveURL(/\/login$/);
-});

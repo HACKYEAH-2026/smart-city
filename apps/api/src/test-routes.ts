@@ -1,3 +1,4 @@
+import type { NavigateAction } from "@app/plugin-sdk";
 import type { PlaceKind } from "@app/shared";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
@@ -288,6 +289,36 @@ export function createTestRoutes(deps: Deps) {
           deps.db,
           surql`UPSERT ${membershipRef(keyOf(community.id), keyOf(user.id))}
                 MERGE { community: ${community.id}, user: ${user.id} };`,
+        );
+        return c.json({ ok: true });
+      })
+      /** A notification from a plugin of a place in a user's inbox, as ctx.notify stores it (no push). */
+      .post("/__test/notification", async (c) => {
+        const { email, slug, pluginId, ...notification } = await c.req.json<{
+          email: string;
+          slug: string;
+          pluginId: string;
+          title: string;
+          body: string;
+          open?: NavigateAction;
+        }>();
+        const user = await userIdByEmail(deps.db, email);
+        const community = await communityBySlug(deps.db, slug);
+        const installation = community
+          ? await first<{ id: RecordId }>(
+              deps.db,
+              surql`SELECT id FROM plugin_installation WHERE community = ${community.id} AND plugin = ${pluginId};`,
+            )
+          : undefined;
+        if (!user || !community || !installation) return c.json({ error: "not_found" }, 404);
+        await deps.db.query(
+          surql`CREATE notification CONTENT ${{
+            ...notification,
+            user,
+            community: community.id,
+            installation: installation.id,
+            plugin: pluginId,
+          }} RETURN NONE;`,
         );
         return c.json({ ok: true });
       })

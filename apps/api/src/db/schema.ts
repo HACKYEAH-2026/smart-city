@@ -109,6 +109,8 @@ DEFINE TABLE IF NOT EXISTS place SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user ON place TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS label ON place TYPE string;
 DEFINE FIELD IF NOT EXISTS point ON place TYPE geometry<point>;
+-- The postal address picked with the point, shown in the account ("" = none; places saved before it have NONE).
+DEFINE FIELD IF NOT EXISTS address ON place TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS created_at ON place TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS place_user ON place FIELDS user;
 

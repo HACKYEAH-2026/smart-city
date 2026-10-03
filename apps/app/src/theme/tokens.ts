@@ -137,6 +137,8 @@ export const sizes = {
   avatarMd: 36,
   avatarLg: 40,
   avatarXl: 44,
+  /** The signed-in user's initials at the top of the account. */
+  avatarProfile: 64,
   iconBox: 44,
   iconBoxLg: 48,
   radioDot: 22,
@@ -187,6 +189,10 @@ export const sizes = {
   dashboardMapFade: 120,
   /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
   dashboardMapCrop: 48,
+  /** Dashboard header: the tip of the place's pin, this far below the top of the content (beside the place's name). */
+  dashboardPinTop: 104,
+  /** Dashboard header: the place's pin across the screen, a fraction of its width (between the name and the gear). */
+  dashboardPinX: 0.64,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
@@ -194,6 +200,8 @@ export const sizes = {
   sheetHandleHeight: 5,
   /** Dot under the active bottom-bar tab. */
   tabDot: 5,
+  /** Dot by an unread notification in the account. */
+  unreadDot: 8,
   /** The still map with a place's pin in the "new place" wizard. */
   locationPreview: 140,
   /** A map in a plugin's view; in a dashboard widget it is a still preview of `locationPreview`. */

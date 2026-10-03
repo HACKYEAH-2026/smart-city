@@ -894,7 +894,7 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `GET /api/files/:fileId?exp&sig` | file download via a signed URL |
 | `GET /api/me/notifications` | the user's inbox across communities: `{ items: [{ id, community, pluginId, title, body, tone, open, createdAt, read }], unread }` (newest 50) |
 | `POST /api/me/notifications/read` `{ ids? }` | mark as read (the given ids, or all) → `{ unread }` |
-| `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
+| `GET` / `POST /api/me/places` `{ label, lat, lng, address? }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10; the account's addresses for nearby notifications) |
 | `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
 | `POST` / `DELETE /api/me/push-tokens` `{ token }` | this phone gets / stops getting the user's pushes (Expo push token; moves to whoever registered it last) |
 | `GET /api/communities/:slug/plugins` | place admins: the place's plugins with `enabled`, `madeByAi`, `draft`, `working` (built-in ones, then the AI ones) |

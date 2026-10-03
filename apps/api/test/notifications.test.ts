@@ -91,7 +91,7 @@ const inbox = async (u: TestUser) => {
   return (await res.json()) as NotificationInbox;
 };
 const titles = async (u: TestUser) => (await inbox(u)).items.map((n) => n.title);
-const addPlace = (u: TestUser, place: { label: string; lat: number; lng: number }) =>
+const addPlace = (u: TestUser, place: { label: string; address?: string; lat: number; lng: number }) =>
   t.request("/api/me/places", { method: "POST", headers: u.headers, json: place });
 const shareLocation = (u: TestUser, point: { lat: number; lng: number }) =>
   t.request("/api/me/location", { method: "PUT", headers: u.headers, json: point });
@@ -228,7 +228,7 @@ describe("places", () => {
     const res = await addPlace(anna, { label: "Dom", ...NEXT_BLOCK });
     expect(res.status).toBe(201);
     const place = (await res.json()) as Place;
-    expect(place).toEqual({ id: expect.any(String), label: "Dom", ...NEXT_BLOCK });
+    expect(place).toEqual({ id: expect.any(String), label: "Dom", address: "", ...NEXT_BLOCK });
 
     const list = async (u: TestUser) =>
       (await (await t.request("/api/me/places", { headers: u.headers })).json()) as Place[];
@@ -241,6 +241,18 @@ describe("places", () => {
     expect((await remove(anna, place.id)).status).toBe(204);
     expect(await list(anna)).toEqual([]);
     expect((await remove(anna, place.id)).status).toBe(404);
+  });
+
+  test("the address picked on the map is kept with the place (trimmed; at most 200 characters)", async () => {
+    await start();
+    const anna = await member();
+    const res = await addPlace(anna, { label: "Praca", address: " Floriańska 15, 31-019 Kraków ", ...SIGHTING });
+    expect(res.status).toBe(201);
+    const place = (await res.json()) as Place;
+    expect(place.address).toBe("Floriańska 15, 31-019 Kraków");
+    const list = (await (await t.request("/api/me/places", { headers: anna.headers })).json()) as Place[];
+    expect(list).toEqual([place]);
+    expect((await addPlace(anna, { label: "Dom", address: "x".repeat(201), ...SIGHTING })).status).toBe(400);
   });
 
   test("the web app may PUT the location (CORS preflight allows the method)", async () => {
