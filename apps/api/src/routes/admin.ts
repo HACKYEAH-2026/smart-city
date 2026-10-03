@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { PluginCheckError } from "@app/plugin-sdk";
 import { adminGrantSchema, communityCreateSchema, pluginInstallSchema, pluginUploadSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -6,7 +7,6 @@ import { createMiddleware } from "hono/factory";
 import type { RecordId } from "surrealdb";
 import type { AppEnv } from "../context";
 import { type CommunityRow, communityBySlug, first, keyOf, membershipRef, ref, toCommunity } from "../db";
-import { PluginError } from "../plugins/host";
 
 /**
  * Admin API (plugin uploads, communities, installations). Protected by the PLUGIN_ADMIN_TOKEN
@@ -39,9 +39,13 @@ export function createAdminRoutes(token: string | undefined) {
           const manifest = await c.var.plugins.upload(c.req.valid("json").source);
           return c.json(manifest, 201);
         } catch (err) {
-          if (err instanceof PluginError) return c.json({ error: "invalid_plugin", message: err.message }, 400);
-          throw err;
+          if (!(err instanceof PluginCheckError)) throw err;
+          return c.json({ error: "invalid_plugin", message: err.message, stage: err.stage, errors: err.errors }, 400);
         }
+      })
+      /** Checks source like an upload, storing nothing: always 200 with { status: "ok" | "error", ... }. */
+      .post("/plugins/check", zValidator("json", pluginUploadSchema), async (c) => {
+        return c.json(await c.var.plugins.check(c.req.valid("json").source));
       })
       .post("/communities", zValidator("json", communityCreateSchema), async (c) => {
         const row = await first<CommunityRow>(c.var.db, "INSERT IGNORE INTO community $data RETURN id, slug, name;", {

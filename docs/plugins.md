@@ -24,6 +24,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
   `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, t }`
   (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id).
   This lets the same file run built-in, uploaded at runtime, or later in a sandbox.
+- So a plugin is **one file** (`index.ts`; its test sits next to it): an upload sends that file, and the host
+  rejects runtime imports and type errors before running it ([Checks](#checks)).
 - A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`,
   `notify`. No app database, no disk, no network, no residents' locations.
 - All data is **isolated per installation** (plugin × community): every query, reference and live
@@ -789,7 +791,7 @@ The API host (`apps/api`) runs plugins with the same engine as the harness. Erro
 harness reports them: `requires` → 403, invalid input → 400 with Zod issues, a `DbError` or a bad file id
 from the plugin → 400, a throwing handler or invalid UI/result → `500 plugin_error` for that request only.
 Plugin tables are synced when the host starts (built-in and stored plugins) and when a plugin is uploaded; a
-breaking schema change rejects the upload (400 `invalid_plugin` with the `SchemaError` message) and the
+breaking schema change rejects the upload (400 `invalid_plugin`, stage `schema`; see [Checks](#checks)) and the
 previous version keeps running. There is no endpoint for `streams` yet.
 
 | Endpoint | Description |
@@ -806,12 +808,38 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
 | `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
 | `POST` / `DELETE /api/me/push-tokens` `{ token }` | this phone gets / stops getting the user's pushes (Expo push token; moves to whoever registered it last) |
-| `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (`PLUGIN_ADMIN_TOKEN`) |
+| `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (`PLUGIN_ADMIN_TOKEN`); a failed [check](#checks) → 400 `{ error: "invalid_plugin", message, stage, errors }` |
+| `POST /api/admin/plugins/check` `{ source }` | the upload's [checks](#checks), storing nothing → 200 `PluginCheck` |
 | `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | enable a plugin in a community (runs `onInstall` once) |
 
 **Built-in plugin:** package in `plugins/` + dependency in `apps/api/package.json` + entry in
 `apps/api/src/plugins/builtin/index.ts`. **Runtime upload:** `bun run plugin:upload plugins/<id> <community>`
 (requires `PLUGIN_ADMIN_TOKEN`).
+
+### Checks
+
+Every upload, and `POST /api/admin/plugins/check` (same checks, nothing stored, nothing changed), runs these
+stages in order and stops at the first one that fails:
+
+| Stage | How | Catches |
+|---|---|---|
+| `syntax` | Bun parses the source | the first syntax error |
+| `imports` | runtime imports (`import type` is erased) | `import` / `export … from` / `import()` of a value |
+| `types` | TypeScript against `@app/plugin-sdk` with `tsconfig.base.json`, but **no ambient types** | wrong tables, columns, UI props, results; Bun/Node/browser globals (`process`, `console`, `fetch`) |
+| `load` | the factory runs, `loadPlugin` validates it | invalid manifest, `nav` → missing view, invalid tables, tools without Zod, built-in ids |
+| `schema` | tables vs. the stored shape (`planSchema`, nothing applied) | breaking changes ([Schema evolution](#schema-evolution-no-migrations)) |
+
+The result is `PluginCheck` from `@app/plugin-sdk` (at most 10 errors; `line`/`column` are 1-based, `snippet`
+is that source line):
+
+```ts
+{ status: "ok", plugin: { id, version, views, dashboardWidgets, tools, streams, tables } }
+{ status: "error", stage: "types", errors: [{ message: "Property 'benchez' does not exist on type 'Database<…'. Did you mean 'benches'?", line: 22, column: 36, snippet: "const items = await ctx.db.benchez.findMany();" }] }
+```
+
+`syntax`, `imports` and `types` only read the source; `load` runs it in the API process (see Security below).
+The `types` stage reads no disk: the compiler sees a recorded snapshot of the SDK types and the ES2023 library
+(`apps/api/src/plugins/typecheck.ts`), which the production build writes next to the bundle (`plugin-types.json`).
 
 **Security:** an uploaded plugin runs inside the API process ("trusted administrator" model: the admin token
 grants full trust). The contract is built for isolation — the module imports nothing and all access goes
@@ -822,5 +850,7 @@ through the async `ctx` — so moving plugins to a Worker/WASM sandbox changes t
 - The system user in `onInstall` has no account: seeded rows get `createdBy: null`, it cannot be stored in a
   `t.ref("user")` column and cannot attach pending uploads. Use optional user refs for seeded rows.
 - `testPlugin().db` is untyped (`plugin.db.items!`): the harness gets the module, not its table types.
+- A check that reaches `load` imports the source as a new module into the API process, and Bun never unloads
+  modules: many checks (e.g. an AI agent iterating on a plugin) grow memory. Fix: run `load` in a disposable Worker.
 - Tests share one embedded engine per process (`testEngine()`); never open another `mem://` connection
   (with @surrealdb/node 3.0.3, Bun 1.4 crashes on exit). See `docs/testing.md`.

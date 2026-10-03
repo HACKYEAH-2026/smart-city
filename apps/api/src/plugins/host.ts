@@ -6,22 +6,26 @@ import {
   type DashboardWidgetSize,
   dashboardWidgetSchema,
   loadPlugin,
+  type PluginCheck,
+  PluginCheckError,
   type PluginCommunity,
   PluginError,
   type PluginManifest,
   type PluginModule,
   screenSchema,
+  summarize,
   type ToolResult,
   toolResultSchema,
   type UINode,
   type ViewParams,
 } from "@app/plugin-sdk";
-import { DbError, SchemaError } from "@app/plugin-sdk/engine";
+import { DbError } from "@app/plugin-sdk/engine";
 import type { RecordId } from "surrealdb";
 import { z } from "zod";
 import { first, keyOf, ref, rows, toDate, visitRef } from "../db";
-import { syncPluginTables } from "../services/db/service";
+import { planPluginTables, syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
+import { checkImports, checkSyntax, checkTypes, failAs } from "./check";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
 export { PluginError };
@@ -90,18 +94,23 @@ export class PluginHost {
     return [...this.plugins.values()];
   }
 
+  /** Checks plugin source exactly as an upload does, without storing it or changing the database. */
+  async check(source: string): Promise<PluginCheck> {
+    return this.validate(source).then(summarize, (err: unknown) => {
+      if (err instanceof PluginCheckError) return err.result;
+      throw err;
+    });
+  }
+
   /**
-   * Uploads (or replaces) a plugin from source code. Returns the manifest. Its tables are synced first:
-   * a breaking schema change rejects the upload and leaves the previous version running.
+   * Uploads (or replaces) a plugin from source code. Returns the manifest. The source must pass every check
+   * stage (PluginCheckError otherwise); its tables are synced before it is stored, so a schema change that
+   * fails to apply rejects the upload and leaves the previous version running.
    */
   async upload(source: string): Promise<PluginManifest> {
-    await this.ready();
-    const loaded = await this.compile(source);
+    const loaded = await this.validate(source);
     const { id, version } = loaded.manifest;
-    if (this.plugins.get(id)?.origin === "builtin") throw new PluginError(`"${id}" is a built-in plugin`);
-    await syncPluginTables(this.db, loaded).catch((err) => {
-      throw err instanceof SchemaError ? new PluginError(err.message) : err;
-    });
+    await syncPluginTables(this.db, loaded).catch(failAs("schema"));
     await this.db.query("UPSERT $r SET version = $version, source = $source, updated_at = time::now();", {
       r: ref("source", id),
       version,
@@ -211,6 +220,24 @@ export class PluginHost {
       return { ...node, children: node.children.map((c) => this.signImages(c)) } as UINode;
     }
     return node;
+  }
+
+  /**
+   * The check stages, cheapest first; the first failing one throws PluginCheckError. `syntax`, `imports` and
+   * `types` only read the source; `load` runs the plugin factory (in this process: docs/plugins.md, Security);
+   * `schema` compares the tables with the stored shape without changing anything.
+   */
+  private async validate(source: string): Promise<ReturnType<typeof loadPlugin>> {
+    await this.ready();
+    checkSyntax(source);
+    checkImports(source);
+    await checkTypes(source);
+    const loaded = await this.compile(source).catch(failAs("load"));
+    if (this.plugins.get(loaded.manifest.id)?.origin === "builtin") {
+      throw new PluginCheckError("load", [{ message: `"${loaded.manifest.id}" is a built-in plugin` }]);
+    }
+    await planPluginTables(this.db, loaded).catch(failAs("schema"));
+    return loaded;
   }
 
   private async compile(source: string): Promise<ReturnType<typeof loadPlugin>> {
