@@ -17,7 +17,7 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={place.name}
+      accessibilityLabel={`${place.name}, ${place.role === "admin" ? t.place_role_admin : t.place_role_member}`}
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={[styles.row, active ? styles.active : styles.idle]}

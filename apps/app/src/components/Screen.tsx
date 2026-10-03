@@ -14,6 +14,8 @@ export interface ScreenProps {
   backdrop?: ReactNode;
   /** Show the bottom bar with the main sections (dashboard, places, account). */
   tabBar?: boolean;
+  /** Drawn over the whole screen, outside the scroll (e.g. a bottom sheet). */
+  overlay?: ReactNode;
 }
 
 /**
@@ -22,7 +24,7 @@ export interface ScreenProps {
  * Keyboard: the focused field scrolls above it together with the button below it, and the first tap on a
  * button while the keyboard is open presses it (instead of only closing the keyboard).
  */
-export function Screen({ children, chrome = true, backdrop, tabBar = false }: ScreenProps) {
+export function Screen({ children, chrome = true, backdrop, tabBar = false, overlay }: ScreenProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
@@ -50,6 +52,7 @@ export function Screen({ children, chrome = true, backdrop, tabBar = false }: Sc
         </View>
       </KeyboardAwareScrollView>
       {tabBar ? <BottomTabBar /> : null}
+      {overlay}
     </View>
   );
 }

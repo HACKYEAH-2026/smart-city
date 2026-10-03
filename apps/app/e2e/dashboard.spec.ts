@@ -38,7 +38,7 @@ test("clicking the place name opens the places sheet with set-as-default", async
   await register(page, "switch@example.test");
   await joinKrakow(api.url, "switch@example.test");
   await page.goto("/app");
-  await page.getByRole("button", { name: "Kraków" }).click();
+  await page.getByRole("button", { name: "Kraków", exact: true }).click();
   await expect(page.getByRole("heading", { name: t.places_sheet_title })).toBeVisible();
   await expect(page.getByRole("button", { name: t.place_set_default })).toBeVisible();
 });

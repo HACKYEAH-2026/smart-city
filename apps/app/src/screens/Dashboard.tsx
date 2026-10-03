@@ -84,7 +84,36 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
   const widgetList = widgets.data?.widgets ?? [];
 
   return (
-    <Screen chrome={false} tabBar backdrop={<DashboardMap />}>
+    <Screen
+      chrome={false}
+      tabBar
+      backdrop={<DashboardMap />}
+      overlay={
+        <BottomSheet visible={switching} title={t.places_sheet_title} onClose={() => setSwitching(false)}>
+          <View style={styles.sheetList}>
+            {places.map((p) => (
+              <PlaceRow key={p.id} place={p} active={p.id === place.id} onPress={() => choose(p.slug)} />
+            ))}
+          </View>
+          <Button label={t.place_set_default} variant="secondary" onPress={() => setDefault.mutate(place.slug)} />
+          <Button
+            label={t.place_join}
+            variant="secondary"
+            onPress={() => {
+              setSwitching(false);
+              router.push("/app/join");
+            }}
+          />
+          <Button
+            label={t.place_create}
+            onPress={() => {
+              setSwitching(false);
+              router.push("/app/create");
+            }}
+          />
+        </BottomSheet>
+      }
+    >
       <Head>
         <title>{place.name}</title>
       </Head>
@@ -94,14 +123,18 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
         <Text variant="label" color="textSecondary">
           {t.place_current_label}
         </Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={place.name} onPress={() => setSwitching(true)}>
-          <View style={styles.nameRow}>
-            <Heading level={1} variant="heading">
-              {place.name}
-            </Heading>
-            <View style={styles.chevron}>
-              <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
-            </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={place.name}
+          hitSlop={spacing[6]}
+          onPress={() => setSwitching(true)}
+          style={styles.nameRow}
+        >
+          <Heading level={1} variant="heading">
+            {place.name}
+          </Heading>
+          <View style={styles.chevron}>
+            <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
           </View>
         </Pressable>
       </View>
@@ -137,30 +170,6 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
           </Text>
         )}
       </View>
-
-      <BottomSheet visible={switching} title={t.places_sheet_title} onClose={() => setSwitching(false)}>
-        <View style={styles.sheetList}>
-          {places.map((p) => (
-            <PlaceRow key={p.id} place={p} active={p.id === place.id} onPress={() => choose(p.slug)} />
-          ))}
-        </View>
-        <Button label={t.place_set_default} variant="secondary" onPress={() => setDefault.mutate(place.slug)} />
-        <Button
-          label={t.place_join}
-          variant="secondary"
-          onPress={() => {
-            setSwitching(false);
-            router.push("/app/join");
-          }}
-        />
-        <Button
-          label={t.place_create}
-          onPress={() => {
-            setSwitching(false);
-            router.push("/app/create");
-          }}
-        />
-      </BottomSheet>
     </Screen>
   );
 }
