@@ -147,10 +147,10 @@ function isReadOnly(node: UINode): boolean {
 }
 
 /**
- * Widget returned by a plugin for the community dashboard: a Widget node at the root, read-only
+ * Dashboard widget returned by a plugin: a Widget node at the root, read-only
  * (no forms, no tool calls). Its navigate actions open views of the plugin.
  */
-export const widgetSchema = uiNodeSchema
+export const dashboardWidgetSchema = uiNodeSchema
   .refine((n) => n.type === "Widget", "Widget must return a Widget node")
   .refine(isReadOnly, "Widget must be read-only: no forms, inputs or tool actions");
 

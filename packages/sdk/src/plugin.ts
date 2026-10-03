@@ -63,17 +63,18 @@ export type PluginView<TT extends Tables = Tables> = (ctx: Context<TT>, params: 
 
 /**
  * Space a widget takes on the community dashboard: a grid 2 columns wide (`w`), in rows of fixed height (`h`).
- * The app lays widgets out in plugin order; a widget never grows beyond its size (content is clipped).
+ * Default order: plugin installation, then declaration; a community admin can reorder the dashboard.
+ * A widget never grows beyond its size (content is clipped).
  */
-export const widgetSizeSchema = z.object({
+export const dashboardWidgetSizeSchema = z.object({
   w: z.union([z.literal(1), z.literal(2)]),
   h: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
-export type WidgetSize = z.infer<typeof widgetSizeSchema>;
+export type DashboardWidgetSize = z.infer<typeof dashboardWidgetSizeSchema>;
 
 /** Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only), or null to hide it. */
-export type PluginWidget<TT extends Tables = Tables> = {
-  size: WidgetSize;
+export type DashboardWidget<TT extends Tables = Tables> = {
+  size: DashboardWidgetSize;
   render: (ctx: Context<TT>) => UINode | null | Promise<UINode | null>;
 };
 
@@ -107,7 +108,7 @@ export type PluginDefinition = PluginManifestInput & {
   views: Record<string, PluginView<any>>;
   /** Widgets on the community dashboard, in this order. */
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
-  widgets?: Record<string, PluginWidget<any>>;
+  dashboardWidgets?: Record<string, DashboardWidget<any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   tools?: Record<string, Tool<z.ZodType, any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
@@ -129,7 +130,7 @@ export function definePlugin<
   plugin: PluginManifestInput & {
     tables?: TT;
     views: Record<string, PluginView<TT>>;
-    widgets?: Record<string, PluginWidget<TT>>;
+    dashboardWidgets?: Record<string, DashboardWidget<TT>>;
     tools?: { [K in keyof TS]: Tool<TS[K], TT> };
     streams?: { [K in keyof TR]: Stream<TR[K], TT> };
     onInstall?: (ctx: Context<TT>) => void | Promise<void>;

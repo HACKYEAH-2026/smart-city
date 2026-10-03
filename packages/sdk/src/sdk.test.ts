@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { pluginManifestSchema } from "./plugin";
-import { screenSchema, ui, uiNodeSchema, widgetSchema } from "./ui";
+import { dashboardWidgetSchema, screenSchema, ui, uiNodeSchema } from "./ui";
 
 describe("UI catalog", () => {
   test("tree built from builders passes validation", () => {
@@ -31,15 +31,15 @@ describe("UI catalog", () => {
     expect(screenSchema.safeParse(ui.text("samotny tekst")).success).toBe(false);
   });
 
-  test("widget: a Widget root with reading and navigation only", () => {
+  test("dashboard widget: a Widget root with reading and navigation only", () => {
     const ok = ui.widget("Ogłoszenia", [ui.card({ title: "Nowe", onPress: ui.navigate("item", { id: "1" }) })]);
-    expect(widgetSchema.parse(ok)).toEqual(ok);
-    expect(widgetSchema.safeParse(ui.screen("Ogłoszenia", [])).success).toBe(false);
+    expect(dashboardWidgetSchema.parse(ok)).toEqual(ok);
+    expect(dashboardWidgetSchema.safeParse(ui.screen("Ogłoszenia", [])).success).toBe(false);
     const withForm = ui.widget("x", [ui.form({ submitLabel: "Wyślij", submit: ui.tool("send"), children: [] })]);
-    expect(widgetSchema.safeParse(withForm).success).toBe(false);
-    expect(widgetSchema.safeParse(ui.widget("x", [ui.stack([ui.button("Usuń", ui.tool("remove"))])])).success).toBe(
-      false,
-    );
+    expect(dashboardWidgetSchema.safeParse(withForm).success).toBe(false);
+    expect(
+      dashboardWidgetSchema.safeParse(ui.widget("x", [ui.stack([ui.button("Usuń", ui.tool("remove"))])])).success,
+    ).toBe(false);
   });
 });
 

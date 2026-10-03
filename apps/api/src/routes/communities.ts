@@ -1,5 +1,5 @@
-import { type Role, type UINode, viewParamsSchema, type WidgetSize } from "@app/plugin-sdk";
-import { type CommunityNavItem, toolCallSchema } from "@app/shared";
+import { type DashboardWidgetSize, type Role, type UINode, viewParamsSchema } from "@app/plugin-sdk";
+import { type CommunityNavItem, dashboardOrderSchema, toolCallSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import type { RecordId } from "surrealdb";
@@ -19,8 +19,14 @@ import { requireUser } from "../middleware";
 import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
 
-/** A rendered dashboard widget: `size` in grid cells (2 columns wide), `node` is the plugin's UI tree. */
-type CommunityWidget = { pluginId: string; widget: string; size: WidgetSize; node: UINode };
+/** A rendered dashboard widget: `key` = "<pluginId>/<widget>", `size` in grid cells (2 columns wide). */
+type DashboardWidgetItem = {
+  key: string;
+  pluginId: string;
+  widget: string;
+  size: DashboardWidgetSize;
+  node: UINode;
+};
 
 /**
  * Communities and their plugins (for the app). A plugin's views, tools and uploads are available only
@@ -73,10 +79,11 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json(nav);
   })
   /**
-   * Dashboard: widgets of the enabled plugins, rendered for this user. A widget that fails or returns null
-   * is left out, so one broken plugin never breaks the dashboard.
+   * Dashboard: widgets of the enabled plugins, rendered for this user, in the order set by the community admins
+   * (widgets not in it follow in the default order). A widget that fails or returns null is left out, so one
+   * broken plugin never breaks the dashboard. `canEdit` = the user may reorder it.
    */
-  .get("/:slug/widgets", async (c) => {
+  .get("/:slug/dashboard", async (c) => {
     const row = await communityBySlug(c.var.db, c.req.param("slug"));
     if (!row) return c.json({ error: "not_found" }, 404);
     const community = toCommunity(row);
@@ -95,15 +102,31 @@ export const communitiesRoutes = new Hono<AppEnv>()
         const lastVisit = await c.var.plugins.lastVisit(installationId, user.id);
         const ctx = c.var.plugins.context(plugin, { installationId, community, user, lastVisit });
         return Promise.all(
-          c.var.plugins.widgets(plugin).map(async ({ name, size }) => {
-            const node = await c.var.plugins.renderWidget(plugin, name, ctx).catch(logWidgetFailure);
-            return node ? [{ pluginId, widget: name, size, node }] : [];
+          c.var.plugins.dashboardWidgets(plugin).map(async ({ name, size }) => {
+            const node = await c.var.plugins.renderDashboardWidget(plugin, name, ctx).catch(logWidgetFailure);
+            return node ? [{ key: `${pluginId}/${name}`, pluginId, widget: name, size, node }] : [];
           }),
         );
       }),
     );
-    const widgets: CommunityWidget[] = perPlugin.flat(2);
-    return c.json(widgets, 200);
+    const order = await dashboardOrder(c.var.db, community.id);
+    const widgets: DashboardWidgetItem[] = sortByOrder(perPlugin.flat(2), order);
+    return c.json({ canEdit: role === "admin", widgets }, 200);
+  })
+  /** Community admins set the dashboard order (keys "<pluginId>/<widget>"). */
+  .patch("/:slug/dashboard", zValidator("json", dashboardOrderSchema), async (c) => {
+    const row = await communityBySlug(c.var.db, c.req.param("slug"));
+    if (!row) return c.json({ error: "not_found" }, 404);
+    const community = toCommunity(row);
+    if ((await currentRole(c.var.db, community.id, c.var.user.id)) !== "admin") {
+      return c.json({ error: "forbidden" }, 403);
+    }
+    const { order } = c.req.valid("json");
+    await c.var.db.query("UPSERT $d SET order = $order, updated_at = time::now();", {
+      d: ref("dashboard", community.id),
+      order,
+    });
+    return c.json({ order }, 200);
   })
   .get("/:slug/plugins/:pluginId/views/:view", zValidator("query", viewParamsSchema), async (c) => {
     const target = await resolve(c, c.req.param("slug"), c.req.param("pluginId"));
@@ -172,6 +195,18 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
     lastVisit,
   });
   return { plugin, ctx, installationId };
+}
+
+const dashboardOrder = async (db: Db, communityId: string): Promise<string[]> =>
+  (await first<{ order: string[] }>(db, "SELECT order FROM $d;", { d: ref("dashboard", communityId) }))?.order ?? [];
+
+/** Saved order first; widgets missing from it keep their default order after those (stable sort). */
+function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[] {
+  const rank = (key: string) => {
+    const i = order.indexOf(key);
+    return i === -1 ? order.length : i;
+  };
+  return items.toSorted((a, b) => rank(a.key) - rank(b.key));
 }
 
 function logWidgetFailure(err: unknown): null {

@@ -145,3 +145,28 @@ describe("issues: role", () => {
     expect(data).toEqual([expect.objectContaining({ title: "Dziura w chodniku", status: "open" })]);
   });
 });
+
+describe("issues: dashboard", () => {
+  test("summary widget counts issues in progress and fixed", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    expect(textsOf((await t.dashboardWidget("summary"))!)).toEqual([
+      "Zgłoszenia",
+      "W toku",
+      "0",
+      "Naprawione",
+      "0",
+      "Zgłoś problem",
+    ]);
+    await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
+    const res = await t.tool("report", { title: "Przewrócony kosz", category: "cleanliness" });
+    await t.as(admin).tool("setStatus", { id: res.navigate!.params!.id!, status: "fixed" });
+    expect(textsOf((await t.dashboardWidget("summary"))!)).toEqual([
+      "Zgłoszenia",
+      "W toku",
+      "1",
+      "Naprawione",
+      "1",
+      "Zgłoś problem",
+    ]);
+  });
+});

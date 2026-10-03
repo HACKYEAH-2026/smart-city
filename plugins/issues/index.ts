@@ -196,6 +196,20 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
       },
     },
 
+    dashboardWidgets: {
+      summary: {
+        size: { w: 2, h: 2 },
+        render: async (ctx) => {
+          const inProgress = await ctx.db.issues.count({ where: { status: { ne: "fixed" } } });
+          const fixed = await ctx.db.issues.count({ where: { status: "fixed" } });
+          return ui.widget("Zgłoszenia", [
+            ui.row([ui.stat("W toku", String(inProgress)), ui.stat("Naprawione", String(fixed))]),
+            ui.button("Zgłoś problem", ui.navigate("new")),
+          ]);
+        },
+      },
+    },
+
     tools: {
       report: {
         description:

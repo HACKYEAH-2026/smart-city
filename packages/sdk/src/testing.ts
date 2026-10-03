@@ -11,7 +11,14 @@ import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin"
 import type { AI, AICall, SimilarMatch } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
-import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams, widgetSchema } from "./ui";
+import {
+  dashboardWidgetSchema,
+  screenSchema,
+  type ToolResult,
+  toolResultSchema,
+  type UINode,
+  type ViewParams,
+} from "./ui";
 
 /**
  * Test harness for plugin authors: test a plugin like a plain function, without the API or an AI model.
@@ -24,7 +31,7 @@ import { screenSchema, type ToolResult, toolResultSchema, type UINode, type View
  *   const photo = await t.files.fake();
  *   await t.tool("report", { title: "Latarnia", photo });
  *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
- *   await t.widget("latest"); // dashboard widget; `view()` records a visit like the host (ctx.lastVisit)
+ *   await t.dashboardWidget("latest"); // `view()` records a visit like the host (ctx.lastVisit)
  */
 export class ForbiddenError extends Error {}
 
@@ -184,10 +191,10 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       return node;
     },
     /** Dashboard widget (validated like in the host); null = the widget shows nothing. */
-    async widget(name: string): Promise<UINode | null> {
-      const fn = definition.widgets?.[name];
-      if (!fn) throw new Error(`no widget ${name}`);
-      return widgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
+    async dashboardWidget(name: string): Promise<UINode | null> {
+      const fn = definition.dashboardWidgets?.[name];
+      if (!fn) throw new Error(`no dashboard widget ${name}`);
+      return dashboardWidgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];

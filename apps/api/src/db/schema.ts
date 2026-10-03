@@ -14,6 +14,7 @@ export const TABLES = {
   file: "plugin_file",
   source: "plugin_source",
   visit: "plugin_visit",
+  dashboard: "dashboard",
 } as const;
 
 export const SCHEMA = `
@@ -51,4 +52,10 @@ DEFINE TABLE IF NOT EXISTS plugin_visit SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS installation ON plugin_visit TYPE record<plugin_installation> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS user ON plugin_visit TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS at ON plugin_visit TYPE datetime;
+
+-- Dashboard widget order of a community, set by its admins. id = community key; entries are
+-- "<plugin>/<widget>" (widgets missing from it follow in the default order).
+DEFINE TABLE IF NOT EXISTS dashboard SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS order ON dashboard TYPE array<string>;
+DEFINE FIELD IF NOT EXISTS updated_at ON dashboard TYPE datetime DEFAULT time::now();
 `;

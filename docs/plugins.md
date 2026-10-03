@@ -15,7 +15,7 @@ communities, users and installations; plugins bring everything else: their own t
 Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-package) ·
 [Manifest](#manifest-permissions-roles) · [Tables](#tables) · [Schema evolution](#schema-evolution-no-migrations) ·
 [`ctx.db`](#ctxdb) · [Files](#ctxfiles) · [AI](#ctxai) · [Tools & streams](#tools-streams-oninstall) ·
-[Views](#views-ui) · [Widgets](#widgets-dashboard) · [Testing](#testing) · [Host](#host)
+[Views](#views-ui) · [Dashboard widgets](#dashboard-widgets) · [Testing](#testing) · [Host](#host)
 
 ## Mental model
 
@@ -32,9 +32,9 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
   `error` messages, Zod messages for user input, tool descriptions) is in Polish.
 
 ```
- plugin factory(sdk) ──► definePlugin({ tables, views, widgets, tools, streams })
+ plugin factory(sdk) ──► definePlugin({ tables, views, dashboardWidgets, tools, streams })
                                 │
- host ── ctx { user, community, now, lastVisit, db, files, ai } ──► view / widget / tool / stream handler
+ host ── ctx { user, community, now, lastVisit, db, files, ai } ──► view / dashboard widget / tool / stream handler
 ```
 
 Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
@@ -123,7 +123,7 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 | `permissions` | subset of `"db"`, `"files"`, `"ai"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
 | `tables` | optional, see [Tables](#tables) |
-| `views`, `widgets`, `tools`, `streams`, `onInstall` | see below |
+| `views`, `dashboardWidgets`, `tools`, `streams`, `onInstall` | see below |
 
 **Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
@@ -512,7 +512,7 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Node | Builder |
 |---|---|
 | Screen | `ui.screen(title, children)` — always the root |
-| Widget | `ui.widget(title, children)` — the root of a [widget](#widgets-dashboard) |
+| Widget | `ui.widget(title, children)` — the root of a [dashboard widget](#dashboard-widgets) |
 | Stack / Row | `ui.stack([...])`, `ui.row([...])` |
 | List | `ui.list(label, items)` |
 | Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, onPress?, children? })` |
@@ -527,15 +527,17 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 
 A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Renderer.tsx`.
 
-## Widgets (dashboard)
+## Dashboard widgets
 
-A plugin may put widgets on the community dashboard (optional). Each widget declares a fixed `size` in grid
+A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). Each widget declares a fixed `size` in grid
 cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3 rows — and a `render(ctx)` that
-returns `ui.widget(title, children)`, or `null` to show nothing (e.g. no data yet). Widgets appear in the
-order of installation, then declaration; content beyond the size is clipped.
+returns `ui.widget(title, children)`, or `null` to show nothing (e.g. no data yet). Content beyond the size
+is clipped. Default order: plugin installation, then declaration. Community admins reorder the dashboard in the
+app (drag, or earlier/later buttons); the order is saved per community and widgets of newly installed plugins go
+last.
 
 ```ts
-widgets: {
+dashboardWidgets: {
   latest: {
     size: { w: 2, h: 3 },
     render: async (ctx) => {
@@ -571,10 +573,10 @@ No API, no AI model; connections close after each test.
 | `await testPlugin(mod, { user?, community? })` | loads, validates and syncs the schema. Default user `{ id: "u_test", role: "user" }` |
 | `.tool(name, args?)` | → `ToolResult`; rejects with `ForbiddenError` (requires) or a `ZodError` (input) |
 | `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions. Records a visit (`ctx.lastVisit`) like the host |
-| `.widget(name)` | → validated widget `UINode` or `null` |
+| `.dashboardWidget(name)` | → validated widget `UINode` or `null` |
 | `.stream(name, args?)` | → `AsyncIterator`; read with `next()`, finish with `return()` |
 | `.invalidInput(name, args)` | Zod issues the host would answer 400 with, or `null` |
-| `.as(user)` | the same harness acting as another user (`.tool/.view/.widget/.stream/.files.fake/.invalidInput/.ctx`) |
+| `.as(user)` | the same harness acting as another user (`.tool/.view/.dashboardWidget/.stream/.files.fake/.invalidInput/.ctx`) |
 | `.files.fake(mime?)` | a pending upload by the acting user → `FileId` |
 | `.files.isKept(id)` | `true` once a `t.ref("file")` column referenced it |
 | `.ai.mockSimilar((query, candidates) => matches)` | `findSimilar` result (default `[]`) |
@@ -753,7 +755,8 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | Endpoint | Description |
 |---|---|
 | `GET /api/communities/:slug/nav` | navigation for the app |
-| `GET /api/communities/:slug/widgets` | dashboard: `[{ pluginId, widget, size, node }]` rendered for the user |
+| `GET /api/communities/:slug/dashboard` | `{ canEdit, widgets: [{ key, pluginId, widget, size, node }] }` rendered for the user, in the community's order |
+| `PATCH /api/communities/:slug/dashboard` `{ order }` | community admins: widget order (`"<pluginId>/<widget>"` keys); others 403 |
 | `GET /api/communities/:slug/plugins/:id/views/:view?…` | UI tree of a view |
 | `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | tool call |
 | `POST /api/communities/:slug/plugins/:id/files` (multipart `file`) | upload → `{ fileId }` (pending) |

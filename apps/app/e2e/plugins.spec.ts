@@ -157,3 +157,58 @@ test("home screen widget: announcements show what is new since the last visit", 
   await expect(widget.getByText("Nic nowego od Twojej ostatniej wizyty.")).toBeVisible();
   await expect(widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" })).toHaveCount(0);
 });
+
+const dashboardRegions = (page: Page) =>
+  page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
+
+const publishAnnouncement = async (page: Page, title: string) => {
+  await page.goto("/app/c/krakow/announcements/list");
+  await page.getByLabel("Tytuł").fill(title);
+  await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
+  await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
+};
+
+test("admin reorders the dashboard; residents see the new order and cannot edit", async ({ page }) => {
+  await login(page, "admin@krakow.test");
+  await publishAnnouncement(page, "Zebranie mieszkańców");
+  await page.goto("/app/c/krakow");
+  await expect(dashboardRegions(page)).toHaveCount(2);
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
+
+  await page.getByRole("button", { name: t.dashboard_edit }).click();
+  await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+  await page.getByRole("button", { name: t.dashboard_done }).click();
+  await expect(page.getByRole("button", { name: t.dashboard_edit })).toBeVisible();
+
+  await signOut(page);
+  await register(page, "sasiad@example.test");
+  await page.getByRole("link", { name: "Kraków" }).click();
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(page.getByRole("button", { name: t.dashboard_edit })).toHaveCount(0);
+});
+
+test("admin drags a widget to a new place on the dashboard", async ({ page }) => {
+  // The whole dashboard must fit in the viewport: the mouse cannot drag to points outside it.
+  await page.setViewportSize({ width: 1280, height: 1400 });
+  await login(page, "admin@krakow.test");
+  await publishAnnouncement(page, "Przerwa w dostawie wody");
+  await page.goto("/app/c/krakow");
+  await expect(dashboardRegions(page)).toHaveCount(2);
+  await page.getByRole("button", { name: t.dashboard_edit }).click();
+
+  const handle = page.getByLabel(`${t.dashboard_drag}: Ogłoszenia`);
+  const target = await dashboardRegions(page).nth(0).boundingBox();
+  const from = await handle.boundingBox();
+  if (!target || !from) throw new Error("dashboard not laid out");
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + 20, target.y + 20, { steps: 12 });
+  await page.mouse.up();
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+
+  await page.getByRole("button", { name: t.dashboard_done }).click();
+  await page.reload();
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+});

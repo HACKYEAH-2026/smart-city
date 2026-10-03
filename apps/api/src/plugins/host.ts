@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   type Context,
+  type DashboardWidgetSize,
+  dashboardWidgetSchema,
   loadPlugin,
   type PluginCommunity,
   PluginError,
@@ -13,8 +15,6 @@ import {
   toolResultSchema,
   type UINode,
   type ViewParams,
-  type WidgetSize,
-  widgetSchema,
 } from "@app/plugin-sdk";
 import { DbError, SchemaError } from "@app/plugin-sdk/engine";
 import type { RecordId } from "surrealdb";
@@ -151,22 +151,22 @@ export class PluginHost {
   }
 
   /** A dashboard widget, or null when the plugin hides it (e.g. nothing to show). */
-  async renderWidget(plugin: LoadedPlugin, name: string, ctx: Context): Promise<UINode | null> {
-    const widget = plugin.definition.widgets?.[name];
-    if (!widget) throw new PluginError(`widget_not_found:${name}`);
-    const out = await guard(plugin, `widget ${name}`, () => widget.render(ctx));
-    const parsed = widgetSchema.nullable().safeParse(out);
+  async renderDashboardWidget(plugin: LoadedPlugin, name: string, ctx: Context): Promise<UINode | null> {
+    const widget = plugin.definition.dashboardWidgets?.[name];
+    if (!widget) throw new PluginError(`dashboard_widget_not_found:${name}`);
+    const out = await guard(plugin, `dashboard widget ${name}`, () => widget.render(ctx));
+    const parsed = dashboardWidgetSchema.nullable().safeParse(out);
     if (!parsed.success) {
       throw new PluginError(
-        `${plugin.manifest.id}: widget "${name}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
+        `${plugin.manifest.id}: dashboard widget "${name}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
       );
     }
     return parsed.data && this.signImages(parsed.data);
   }
 
   /** Widgets a plugin declares, in its order. */
-  widgets(plugin: LoadedPlugin): { name: string; size: WidgetSize }[] {
-    return Object.entries(plugin.definition.widgets ?? {}).map(([name, w]) => ({ name, size: w.size }));
+  dashboardWidgets(plugin: LoadedPlugin): { name: string; size: DashboardWidgetSize }[] {
+    return Object.entries(plugin.definition.dashboardWidgets ?? {}).map(([name, w]) => ({ name, size: w.size }));
   }
 
   /** When the user last opened a view of this installation (ctx.lastVisit), or null. */

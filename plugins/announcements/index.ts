@@ -69,7 +69,7 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
       },
     },
 
-    widgets: {
+    dashboardWidgets: {
       latest: {
         size: { w: 2, h: 3 },
         render: async (ctx) => {

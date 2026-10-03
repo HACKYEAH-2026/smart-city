@@ -11,6 +11,7 @@ const c = api.api.communities;
 
 export const communitiesKey = ["communities"] as const;
 const communityKey = (slug: string) => ["communities", slug] as const;
+const dashboardKey = (slug: string) => [...communityKey(slug), "dashboard"] as const;
 const pluginKey = (slug: string, pluginId: string) => [...communityKey(slug), "plugin", pluginId] as const;
 
 export function useCommunities() {
@@ -30,12 +31,21 @@ export function useCommunityNav(slug: string) {
   });
 }
 
-/** Dashboard widgets, rendered for this user (refetched on every visit to the dashboard and periodically). */
-export function useCommunityWidgets(slug: string) {
+/** Dashboard (widgets rendered for this user, in the community's order); refetched on every visit and periodically. */
+export function useDashboard(slug: string) {
   return useQuery({
-    queryKey: [...communityKey(slug), "widgets"],
-    queryFn: () => parseResponse(c[":slug"].widgets.$get({ param: { slug } })),
+    queryKey: dashboardKey(slug),
+    queryFn: () => parseResponse(c[":slug"].dashboard.$get({ param: { slug } })),
     refetchInterval: 15000,
+  });
+}
+
+/** Community admins: save the dashboard widget order ("<pluginId>/<widget>" keys). */
+export function useSaveDashboardOrder(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: string[]) => parseResponse(c[":slug"].dashboard.$patch({ param: { slug }, json: { order } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
   });
 }
 

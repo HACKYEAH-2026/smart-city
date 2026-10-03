@@ -22,3 +22,9 @@ export const toolCallSchema = z.object({ args: z.record(z.string(), z.unknown())
 /** A community and its nav entry (API responses for the app). */
 export type Community = { id: string; slug: string; name: string };
 export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };
+
+/** Dashboard widget order set by a community admin: "<pluginId>/<widget>" keys, first = top left. */
+export const dashboardOrderSchema = z.object({
+  order: z.array(z.string().min(3).max(100)).max(100),
+});
+export type DashboardOrder = z.input<typeof dashboardOrderSchema>;
