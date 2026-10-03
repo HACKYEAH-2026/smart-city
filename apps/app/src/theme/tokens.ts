@@ -154,6 +154,16 @@ export const sizes = {
   qrCard: 104,
   /** Choice cards in a two-column grid (kind of place): minimum height. */
   selectableCard: 128,
+  /** A choice chip (categories in a form). */
+  chipHeight: 38,
+  /** A choice button in a form (two options side by side). */
+  choiceButton: 52,
+  /** Plugin forms: a photo tile (square, design "Dodaj") and the remove button on a chosen photo. */
+  photoTile: 84,
+  photoRemove: 26,
+  photoRemoveIcon: 12,
+  /** Text under the success mark of a plugin view: keeps long lines short. */
+  heroTextWidth: 300,
   scannerFrame: 268,
   /** QR scanner frame: corner length and the frame's corner radius (design: 52 and 32). */
   scannerCorner: 52,

@@ -27,14 +27,44 @@ describe("issues: reporting", () => {
       description: "Długa 12",
       photo,
     });
-    expect(res.toast).toContain("Dziękujemy");
+    expect(res.navigate?.view).toBe("sent");
     expect(await t.files.isKept(photo)).toBe(true);
+
+    const sent = await t.view("sent", res.navigate!.params);
+    expect(textsOf(sent)).toEqual(
+      expect.arrayContaining(["Dziękujemy za zgłoszenie", "Administratorzy miejsca już je widzą.", "Nie świeci lampa"]),
+    );
+    expect(textsOf(sent)).toContain("Zdjęcie: Nie świeci lampa");
 
     const detail = await t.view("detail", res.navigate!.params);
     expect(textsOf(detail)).toEqual(
       expect.arrayContaining(["Nie świeci lampa", "Długa 12", "1 osoba zgłasza", "Zgłaszasz ten problem"]),
     );
     expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
+  });
+
+  test("the form: photo first, a kind, categories as chips, a title, a place and an anonymity switch", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const form = JSON.stringify(await t.view("new"));
+    expect(form.indexOf('"type":"ImagePicker"')).toBeLessThan(form.indexOf('"name":"kind"'));
+    expect(form).toContain('"name":"kind"');
+    expect(form).toContain('"variant":"chips"');
+    expect(form).toContain('"type":"LocationInput","name":"location"');
+    expect(form).toContain('"type":"Switch","name":"anonymous"');
+  });
+
+  test("an anonymous report: members do not see the name, the admin does; a suggestion keeps its kind", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const { navigate } = await t.tool("report", {
+      title: "Więcej ławek w parku",
+      kind: "suggestion",
+      anonymous: true,
+    });
+    const id = navigate!.params!.id!;
+    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("Zgłoszenie anonimowe");
+    expect(textsOf(await t.as(bob).view("detail", { id }))).not.toContain("Alice");
+    expect(textsOf(await t.as(admin).view("detail", { id }))).toContain("Alice (anonimowo)");
+    expect((await t.db.issues!.get(id))?.kind).toBe("suggestion");
   });
 
   test("input validation", async () => {
@@ -160,7 +190,7 @@ describe("issues: similar reports", () => {
     lampsAreTheSame(t);
     await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
     const res = await t.as(bob).tool("report", { title: "Latarnia na Krótkiej", force: true });
-    expect(res.toast).toContain("Dziękujemy");
+    expect(res.navigate?.view).toBe("sent");
     expect(await t.db.issues!.count()).toBe(2);
   });
 

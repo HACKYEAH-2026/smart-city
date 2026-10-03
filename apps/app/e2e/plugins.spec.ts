@@ -31,13 +31,15 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await expect(page.getByText("Nie ma jeszcze zgłoszeń")).toBeVisible();
 
   await page.getByRole("button", { name: "Nowe zgłoszenie" }).click();
-  await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Długiej");
+  await page.getByLabel("Tytuł").fill("Nie świeci latarnia na Długiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
-  await page.getByLabel("Szczegóły i miejsce").fill("Przy przystanku, od tygodnia");
+  await page.getByLabel("Opis").fill("Przy przystanku, od tygodnia");
   await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Dziękujemy");
+  await expect(page.getByRole("heading", { name: "Dziękujemy za zgłoszenie" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
+  // The sent screen shows the report as residents see it; its card opens the details.
+  await page.getByRole("button", { name: "Nie świeci latarnia na Długiej" }).click();
   await expect(page.getByText("Zgłaszasz ten problem")).toBeVisible();
 
   await page.getByRole("button", { name: "Wróć do listy" }).click();
@@ -71,22 +73,22 @@ const PHOTO = { name: "latarnia.jpg", mimeType: "image/jpeg", buffer: Buffer.fro
 test("photo report, then a similar report is merged under it; the city admin closes it", async ({ page, api }) => {
   await register(page, "anna@example.test", api.url);
   await openNewIssueForm(page);
-  await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Długiej");
+  await page.getByLabel("Tytuł").fill("Nie świeci latarnia na Długiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: t.plugin_photo_pick }).click();
+  await page.getByRole("button", { name: t.plugin_photo_gallery }).click();
   await (await chooser).setFiles(PHOTO);
   await expect(page.getByRole("img", { name: t.plugin_photo_preview })).toBeVisible();
   await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
-  await expect(page.getByRole("status")).toContainText("Dziękujemy");
+  await expect(page.getByRole("heading", { name: "Dziękujemy za zgłoszenie" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Zdjęcie: Nie świeci latarnia na Długiej" })).toBeVisible();
 
   await signOut(page);
   await register(page, "bartek@example.test", api.url);
   await openNewIssueForm(page);
-  await page.getByLabel("Co się stało?").fill("Latarnia na Długiej nie świeci");
+  await page.getByLabel("Tytuł").fill("Latarnia na Długiej nie świeci");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
-  await page.getByLabel("Szczegóły i miejsce").fill("Ciemno od tygodnia");
+  await page.getByLabel("Opis").fill("Ciemno od tygodnia");
   await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
 
   await expect(page.getByRole("heading", { name: "Czy to ten sam problem?" })).toBeVisible();
@@ -116,7 +118,7 @@ test("photo report, then a similar report is merged under it; the city admin clo
 test("issues on the map: a report placed on the map shows up on the map of reports", async ({ page, api }) => {
   await register(page, "mapa@example.test", api.url);
   await openNewIssueForm(page);
-  await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Floriańskiej");
+  await page.getByLabel("Tytuł").fill("Nie świeci latarnia na Floriańskiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
 
   // The test API answers address searches with fixed Kraków addresses (apps/api/src/test-geocoder.ts).
@@ -133,8 +135,10 @@ test("issues on the map: a report placed on the map shows up on the map of repor
   await expect(page.getByTitle(t.plugin_location_preview)).toBeVisible();
   await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Dziękujemy");
+  await expect(page.getByRole("heading", { name: "Dziękujemy za zgłoszenie" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Floriańskiej" })).toBeVisible();
+  // The sent screen's card opens the details, where the address and the pin are.
+  await page.getByRole("button", { name: "Nie świeci latarnia na Floriańskiej" }).last().click();
   await expect(page.getByText("Floriańska 15, 31-019 Kraków").last()).toBeVisible();
   await expect(page.getByTitle("Miejsce zgłoszenia")).toBeVisible();
 
@@ -273,9 +277,9 @@ test("issues widget: the most reported open issues; tapping the tile opens the l
   await register(page, "zglaszajaca@example.test", api.url);
   const report = async (title: string) => {
     await openNewIssueForm(page);
-    await page.getByLabel("Co się stało?").fill(title);
+    await page.getByLabel("Tytuł").fill(title);
     await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
-    await expect(page.getByRole("status")).toContainText("Dziękujemy");
+    await expect(page.getByRole("heading", { name: "Dziękujemy za zgłoszenie" })).toBeVisible();
   };
   await report("Dziura w chodniku");
   await report("Przewrócony kosz przy szkole");

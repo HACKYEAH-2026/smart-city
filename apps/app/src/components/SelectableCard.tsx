@@ -6,9 +6,9 @@ import { IconBox } from "./IconBox";
 import { Text } from "./Text";
 
 export interface SelectableCardProps {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
-  hint: string;
+  hint?: string;
   selected: boolean;
   onPress: () => void;
 }
@@ -25,14 +25,21 @@ export function SelectableCard({ icon, title, hint, selected, onPress }: Selecta
       aria-checked={selected}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, selected ? styles.selected : styles.idle, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        icon ? styles.withIcon : null,
+        selected ? styles.selected : styles.idle,
+        pressed && styles.pressed,
+      ]}
     >
-      <IconBox icon={icon} size={sizes.avatarLg} selected={selected} />
+      {icon ? <IconBox icon={icon} size={sizes.avatarLg} selected={selected} /> : null}
       <View style={styles.text}>
         <Text variant="buttonM">{title}</Text>
-        <Text variant="small" color="textSecondary">
-          {hint}
-        </Text>
+        {hint ? (
+          <Text variant="small" color="textSecondary">
+            {hint}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -43,13 +50,14 @@ const styles = StyleSheet.create({
   card: {
     flexBasis: "40%",
     flexGrow: 1,
-    minHeight: sizes.selectableCard,
     gap: spacing[7],
     padding: spacing[7],
     borderRadius: radii["2xl"],
     borderWidth: borders.selected,
     backgroundColor: colors.surface,
   },
+  /** With an icon the card is a tall tile; a plain text choice stays as short as its text. */
+  withIcon: { minHeight: sizes.selectableCard },
   idle: { borderColor: "transparent", ...shadows.card },
   selected: { borderColor: colors.primary, ...shadows.selected },
   text: { gap: spacing[1] },

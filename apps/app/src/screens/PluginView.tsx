@@ -1,9 +1,10 @@
 import type { Action } from "@app/plugin-sdk";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
+import { ChevronLeft } from "lucide-react-native";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Link, Screen, Text } from "../components";
+import { IconButton, Screen, Text } from "../components";
 import { usePluginView, useToolCall } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { uploadPluginImage } from "../lib/upload";
@@ -59,11 +60,11 @@ export default function PluginView() {
   };
 
   return (
-    <Screen>
+    <Screen chrome={false}>
       <Head>
         <title>{screen.data?.type === "Screen" ? screen.data.title : t.app_name}</title>
       </Head>
-      <Link href="/app">{t.back}</Link>
+      <IconButton icon={ChevronLeft} label={t.back} variant="square" href="/app" />
       {toast ? (
         <View role="status" style={styles.toast}>
           <Text variant="bodyL" color="primaryPressed">

@@ -97,6 +97,9 @@ export type MapAreaItem = z.infer<typeof mapAreaSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 
 /** Leaf nodes (no children). */
+/** Icons a Select card can show; the app draws them (apps/app/src/plugins/Renderer.tsx). */
+export const SELECT_ICONS = ["alert", "idea"] as const;
+
 const leafSchemas = [
   z.object({ type: z.literal("Heading"), text: z.string(), level: z.union([z.literal(2), z.literal(3)]).optional() }),
   z.object({ type: z.literal("Text"), text: z.string(), tone: z.enum(["ink", "soft"]).optional() }),
@@ -126,12 +129,41 @@ const leafSchemas = [
     multiline: z.boolean().optional(),
     value: z.string().optional(),
   }),
+  /**
+   * Form field: one of the options. `cards` (default) are large choices with an optional hint under the label;
+   * `chips` are a short row of pills (e.g. categories).
+   */
   z.object({
     type: z.literal("Select"),
     name: z.string().min(1),
     label: z.string(),
-    options: z.array(z.object({ value: z.string(), label: z.string() })).min(1),
+    variant: z.enum(["cards", "chips"]).optional(),
+    options: z
+      .array(
+        z.object({
+          value: z.string(),
+          label: z.string(),
+          hint: z.string().optional(),
+          /** A card's icon, from the set the app draws (SELECT_ICONS). */
+          icon: z.enum(SELECT_ICONS).optional(),
+        }),
+      )
+      .min(1),
     value: z.string().optional(),
+  }),
+  /** Form field: on or off, with an optional hint under the label; the tool gets a boolean. */
+  z.object({
+    type: z.literal("Switch"),
+    name: z.string().min(1),
+    label: z.string(),
+    hint: z.string().optional(),
+    value: z.boolean().optional(),
+  }),
+  /** Confirmation at the top of a view: a check mark, a title and an optional text. */
+  z.object({
+    type: z.literal("Hero"),
+    title: z.string(),
+    text: z.string().optional(),
   }),
   /**
    * A map (see MAP_LIMITS). The first view fits everything on it; `center` (and `zoom`, 1–19) set it instead, e.g.
@@ -217,7 +249,7 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
 /** View returned by a plugin: always a Screen at the root. */
 export const screenSchema = uiNodeSchema.refine((n) => n.type === "Screen", "View must return a Screen node");
 
-const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "ImagePicker", "LocationInput"];
+const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "Switch", "ImagePicker", "LocationInput"];
 
 /** No inputs and no tool calls anywhere in the tree: only reading and navigation. */
 function isReadOnly(node: UINode): boolean {
@@ -272,6 +304,8 @@ export const ui = {
   imagePicker: (props: Props<"ImagePicker">): Of<"ImagePicker"> => ({ type: "ImagePicker", ...props }),
   textInput: (props: Props<"TextInput">): Of<"TextInput"> => ({ type: "TextInput", ...props }),
   select: (props: Props<"Select">): Of<"Select"> => ({ type: "Select", ...props }),
+  switch: (props: Props<"Switch">): Of<"Switch"> => ({ type: "Switch", ...props }),
+  hero: (props: Props<"Hero">): Of<"Hero"> => ({ type: "Hero", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
   map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
     /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */

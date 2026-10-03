@@ -321,7 +321,7 @@ export const IssueFormScreen = ({
           {withPhoto ? <Image source={{ uri: LAMP_PHOTO }} style={styles.photo} resizeMode="cover" /> : null}
           <View style={styles.row}>
             <Button
-              label={withPhoto ? t.plugin_photo_change : t.plugin_photo_pick}
+              label={withPhoto ? t.plugin_photo_remove : t.plugin_photo_gallery}
               variant="secondary"
               size="sm"
               fullWidth={false}

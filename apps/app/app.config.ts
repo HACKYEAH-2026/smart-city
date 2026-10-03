@@ -62,6 +62,7 @@ const config: ExpoConfig = {
       "expo-image-picker",
       {
         photosPermission: "Aplikacja potrzebuje dostępu do zdjęć, aby dodać zdjęcie.",
+        cameraPermission: "Aplikacja potrzebuje aparatu, aby zrobić zdjęcie zgłoszenia.",
       },
     ],
     // iOS system permission prompt: user-visible text, so Polish (AGENTS.md: Language).

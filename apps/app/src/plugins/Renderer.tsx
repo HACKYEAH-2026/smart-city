@@ -1,6 +1,15 @@
 import type { Action, GeoLocation, Tone, ToolAction, UINode } from "@app/plugin-sdk";
-import { launchImageLibraryAsync } from "expo-image-picker";
-import { ChevronRight, MapPin } from "lucide-react-native";
+import { launchCameraAsync, launchImageLibraryAsync, type MediaType } from "expo-image-picker";
+import {
+  AlertTriangle,
+  Camera,
+  ChevronRight,
+  Image as GalleryIcon,
+  Lightbulb,
+  type LucideIcon,
+  MapPin,
+  X,
+} from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
 import {
@@ -9,13 +18,17 @@ import {
   Button,
   type ButtonVariant,
   Card,
+  Chip,
+  ChoiceButton,
   Heading,
   Icon,
   MapView,
-  RadioCard,
+  SuccessMark,
+  SwitchRow,
   Text,
   TextField,
 } from "../components";
+import { tapFeedback } from "../lib/haptics";
 import { STREET_ZOOM } from "../lib/map/spec";
 import LocationPicker from "../screens/LocationPicker";
 import { t } from "../texts";
@@ -41,8 +54,8 @@ const ActionsContext = createContext<Actions>({
 /** Inside a dashboard Widget: cards render as compact rows, so a few of them fit in a tile. */
 const InWidgetContext = createContext(false);
 
-/** A form field's value: text, or a place from a LocationInput. */
-type FormValue = string | GeoLocation;
+/** A form field's value: text, a switch's on/off, or a place from a LocationInput. */
+type FormValue = string | boolean | GeoLocation;
 /** Form values; `undefined` removes the field (e.g. a removed photo does not end up in args). */
 type Form = { values: Record<string, FormValue>; set: (name: string, value: FormValue | undefined) => void };
 const text = (value: FormValue | undefined) => (typeof value === "string" ? value : "");
@@ -231,6 +244,10 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <FormImagePicker node={node} />;
     case "Select":
       return <FormSelect node={node} />;
+    case "Switch":
+      return <FormSwitch node={node} />;
+    case "Hero":
+      return <Hero node={node} />;
     case "Map":
       return <PluginMap node={node} still={inWidget} onAction={onAction} />;
     case "LocationInput":
@@ -283,7 +300,9 @@ function WidgetRow({ node }: { node: Extract<UINode, { type: "Card" }> }) {
 function initialValues(nodes: UINode[]): Record<string, FormValue> {
   const out: Record<string, FormValue> = {};
   const walk = (n: UINode) => {
-    if ((n.type === "TextInput" || n.type === "Select") && n.value !== undefined) out[n.name] = n.value;
+    if ((n.type === "TextInput" || n.type === "Select" || n.type === "Switch") && n.value !== undefined) {
+      out[n.name] = n.value;
+    }
     if (n.type === "LocationInput" && n.value) out[n.name] = { address: "", ...n.value };
     if ("children" in n) n.children?.forEach(walk);
   };
@@ -333,8 +352,10 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
   const [preview, setPreview] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "uploading" | "error">("idle");
 
-  const pick = async () => {
-    const res = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+  // The camera or the gallery; either way the photo is uploaded and its FileId goes into the form.
+  const pick = async (fromCamera: boolean) => {
+    const options = { mediaTypes: ["images"] as MediaType[], quality: 0.7 };
+    const res = fromCamera ? await launchCameraAsync(options) : await launchImageLibraryAsync(options);
     const asset = res.canceled ? undefined : res.assets[0];
     if (!asset) return;
     setState("uploading");
@@ -356,25 +377,38 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
       <Text variant="label" color="textSecondary">
         {node.label}
       </Text>
-      {preview ? <LabeledImage uri={preview} label={t.plugin_photo_preview} /> : null}
-      <View style={styles.row}>
-        <Button
-          label={preview ? t.plugin_photo_change : t.plugin_photo_pick}
-          variant="secondary"
-          size="sm"
-          fullWidth={false}
-          disabled={state === "uploading"}
-          onPress={pick}
-        />
+      <View role="group" aria-label={node.label} style={styles.photoRow}>
         {preview ? (
-          <Button
-            label={t.plugin_photo_remove}
-            variant="destructiveGhost"
-            size="sm"
-            fullWidth={false}
-            onPress={remove}
-          />
+          <View style={styles.photoTile}>
+            <Image
+              source={{ uri: preview }}
+              style={styles.photoImage}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={t.plugin_photo_preview}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.plugin_photo_remove}
+              onPress={remove}
+              style={styles.photoRemove}
+            >
+              <Icon icon={X} size={sizes.photoRemoveIcon} color="onPrimary" strokeWidth={2.6} />
+            </Pressable>
+          </View>
         ) : null}
+        <AddPhotoTile
+          icon={Camera}
+          label={t.plugin_photo_camera}
+          disabled={state === "uploading"}
+          onPress={() => pick(true)}
+        />
+        <AddPhotoTile
+          icon={GalleryIcon}
+          label={t.plugin_photo_gallery}
+          disabled={state === "uploading"}
+          onPress={() => pick(false)}
+        />
       </View>
       {state === "uploading" ? (
         <Text variant="caption" color="textSecondary">
@@ -387,6 +421,35 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
         </Text>
       ) : null}
     </View>
+  );
+}
+
+/** A square dashed tile that adds a photo (design: "Dodaj"): an icon and its label under it. */
+function AddPhotoTile({
+  icon,
+  label,
+  disabled,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPressIn={tapFeedback}
+      onPress={onPress}
+      style={({ pressed }) => [styles.addTile, pressed && styles.pressedTile, disabled && styles.disabledTile]}
+    >
+      <Icon icon={icon} size={sizes.iconS} color="primary" strokeWidth={2} />
+      <Text variant="small" color="textSecondary">
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -472,32 +535,112 @@ function LabeledImage({ uri, label }: { uri: string; label: string }) {
   );
 }
 
-/** Select as a radio group — same code native and web, keyboard accessible. */
+/**
+ * Select as a radio group, same code native and web, keyboard accessible: large cards in two columns (`cards`, the
+ * default) or a row of pills (`chips`).
+ */
 function FormSelect({ node }: { node: Extract<UINode, { type: "Select" }> }) {
   const form = useContext(FormContext);
   const current = form?.values[node.name];
+  const choose = (value: string) => form?.set(node.name, value);
   return (
     <View style={styles.stackTight}>
       <Text variant="label" color="textSecondary">
         {node.label}
       </Text>
-      <View role="radiogroup" aria-label={node.label} style={styles.stackTight}>
-        {node.options.map((o) => (
-          <RadioCard
-            key={o.value}
-            label={o.label}
-            selected={o.value === current}
-            onPress={() => form?.set(node.name, o.value)}
-          />
-        ))}
-      </View>
+      {node.variant === "chips" ? (
+        <View role="radiogroup" aria-label={node.label} style={styles.chips}>
+          {node.options.map((o) => (
+            <Chip key={o.value} label={o.label} selected={o.value === current} onPress={() => choose(o.value)} />
+          ))}
+        </View>
+      ) : (
+        <View role="radiogroup" aria-label={node.label} style={styles.cards}>
+          {node.options.map((o) => (
+            <ChoiceButton
+              key={o.value}
+              icon={o.icon ? SELECT_ICON[o.icon] : undefined}
+              label={o.label}
+              selected={o.value === current}
+              onPress={() => choose(o.value)}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
+/** A yes/no field as a switch row; the tool gets a boolean. */
+function FormSwitch({ node }: { node: Extract<UINode, { type: "Switch" }> }) {
+  const form = useContext(FormContext);
+  const value = form?.values[node.name] === true;
+  return (
+    <SwitchRow label={node.label} hint={node.hint} value={value} onChange={(next) => form?.set(node.name, next)} />
+  );
+}
+
+/** The confirmation at the top of a view: a check mark, a title and an optional text (design: sent report). */
+function Hero({ node }: { node: Extract<UINode, { type: "Hero" }> }) {
+  return (
+    <View style={styles.hero}>
+      <SuccessMark />
+      <Heading level={2} variant="headingS">
+        {node.title}
+      </Heading>
+      {node.text ? (
+        <Text variant="bodyL" color="textSecondary" style={styles.heroText}>
+          {node.text}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** The icons a Select card can show, keyed by the names in packages/sdk (SELECT_ICONS). */
+const SELECT_ICON: Record<"alert" | "idea", LucideIcon> = { alert: AlertTriangle, idea: Lightbulb };
+
 const styles = StyleSheet.create({
+  photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
+  photoTile: {
+    width: sizes.photoTile,
+    height: sizes.photoTile,
+    borderRadius: radii.xl,
+    overflow: "hidden",
+  },
+  photoImage: { width: "100%", height: "100%" },
+  photoRemove: {
+    position: "absolute",
+    top: -spacing[2],
+    right: -spacing[2],
+    width: sizes.photoRemove,
+    height: sizes.photoRemove,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.text,
+    borderWidth: borders.selected,
+    borderColor: colors.background,
+  },
+  addTile: {
+    width: sizes.photoTile,
+    height: sizes.photoTile,
+    borderRadius: radii.xl,
+    borderWidth: borders.row,
+    borderStyle: "dashed",
+    borderColor: colors.dashed,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing[2],
+  },
+  pressedTile: { opacity: opacity.pressed },
+  disabledTile: { opacity: opacity.disabled },
   stack: { gap: spacing[9] },
   stackTight: { gap: spacing[2] },
+  cards: { flexDirection: "row", gap: spacing[4] },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
+  hero: { alignItems: "center", gap: spacing[6], paddingVertical: spacing[6] },
+  heroText: { textAlign: "center", maxWidth: sizes.heroTextWidth },
   /** Fills the dashboard tile (fixed size from the plugin); content beyond it is clipped. */
   widget: { flex: 1, overflow: "hidden" },
   widgetBody: { gap: spacing[6] },

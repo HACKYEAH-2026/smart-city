@@ -9,6 +9,12 @@ import type { Context, FileId, GeoLocation, PluginModule } from "@app/plugin-sdk
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
 const CATEGORY_VALUES = ["lighting", "roads", "greenery", "cleanliness", "other"] as const;
+/** A problem to fix, or an idea for the place (design: "Rodzaj" in the new report form). */
+const KIND_VALUES = ["problem", "suggestion"] as const;
+const KINDS: { value: (typeof KIND_VALUES)[number]; label: string; icon: "alert" | "idea" }[] = [
+  { value: "problem", label: "Problem", icon: "alert" },
+  { value: "suggestion", label: "Sugestia", icon: "idea" },
+];
 type Category = (typeof CATEGORY_VALUES)[number];
 const CATEGORIES: { value: Category; label: string }[] = [
   { value: "lighting", label: "Oświetlenie" },
@@ -30,7 +36,15 @@ const supporters = (n: number) => {
   return n === 1 ? "1 osoba zgłasza" : few ? `${n} osoby zgłaszają` : `${n} osób zgłasza`;
 };
 
-type Draft = { title: string; description: string; category: Category; photo?: FileId; location?: GeoLocation };
+type Draft = {
+  title: string;
+  description: string;
+  category: Category;
+  kind: (typeof KIND_VALUES)[number];
+  anonymous: boolean;
+  photo?: FileId;
+  location?: GeoLocation;
+};
 
 const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) => {
   const tables = {
@@ -39,7 +53,10 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
         title: t.text(),
         description: t.text().default(""),
         category: t.enum(CATEGORY_VALUES).default("other"),
+        kind: t.enum(KIND_VALUES).default("problem"),
         status: t.enum(["open", "accepted", "fixed"]).default("open"),
+        /** Reported without the name: members see "Zgłoszenie anonimowe", the admin sees who. */
+        anonymous: t.boolean().default(false),
         photo: t.ref("file").optional(),
         /** Where the problem is (picked on the app's map), with its address. */
         location: t.json<GeoLocation>().optional(),
@@ -54,6 +71,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
         author: t.ref("user"),
         description: t.text().default(""),
         photo: t.ref("file").optional(),
+        anonymous: t.boolean().default(false),
       },
       { unique: [["issue", "author"]] },
     ),
@@ -63,6 +81,8 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
   const draftSchema = z.object({
     title: z.string().trim().min(3, "Opisz problem w kilku słowach").max(120),
     category: z.enum(CATEGORY_VALUES).default("other"),
+    kind: z.enum(KIND_VALUES).default("problem"),
+    anonymous: z.boolean().default(false),
     description: z.string().trim().max(2000).default(""),
     photo: fileRef().optional(),
     location: geoLocation().optional(),
@@ -82,11 +102,27 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
   };
 
   /** Attaches the user's report to an issue (updates it if they already reported this issue). */
-  const addReport = (ctx: Ctx, issue: string, draft: Pick<Draft, "description" | "photo">) =>
+  const addReport = (ctx: Ctx, issue: string, draft: Pick<Draft, "description" | "photo" | "anonymous">) =>
     ctx.db.reports.upsert(
-      { issue, author: ctx.user.id, description: draft.description, photo: draft.photo ?? null },
+      {
+        issue,
+        author: ctx.user.id,
+        description: draft.description,
+        photo: draft.photo ?? null,
+        anonymous: draft.anonymous,
+      },
       { on: ["issue", "author"] },
     );
+
+  /** A resident's name on a report: members never see an anonymous one's; the admin sees it marked as anonymous. */
+  const reporterName = (
+    viewer: { id: string; role: string },
+    r: { anonymous: boolean; author: { id: string; name: string } },
+  ) => {
+    if (!r.anonymous) return r.author.name;
+    if (r.author.id === viewer.id || viewer.role === "admin") return `${r.author.name} (anonimowo)`;
+    return "Zgłoszenie anonimowe";
+  };
 
   /** How many residents report each of the issues (the first reporter included): issue id → count. */
   const supportOf = async (ctx: Ctx, ids: string[]) => {
@@ -184,15 +220,45 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
             submitLabel: "Wyślij zgłoszenie",
             submit: ui.tool("report"),
             children: [
-              ui.textInput({ name: "title", label: "Co się stało?" }),
-              ui.select({ name: "category", label: "Kategoria", options: CATEGORIES, value: "other" }),
-              ui.textInput({ name: "description", label: "Szczegóły i miejsce", multiline: true }),
-              ui.locationInput({ name: "location", label: "Gdzie to jest? (opcjonalnie)" }),
               ui.imagePicker({ name: "photo", label: "Zdjęcie (opcjonalnie)" }),
+              ui.select({ name: "kind", label: "Rodzaj", options: KINDS, value: "problem" }),
+              ui.select({
+                name: "category",
+                label: "Kategoria",
+                variant: "chips",
+                options: CATEGORIES,
+                value: "other",
+              }),
+              ui.textInput({ name: "title", label: "Tytuł" }),
+              ui.textInput({ name: "description", label: "Opis", multiline: true }),
+              ui.locationInput({ name: "location", label: "Lokalizacja (opcjonalnie)" }),
+              ui.switch({
+                name: "anonymous",
+                label: "Zgłoś anonimowo",
+                hint: "Członkowie nie zobaczą Twojego imienia",
+                value: false,
+              }),
             ],
           }),
-          ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
         ]),
+
+      /** Confirmation after a report went in: the report as the residents see it, and a way back to the list. */
+      sent: async (ctx, params) => {
+        const issue = params.id ? await ctx.db.issues.get(params.id) : null;
+        if (!issue) return ui.screen("Nie znaleziono", [ui.button("Wróć do listy", ui.navigate("list"))]);
+        const status = STATUS[issue.status];
+        return ui.screen("Zgłoszenie wysłane", [
+          ui.hero({ title: "Dziękujemy za zgłoszenie", text: "Administratorzy miejsca już je widzą." }),
+          ui.card({
+            title: issue.title,
+            subtitle: categoryLabel(issue.category),
+            badge: status,
+            onPress: ui.navigate("detail", { id: issue.id }),
+            ...(issue.photo ? { children: [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] } : {}),
+          }),
+          ui.button("Wróć do listy", ui.navigate("list")),
+        ]);
+      },
 
       /** Question before merging: the form data comes in the `draft` param. */
       merge: async (ctx, params) => {
@@ -247,7 +313,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
             "Zgłoszenia mieszkańców",
             reports.map((r) =>
               ui.card({
-                title: r.author.name,
+                title: reporterName(ctx.user, r),
                 ...(r.description ? { subtitle: r.description } : {}),
                 ...(r.photo ? { children: [ui.image(r.photo, `Zdjęcie od: ${r.author.name}`)] } : {}),
               }),
@@ -320,14 +386,15 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
             title: draft.title,
             description: draft.description,
             category: draft.category,
+            kind: draft.kind,
+            anonymous: draft.anonymous,
             photo: draft.photo ?? null,
             location: draft.location ?? null,
             reporter: ctx.user.id,
           });
           await addReport(ctx, issue.id, draft);
           return {
-            toast: "Dziękujemy! Zgłoszenie zostało wysłane.",
-            navigate: ui.navigate("detail", { id: issue.id }),
+            navigate: ui.navigate("sent", { id: issue.id }),
             data: { id: issue.id },
           };
         },

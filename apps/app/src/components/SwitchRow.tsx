@@ -5,6 +5,8 @@ import { Text } from "./Text";
 
 export interface SwitchRowProps {
   label: string;
+  /** Short text under the label (e.g. what the switch changes). */
+  hint?: string;
   value: boolean;
   onChange: (value: boolean) => void;
 }
@@ -13,7 +15,7 @@ export interface SwitchRowProps {
  * White row with a switch on the right (COMPONENTS.md → Checkbox / Switch, "Ustaw jako domyślne"). The whole row is
  * the switch for touch and for screen readers; the drawn Switch is decoration.
  */
-export function SwitchRow({ label, value, onChange }: SwitchRowProps) {
+export function SwitchRow({ label, hint, value, onChange }: SwitchRowProps) {
   return (
     <Pressable
       accessibilityRole="switch"
@@ -23,9 +25,14 @@ export function SwitchRow({ label, value, onChange }: SwitchRowProps) {
       onPress={() => onChange(!value)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <Text variant="buttonM" style={styles.label}>
-        {label}
-      </Text>
+      <View style={styles.label}>
+        <Text variant="buttonM">{label}</Text>
+        {hint ? (
+          <Text variant="small" color="textSecondary">
+            {hint}
+          </Text>
+        ) : null}
+      </View>
       <View pointerEvents="none" aria-hidden>
         <Switch
           value={value}
