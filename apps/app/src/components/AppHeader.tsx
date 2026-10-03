@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { t } from "../texts";
 import { borders, colors, spacing } from "../theme";
+import { Brand } from "./Brand";
 import { Link } from "./Link";
 import { Text } from "./Text";
 
@@ -8,9 +9,7 @@ import { Text } from "./Text";
 export function AppHeader() {
   return (
     <View role="banner" style={styles.header}>
-      <Link href="/app" variant="nav">
-        <Text variant="brand">{t.app_name}</Text>
-      </Link>
+      <Brand href="/app" />
       <View role="navigation" aria-label={t.nav_label} style={styles.nav}>
         <Link href="/login" variant="nav">
           {t.nav_login}

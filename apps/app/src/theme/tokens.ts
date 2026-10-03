@@ -131,6 +131,8 @@ export const sizes = {
   iconXs: 14,
   /** Red circle with a check on the active row of the place switcher. */
   selectedMark: 24,
+  /** The logo mark ("Roofline M") next to the wordmark. */
+  brandMark: 24,
   /** Red hero banner (no-places screen): minimum height, text sits at the bottom. */
   heroBanner: 172,
   successMark: 64,

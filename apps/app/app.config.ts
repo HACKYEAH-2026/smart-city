@@ -39,10 +39,21 @@ const config: ExpoConfig = {
   version: "1.0.0",
   orientation: "portrait",
   userInterfaceStyle: "light",
-  android: { package: "pl.twojemiejsce.app", ...(googleServicesFile ? { googleServicesFile } : {}) },
+  // App icons: rendered from the brand mark (src/theme/brand.ts) by scripts/icons.ts.
+  icon: "./assets/icon.png",
+  android: {
+    package: "pl.twojemiejsce.app",
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      monochromeImage: "./assets/adaptive-icon.png",
+      // colors.primary (src/theme/tokens.ts): Expo's config loader cannot import the app's TS modules.
+      backgroundColor: "#E50101",
+    },
+    ...(googleServicesFile ? { googleServicesFile } : {}),
+  },
   ios: { bundleIdentifier: "pl.twojemiejsce.app", supportsTablet: true },
   // Web: static HTML for every route (SEO), then hydration.
-  web: { output: "static", bundler: "metro" },
+  web: { output: "static", bundler: "metro", favicon: "./assets/favicon.png" },
   plugins: [
     "expo-router",
     "expo-secure-store",

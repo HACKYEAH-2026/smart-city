@@ -119,6 +119,14 @@ test("auth screen uses the design system: primary button is brand red, field lab
   await expect(page.getByLabel(t.auth_email)).toBeVisible();
 });
 
+test("web pages carry the brand mark as their favicon", async ({ page }) => {
+  await page.goto("/login");
+  const href = await page.locator('link[rel~="icon"]').first().getAttribute("href");
+  expect(href).toBeTruthy();
+  const icon = await page.request.get(new URL(href ?? "", page.url()).toString());
+  expect(icon.ok()).toBe(true);
+});
+
 test("login screen follows the design: welcome copy, sign-up link, no app chrome", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: t.auth_login_title, level: 1 })).toBeVisible();

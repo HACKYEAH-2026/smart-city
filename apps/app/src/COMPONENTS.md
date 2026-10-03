@@ -18,6 +18,9 @@ Biblioteka: **`lucide-react-native`** (ikony w projekcie mają styl Lucide) + `r
 Domyślnie `size=20–22`, `strokeWidth=1.8` (nawigacja/akcje: 2, mały chevron w kółku: 2.6). `color` z tokenów.
 Mapowanie: pin miejsca → `MapPin` · QR → `QrCode` · kod → `Keyboard` · link → `Link` · zaproszenia/zaproś → `UserPlus` · powiadomienia → `Bell` · wstecz → `ChevronLeft` · dalej → `ChevronRight` · rozwiń → `ChevronDown` · zamknij → `X` · dodaj → `Plus` · pulpit → `LayoutDashboard` · konto → `User` · latarka → `Flashlight` · wklej → `ClipboardPaste` · administrator → `ShieldCheck` · ustawienia → `Settings` · typy miejsc: Osiedle `Home`, Budynek `Building2`, Firma `Briefcase`, Szkoła `GraduationCap`, Dzielnica `Map`, Inne `MoreHorizontal`.
 
+### Brand ✅ (`src/components/Brand.tsx`, `BrandMark.tsx`)
+Logo „Roofline M": dwa dachy rysują literę M (Miejsce), kropka między domami to „ty". Geometria tylko w `src/theme/brand.ts` (siatka 48); z niej powstają też ikona aplikacji i favicon (`bun scripts/icons.ts`). Wordmark: `BrandMark` 24 dp (`sizes.brandMark`, `primary`) + `Text variant="brand"`, gap 8. Z `href` cały wordmark jest linkiem (nagłówek). Lokalizacja w treści (pin miejsca) to nadal `MapPin`, nie logo.
+
 ### Button ✅ (`src/components/Button.tsx`)
 | Wariant | Tło | Tekst | Użycie |
 |---|---|---|---|

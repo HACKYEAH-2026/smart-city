@@ -1,10 +1,9 @@
 import type { GoogleClientIds } from "@app/shared";
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { MapPin } from "lucide-react-native";
 import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
-import { Button, GoogleLogo, Heading, Icon, Link, MapDecoration, Screen, Text, TextField } from "../components";
+import { Brand, Button, GoogleLogo, Heading, Link, MapDecoration, Screen, Text, TextField } from "../components";
 import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
 import { t } from "../texts";
 import { layout, spacing } from "../theme";
@@ -56,12 +55,7 @@ export default function LoginScreen() {
         <title>{t.meta_login_title}</title>
       </Head>
       <View style={styles.spacer} />
-      <View style={styles.brand}>
-        <View aria-hidden>
-          <Icon icon={MapPin} color="primary" strokeWidth={2.2} />
-        </View>
-        <Text variant="brand">{t.app_name}</Text>
-      </View>
+      <Brand />
       <View style={styles.intro}>
         <Heading level={1} variant="titleXL">
           {t.auth_login_title}
@@ -121,7 +115,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   // Design: content starts at y = 200; the frame's own top offset and section gap are already applied.
   spacer: { height: layout.loginContentTop - layout.screenTopOffset - layout.sectionGap },
-  brand: { flexDirection: "row", alignItems: "center", gap: spacing[4] },
   intro: { gap: spacing[4] },
   form: { gap: spacing[7] },
   // Design: social sign-in buttons sit in a grid with gap 10 under the main button.

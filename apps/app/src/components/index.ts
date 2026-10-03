@@ -7,6 +7,7 @@ export type { BottomSheetProps } from "./BottomSheet";
 export { BottomSheet } from "./BottomSheet";
 export { BottomTabBar } from "./BottomTabBar";
 export { Brand } from "./Brand";
+export { BrandMark } from "./BrandMark";
 export type { ButtonProps, ButtonVariant } from "./Button";
 export { Button } from "./Button";
 export { Card } from "./Card";
