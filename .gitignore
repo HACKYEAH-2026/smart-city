@@ -29,3 +29,5 @@ expo-env.d.ts
 *.apk
 *.aab
 *.ipa
+# macOS Finder metadata (icon positions, view settings), created in every folder opened in Finder
+.DS_Store
