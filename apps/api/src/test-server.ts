@@ -2,7 +2,7 @@
  * Server for E2E and local dev: applies the schema to the database (DATABASE_URL, in-memory by default)
  * and adds /__test/reset. Refuses to start outside NODE_ENV=test.
  * Google sign-in: with the test client ID (E2E) it accepts fake ID tokens (test-google.ts); with a real
- * GOOGLE_CLIENT_ID (local dev with a phone, apps/api/.env) it checks real tokens like production.
+ * GOOGLE_CLIENT_ID (local dev with a phone, the repo-root .env) it checks real tokens like production.
  */
 import { createApp } from "./app";
 import { createDb, migrate } from "./db";

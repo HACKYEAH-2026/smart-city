@@ -1,3 +1,7 @@
+# No automatic .env loading: the repo-root .env holds local dev secrets (e.g. AI_API_KEY) that tests, E2E and
+# verify must never see. Only the dev API loads it, explicitly (`--env-file` in apps/api/package.json).
+env = false
+
 [install]
 # React Native / Metro need a flat node_modules (Bun's isolated linker breaks Expo CLI module resolution).
 linker = "hoisted"
