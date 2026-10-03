@@ -41,11 +41,9 @@ export const useCommunities = () =>
   not just `invalidateQueries`.
 - Token: bearer in Keychain/Keystore (native) or localStorage (web) — via `src/lib/storage.ts`.
 
-## i18n (messages/*.json)
-- Texts: `messages/en.json` (base) and `pl.json`. Loaded directly in `src/lib/i18n.tsx` (no compile step);
-  a new language = a new file + an entry in `catalogs`.
-- Usage: `const { t, locale, setLocale } = useI18n(); t.communities_title()`. Do NOT import the messages JSON in screens.
-- Language: saved preference → device language → en. Switcher in the footer (`AppFooter` in `src/components/AppHeader.tsx`, rendered by `Screen`).
+## UI text (src/texts.ts)
+- The app is Polish only (no i18n). All UI text: `src/texts.ts`. Usage: `import { t } from "../texts"; t.communities_title`.
+- E2E selects by the same texts (`import { t } from "../src/texts"`).
 - Messages from the API/Zod/Better Auth never reach the UI directly; show your own `t.*`.
   Plugin screens are the exception: their (Polish) content comes from the server as Server-Driven UI.
 

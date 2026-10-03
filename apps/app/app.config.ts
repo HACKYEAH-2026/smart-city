@@ -18,7 +18,6 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
-    "expo-localization",
     // iOS system permission prompt: user-visible text, so Polish (AGENTS.md: Language).
     [
       "expo-image-picker",

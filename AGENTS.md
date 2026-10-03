@@ -3,7 +3,7 @@
 Product: `README.md` and `PRODUCT.md`. New code is written by copying existing patterns (tables below).
 
 Stack: Bun + Hono + Drizzle (SQLite via bun:sqlite; in-memory in tests) + Better Auth + Expo (React Native,
-Expo Router; web via react-native-web with static HTML) + i18n with JSON files (en is the default).
+Expo Router; web via react-native-web with static HTML). The app has one language: Polish (no i18n).
 
 ## HackYeah 2026 (SMART CITY challenge)
 Context and timeline: the "HackYeah 2026" section in `README.md`.
@@ -19,10 +19,10 @@ If `AGENTS.local.md` exists, read it at the start of the session and treat it as
 It only adds rules, it never overrides them. On conflict, AGENTS.md wins.
 
 ## Language
-- The app UI (everything a user sees) must be in Polish. UI text lives only in `apps/app/messages/<locale>.json`
+- The app UI (everything a user sees) must be in Polish. UI text lives only in `apps/app/src/texts.ts`
   and in the Polish content that plugins render (screen titles, labels, toasts, user-facing validation messages).
 - Everything else is in English: identifiers (variables, functions, types, files, API routes, DB columns,
-  i18n keys), code comments and JSDoc, test names, log/console output, developer-facing error messages,
+  text keys), code comments and JSDoc, test names, log/console output, developer-facing error messages,
   script and CI output, commit messages and developer docs (`AGENTS.md`, `docs/`).
 - Exceptions: `README.md` and `PRODUCT.md` describe the product for the team and the jury and stay in Polish.
 - In tests, Polish strings are allowed only as data or as selectors/assertions that must match the Polish UI.
@@ -72,8 +72,7 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 - Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.
 - API address: only `apps/app/src/lib/config.ts`. Persistent device data: only `src/lib/storage.ts`.
 - `Platform.OS` branches only in `src/lib/` and in routes, never in screens.
-- UI text: ONLY `apps/app/messages/<locale>.json` via `const { t } = useI18n(); t.key()`.
-  English (`en`) is the base locale; every key must exist in all locales (test `src/lib/i18n.test.ts`).
+- UI text: ONLY `apps/app/src/texts.ts` via `import { t } from "../texts"; t.key`. No Polish literals in components.
 - Look and feel: only tokens from `apps/app/src/theme/` (`tokens.ts`, design system "Twoje Miejsce"); build screens from the components in `apps/app/src/components/` (see `apps/app/src/COMPONENTS.md`).
 - Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
@@ -95,7 +94,7 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 - `/__test/*` exists only in `apps/api/src/test-server.ts`. Never import `test-*.ts` from production code.
 
 ## Frontend
-Patterns, i18n and forbidden APIs: `docs/expo.md`.
+Patterns, UI text and forbidden APIs: `docs/expo.md`.
 
 ## Don'ts
 - No secrets in the repo (`.env` is gitignored). Secrets only in GitHub Secrets.

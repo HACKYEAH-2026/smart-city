@@ -3,31 +3,30 @@ import Head from "expo-router/head";
 import { StyleSheet, View } from "react-native";
 import { Card, Heading, Link, Screen, Text } from "../components";
 import { useCommunity, useCommunityNav } from "../data/communities";
-import { useI18n } from "../lib/i18n";
 import { pluginHref } from "../plugins/href";
+import { t } from "../texts";
 import { spacing } from "../theme";
 
 /** Community page: features = nav entries of installed plugins (refreshed live). */
 export default function Community() {
-  const { t } = useI18n();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const community = useCommunity(slug);
   const nav = useCommunityNav(slug);
   return (
     <Screen>
       <Head>
-        <title>{community.data?.name ?? t.communities_title()}</title>
+        <title>{community.data?.name ?? t.communities_title}</title>
       </Head>
       <View style={styles.head}>
-        <Link href="/app">{t.community_back()}</Link>
-        <Heading level={1}>{community.data?.name ?? t.loading()}</Heading>
+        <Link href="/app">{t.community_back}</Link>
+        <Heading level={1}>{community.data?.name ?? t.loading}</Heading>
       </View>
       {nav.isPending ? (
         <Text variant="bodyL" color="textSecondary">
-          {t.loading()}
+          {t.loading}
         </Text>
       ) : (
-        <View role="list" aria-label={t.community_features_label()} style={styles.grid}>
+        <View role="list" aria-label={t.community_features_label} style={styles.grid}>
           {nav.data?.length ? (
             nav.data.map((n) => (
               <View key={`${n.pluginId}/${n.view}`} role="listitem" style={styles.tile}>
@@ -42,7 +41,7 @@ export default function Community() {
           ) : (
             <View role="listitem">
               <Text variant="bodyL" color="textSecondary">
-                {t.community_features_empty()}
+                {t.community_features_empty}
               </Text>
             </View>
           )}

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
-import { useI18n } from "../lib/i18n";
 import { type PasswordCheck, passwordStrength } from "../lib/passwordStrength";
+import { t } from "../texts";
 import { borders, colors, radii, sizes, spacing } from "../theme";
 import { Text } from "./Text";
 
@@ -9,13 +9,12 @@ const STEPS = [1, 2, 3, 4];
 
 /** Four-segment password meter with a hint for the first missing check (COMPONENTS.md → PasswordStrength). */
 export function PasswordStrength({ password }: { password: string }) {
-  const { t } = useI18n();
   const { score, missing } = passwordStrength(password);
   const hints: Record<PasswordCheck, string> = {
-    length: t.pw_hint_length(),
-    digit: t.pw_hint_digit(),
-    case: t.pw_hint_case(),
-    symbol: t.pw_hint_symbol(),
+    length: t.pw_hint_length,
+    digit: t.pw_hint_digit,
+    case: t.pw_hint_case,
+    symbol: t.pw_hint_symbol,
   };
   return (
     <View style={styles.wrap}>
@@ -25,7 +24,7 @@ export function PasswordStrength({ password }: { password: string }) {
         ))}
       </View>
       <Text variant="small" color="textSecondary">
-        {missing ? hints[missing] : t.pw_strong()}
+        {missing ? hints[missing] : t.pw_strong}
       </Text>
     </View>
   );

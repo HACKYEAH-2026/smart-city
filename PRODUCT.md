@@ -24,9 +24,9 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 ## Status demo
 Weryfikacja tożsamości działa na mocku dostawcy; mObywatel jest planowanym adapterem. Społeczność demo: „Kraków”.
 
-## Języki
-Angielski (domyślny) i polski: zapisana preferencja → język urządzenia → en. Teksty UI wyłącznie w
-`apps/app/messages`. Treści wtyczek (po polsku) przychodzą z serwera.
+## Język
+Aplikacja jest tylko po polsku. Teksty UI wyłącznie w `apps/app/src/texts.ts`. Treści wtyczek (po polsku)
+przychodzą z serwera.
 
 ## Ton
 Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii.

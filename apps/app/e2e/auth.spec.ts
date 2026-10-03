@@ -1,42 +1,42 @@
 import type { Page } from "@playwright/test";
+import { t } from "../src/texts";
 import { expect, test } from "./fixtures";
-import { en } from "./messages";
 
 /** Auth acceptance criteria: sign-up, sign-out, /app protection, sign-in, wrong password. */
 const register = async (page: Page, email: string) => {
   await page.goto("/register");
-  await page.getByLabel(en.auth_email!).fill(email);
-  await page.getByLabel(en.auth_password!).fill("password123");
-  await page.getByRole("checkbox", { name: en.auth_consent }).click();
-  await page.getByRole("button", { name: en.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByRole("checkbox", { name: t.auth_consent }).click();
+  await page.getByRole("button", { name: t.auth_submit_register }).click();
+  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
 };
 
 const login = async (page: Page, email: string, password: string) => {
-  await page.getByLabel(en.auth_email!).fill(email);
-  await page.getByLabel(en.auth_password!).fill(password);
-  await page.getByRole("button", { name: en.auth_submit_login }).click();
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill(password);
+  await page.getByRole("button", { name: t.auth_submit_login }).click();
 };
 
 test("sign out closes /app, logging back in opens the communities", async ({ page }) => {
   await register(page, "cycle@example.test");
   await expect(page.getByRole("link", { name: "Kraków" })).toBeVisible();
 
-  await page.getByRole("button", { name: en.sign_out }).click();
+  await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/app");
   await expect(page).toHaveURL(/\/login$/);
 
   await login(page, "cycle@example.test", "password123");
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
 });
 
 test("wrong password shows an error and does not let you in", async ({ page }) => {
   await register(page, "wrong@example.test");
-  await page.getByRole("button", { name: en.sign_out }).click();
+  await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
   await login(page, "wrong@example.test", "incorrect1");
-  await expect(page.getByRole("alert")).toHaveText(en.auth_login_error!);
+  await expect(page.getByRole("alert")).toHaveText(t.auth_login_error);
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -45,42 +45,42 @@ test("/ and /app without a session redirect to login", async ({ page }) => {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
   }
-  await expect(page.getByRole("heading", { name: en.auth_login_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.auth_login_title })).toBeVisible();
 });
 
 test("unknown URL shows the 404 page", async ({ page }) => {
   const res = await page.goto("/does-not-exist");
   expect(res?.status()).toBe(404);
-  await expect(page.getByRole("heading", { name: en.notfound_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.notfound_title })).toBeVisible();
 });
 
 test("auth screen uses the design system: primary button is brand red, field labels are visible", async ({ page }) => {
   await page.goto("/login");
-  const submit = page.getByRole("button", { name: en.auth_submit_login });
+  const submit = page.getByRole("button", { name: t.auth_submit_login });
   await expect(submit).toHaveCSS("background-color", "rgb(229, 1, 1)");
-  await expect(page.getByLabel(en.auth_email!)).toBeVisible();
+  await expect(page.getByLabel(t.auth_email)).toBeVisible();
 });
 
 test("login screen follows the design: welcome copy, sign-up link, no app chrome", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Welcome back", level: 1 })).toBeVisible();
-  await expect(page.getByText("Log in to see your places.")).toBeVisible();
-  await expect(page.getByRole("link", { name: en.auth_goto_register })).toHaveAttribute("href", "/register");
-  await expect(page.getByRole("navigation", { name: en.nav_label })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: t.auth_login_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.auth_login_lead)).toBeVisible();
+  await expect(page.getByRole("link", { name: t.auth_goto_register })).toHaveAttribute("href", "/register");
+  await expect(page.getByRole("navigation", { name: t.nav_label })).toHaveCount(0);
 });
 
 test("register screen follows the design: back button, step, consent required", async ({ page }) => {
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: "Create an account", level: 1 })).toBeVisible();
-  await expect(page.getByText("One account — all your places in one app.")).toBeVisible();
-  await expect(page.getByText("Step 1 of 2")).toBeVisible();
-  await expect(page.getByRole("button", { name: en.auth_back })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: en.auth_consent })).not.toBeChecked();
+  await expect(page.getByRole("heading", { name: t.auth_register_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.auth_register_lead)).toBeVisible();
+  await expect(page.getByText(t.auth_step)).toBeVisible();
+  await expect(page.getByRole("button", { name: t.auth_back })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: t.auth_consent })).not.toBeChecked();
 
-  await page.getByLabel(en.auth_email!).fill("consent@example.test");
-  await page.getByLabel(en.auth_password!).fill("password123");
-  await page.getByRole("button", { name: en.auth_submit_register }).click();
-  await expect(page.getByRole("alert")).toHaveText(en.auth_consent_required!);
+  await page.getByLabel(t.auth_email).fill("consent@example.test");
+  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByRole("button", { name: t.auth_submit_register }).click();
+  await expect(page.getByRole("alert")).toHaveText(t.auth_consent_required);
   await expect(page).toHaveURL(/\/register$/);
 });
 

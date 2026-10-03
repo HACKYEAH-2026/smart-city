@@ -4,25 +4,24 @@ import { StyleSheet, View } from "react-native";
 import { Button, Card, Heading, Link, Screen, Text } from "../components";
 import { useCommunities } from "../data/communities";
 import { useAuthActions } from "../data/session";
-import { useI18n } from "../lib/i18n";
+import { t } from "../texts";
 import { spacing } from "../theme";
 
 /** List of communities the user has access to. */
 export default function Communities() {
-  const { t } = useI18n();
   const router = useRouter();
   const communities = useCommunities();
   const auth = useAuthActions();
   return (
     <Screen>
       <Head>
-        <title>{t.meta_communities_title()}</title>
+        <title>{t.meta_communities_title}</title>
       </Head>
       <View style={styles.head}>
         <View style={styles.titleRow}>
-          <Heading level={1}>{t.communities_title()}</Heading>
+          <Heading level={1}>{t.communities_title}</Heading>
           <Button
-            label={t.sign_out()}
+            label={t.sign_out}
             variant="secondary"
             size="sm"
             fullWidth={false}
@@ -33,15 +32,15 @@ export default function Communities() {
           />
         </View>
         <Text variant="bodyL" color="textSecondary">
-          {t.communities_lead()}
+          {t.communities_lead}
         </Text>
       </View>
       {communities.isPending ? (
         <Text variant="bodyL" color="textSecondary">
-          {t.loading()}
+          {t.loading}
         </Text>
       ) : (
-        <View role="list" aria-label={t.communities_list_label()} style={styles.list}>
+        <View role="list" aria-label={t.communities_list_label} style={styles.list}>
           {communities.data?.length ? (
             communities.data.map((c) => (
               <View key={c.id} role="listitem">
@@ -53,7 +52,7 @@ export default function Communities() {
           ) : (
             <View role="listitem">
               <Text variant="bodyL" color="textSecondary">
-                {t.communities_empty()}
+                {t.communities_empty}
               </Text>
             </View>
           )}

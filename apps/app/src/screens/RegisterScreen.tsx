@@ -5,12 +5,11 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Checkbox, Heading, IconButton, Link, PasswordStrength, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
-import { useI18n } from "../lib/i18n";
+import { t } from "../texts";
 import { spacing } from "../theme";
 
 /** Sign-up (design E-Rejestracja): back button, step label, name, email, password with strength meter, consent. */
 export default function RegisterScreen() {
-  const { t } = useI18n();
   const router = useRouter();
   const auth = useAuthActions();
   const [name, setName] = useState("");
@@ -22,43 +21,43 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
-    if (!consent) return setError(t.auth_consent_required());
+    if (!consent) return setError(t.auth_consent_required);
     setPending(true);
     const ok = await auth.signUp(email, password, name);
     setPending(false);
     // Message from our translations, not from Better Auth (which is always in English).
-    if (!ok) return setError(t.auth_register_error());
+    if (!ok) return setError(t.auth_register_error);
     router.replace("/app");
   };
 
   return (
     <Screen chrome={false}>
       <Head>
-        <title>{t.meta_register_title()}</title>
+        <title>{t.meta_register_title}</title>
       </Head>
       <View style={styles.topRow}>
-        <IconButton icon={ChevronLeft} label={t.auth_back()} onPress={() => router.replace("/login")} />
+        <IconButton icon={ChevronLeft} label={t.auth_back} onPress={() => router.replace("/login")} />
         <Text variant="label" color="textSecondary">
-          {t.auth_step()}
+          {t.auth_step}
         </Text>
       </View>
       <View style={styles.intro}>
-        <Heading level={1}>{t.auth_register_title()}</Heading>
+        <Heading level={1}>{t.auth_register_title}</Heading>
         <Text variant="bodyL" color="textSecondary">
-          {t.auth_register_lead()}
+          {t.auth_register_lead}
         </Text>
       </View>
       <View style={styles.form}>
         <TextField
-          label={t.auth_name()}
-          placeholder={t.auth_name_placeholder()}
+          label={t.auth_name}
+          placeholder={t.auth_name_placeholder}
           value={name}
           onChangeText={setName}
           autoComplete="name"
         />
         <TextField
-          label={t.auth_email()}
-          placeholder={t.auth_email_placeholder()}
+          label={t.auth_email}
+          placeholder={t.auth_email_placeholder}
           value={email}
           onChangeText={setEmail}
           autoComplete="email"
@@ -67,8 +66,8 @@ export default function RegisterScreen() {
         />
         <View style={styles.password}>
           <TextField
-            label={t.auth_password()}
-            placeholder={t.auth_password_placeholder()}
+            label={t.auth_password}
+            placeholder={t.auth_password_placeholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -76,7 +75,7 @@ export default function RegisterScreen() {
           />
           <PasswordStrength password={password} />
         </View>
-        <Checkbox checked={consent} onChange={setConsent} label={t.auth_consent()} />
+        <Checkbox checked={consent} onChange={setConsent} label={t.auth_consent} />
         {error ? (
           <Text variant="bodyL" color="primaryPressed" role="alert">
             {error}
@@ -85,9 +84,9 @@ export default function RegisterScreen() {
       </View>
       <View style={styles.grow} />
       <View style={styles.bottom}>
-        <Button label={t.auth_submit_register()} onPress={submit} disabled={pending} />
+        <Button label={t.auth_submit_register} onPress={submit} disabled={pending} />
         <Text variant="body" color="textSecondary" style={styles.center}>
-          {t.auth_have_account()} <Link href="/login">{t.auth_goto_login()}</Link>
+          {t.auth_have_account} <Link href="/login">{t.auth_goto_login}</Link>
         </Text>
       </View>
     </Screen>

@@ -5,7 +5,7 @@ import { colors } from "../src/theme";
 /** HTML shell for the static web export (web only, build time only). */
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="en">
+    <html lang="pl">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />

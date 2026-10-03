@@ -6,15 +6,14 @@ import { StyleSheet, View } from "react-native";
 import { Link, Screen, Text } from "../components";
 import { usePluginView, useToolCall } from "../data/communities";
 import { useFlash } from "../lib/flash";
-import { useI18n } from "../lib/i18n";
 import { uploadPluginImage } from "../lib/upload";
 import { pluginHref, viewParamsFrom } from "../plugins/href";
 import { PluginRenderer } from "../plugins/Renderer";
+import { t } from "../texts";
 import { colors, radii, spacing } from "../theme";
 
 /** Plugin view screen: fetches the UI tree from the API, renders it and handles actions. */
 export default function PluginView() {
-  const { t } = useI18n();
   const router = useRouter();
   const all = useLocalSearchParams<{ slug: string; plugin: string; view: string }>();
   const { slug, plugin, view } = all;
@@ -62,9 +61,9 @@ export default function PluginView() {
   return (
     <Screen>
       <Head>
-        <title>{screen.data?.type === "Screen" ? screen.data.title : t.communities_title()}</title>
+        <title>{screen.data?.type === "Screen" ? screen.data.title : t.communities_title}</title>
       </Head>
-      <Link href={`/app/c/${slug}`}>{t.plugin_back()}</Link>
+      <Link href={`/app/c/${slug}`}>{t.plugin_back}</Link>
       {toast ? (
         <View role="status" style={styles.toast}>
           <Text variant="bodyL" color="primaryPressed">
@@ -79,16 +78,16 @@ export default function PluginView() {
       ) : null}
       {call.isError ? (
         <Text variant="bodyL" color="primaryPressed" role="alert">
-          {t.plugin_action_error()}
+          {t.plugin_action_error}
         </Text>
       ) : null}
       {screen.isPending ? (
         <Text variant="bodyL" color="textSecondary">
-          {t.loading()}
+          {t.loading}
         </Text>
       ) : screen.isError ? (
         <Text variant="bodyL" color="primaryPressed" role="alert">
-          {t.plugin_load_error()}
+          {t.plugin_load_error}
         </Text>
       ) : (
         <PluginRenderer key={generation} node={screen.data} onAction={onAction} busy={call.isPending} upload={upload} />

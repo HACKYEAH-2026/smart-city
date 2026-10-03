@@ -13,7 +13,7 @@ import {
   Text,
   TextField,
 } from "../components";
-import { useI18n } from "../lib/i18n";
+import { t } from "../texts";
 import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 
 /**
@@ -65,7 +65,6 @@ const Children = ({ nodes }: { nodes?: UINode[] }) =>
   ));
 
 function PluginNode({ node }: { node: UINode }): ReactNode {
-  const { t } = useI18n();
   const { onAction, busy } = useContext(ActionsContext);
   switch (node.type) {
     case "Screen":
@@ -200,7 +199,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     default:
       return (
         <Text variant="bodyL" color="textSecondary">
-          {t.plugin_unsupported()}
+          {t.plugin_unsupported}
         </Text>
       );
   }
@@ -254,7 +253,6 @@ function FormTextInput({ node }: { node: Extract<UINode, { type: "TextInput" }> 
 
 /** Photo picker: gallery → upload → FileId in the form field; preview and removal. */
 function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker" }> }) {
-  const { t } = useI18n();
   const form = useContext(FormContext);
   const { upload } = useContext(ActionsContext);
   const [preview, setPreview] = useState<string | null>(null);
@@ -284,11 +282,11 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
         {node.label}
       </Text>
       {preview ? (
-        <Image role="img" aria-label={t.plugin_photo_preview()} source={{ uri: preview }} style={styles.image} />
+        <Image role="img" aria-label={t.plugin_photo_preview} source={{ uri: preview }} style={styles.image} />
       ) : null}
       <View style={styles.row}>
         <Button
-          label={preview ? t.plugin_photo_change() : t.plugin_photo_pick()}
+          label={preview ? t.plugin_photo_change : t.plugin_photo_pick}
           variant="secondary"
           size="sm"
           fullWidth={false}
@@ -297,7 +295,7 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
         />
         {preview ? (
           <Button
-            label={t.plugin_photo_remove()}
+            label={t.plugin_photo_remove}
             variant="destructiveGhost"
             size="sm"
             fullWidth={false}
@@ -307,12 +305,12 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
       </View>
       {state === "uploading" ? (
         <Text variant="caption" color="textSecondary">
-          {t.plugin_photo_uploading()}
+          {t.plugin_photo_uploading}
         </Text>
       ) : null}
       {state === "error" ? (
         <Text variant="bodyL" color="primaryPressed" role="alert">
-          {t.plugin_photo_error()}
+          {t.plugin_photo_error}
         </Text>
       ) : null}
     </View>

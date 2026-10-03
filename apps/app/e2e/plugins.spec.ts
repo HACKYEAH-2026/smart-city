@@ -1,21 +1,21 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
+import { t } from "../src/texts";
 import { expect, TEST_ADMIN_TOKEN, test } from "./fixtures";
-import { en } from "./messages";
 
 /**
  * Plugin system acceptance criteria: a built-in plugin works end to end, and a plugin uploaded
  * through the admin API shows up in the community without reloading the app.
- * Plugin texts (in Polish) are server content, not messages from messages/*.json.
+ * Plugin texts are server content, not app texts from src/texts.ts.
  */
 const register = async (page: Page, email: string) => {
   await page.goto("/register");
-  await page.getByLabel(en.auth_email!).fill(email);
-  await page.getByLabel(en.auth_password!).fill("password123");
-  await page.getByRole("checkbox", { name: en.auth_consent }).click();
-  await page.getByRole("button", { name: en.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByRole("checkbox", { name: t.auth_consent }).click();
+  await page.getByRole("button", { name: t.auth_submit_register }).click();
+  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
 };
 
 test("community -> issues plugin: report an issue and find it on the list", async ({ page }) => {
@@ -44,16 +44,16 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
 
 const signOut = async (page: Page) => {
   await page.goto("/app");
-  await page.getByRole("button", { name: en.sign_out }).click();
+  await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
 };
 
 const login = async (page: Page, email: string) => {
   await page.goto("/login");
-  await page.getByLabel(en.auth_email!).fill(email);
-  await page.getByLabel(en.auth_password!).fill("password123");
-  await page.getByRole("button", { name: en.auth_submit_login }).click();
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByRole("button", { name: t.auth_submit_login }).click();
+  await expect(page.getByRole("heading", { name: t.communities_title })).toBeVisible();
 };
 
 const openNewIssueForm = async (page: Page) => {
@@ -70,9 +70,9 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await page.getByLabel("Co się stało?").fill("Nie świeci latarnia na Długiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: en.plugin_photo_pick }).click();
+  await page.getByRole("button", { name: t.plugin_photo_pick }).click();
   await (await chooser).setFiles(PHOTO);
-  await expect(page.getByRole("img", { name: en.plugin_photo_preview })).toBeVisible();
+  await expect(page.getByRole("img", { name: t.plugin_photo_preview })).toBeVisible();
   await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
   await expect(page.getByRole("status")).toContainText("Dziękujemy");
   await expect(page.getByRole("img", { name: "Zdjęcie: Nie świeci latarnia na Długiej" })).toBeVisible();
