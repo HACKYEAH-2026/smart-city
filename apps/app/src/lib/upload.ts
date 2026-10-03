@@ -4,8 +4,8 @@ import { tokens } from "./api";
 import { apiBaseUrl } from "./config";
 
 /**
- * Upload zdjęcia dla wtyczki (multipart). Jedyny ręczny fetch w aplikacji: klient RPC (hc) nie ma
- * typów dla multipart bez walidatora, a pole pliku różni się między webem (File) i natywnie ({ uri }).
+ * Photo upload for a plugin (multipart). The only manual fetch in the app: the RPC client (hc) has no
+ * types for multipart without a validator, and the file field differs between web (File) and native ({ uri }).
  */
 export async function uploadPluginImage(slug: string, pluginId: string, asset: ImagePickerAsset): Promise<string> {
   const form = new FormData();
@@ -14,7 +14,7 @@ export async function uploadPluginImage(slug: string, pluginId: string, asset: I
     const blob = asset.file ?? (await (await fetch(asset.uri)).blob());
     form.append("file", blob, asset.fileName ?? "photo.jpg");
   } else {
-    // React Native: FormData przyjmuje opis pliku z dysku urządzenia.
+    // React Native: FormData accepts a descriptor of a file on the device's disk.
     form.append("file", { uri: asset.uri, name: asset.fileName ?? "photo.jpg", type } as unknown as Blob);
   }
   const url = `${apiBaseUrl()}/api/communities/${encodeURIComponent(slug)}/plugins/${encodeURIComponent(pluginId)}/files`;

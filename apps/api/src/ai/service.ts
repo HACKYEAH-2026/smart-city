@@ -21,7 +21,7 @@ const words = (s: string) =>
       .filter((w) => w.length > 2),
   );
 
-/** Tryb bez modelu: wspólne znaczące słowa (wystarczy do testów i demo bez klucza). */
+/** Model-less mode: shared meaningful words (enough for tests and a keyless demo). */
 function lexicalSimilar<T>(text: string, candidates: Doc<T>[], opts: SimilarOptions<T>): SimilarMatch<T>[] {
   const mine = words(text);
   if (!mine.size) return [];
@@ -42,8 +42,8 @@ const judgement = z.object({
 });
 
 /**
- * ctx.ai: jedno źródło wywołań modeli dla wtyczek. Klucz, limity i wybór modelu są po stronie hosta.
- * findSimilar: ocena modelu językowego „czy to ten sam problem” (bez modelu: tryb leksykalny).
+ * ctx.ai: the single source of model calls for plugins. Key, limits and model choice live in the host.
+ * findSimilar: language model judgement "is this the same problem" (without a model: lexical mode).
  */
 export class AIService {
   private readonly calls = new Map<string, number[]>();

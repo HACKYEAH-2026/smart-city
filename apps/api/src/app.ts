@@ -16,7 +16,7 @@ import { createAdminRoutes } from "./routes/admin";
 import { communitiesRoutes } from "./routes/communities";
 import { filesRoutes } from "./routes/files";
 
-/** Dostawcy AI z env (Strands + model zgodny z OpenAI); bez AI_API_KEY i AI_MODEL — brak modelu. */
+/** AI providers from env (Strands + OpenAI-compatible model); without AI_API_KEY and AI_MODEL — no model. */
 function aiFromEnv(env: Env): AIProviders {
   if (!env.AI_API_KEY || !env.AI_MODEL) return {};
   return {
@@ -25,8 +25,8 @@ function aiFromEnv(env: Env): AIProviders {
 }
 
 /**
- * Składa aplikację. Dostaje gotowego klienta Drizzle (nie wie, jaka baza jest pod spodem).
- * Jedyne miejsce montowania routerów; typ AppType eksportowany dla klienta RPC we froncie.
+ * Assembles the app. Receives a ready Drizzle client (unaware of the underlying database).
+ * The only place routers are mounted; AppType is exported for the frontend RPC client.
  */
 export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders }) {
   const auth = createAuth(db, env);

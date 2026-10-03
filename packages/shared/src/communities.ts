@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Kontrakty administracyjne: społeczności i instalacja wtyczek. */
+/** Admin contracts: communities and plugin installation. */
 export const communitySlugSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{1,39}$/, "Use 2-40 chars: lowercase letters, digits, hyphens");
@@ -16,9 +16,9 @@ export const pluginUploadSchema = z.object({ source: z.string().min(1).max(PLUGI
 export const pluginInstallSchema = z.object({ pluginId: z.string().min(1) });
 export const adminGrantSchema = z.object({ email: z.email() });
 
-/** Argumenty wywołania narzędzia wtyczki (dane formularza + args z akcji). */
+/** Plugin tool call arguments (form data + action args). */
 export const toolCallSchema = z.object({ args: z.record(z.string(), z.unknown()).default({}) });
 
-/** Społeczność i wpis jej nawigacji (odpowiedzi API dla aplikacji). */
+/** A community and its nav entry (API responses for the app). */
 export type Community = { id: string; slug: string; name: string };
 export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };

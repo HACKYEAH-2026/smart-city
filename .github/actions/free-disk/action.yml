@@ -1,7 +1,7 @@
-name: Zwolnij miejsce na dysku
+name: Free up disk space
 description: >
-  Usuwa preinstalowane na ubuntu-latest narzędzia, których nie używamy (Android SDK runnera, .NET, GHC, CodeQL).
-  Build React Native (NDK z nixa + kompilacja C++) nie mieści się bez tego na domyślnym dysku runnera.
+  Removes tools preinstalled on ubuntu-latest that we do not use (the runner's Android SDK, .NET, GHC, CodeQL).
+  The React Native build (NDK from nix + C++ compilation) does not fit on the runner's default disk without this.
 runs:
   using: composite
   steps:

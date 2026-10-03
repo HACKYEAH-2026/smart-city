@@ -25,7 +25,7 @@ export function AuthForm(props: { mode: Mode }) {
     setError(null);
     const ok = isRegister ? await auth.signUp(email, password, name) : await auth.signIn(email, password);
     setPending(false);
-    // Komunikat z naszych tłumaczeń, nie z Better Auth (ten jest zawsze po angielsku).
+    // Message from our translations, not from Better Auth (which is always in English).
     if (!ok) return setError(isRegister ? t.auth_register_error() : t.auth_login_error());
     router.replace("/app");
   };

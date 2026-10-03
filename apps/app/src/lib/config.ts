@@ -3,10 +3,10 @@ declare global {
 }
 
 /**
- * Jedyne miejsce, które zna adres API.
- *  - EXPO_PUBLIC_API_URL: wstrzykiwany w buildzie (staging/prod, patrz CI).
- *  - globalThis.__API_URL__: nadpisanie w runtime (E2E: osobne API na worker Playwrighta).
- *  - domyślnie dev na tej samej maszynie (emulator Androida: ustaw EXPO_PUBLIC_API_URL=http://10.0.2.2:4000).
+ * The only place that knows the API URL.
+ *  - EXPO_PUBLIC_API_URL: injected at build time (staging/prod, see CI).
+ *  - globalThis.__API_URL__: runtime override (E2E: a separate API per Playwright worker).
+ *  - default: dev on the same machine (Android emulator: set EXPO_PUBLIC_API_URL=http://10.0.2.2:4000).
  */
 export function apiBaseUrl(): string {
   return globalThis.__API_URL__ ?? process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";

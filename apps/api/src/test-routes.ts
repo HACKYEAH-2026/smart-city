@@ -7,8 +7,8 @@ import { builtinPlugins } from "./plugins/builtin";
 import type { PluginHost } from "./plugins/host";
 
 /**
- * Endpointy wyłącznie dla testów i lokalnego dev. Montowane tylko przez test-server.ts przy NODE_ENV=test.
- * Nigdy nie importuj tego pliku z kodu produkcyjnego.
+ * Endpoints for tests and local dev only. Mounted only by test-server.ts with NODE_ENV=test.
+ * Never import this file from production code.
  */
 export const DEMO_COMMUNITY = { slug: "krakow", name: "Kraków" } as const;
 export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password123", name: "Urząd Miasta" } as const;
@@ -16,13 +16,13 @@ export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password123",
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
 
 /**
- * Dane startowe dev/E2E (idempotentne): społeczność demo z wtyczkami wbudowanymi (z onInstall)
- * i kontem administratora społeczności.
+ * Dev/E2E seed data (idempotent): a demo community with built-in plugins (with onInstall)
+ * and a community admin account.
  */
 export async function seedDemo({ db, auth, plugins }: Deps) {
   db.insert(schema.communities).values(DEMO_COMMUNITY).onConflictDoNothing().run();
   const community = db.select().from(schema.communities).where(eq(schema.communities.slug, DEMO_COMMUNITY.slug)).get();
-  if (!community) throw new Error("seed: brak społeczności");
+  if (!community) throw new Error("seed: community missing");
   for (const mod of builtinPlugins) {
     const pluginId = loadPlugin(mod).manifest.id;
     const created = db
@@ -40,7 +40,7 @@ export async function seedDemo({ db, auth, plugins }: Deps) {
     await auth.api.signUpEmail({ body: { ...DEMO_ADMIN } });
     admin = db.select().from(schema.user).where(eq(schema.user.email, DEMO_ADMIN.email)).get();
   }
-  if (!admin) throw new Error("seed: brak konta admina");
+  if (!admin) throw new Error("seed: admin account missing");
   db.insert(schema.memberships)
     .values({ communityId: community.id, userId: admin.id, role: "admin" })
     .onConflictDoUpdate({

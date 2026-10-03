@@ -9,8 +9,8 @@ const FORMATS: Record<string, "jpeg" | "png" | "webp"> = {
 };
 
 /**
- * LanguageModel na Strands Agents z modelem przez API zgodne z OpenAI (OpenAI albo własny endpoint:
- * AI_BASE_URL). Każde wywołanie to świeży agent bez narzędzi i bez pamięci — jedno zapytanie, jedna odpowiedź.
+ * LanguageModel on Strands Agents with a model via an OpenAI-compatible API (OpenAI or a custom endpoint:
+ * AI_BASE_URL). Each call is a fresh agent with no tools and no memory — one request, one response.
  */
 export class StrandsLanguageModel implements LanguageModel {
   private readonly model: OpenAIModel;

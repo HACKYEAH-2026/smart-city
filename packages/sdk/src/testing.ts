@@ -16,9 +16,9 @@ import type {
 import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams } from "./ui";
 
 /**
- * Test harness dla autorów wtyczek: wtyczka testowana jak zwykła funkcja, bez API, bazy i modelu AI.
- * Zachowuje się jak host: walidacja wejścia (Zod), `requires`, schemat UI i wyniku, scalanie update,
- * upsert pod kluczem, filtrowanie `where`.
+ * Test harness for plugin authors: test a plugin like a plain function, without API, database or AI model.
+ * Behaves like the host: input validation (Zod), `requires`, UI and result schemas, update merging,
+ * keyed upsert, `where` filtering.
  *
  *   const t = testPlugin(issues, { user: alice });
  *   t.ai.mockSimilar(() => []);
@@ -76,7 +76,7 @@ export function memoryStorage(userId: () => string, now: () => Date): Storage {
   };
 }
 
-/** Pliki w pamięci: fake() udaje upload przez aplikację; keep() sprawdza właściciela jak host. */
+/** In-memory files: fake() simulates an app upload; keep() checks the owner like the host. */
 function memoryFiles(userId: () => string) {
   const files = new Map<string, { owner: string; kept: boolean; mime: string }>();
   const api: Files = {
@@ -96,7 +96,7 @@ function memoryFiles(userId: () => string) {
   };
   return {
     api,
-    /** Plik wysłany przez `owner` (domyślnie bieżący użytkownik), jeszcze niezatwierdzony. */
+    /** File uploaded by `owner` (defaults to the current user), not yet confirmed. */
     fake(mime = "image/jpeg", owner = userId()): FileId {
       const id = `file_${crypto.randomUUID()}` as FileId;
       files.set(id, { owner, kept: false, mime });
@@ -111,7 +111,7 @@ type SimilarMock = (query: { text: string; image?: FileId }, candidates: Doc<unk
 
 function mockAI() {
   let call: CallMock = () => {
-    throw new Error("ctx.ai.call: brak atrapy — użyj t.ai.mockCall(...)");
+    throw new Error("ctx.ai.call: no mock — use t.ai.mockCall(...)");
   };
   let similar: SimilarMock = () => [];
   const api: AI = {
@@ -136,8 +136,8 @@ function mockAI() {
 
 export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: PluginCommunity } = {}) {
   const { definition } = loadPlugin(mod);
-  const community = opts.community ?? { id: "c-test", slug: "test", name: "Testowo" };
-  let current: PluginUser = opts.user ?? { id: "u-test", name: "Testowy Użytkownik", role: "user" };
+  const community = opts.community ?? { id: "c-test", slug: "test", name: "Test Community" };
+  let current: PluginUser = opts.user ?? { id: "u-test", name: "Test User", role: "user" };
   let clock = new Date(Date.UTC(2026, 0, 1));
   const now = () => new Date(clock);
   const storage = memoryStorage(() => current.id, now);
@@ -163,9 +163,9 @@ export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: 
         const input = tool.input.parse(args);
         return toolResultSchema.parse((await tool.handler(ctx(), input)) ?? {});
       },
-      /** Upload zdjęcia przez tego użytkownika (FileId do argumentów narzędzia). */
+      /** Photo upload by this user (FileId for tool arguments). */
       files: { fake: (mime?: string) => files.fake(mime, user.id) },
-      /** Wejście narzędzia, które host odrzuciłby z 400 (lista problemów Zod), albo null. */
+      /** Zod issues for tool input the host would reject with 400, or null. */
       invalidInput(name: string, args: Record<string, unknown>): z.core.$ZodIssue[] | null {
         const r = definition.tools?.[name]?.input.safeParse(args);
         return r && !r.success ? r.error.issues : null;
@@ -176,7 +176,7 @@ export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: 
   return {
     ...harness(current),
     as: (user: PluginUser) => harness(user),
-    /** Uruchamia onInstall (jak host po włączeniu wtyczki w społeczności). */
+    /** Runs onInstall (like the host after enabling the plugin in a community). */
     install: async () => {
       current = { id: "system", name: "System", role: "admin" };
       await definition.onInstall?.({ user: current, community, now, storage, files: files.api, ai: ai.api });
@@ -190,7 +190,7 @@ export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: 
   };
 }
 
-/** Wszystkie teksty drzewa UI (tytuły, etykiety, wartości) — do asercji niezależnych od układu. */
+/** All texts in a UI tree (titles, labels, values) — for layout-independent assertions. */
 export function textsOf(node: UINode): string[] {
   const own = (["title", "subtitle", "text", "label", "value", "alt"] as const).flatMap((k) => {
     const v = (node as Record<string, unknown>)[k];

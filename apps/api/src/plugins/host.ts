@@ -21,10 +21,10 @@ import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context
 
 export { PluginError };
 
-/** Narzędzie wymaga roli, której użytkownik nie ma (HTTP 403). */
+/** The tool requires a role the user doesn't have (HTTP 403). */
 export class ForbiddenError extends Error {}
 
-/** Błędne wejście narzędzia — wina wywołującego, nie wtyczki (HTTP 400). */
+/** Invalid tool input — the caller's fault, not the plugin's (HTTP 400). */
 export class PluginInputError extends Error {
   constructor(readonly issues: { path: PropertyKey[]; message: string }[]) {
     super("invalid_input");
@@ -34,9 +34,9 @@ export class PluginInputError extends Error {
 export type LoadedPlugin = ReturnType<typeof loadPlugin> & { origin: "builtin" | "uploaded" };
 
 /**
- * Rejestr wtyczek. Wbudowane są rejestrowane przy starcie; wgrane przez API są zapisywane
- * w bazie (plugin_sources), kompilowane do pliku w `dir` i importowane przez Buna w locie.
- * Wtyczki wgrywa tylko administrator (kod wykonuje się w procesie API — patrz docs/plugins.md).
+ * Plugin registry. Built-ins are registered at startup; plugins uploaded via the API are stored
+ * in the database (plugin_sources), written to a file in `dir` and imported by Bun on the fly.
+ * Only an administrator uploads plugins (the code runs in the API process — see docs/plugins.md).
  */
 export class PluginHost {
   private readonly plugins = new Map<string, LoadedPlugin>();
@@ -56,7 +56,7 @@ export class PluginHost {
     }
   }
 
-  /** Doładowuje wtyczki zapisane w bazie (raz na proces). Wołane przed obsługą żądań wtyczek. */
+  /** Loads plugins stored in the database (once per process). Called before handling plugin requests. */
   ready(): Promise<void> {
     this.stored ??= (async () => {
       const rows = await this.db.select().from(schema.pluginSources);
@@ -65,7 +65,7 @@ export class PluginHost {
           const loaded = await this.compile(row.source);
           this.plugins.set(loaded.manifest.id, { ...loaded, origin: "uploaded" });
         } catch (err) {
-          console.error(`wtyczka ${row.pluginId}: nie załadowano zapisanego kodu`, err);
+          console.error(`plugin ${row.pluginId}: failed to load stored code`, err);
         }
       }
     })();
@@ -80,7 +80,7 @@ export class PluginHost {
     return [...this.plugins.values()];
   }
 
-  /** Wgrywa (albo podmienia) wtyczkę z kodu źródłowego. Zwraca manifest. */
+  /** Uploads (or replaces) a plugin from source code. Returns the manifest. */
   async upload(source: string): Promise<PluginManifest> {
     await this.ready();
     const loaded = await this.compile(source);
@@ -98,7 +98,7 @@ export class PluginHost {
     return createPluginContext(this.services, { plugin, ...args });
   }
 
-  /** Po włączeniu wtyczki w społeczności: dane startowe (onInstall) jako użytkownik systemowy. */
+  /** After enabling a plugin in a community: seed data (onInstall) as the system user. */
   async install(plugin: LoadedPlugin, installationId: string, community: PluginCommunity): Promise<void> {
     const onInstall = plugin.definition.onInstall;
     if (!onInstall) return;
@@ -135,7 +135,7 @@ export class PluginHost {
     return parsed.data;
   }
 
-  /** Węzły Image dostają podpisany, krótkotrwały URL (aplikacja nie musi znać mechanizmu plików). */
+  /** Image nodes get a signed, short-lived URL (the app needn't know how files work). */
   private signImages(node: UINode): UINode {
     if (node.type === "Image") return { ...node, url: this.services.files.signedUrl(node.file) };
     if ("children" in node && node.children) {
@@ -145,8 +145,8 @@ export class PluginHost {
   }
 
   private async compile(source: string): Promise<ReturnType<typeof loadPlugin>> {
-    // Osobny katalog per hash treści: każda wersja to nowy moduł (import() cache'uje po ścieżce),
-    // a resolver Buna nie widzi plików dopisanych do katalogu, który już raz odczytał.
+    // Separate directory per content hash: each version is a new module (import() caches by path),
+    // and Bun's resolver doesn't see files added to a directory it has already read.
     const dir = join(this.dir, Bun.hash(source).toString(16));
     mkdirSync(dir, { recursive: true });
     const file = join(dir, "plugin.ts");

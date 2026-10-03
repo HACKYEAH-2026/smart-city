@@ -7,13 +7,13 @@ const load = (file: string) => JSON.parse(readFileSync(join(dir, file), "utf8"))
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
 const base = load("en.json");
 
-describe("komunikaty i18n", () => {
-  test("angielski jest bazą, każdy język ma dokładnie te same klucze", () => {
+describe("i18n messages", () => {
+  test("English is the base, every locale has exactly the same keys", () => {
     expect(files).toContain("en.json");
     for (const file of files) expect(Object.keys(load(file)).sort(), file).toEqual(Object.keys(base).sort());
   });
 
-  test("żaden komunikat nie jest pusty", () => {
+  test("no message is empty", () => {
     for (const file of files) {
       for (const [k, v] of Object.entries(load(file))) expect(v.trim().length, `${file}:${k}`).toBeGreaterThan(0);
     }

@@ -1,6 +1,6 @@
 /**
- * Build produkcyjny API: bundle serwera i migratora. Kończy się błędem, jeśli do bundla
- * trafił kod testowy (/__test).
+ * Production API build: bundles the server and the migrator. Fails if test code (/__test)
+ * ended up in the bundle.
  */
 import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -24,9 +24,9 @@ for (const file of readdirSync(outdir)) {
   const text = readFileSync(join(outdir, file), "utf8");
   for (const needle of ["__test"]) {
     if (text.includes(needle)) {
-      console.error(`BŁĄD: ${file} zawiera kod testowy (${needle})`);
+      console.error(`ERROR: ${file} contains test code (${needle})`);
       process.exit(1);
     }
   }
 }
-console.log(`api build: OK -> ${readdirSync(outdir).join(", ")} (bez /__test)`);
+console.log(`api build: OK -> ${readdirSync(outdir).join(", ")} (no /__test)`);

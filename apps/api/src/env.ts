@@ -14,21 +14,21 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().default(3000),
   DATABASE_URL: z.string().min(1),
-  /** Publiczny URL API (baseURL Better Auth), np. https://api.example.com */
+  /** Public API URL (Better Auth baseURL), e.g. https://api.example.com */
   API_URL: z.url(),
-  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET musi mieć min. 32 znaki"),
-  /** Originy frontu (web). Aplikacje natywne nie wysyłają Origin — uwierzytelniają się tokenem bearer. */
+  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+  /** Frontend (web) origins. Native apps send no Origin — they authenticate with a bearer token. */
   TRUSTED_ORIGINS: csv,
-  /** Token administratora wtyczek (Authorization: Bearer ...). Brak = API administracyjne wyłączone (404). */
-  PLUGIN_ADMIN_TOKEN: z.string().min(24, "PLUGIN_ADMIN_TOKEN musi mieć min. 24 znaki").optional(),
-  /** Katalog na skompilowane wtyczki wgrane przez API (cache; źródłem prawdy jest baza). */
+  /** Plugin admin token (Authorization: Bearer ...). Unset = admin API disabled (404). */
+  PLUGIN_ADMIN_TOKEN: z.string().min(24, "PLUGIN_ADMIN_TOKEN must be at least 24 characters").optional(),
+  /** Directory for compiled plugins uploaded via the API (cache; the database is the source of truth). */
   PLUGINS_DIR: z.string().optional(),
-  /** Katalog na pliki wtyczek (zdjęcia). Domyślnie katalog tymczasowy. */
+  /** Directory for plugin files (photos). Defaults to a temp directory. */
   FILES_DIR: z.string().optional(),
-  /** Model językowy dla ctx.ai (Strands, API zgodne z OpenAI). Bez klucza: ctx.ai.call niedostępne. */
+  /** Language model for ctx.ai (Strands, OpenAI-compatible API). Without a key: ctx.ai.call is unavailable. */
   AI_API_KEY: z.string().min(1).optional(),
   AI_MODEL: z.string().min(1).optional(),
-  /** Własny endpoint zgodny z OpenAI (np. inny dostawca). Brak = api.openai.com. */
+  /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */
   AI_BASE_URL: z.url().optional(),
 });
 
@@ -37,7 +37,7 @@ export type Env = z.infer<typeof envSchema>;
 export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
-    throw new Error(`Błędna konfiguracja środowiska:\n${z.prettifyError(parsed.error)}`);
+    throw new Error(`Invalid environment configuration:\n${z.prettifyError(parsed.error)}`);
   }
   return parsed.data;
 }

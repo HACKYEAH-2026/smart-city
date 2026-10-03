@@ -6,7 +6,7 @@ const alice = { id: "alice", name: "Alice", role: "user" } as const;
 const bob = { id: "bob", name: "Bob", role: "user" } as const;
 const admin = { id: "urzad", name: "Urząd", role: "admin" } as const;
 
-/** AI „widzi” ten sam problem, gdy w tekście jest słowo „latarnia”. */
+/** The AI "sees" the same problem when the text contains the word "latarnia". */
 const lampsAreTheSame = (t: ReturnType<typeof testPlugin>) =>
   t.ai.mockSimilar((query, candidates) =>
     query.text.toLowerCase().includes("latarnia")
@@ -14,8 +14,8 @@ const lampsAreTheSame = (t: ReturnType<typeof testPlugin>) =>
       : [],
   );
 
-describe("issues: zgłoszenie", () => {
-  test("pusta lista → zgłoszenie ze zdjęciem → szczegóły", async () => {
+describe("issues: reporting", () => {
+  test("empty list → report with photo → details", async () => {
     const t = testPlugin(issues, { user: alice });
     expect(textsOf(await t.view("list"))).toContain("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.");
 
@@ -36,7 +36,7 @@ describe("issues: zgłoszenie", () => {
     expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
   });
 
-  test("walidacja wejścia", () => {
+  test("input validation", () => {
     const t = testPlugin(issues);
     expect(t.invalidInput("report", { title: "x", category: "nie-ma" })?.map((i) => i.path[0])).toEqual([
       "title",
@@ -46,8 +46,8 @@ describe("issues: zgłoszenie", () => {
   });
 });
 
-describe("issues: podobne zgłoszenia", () => {
-  test("AI znajduje ten sam problem → pytanie o połączenie, nic nie zapisano", async () => {
+describe("issues: similar reports", () => {
+  test("AI finds the same problem → asks to merge, nothing saved", async () => {
     const t = testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
@@ -65,7 +65,7 @@ describe("issues: podobne zgłoszenia", () => {
     );
   });
 
-  test("połączenie: zgłoszenie Boba ze zdjęciem jest pod wcześniejszym", async () => {
+  test("merge: Bob's report with photo lands under the earlier one", async () => {
     const t = testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
@@ -84,7 +84,7 @@ describe("issues: podobne zgłoszenia", () => {
     );
   });
 
-  test("„to inny problem” (force) tworzy nowe zgłoszenie mimo podobieństwa", async () => {
+  test('"different problem" (force) creates a new issue despite similarity', async () => {
     const t = testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
@@ -93,7 +93,7 @@ describe("issues: podobne zgłoszenia", () => {
     expect(await t.storage.list("issues")).toHaveLength(2);
   });
 
-  test("ponowne połączenie przez tę samą osobę nie dubluje zgłoszenia mieszkańca", async () => {
+  test("repeated merge by the same person doesn't duplicate the resident's report", async () => {
     const t = testPlugin(issues, { user: alice });
     const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const id = navigate!.params!.id!;
@@ -104,7 +104,7 @@ describe("issues: podobne zgłoszenia", () => {
 });
 
 describe("issues: role", () => {
-  test("status zmienia tylko admin; admin widzi przyciski", async () => {
+  test("only admin changes status; admin sees the buttons", async () => {
     const t = testPlugin(issues, { user: alice });
     const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const id = navigate!.params!.id!;
@@ -117,7 +117,7 @@ describe("issues: role", () => {
     expect(textsOf(await t.view("detail", { id }))).toContain("Naprawione");
   });
 
-  test("narzędzie readOnly list zwraca dane dla asystenta AI", async () => {
+  test("readOnly list tool returns data for the AI assistant", async () => {
     const t = testPlugin(issues, { user: alice });
     await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const { data } = await t.tool("list");

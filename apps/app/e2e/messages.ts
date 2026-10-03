@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** Teksty dla E2E wprost z messages/<locale>.json (to samo źródło co aplikacja). */
+/** E2E strings straight from messages/<locale>.json (same source as the app). */
 const load = (locale: string) =>
   JSON.parse(readFileSync(join(import.meta.dirname, "../messages", `${locale}.json`), "utf8")) as Record<
     string,

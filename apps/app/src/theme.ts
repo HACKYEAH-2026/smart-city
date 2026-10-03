@@ -1,8 +1,8 @@
 import { Platform } from "react-native";
 
 /**
- * Tokeny wyglądu — przebrandowanie = zmiana tego pliku. Świat: korespondencja na dobrym papierze.
- * Nie wpisuj kolorów/krojów/odstępów w komponenty; bierz je stąd.
+ * Design tokens — rebranding = changing this file. Mood: correspondence on fine paper.
+ * Do not hardcode colors/typefaces/spacing in components; take them from here.
  */
 export const color = {
   paper: "#f5efe3",
@@ -41,7 +41,7 @@ export const shadow = {
   },
 } as const;
 
-/** Odcienie statusów (plakietki wtyczek): tło + tekst z kontrastem WCAG AA. */
+/** Status tones (plugin badges): background + text with WCAG AA contrast. */
 export const tone = {
   neutral: { bg: color.paperDeep, fg: color.ink },
   info: { bg: "#dde6f3", fg: "#1f3d6b" },

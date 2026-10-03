@@ -1,7 +1,7 @@
 /**
- * Token sesji (Better Auth, plugin bearer) — jedna ścieżka dla web, iOS i Androida.
- * Trzymany w pamięci (synchroniczny odczyt przy każdym żądaniu) i utrwalany w Storage.
- * Logika czysta, testowana w token.test.ts z magazynem w pamięci.
+ * Session token (Better Auth, bearer plugin) — one path for web, iOS and Android.
+ * Kept in memory (synchronous read on every request) and persisted in Storage.
+ * Pure logic, tested in token.test.ts with an in-memory store.
  */
 import type { Storage } from "./storage";
 
@@ -11,7 +11,7 @@ export function createTokenStore(storage: Storage) {
   let token: string | null = null;
   let loaded = false;
   return {
-    /** Wczytuje token z magazynu (raz, przy starcie aplikacji). */
+    /** Loads the token from storage (once, at app startup). */
     async load() {
       token = await storage.get(TOKEN_KEY);
       loaded = true;
@@ -19,7 +19,7 @@ export function createTokenStore(storage: Storage) {
     },
     isLoaded: () => loaded,
     get: () => token,
-    /** Zapisuje token z nagłówka odpowiedzi Better Auth, jeśli jest. */
+    /** Stores the token from the Better Auth response header, if present. */
     async capture(headers: Headers) {
       const t = headers.get("set-auth-token");
       if (!t) return;

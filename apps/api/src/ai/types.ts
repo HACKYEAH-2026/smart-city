@@ -1,15 +1,15 @@
 import type { z } from "zod";
 
 /**
- * Dostawcy AI hosta (wymienni). Wtyczki o nich nie wiedzą — widzą tylko ctx.ai.
- * Konkretna implementacja (Strands + OpenAI-compatible) to konfiguracja hosta.
+ * Host AI providers (swappable). Plugins don't know about them — they only see ctx.ai.
+ * The concrete implementation (Strands + OpenAI-compatible) is host configuration.
  */
 export type ModelImage = { mime: string; data: Uint8Array };
 
 export interface LanguageModel {
-  /** Ze schematem: zwalidowany obiekt; bez schematu: tekst odpowiedzi. */
+  /** With a schema: the validated object; without: the response text. */
   generate(req: { prompt: string; images?: ModelImage[]; schema?: z.ZodType }): Promise<unknown>;
 }
 
-/** Bez modelu językowego: ctx.ai.call rzuca błąd, a findSimilar działa leksykalnie (wspólne słowa). */
+/** Without a language model: ctx.ai.call throws and findSimilar works lexically (shared words). */
 export type AIProviders = { language?: LanguageModel };

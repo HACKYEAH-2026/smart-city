@@ -7,11 +7,11 @@ import { useI18n } from "../lib/i18n";
 import { color, font, radius, shadow, space, tone as tones } from "../theme";
 
 /**
- * Renderer Server-Driven UI: zamienia drzewo z API wtyczki na prymitywy z components/ui.tsx.
- * Wtyczka nie wykonuje tu żadnego kodu — akcje (nawigacja, narzędzie) obsługuje ekran przez `onAction`.
- * Nowy typ węzła: schemat w packages/sdk/src/ui.ts + gałąź w `PluginNode`.
+ * Server-Driven UI renderer: turns the tree from the plugin API into primitives from components/ui.tsx.
+ * The plugin runs no code here — actions (navigation, tool) are handled by the screen via `onAction`.
+ * New node type: schema in packages/sdk/src/ui.ts + a branch in `PluginNode`.
  */
-/** Upload zdjęcia z pola ImagePicker → FileId (dostarcza ekran, bo zna społeczność i wtyczkę). */
+/** Uploads a photo from an ImagePicker field → FileId (provided by the screen, which knows the community and plugin). */
 export type UploadImage = (asset: import("expo-image-picker").ImagePickerAsset) => Promise<string>;
 
 type Actions = { onAction: (action: Action) => void; busy: boolean; upload: UploadImage };
@@ -21,7 +21,7 @@ const ActionsContext = createContext<Actions>({
   upload: () => Promise.reject(new Error("upload unavailable")),
 });
 
-/** Wartości formularza; `undefined` usuwa pole (np. usunięte zdjęcie nie trafia do args). */
+/** Form values; `undefined` removes the field (e.g. a removed photo does not end up in args). */
 type Form = { values: Record<string, string>; set: (name: string, value: string | undefined) => void };
 const FormContext = createContext<Form | null>(null);
 
@@ -40,7 +40,7 @@ export function PluginRenderer(props: {
 
 const Children = ({ nodes }: { nodes?: UINode[] }) =>
   nodes?.map((n, i) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: drzewo z serwera nie ma stabilnych id; kolejność = tożsamość
+    // biome-ignore lint/suspicious/noArrayIndexKey: the server tree has no stable ids; order = identity
     <PluginNode key={`${n.type}-${i}`} node={n} />
   ));
 
@@ -73,7 +73,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return (
         <View role="list" aria-label={node.label} style={styles.list}>
           {node.children.map((n, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: jw.
+            // biome-ignore lint/suspicious/noArrayIndexKey: as above.
             <View key={i} role="listitem">
               <PluginNode node={n} />
             </View>
@@ -183,7 +183,7 @@ function Badge(props: { text: string; tone?: Tone | undefined }) {
   );
 }
 
-/** Wartości początkowe pól formularza (z `value` w węzłach), także zagnieżdżonych. */
+/** Initial form field values (from `value` on nodes), including nested ones. */
 function initialValues(nodes: UINode[]): Record<string, string> {
   const out: Record<string, string> = {};
   const walk = (n: UINode) => {
@@ -229,7 +229,7 @@ function FormTextInput({ node }: { node: Extract<UINode, { type: "TextInput" }> 
   );
 }
 
-/** Wybór zdjęcia: galeria → upload → FileId w polu formularza; podgląd i usunięcie. */
+/** Photo picker: gallery → upload → FileId in the form field; preview and removal. */
 function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker" }> }) {
   const { t } = useI18n();
   const form = useContext(FormContext);
@@ -280,7 +280,7 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
   );
 }
 
-/** Wybór jako grupa przycisków radiowych — ten sam kod natywnie i na webie, dostępny z klawiatury. */
+/** Select as a radio button group — same code native and web, keyboard accessible. */
 function FormSelect({ node }: { node: Extract<UINode, { type: "Select" }> }) {
   const form = useContext(FormContext);
   const current = form?.values[node.name];

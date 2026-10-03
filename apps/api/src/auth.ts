@@ -6,8 +6,8 @@ import { schema } from "./db";
 import type { Env } from "./env";
 
 /**
- * Better Auth: email + hasło. Plugin bearer daje jedną ścieżkę uwierzytelniania dla web
- * i natywnej aplikacji Expo (nagłówek Authorization), bez zależności od ciasteczek.
+ * Better Auth: email + password. The bearer plugin gives one auth path for web
+ * and the native Expo app (Authorization header), without relying on cookies.
  */
 export function createAuth(db: Db, env: Env) {
   return betterAuth({

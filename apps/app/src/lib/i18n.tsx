@@ -6,9 +6,9 @@ import pl from "../../messages/pl.json";
 import { storage } from "./storage";
 
 /**
- * i18n: komunikaty wprost z messages/<locale>.json (bez kompilacji). Język jest JAWNY — nie ma globalnego stanu:
- * zapisana preferencja → język urządzenia → angielski.
- * Użycie w komponencie: `const { t } = useI18n(); t.communities_title()`.
+ * i18n: messages straight from messages/<locale>.json (no compilation). The locale is EXPLICIT — no global state:
+ * saved preference → device language → English.
+ * Usage in a component: `const { t } = useI18n(); t.communities_title()`.
  */
 const catalogs = { en, pl } satisfies Record<string, Record<keyof typeof en, string>>;
 export type Locale = keyof typeof catalogs;
@@ -21,7 +21,7 @@ export const LOCALE_KEY = "locale";
 export type Bound = { [K in keyof typeof en]: () => string };
 const cache = new Map<Locale, Bound>();
 
-/** Wszystkie komunikaty związane z danym językiem (bez globalnego stanu — działa też w prerenderze). */
+/** All messages bound to a given locale (no global state — also works during prerender). */
 export function messagesFor(locale: Locale): Bound {
   let bound = cache.get(locale);
   if (!bound) {
@@ -68,6 +68,6 @@ export function I18nProvider(props: { children: ReactNode }) {
 
 export function useI18n(): Ctx {
   const ctx = useContext(I18nContext);
-  if (!ctx) throw new Error("useI18n poza I18nProvider");
+  if (!ctx) throw new Error("useI18n outside I18nProvider");
   return ctx;
 }

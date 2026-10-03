@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { en } from "./messages";
 
-/** Kryteria akceptacji auth: rejestracja, wylogowanie, ochrona /app, logowanie, błędne hasło. */
+/** Auth acceptance criteria: sign-up, sign-out, /app protection, sign-in, wrong password. */
 const register = async (page: Page, email: string) => {
   await page.goto("/register");
   await page.getByLabel(en.auth_email!).fill(email);

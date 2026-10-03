@@ -1,9 +1,9 @@
 import type { PluginModule } from "@app/plugin-sdk";
 
 /**
- * Wtyczka wgrywana w locie (nie jest wbudowana w API). Demo:
+ * Plugin uploaded at runtime (not built into the API). Demo:
  *   bun run plugin:upload plugins/benches
- * Używana też przez testy integracyjne i E2E wgrywania wtyczek.
+ * Also used by the plugin-upload integration and E2E tests.
  */
 type Bench = { park: string; problem: string };
 

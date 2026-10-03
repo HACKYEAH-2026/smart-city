@@ -7,7 +7,7 @@ import { createTokenStore } from "./token";
 
 export const tokens = createTokenStore(storage);
 
-/** Klient RPC: typy tras i odpowiedzi pochodzą wprost z apps/api (jedno źródło prawdy). */
+/** RPC client: route and response types come straight from apps/api (single source of truth). */
 export const api = hc<AppType>(apiBaseUrl(), { headers: () => tokens.headers() });
 
 export const authClient = createAuthClient({

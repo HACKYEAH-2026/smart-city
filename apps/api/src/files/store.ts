@@ -2,7 +2,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-/** Magazyn bajtów plików. Wymienny: dysk (dev/test), później R2/S3 (produkcja). */
+/** File byte store. Swappable: disk (dev/test), later R2/S3 (production). */
 export interface FileStore {
   put(key: string, data: Uint8Array): Promise<void>;
   get(key: string): Promise<Uint8Array | null>;

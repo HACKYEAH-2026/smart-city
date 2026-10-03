@@ -12,8 +12,8 @@ import { DEMO_COMMUNITY } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
 
 /**
- * Host wtyczek: routing, role, pliki, AI, izolacja, API administracyjne.
- * Logikę samej wtyczki issues testuje plugins/issues/issues.test.ts (bez API).
+ * Plugin host: routing, roles, files, AI, isolation, admin API.
+ * The issues plugin's own logic is tested by plugins/issues/issues.test.ts (no API).
  */
 let t: Ctx;
 let cityAdmin: { headers: Record<string, string> };
@@ -46,8 +46,8 @@ const upload = (headers: Record<string, string>, file: File, plugin = "issues") 
 };
 const jpeg = () => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], "lamp.jpg", { type: "image/jpeg" });
 
-describe("społeczności, nawigacja, role", () => {
-  test("bez sesji 401; nawigacja z zainstalowanych wtyczek; nieznane zasoby 404", async () => {
+describe("communities, navigation, roles", () => {
+  test("no session 401; navigation from installed plugins; unknown resources 404", async () => {
     await start();
     expect((await t.request(`${base}/nav`)).status).toBe(401);
     const u = await t.signUp();
@@ -59,7 +59,7 @@ describe("społeczności, nawigacja, role", () => {
     expect((await tool(u.headers, "issues/tools/nie-ma", {})).res.status).toBe(404);
   });
 
-  test("pierwsze wejście daje rolę user; konto demo jest adminem", async () => {
+  test("first visit grants the user role; the demo account is an admin", async () => {
     await start();
     const u = await t.signUp();
     const role = async (headers: Record<string, string>) =>
@@ -68,7 +68,7 @@ describe("społeczności, nawigacja, role", () => {
     expect(await role(cityAdmin.headers)).toBe("admin");
   });
 
-  test("requires: admin — user dostaje 403, admin może; admin nadawany przez API platformy", async () => {
+  test("requires: admin — user gets 403, admin is allowed; admin granted via the platform API", async () => {
     await start();
     const u = await t.signUp();
     const { result } = await tool(u.headers, "issues/tools/report", { title: "Dziura w chodniku", category: "roads" });
@@ -86,7 +86,7 @@ describe("społeczności, nawigacja, role", () => {
     expect((await tool(u.headers, "issues/tools/setStatus", { id, status: "open" })).res.status).toBe(200);
   });
 
-  test("walidacja wejścia narzędzia: 400 z listą problemów", async () => {
+  test("tool input validation: 400 with a list of issues", async () => {
     await start();
     const u = await t.signUp();
     const { res } = await tool(u.headers, "issues/tools/report", { title: "x", category: "nie-ma" });
@@ -95,8 +95,8 @@ describe("społeczności, nawigacja, role", () => {
   });
 });
 
-describe("pliki", () => {
-  test("upload → zgłoszenie ze zdjęciem → podpisany URL w UI → pobranie", async () => {
+describe("files", () => {
+  test("upload → report with photo → signed URL in UI → download", async () => {
     await start();
     const u = await t.signUp();
     const up = await upload(u.headers, jpeg());
@@ -117,7 +117,7 @@ describe("pliki", () => {
     expect((await t.request(`${url.pathname}?exp=${url.searchParams.get("exp")}&sig=zly`)).status).toBe(404);
   });
 
-  test("odrzuca: nie-obraz (400), cudzy plik (400), wtyczka bez uprawnienia files (404)", async () => {
+  test("rejects: non-image (400), someone else's file (400), plugin without files permission (404)", async () => {
     await start();
     const alice = await t.signUp();
     const bob = await t.signUp();
@@ -142,7 +142,7 @@ describe("pliki", () => {
 });
 
 describe("AI", () => {
-  test("bez modelu findSimilar działa leksykalnie: podobny tytuł → pytanie o połączenie", async () => {
+  test("without a model findSimilar works lexically: similar title → merge prompt", async () => {
     await start();
     const alice = await t.signUp();
     const bob = await t.signUp();
@@ -151,7 +151,7 @@ describe("AI", () => {
     expect(result?.navigate?.view).toBe("merge");
   });
 
-  test("z modelem: findSimilar pyta model (z obrazem) i zwraca jego uzasadnienie", async () => {
+  test("with a model: findSimilar asks the model (with image) and returns its reason", async () => {
     const seen: { prompt: string; images: number }[] = [];
     const model: LanguageModel = {
       async generate(req) {
@@ -174,13 +174,13 @@ describe("AI", () => {
   });
 });
 
-describe("izolacja i wtyczki wgrywane w locie", () => {
+describe("isolation and plugins uploaded on the fly", () => {
   const install = (pluginId: string, slug: string = DEMO_COMMUNITY.slug) =>
     t.request(`/api/admin/communities/${slug}/plugins`, { method: "POST", headers: platform, json: { pluginId } });
   const uploadPlugin = (source: string, headers: Record<string, string> = platform) =>
     t.request("/api/admin/plugins", { method: "POST", headers, json: { source } });
 
-  test("dane jednej społeczności nie są widoczne w innej", async () => {
+  test("one community's data is not visible in another", async () => {
     await start();
     const u = await t.signUp();
     await tool(u.headers, "issues/tools/report", { title: "Sprawa z Krakowa", category: "other" });
@@ -196,7 +196,7 @@ describe("izolacja i wtyczki wgrywane w locie", () => {
     expect(textsOf(node)).not.toContain("Sprawa z Krakowa");
   });
 
-  test("bez tokenu platformy 401; wgranie → instalacja → nawigacja i działanie; przetrwa restart", async () => {
+  test("no platform token 401; upload → install → navigation and usage; survives restart", async () => {
     await start();
     const u = await t.signUp();
     expect((await uploadPlugin(BENCHES, {})).status).toBe(401);
@@ -213,7 +213,7 @@ describe("izolacja i wtyczki wgrywane w locie", () => {
     expect(((await res.json()) as CommunityNavItem[]).map((n) => n.pluginId)).toContain("benches");
   });
 
-  test("onInstall zapisuje dane startowe przy pierwszej instalacji (raz)", async () => {
+  test("onInstall writes seed data on first install (once)", async () => {
     await start();
     const u = await t.signUp();
     const seeded = BENCHES.replace('id: "benches"', 'id: "seeded"').replace(
@@ -227,7 +227,7 @@ describe("izolacja i wtyczki wgrywane w locie", () => {
     expect(texts.filter((x) => x === "Planty")).toHaveLength(1);
   });
 
-  test("odrzuca: błąd składni, zły manifest, nav bez widoku, nadpisanie wbudowanej", async () => {
+  test("rejects: syntax error, bad manifest, nav without a view, overriding a built-in", async () => {
     await start();
     const bad = async (source: string) => {
       const res = await uploadPlugin(source);
@@ -242,7 +242,7 @@ describe("izolacja i wtyczki wgrywane w locie", () => {
     expect(await bad(BENCHES.replace('id: "benches"', 'id: "issues"'))).toContain("built-in");
   });
 
-  test("wtyczka bez uprawnienia storage albo z błędnym UI: 500 plugin_error, API działa dalej", async () => {
+  test("plugin without storage permission or with invalid UI: 500 plugin_error, API keeps working", async () => {
     await start();
     const u = await t.signUp();
     await uploadPlugin(BENCHES.replace('id: "benches"', 'id: "nostore"').replace('permissions: ["storage"],', ""));
@@ -262,7 +262,7 @@ describe("izolacja i wtyczki wgrywane w locie", () => {
     expect((await view(u.headers, "issues/views/list")).res.status).toBe(200);
   });
 
-  test("bez PLUGIN_ADMIN_TOKEN w env API administracyjne nie istnieje (404)", async () => {
+  test("without PLUGIN_ADMIN_TOKEN in env the admin API does not exist (404)", async () => {
     await start();
     const noAdmin = await setup({ PLUGIN_ADMIN_TOKEN: undefined });
     try {

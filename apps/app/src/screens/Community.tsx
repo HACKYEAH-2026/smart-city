@@ -7,7 +7,7 @@ import { useI18n } from "../lib/i18n";
 import { pluginHref } from "../plugins/href";
 import { color, font, radius, shadow, space } from "../theme";
 
-/** Strona społeczności: funkcje = wpisy nawigacji zainstalowanych wtyczek (odświeżane na bieżąco). */
+/** Community page: features = nav entries of installed plugins (refreshed live). */
 export default function Community() {
   const { t } = useI18n();
   const { slug } = useLocalSearchParams<{ slug: string }>();

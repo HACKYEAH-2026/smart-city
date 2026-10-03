@@ -11,12 +11,12 @@ export const FILE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 const URL_TTL_S = 60 * 60;
 
-/** Błąd danych od użytkownika (np. cudzy albo nieistniejący plik) → HTTP 400. */
+/** User input error (e.g. someone else's or a nonexistent file) → HTTP 400. */
 export class FileInputError extends Error {}
 
 /**
- * Pliki wtyczek: upload (pending) → ctx.files.keep() (kept) → wyświetlanie przez podpisany URL.
- * Bajty w FileStore, metadane i właściciel w tabeli plugin_files.
+ * Plugin files: upload (pending) → ctx.files.keep() (kept) → display via a signed URL.
+ * Bytes in FileStore, metadata and owner in the plugin_files table.
  */
 export class FileService {
   constructor(
@@ -42,7 +42,7 @@ export class FileService {
     return id;
   }
 
-  /** ctx.files dla jednej instalacji i użytkownika. */
+  /** ctx.files for a single installation and user. */
   forPlugin(installationId: string, userId: string | null): Files {
     const own = async (id: FileId) => {
       if (!FILE_ID.test(id)) throw new FileInputError(`invalid file id ${id}`);
@@ -72,7 +72,7 @@ export class FileService {
     };
   }
 
-  /** Bajty i typ pliku dla modelu AI (tylko pliki tej instalacji). */
+  /** File bytes and type for the AI model (only this installation's files). */
   async read(installationId: string, id: string): Promise<{ mime: string; data: Uint8Array } | null> {
     const [row] = await this.db
       .select()
@@ -83,7 +83,7 @@ export class FileService {
     return data ? { mime: row.mime, data } : null;
   }
 
-  /** Podpisany, krótkotrwały URL (działa w <Image> bez nagłówka Authorization). */
+  /** Signed, short-lived URL (works in <Image> without an Authorization header). */
   signedUrl(id: string, now = Date.now()): string {
     const exp = Math.floor(now / 1000) + URL_TTL_S;
     return `${this.apiUrl}/api/files/${id}?exp=${exp}&sig=${this.sign(id, exp)}`;
@@ -101,7 +101,7 @@ export class FileService {
     return data ? { mime: row.mime, data } : null;
   }
 
-  /** Usuwa niezatwierdzone uploady starsze niż 24 h (wołane przy każdym uploadzie). */
+  /** Deletes unconfirmed uploads older than 24 h (called on every upload). */
   async sweep(now = Date.now()) {
     const stale = await this.db
       .delete(pluginFiles)

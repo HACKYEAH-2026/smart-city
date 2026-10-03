@@ -7,8 +7,8 @@ import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
 
 /**
- * Zrzut SQLite: migracje wykonują się RAZ na proces testowy, potem każdy test dostaje
- * świeżą bazę w pamięci odtworzoną ze zrzutu (Database.deserialize) — bez ponownych migracji.
+ * SQLite snapshot: migrations run ONCE per test process, then each test gets a fresh
+ * in-memory database restored from the snapshot (Database.deserialize) — no re-migration.
  */
 let snapshot: Promise<Uint8Array> | undefined;
 
@@ -28,8 +28,8 @@ async function freshTestDb(): Promise<DbHandle> {
 export type TestUser = { id: string; email: string; headers: Record<string, string> };
 
 /**
- * Kontekst testu integracyjnego: świeża baza + aplikacja wołana przez app.request() (bez portów).
- * Użycie: t = await setup(); ...; await t.close() w afterEach. `env` nadpisuje TEST_ENV.
+ * Integration test context: fresh database + app called via app.request() (no ports).
+ * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV.
  */
 export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
   const handle = await freshTestDb();
@@ -47,7 +47,7 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return app.request(path, { ...rest, headers, body: json !== undefined ? JSON.stringify(json) : rest.body });
   };
 
-  /** Fabryka danych: rejestruje użytkownika przez prawdziwy endpoint Better Auth. */
+  /** Data factory: registers a user via the real Better Auth endpoint. */
   const signUp = async (overrides: { email?: string; password?: string; name?: string } = {}) => {
     seq += 1;
     const email = overrides.email ?? `user${seq}@example.test`;
@@ -57,12 +57,12 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     });
     if (res.status !== 200) throw new Error(`signUp ${res.status}: ${await res.text()}`);
     const token = res.headers.get("set-auth-token");
-    if (!token) throw new Error("signUp: brak nagłówka set-auth-token (plugin bearer?)");
+    if (!token) throw new Error("signUp: missing set-auth-token header (bearer plugin?)");
     const body = (await res.json()) as { user: { id: string } };
     return { id: body.user.id, email, headers: { authorization: `Bearer ${token}` } } satisfies TestUser;
   };
 
-  /** Dane demo (społeczność „Kraków”, wtyczki wbudowane, konto admina) + zalogowany admin. */
+  /** Demo data ("Kraków" community, built-in plugins, admin account) + signed-in admin. */
   const seed = async () => {
     await seedDemo({ db: handle.db, auth, plugins });
     const res = await request("/api/auth/sign-in/email", {
@@ -70,7 +70,7 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
       json: { email: DEMO_ADMIN.email, password: DEMO_ADMIN.password },
     });
     const token = res.headers.get("set-auth-token");
-    if (!token) throw new Error(`seed: logowanie admina ${res.status}`);
+    if (!token) throw new Error(`seed: admin sign-in ${res.status}`);
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 

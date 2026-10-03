@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authClient, tokens } from "../lib/api";
 
-/** Token wczytywany raz przy starcie (natywnie: Keychain/Keystore — asynchronicznie). */
+/** Token loaded once at startup (natively: Keychain/Keystore — asynchronously). */
 const loading = tokens.load();
 
 export function useTokensReady(): boolean {
@@ -25,16 +25,16 @@ async function fetchSession() {
   return data?.user ?? null;
 }
 
-/** Zalogowany użytkownik (null = brak sesji). Czeka na wczytanie tokenu. */
+/** Signed-in user (null = no session). Waits for the token to load. */
 export function useSession() {
   const ready = useTokensReady();
   return useQuery({ queryKey: sessionKey, enabled: ready, queryFn: fetchSession });
 }
 
 /**
- * Logowanie/rejestracja/wylogowanie; błąd = false. Po zmianie sesji pobieramy ją JAWNIE
- * (fetchQuery), zanim ekran przejdzie dalej — samo invalidateQueries nie odświeża nieaktywnego
- * zapytania, więc strażnik /app zobaczyłby stary wynik "brak sesji".
+ * Sign-in/sign-up/sign-out; error = false. After a session change we fetch it EXPLICITLY
+ * (fetchQuery) before the screen moves on — invalidateQueries alone does not refresh an inactive
+ * query, so the /app guard would see the stale "no session" result.
  */
 export function useAuthActions() {
   const qc = useQueryClient();

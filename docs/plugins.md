@@ -1,54 +1,56 @@
-# Wtyczki
+# Plugins
 
-Każda funkcja społeczności (zgłoszenia, inicjatywy, głosowania…) to wtyczka. Rdzeń zna tylko
-społeczności, użytkowników i instalacje; resztę dostarczają wtyczki.
+Every community feature (issue reports, initiatives, polls…) is a plugin. The core only knows
+communities, users and installations; plugins provide everything else.
 
-## Jak to działa
+## How it works
 
 ```
- Wtyczka (API, Bun)                         Aplikacja (Expo: iOS / Android / web)
- views.list(ctx) ──► { type: "Screen", … } ──► PluginRenderer ──► natywne prymitywy z ui.tsx
- tools.report    ◄── POST …/tools/report  ◄── przycisk / formularz (akcja = dane, nie kod)
+ Plugin (API, Bun)                          App (Expo: iOS / Android / web)
+ views.list(ctx) ──► { type: "Screen", … } ──► PluginRenderer ──► native primitives from ui.tsx
+ tools.report    ◄── POST …/tools/report  ◄── button / form (an action is data, not code)
 ```
 
-- **Server-Driven UI.** Widok wtyczki zwraca drzewo węzłów z zamkniętego katalogu
-  (`packages/sdk/src/ui.ts`, pakiet `@app/plugin-sdk`). Aplikacja nigdy nie wykonuje kodu wtyczki, więc nowa
-  wtyczka nie wymaga nowego wydania aplikacji, a każda wygląda spójnie i jest dostępna (WCAG).
-- **Akcje to dane:** `navigate` (inny widok tej wtyczki) albo `tool` (wywołanie narzędzia
-  z danymi formularza). Wynik narzędzia: `{ toast?, navigate?, refresh? }`.
-- **Izolacja danych:** `ctx.storage` jest ograniczony do jednej instalacji (wtyczka × społeczność).
-  Wtyczka nie widzi bazy, plików ani danych innych społeczności i wtyczek.
-- **Walidacja na granicy:** manifest, wejście narzędzi (Zod) i zwracane UI są sprawdzane przez hosta.
-  Błąd wtyczki daje `500 plugin_error` dla tego żądania, reszta API działa dalej.
+- **Server-Driven UI.** A plugin view returns a tree of nodes from a closed catalog
+  (`packages/sdk/src/ui.ts`, package `@app/plugin-sdk`). The app never executes plugin code, so a new
+  plugin needs no new app release, and every plugin looks consistent and is accessible (WCAG).
+- **Actions are data:** `navigate` (another view of the same plugin) or `tool` (a tool call
+  with the form data). See "Tool result" below.
+- **Data isolation:** `ctx.storage` and `ctx.files` are scoped to one installation (plugin × community).
+  A plugin cannot see the database, the disk, or data of other communities and plugins.
+- **Validation at the boundary:** the manifest, tool input (Zod), `requires` and the returned UI are checked by
+  the host. A plugin failure yields `500 plugin_error` for that request; the rest of the API keeps working.
+- **Language:** plugin code is in English; the content it renders for residents (titles, labels, toasts,
+  user-facing validation messages) is in Polish.
 
-## Pisanie wtyczki
+## Writing a plugin
 
-Moduł eksportuje domyślnie funkcję, która dostaje SDK od hosta (`definePlugin`, `ui`, `z`, `fileRef`).
-W runtime niczego nie importuje (tylko `import type`), dzięki czemu ten sam plik działa jako wtyczka
-wbudowana i wgrana w locie. Każda wtyczka to pakiet w `plugins/<id>/` zależny **tylko** od
-`@app/plugin-sdk` — import czegokolwiek z `apps/api` nie przejdzie typechecku.
-Wzorce: `plugins/issues` (wbudowana: zdjęcia, AI, role) i `plugins/benches` (wgrywana w locie).
+The module default-exports a function that receives the SDK from the host (`definePlugin`, `ui`, `z`, `fileRef`).
+It imports nothing at runtime (only `import type`), so the same file works as a built-in plugin and as one
+uploaded at runtime. Each plugin is a package in `plugins/<id>/` that depends **only** on
+`@app/plugin-sdk` — importing anything from `apps/api` fails the typecheck.
+Patterns: `plugins/issues` (built-in: photos, AI, roles) and `plugins/benches` (uploaded at runtime).
 
 ```ts
 import type { PluginModule } from "@app/plugin-sdk";
 
 const benches: PluginModule = ({ definePlugin, ui, z, fileRef }) =>
   definePlugin({
-    id: "benches",                          // [a-z][a-z0-9-], unikalne
-    name: "Ławki",
+    id: "benches",                          // [a-z][a-z0-9-], unique
+    name: "Ławki",                          // shown to residents (Polish)
     version: "1.0.0",
     icon: "🪑",
-    permissions: ["storage", "files"],      // bez uprawnienia ctx.storage / ctx.files / ctx.ai rzuca błąd
+    permissions: ["storage", "files"],      // without a permission ctx.storage / ctx.files / ctx.ai throws
     nav: [{ view: "main", label: "Ławki" }],
-    onInstall: async (ctx) => { /* dane startowe; ctx.user = system (admin) */ },
+    onInstall: async (ctx) => { /* seed data; ctx.user = system (admin) */ },
     views: {
-      main: async (ctx) => ui.screen("Ławki w parkach", [ /* węzły */ ]),
+      main: async (ctx) => ui.screen("Ławki w parkach", [ /* nodes */ ]),
     },
     tools: {
       report: {
-        description: "Zgłoś zepsutą ławkę",  // także dla asystentów AI (MCP)
+        description: "Zgłoś zepsutą ławkę",  // also for AI assistants (MCP)
         input: z.object({ park: z.string().min(1), photo: fileRef().optional() }),
-        requires: "user",                   // "user" (domyślnie) | "admin" — host zwraca 403
+        requires: "user",                   // "user" (default) | "admin" — the host returns 403
         handler: async (ctx, input) => {
           if (input.photo) await ctx.files.keep(input.photo);
           await ctx.storage.create("benches", input);
@@ -61,108 +63,111 @@ const benches: PluginModule = ({ definePlugin, ui, z, fileRef }) =>
 export default benches;
 ```
 
-## API dla wtyczek (`ctx`)
+## Plugin API (`ctx`)
 
 ```ts
-ctx.user        { id, name, role: "admin" | "user" }   // rola w tej społeczności
+ctx.user        { id, name, role: "admin" | "user" }   // role in this community
 ctx.community   { id, slug, name }
-ctx.now()       Date                                    // w testach sterowany (t.setNow)
+ctx.now()       Date                                    // controllable in tests (t.setNow)
 
-ctx.storage     // "storage": dokumenty JSON odizolowane per instalacja (wtyczka × społeczność)
-  .get(col, id)                        → Doc | null
-  .list(col, { where?, order?, limit? }) → Doc[]       // where: równość na polach: { issueId, pinned: true }
-  .create(col, data)                   → Doc            // id generuje host
-  .upsert(col, key, data)              → Doc            // id = key: jeden zapis na klucz (np. głos na osobę)
-  .update(col, id, patch)              → Doc | null     // płytkie scalenie
-  .remove(col, id)                     → boolean
+ctx.storage     // "storage": JSON documents isolated per installation (plugin × community)
+  .get(col, id)                          → Doc | null
+  .list(col, { where?, order?, limit? }) → Doc[]       // where: equality on fields: { issueId, pinned: true }
+  .create(col, data)                     → Doc          // the host generates the id
+  .upsert(col, key, data)                → Doc          // id = key: one record per key (e.g. one vote per person)
+  .update(col, id, patch)                → Doc | null   // shallow merge
+  .remove(col, id)                       → boolean
 
-ctx.files       // "files": zdjęcia wysłane przez aplikację (POST …/files → FileId)
-  .keep(id)     // zatwierdź upload tego użytkownika; niezatwierdzone znikają po 24 h
+ctx.files       // "files": photos sent by the app (POST …/files → FileId)
+  .keep(id)     // confirm this user's upload; unconfirmed uploads are deleted after 24 h
   .info(id)     → { mime, size }
   .remove(id)
 
-ctx.ai          // "ai": dostawca to konfiguracja hosta (Strands + model zgodny z OpenAI)
-  .call({ prompt, images?, schema? })  → tekst albo obiekt zgodny ze schematem Zod
+ctx.ai          // "ai": the provider is host configuration (Strands + an OpenAI-compatible model)
+  .call({ prompt, images?, schema? })  → text, or an object matching the Zod schema
   .findSimilar({ text, image? }, candidates, { text, image?, limit? }) → { doc, score, reason }[]
 ```
 
-Wynik narzędzia: `{ toast?, error?, navigate?, close?, refresh?, data? }` — `error` to komunikat dla
-użytkownika (nic nie zapisano), `data` to wynik dla asystentów AI. `readOnly: true` oznacza narzędzie bez
-skutków ubocznych.
+**Tool result:** `{ toast?, error?, navigate?, close?, refresh?, data? }` — `error` is a message for the user
+(nothing was saved), `data` is the result for AI assistants. `readOnly: true` marks a tool without side effects.
 
-`findSimilar` bez skonfigurowanego modelu działa leksykalnie (wspólne słowa) — testy i demo nie wymagają
-klucza. Z modelem: model ocenia „czy to ten sam problem” (z obrazem zapytania) i zwraca uzasadnienie.
-Konfiguracja API: `AI_API_KEY`, `AI_MODEL`, opcjonalnie `AI_BASE_URL` (dowolny endpoint zgodny z OpenAI).
+Without a configured model `findSimilar` works lexically (shared words), so tests and the demo need no key.
+With a model, the model decides "is this the same problem" (using the query image) and returns a reason.
+API configuration: `AI_API_KEY`, `AI_MODEL`, optionally `AI_BASE_URL` (any OpenAI-compatible endpoint).
 
-### Testy wtyczki (bez API, bazy i modelu AI)
+### Plugin tests (no API, database or AI model)
 
 ```ts
 import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import issues from "./index";
 
 const t = testPlugin(issues, { user: { id: "alice", name: "Alice", role: "user" } });
-t.ai.mockSimilar((query, candidates) => []);                       // atrapa AI
-const photo = t.files.fake();                                      // „upload” bieżącego użytkownika
-const res = await t.tool("report", { title: "Latarnia", photo });  // walidacja Zod i requires jak w hoście
+t.ai.mockSimilar((query, candidates) => []);                       // AI mock
+const photo = t.files.fake();                                      // "upload" by the current user
+const res = await t.tool("report", { title: "Latarnia", photo });  // Zod validation and requires as in the host
 expect(t.files.isKept(photo)).toBe(true);
 expect(textsOf(await t.view("detail", res.navigate!.params))).toContain("Latarnia");
 await expect(t.tool("setStatus", { id, status: "fixed" })).rejects.toBeInstanceOf(ForbiddenError);
-await t.as({ id: "urzad", name: "Urząd", role: "admin" }).tool("setStatus", { id, status: "fixed" });
+await t.as({ id: "city", name: "Urząd", role: "admin" }).tool("setStatus", { id, status: "fixed" });
 ```
 
-### Katalog komponentów
+### Component catalog
 
-| Węzeł | Builder | Uwagi |
+| Node | Builder | Notes |
 |---|---|---|
-| Screen | `ui.screen(title, children)` | zawsze korzeń widoku |
-| Stack / Row | `ui.stack([...])`, `ui.row([...])` | układ pionowy / zawijany wiersz |
-| List | `ui.list(label, items)` | `role="list"`, dzieci jako `listitem` |
-| Card | `ui.card({ title, subtitle?, badge?, onPress?, children? })` | z `onPress` jest przyciskiem |
+| Screen | `ui.screen(title, children)` | always the root of a view |
+| Stack / Row | `ui.stack([...])`, `ui.row([...])` | vertical layout / wrapping row |
+| List | `ui.list(label, items)` | `role="list"`, children as `listitem` |
+| Card | `ui.card({ title, subtitle?, badge?, onPress?, children? })` | with `onPress` it is a button |
 | Heading / Text | `ui.heading(text, 2\|3)`, `ui.text(text, "soft"?)` | |
 | Badge | `ui.badge(text, tone?)` | tone: neutral, info, success, warning, danger |
 | Button | `ui.button(label, action, variant?)` | variant: primary, quiet, danger |
 | Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` | |
-| Empty | `ui.empty(text)` | pusty stan |
-| Image | `ui.image(fileId, alt)` | zdjęcie z `ctx.files`; host dokleja podpisany URL (1 h) |
-| Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` | wartości pól trafiają do `args` narzędzia |
-| TextInput / Select | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })` | tylko wewnątrz Form |
-| ImagePicker | `ui.imagePicker({ name, label })` | tylko w Form: aplikacja wysyła zdjęcie, w `args` trafia FileId |
+| Empty | `ui.empty(text)` | empty state |
+| Image | `ui.image(fileId, alt)` | a photo from `ctx.files`; the host adds a signed URL (valid 1 h) |
+| Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` | field values go into the tool `args` |
+| TextInput / Select | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })` | only inside a Form |
+| ImagePicker | `ui.imagePicker({ name, label })` | only inside a Form: the app uploads the photo and puts the FileId into `args` |
 
-Nowy komponent: schemat w `ui.ts` + builder w `ui` + gałąź w `apps/app/src/plugins/Renderer.tsx`.
-Starsza aplikacja pokaże w miejscu nieznanego węzła komunikat zamiast się wywrócić.
+A new component: schema in `ui.ts` + builder in `ui` + a branch in `apps/app/src/plugins/Renderer.tsx`.
+An older app shows a notice in place of an unknown node instead of crashing.
 
-## Instalowanie
+## Installing
 
-**Wbudowana:** pakiet w `plugins/` + zależność w `apps/api/package.json` + wpis w `apps/api/src/plugins/builtin/index.ts`.
+**Built-in:** a package in `plugins/` + a dependency in `apps/api/package.json` + an entry in `apps/api/src/plugins/builtin/index.ts`.
 
-**W locie (bez restartu):** API administracyjne, chronione `PLUGIN_ADMIN_TOKEN`
-(bez tej zmiennej w env całe `/api/admin/*` zwraca 404).
+**At runtime (no restart):** the admin API, protected by `PLUGIN_ADMIN_TOKEN`
+(without this variable the whole `/api/admin/*` returns 404).
 
 ```bash
-bun run dev                                                             # API :4000 + aplikacja
-bun run plugin:upload plugins/benches krakow   # wgraj i włącz w społeczności
+bun run dev                                    # API :4000 + app
+bun run plugin:upload plugins/benches krakow   # upload and enable in a community
 ```
 
-Otwarta aplikacja odpytuje nawigację co 5 s, więc nowa funkcja pojawia się bez przeładowania.
-Kod wgranej wtyczki jest zapisywany w bazie (`plugin_sources`) i ładowany ponownie po restarcie.
+The open app polls the navigation every 5 s, so a new feature appears without a reload.
+The uploaded plugin source is stored in the database (`plugin_sources`) and reloaded after a restart.
 
-| Endpoint | Opis |
+| Endpoint | Description |
 |---|---|
-| `POST /api/admin/plugins` `{ source }` | wgraj / podmień wtyczkę (walidacja manifestu, widoków, narzędzi) |
-| `GET /api/admin/plugins` | lista załadowanych wtyczek |
-| `POST /api/admin/communities` `{ slug, name }` | nowa społeczność |
-| `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | włącz wtyczkę w społeczności |
-| `GET /api/communities/:slug/nav` | nawigacja (dla aplikacji) |
-| `GET /api/communities/:slug/plugins/:id/views/:view?…` | drzewo UI widoku |
-| `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | wywołanie narzędzia |
+| `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (validates manifest, views, tools) |
+| `GET /api/admin/plugins` | list of loaded plugins |
+| `POST /api/admin/communities` `{ slug, name }` | new community |
+| `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | enable a plugin in a community (runs `onInstall` once) |
+| `POST /api/admin/communities/:slug/admins` `{ email }` | make a user a community admin |
+| `GET /api/communities/:slug` | community + the current user's role |
+| `GET /api/communities/:slug/nav` | navigation (for the app) |
+| `GET /api/communities/:slug/plugins/:id/views/:view?…` | UI tree of a view |
+| `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | tool call |
+| `POST /api/communities/:slug/plugins/:id/files` (multipart `file`) | photo upload → `{ fileId }` |
+| `GET /api/files/:fileId?exp&sig` | photo download via a signed URL |
 
-## Bezpieczeństwo (stan obecny i dalej)
+## Security (current state and next steps)
 
-Wgrana wtyczka wykonuje się **w procesie API** — to model „zaufany administrator”: token
-`PLUGIN_ADMIN_TOKEN` daje pełne zaufanie. Kontrakt jest jednak od początku zaprojektowany pod izolację:
-moduł nic nie importuje, a cały dostęp idzie przez asynchroniczny `ctx`. Przeniesienie wtyczek do
-Workera albo sandboxa WebAssembly to zmiana transportu `ctx` w hoście, bez zmian w kodzie wtyczek.
+An uploaded plugin runs **inside the API process** — a "trusted administrator" model: the
+`PLUGIN_ADMIN_TOKEN` grants full trust. The contract is designed for isolation from the start, though:
+the module imports nothing and all access goes through the asynchronous `ctx`. Moving plugins into a
+Worker or a WebAssembly sandbox changes the `ctx` transport in the host, not the plugin code.
 
-Dalej: weryfikacja mieszkańca (`ctx.user.verified`), narzędzia wtyczek jako serwer MCP (opis, `readOnly`
-i `z.toJSONSchema(input)` są już w kontrakcie), embeddingi w `findSimilar` przy dużej liczbie zgłoszeń,
-pliki w R2 zamiast na dysku (`FileStore`), izolacja wtyczek zewnętrznych.
+Next: resident verification (`ctx.user.verified`), plugin tools as an MCP server (description, `readOnly`
+and `z.toJSONSchema(input)` are already in the contract), embeddings in `findSimilar` for large numbers of
+reports, files in R2 instead of on disk (`FileStore`), isolation of third-party plugins.

@@ -1,6 +1,6 @@
 /**
- * Serwer dla E2E i lokalnego dev: migruje bazę SQLite (DATABASE_URL, domyślnie w pamięci)
- * i dokłada /__test/reset. Odmawia startu poza NODE_ENV=test.
+ * Server for E2E and local dev: migrates the SQLite database (DATABASE_URL, in-memory by default)
+ * and adds /__test/reset. Refuses to start outside NODE_ENV=test.
  */
 import { createApp } from "./app";
 import { createDb, migrate } from "./db";
@@ -8,7 +8,7 @@ import { loadEnv } from "./env";
 import { TEST_ENV } from "./test-env";
 import { createTestRoutes, seedDemo } from "./test-routes";
 
-// Dev/E2E: domyślnie :4000 (3000 bywa zajęty przez inne narzędzia). Produkcja: PORT z env (3000).
+// Dev/E2E: :4000 by default (3000 is often taken by other tools). Production: PORT from env (3000).
 const port = process.env.PORT ?? "4000";
 const env = loadEnv({
   ...TEST_ENV,
@@ -17,7 +17,7 @@ const env = loadEnv({
   PORT: port,
 });
 if (env.NODE_ENV !== "test") {
-  console.error("test-server.ts wymaga NODE_ENV=test");
+  console.error("test-server.ts requires NODE_ENV=test");
   process.exit(1);
 }
 
@@ -29,7 +29,7 @@ await seedDemo(deps);
 app.route("/", createTestRoutes(deps));
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
-console.log(`api(test): nasłuch na :${server.port} [${env.DATABASE_URL}]`);
+console.log(`api(test): listening on :${server.port} [${env.DATABASE_URL}]`);
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, async () => {

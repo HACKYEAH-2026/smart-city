@@ -12,7 +12,7 @@ import { pluginHref, viewParamsFrom } from "../plugins/href";
 import { PluginRenderer } from "../plugins/Renderer";
 import { space, tone } from "../theme";
 
-/** Ekran widoku wtyczki: pobiera drzewo UI z API, renderuje je i obsługuje akcje. */
+/** Plugin view screen: fetches the UI tree from the API, renders it and handles actions. */
 export default function PluginView() {
   const { t } = useI18n();
   const router = useRouter();
@@ -24,9 +24,9 @@ export default function PluginView() {
   const flash = useFlash();
   const here = pluginHref(slug, plugin, view, params);
   const toast = flash.messageFor(here);
-  // Po udanym narzędziu: nowe drzewo (czyste formularze); zwykły refetch nie kasuje wpisanego tekstu.
+  // After a successful tool call: a fresh tree (clean forms); a plain refetch does not wipe typed text.
   const [generation, setGeneration] = useState(0);
-  // Komunikat błędu z wyniku narzędzia (np. „To zgłoszenie już nie istnieje”) — treść od wtyczki.
+  // Error message from the tool result (e.g. "This issue no longer exists") — content from the plugin.
   const [toolError, setToolError] = useState<string | null>(null);
   const upload = (asset: Parameters<typeof uploadPluginImage>[2]) => uploadPluginImage(slug, plugin, asset);
 

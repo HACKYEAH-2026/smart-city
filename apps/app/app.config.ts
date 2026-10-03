@@ -1,8 +1,8 @@
 import type { ExpoConfig } from "expo/config";
 
 /**
- * Jedyne źródło konfiguracji aplikacji. Projekty android/ i ios/ są GENEROWANE z tego pliku
- * (`expo prebuild`) i nie trafiają do repo.
+ * Single source of app configuration. The android/ and ios/ projects are GENERATED from this file
+ * (`expo prebuild`) and are not committed.
  */
 const config: ExpoConfig = {
   name: "Twoje Miejsce",
@@ -13,7 +13,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: "light",
   android: { package: "pl.twojemiejsce.app" },
   ios: { bundleIdentifier: "pl.twojemiejsce.app", supportsTablet: true },
-  // Web: statyczny HTML dla każdej trasy (SEO), potem hydratacja.
+  // Web: static HTML for every route (SEO), then hydration.
   web: { output: "static", bundler: "metro" },
   plugins: ["expo-router", "expo-secure-store", "expo-localization"],
   experiments: { typedRoutes: true },

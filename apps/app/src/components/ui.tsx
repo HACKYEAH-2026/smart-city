@@ -16,8 +16,8 @@ import { locales, useI18n } from "../lib/i18n";
 import { color, font, maxWidth, radius, space } from "../theme";
 
 /**
- * Prymitywy UI. Na webie dają semantyczny HTML (h1–h3, a, button, label przez aria-label),
- * natywnie — natywne widoki. Ekrany składaj z nich, nie z gołych View/Text ze stylami inline.
+ * UI primitives. On web they render semantic HTML (h1–h3, a, button, label via aria-label),
+ * natively — native views. Build screens from these, not from bare View/Text with inline styles.
  */
 
 export function Heading(props: TextProps & { level: 1 | 2 | 3; size?: "display" | "section" | "item" }) {
@@ -80,7 +80,7 @@ export function TextField(props: TextInputProps & { label: string }) {
   );
 }
 
-/** Link wewnętrzny. */
+/** Internal link. */
 export function AppLink(props: { href: string; children: ReactNode; variant?: "text" | "nav" | "button" | "quiet" }) {
   const v = props.variant ?? "text";
   const box = v === "button" ? [styles.btn, styles.btn_primary] : v === "quiet" ? [styles.btn, styles.btn_quiet] : null;
@@ -99,7 +99,7 @@ export function AppLink(props: { href: string; children: ReactNode; variant?: "t
   );
 }
 
-/** Rama strony: nagłówek, treść (przewijana), stopka z wyborem języka. */
+/** Page frame: header, (scrollable) content, footer with language picker. */
 export function Page(props: { children: ReactNode; narrow?: boolean }) {
   const { t, locale, setLocale } = useI18n();
   return (

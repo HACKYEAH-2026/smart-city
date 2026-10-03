@@ -1,6 +1,6 @@
 import { Redirect } from "expo-router";
 
-/** Start: aplikacja (bez sesji strażnik /app przekierowuje do logowania). */
+/** Start: the app (without a session the /app guard redirects to login). */
 export default function Index() {
   return <Redirect href="/app" />;
 }

@@ -2,8 +2,8 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 /**
- * Trwały magazyn klucz-wartość. Natywnie: Keychain/Keystore (expo-secure-store),
- * web: localStorage. Jedyne miejsce z rozgałęzieniem po platformie dla danych trwałych.
+ * Persistent key-value store. Native: Keychain/Keystore (expo-secure-store),
+ * web: localStorage. The only platform branch for persistent data.
  */
 export type Storage = {
   get(key: string): Promise<string | null>;

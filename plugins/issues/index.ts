@@ -1,15 +1,15 @@
 import type { Context, Doc, FileId, PluginModule } from "@app/plugin-sdk";
 
 /**
- * WZORZEC WTYCZKI: zgłoszenia usterek.
- * Przepływ: formularz (opcjonalnie zdjęcie) → ctx.ai.findSimilar sprawdza otwarte zgłoszenia →
- * jeśli jest podobne, pytamy „czy to ten sam problem?” → połączenie dopisuje zgłoszenie mieszkańca
- * (opis + zdjęcie) pod wcześniejszym zgłoszeniem. Status zmienia tylko admin społeczności.
- * Moduł nic nie importuje w runtime (tylko `import type`) — SDK dostaje od hosta.
+ * REFERENCE PLUGIN: issue reports.
+ * Flow: form (optional photo) → ctx.ai.findSimilar checks open issues →
+ * if one is similar, we ask "is this the same problem?" → merging attaches the resident's report
+ * (description + photo) to the earlier issue. Only the community admin changes the status.
+ * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
 type Status = "open" | "accepted" | "fixed";
 type Issue = { title: string; description: string; category: string; photo?: FileId; status: Status };
-/** Zgłoszenie mieszkańca pod problemem; klucz `${issueId}:${userId}` = jedno na osobę. */
+/** A resident's report under an issue; key `${issueId}:${userId}` = one per person. */
 type Report = { issueId: string; author: string; description: string; photo?: FileId };
 type Draft = { title: string; description: string; category: string; photo?: FileId };
 
@@ -47,7 +47,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
     description: z.string().trim().max(2000).default(""),
     photo: fileRef().optional(),
   });
-  /** Szkic formularza przekazywany w parametrze/argumencie jako JSON; niepoprawny = null. */
+  /** Form draft passed as a JSON param/argument; invalid = null. */
   const parseDraft = (json: string | undefined): Draft | null => {
     try {
       const r = draftSchema.safeParse(JSON.parse(json ?? "null"));
@@ -105,7 +105,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
           ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
         ]),
 
-      /** Pytanie przed połączeniem: dane formularza przychodzą w parametrze `draft`. */
+      /** Confirmation before merging: form data arrives in the `draft` param. */
       merge: async (ctx, params) => {
         const target = params.target ? await ctx.storage.get<Issue>("issues", params.target) : null;
         const draft = parseDraft(params.draft);

@@ -1,7 +1,7 @@
 /**
- * bun run verify — JEDYNA definicja gotowości. Etapy po kolei; pierwszy błąd kończy
- * przebieg z kodem != 0. Pomijanie etapu tylko jawnie: VERIFY_SKIP=android,e2e
- * (pominięcie jest widoczne w podsumowaniu i nie jest "zielonym" verify dla zadania).
+ * bun run verify — the ONLY definition of done. Stages run in order; the first failure ends
+ * the run with exit code != 0. Skipping a stage only explicitly: VERIFY_SKIP=android,e2e
+ * (a skip is visible in the summary and is not a "green" verify for the task).
  */
 type Stage = { name: string; cmd: string[]; needs?: string[]; shell?: string };
 
@@ -9,8 +9,8 @@ const stages: Stage[] = [
   { name: "lint + format", cmd: ["bun", "run", "lint"] },
   { name: "typecheck", cmd: ["bun", "run", "typecheck"] },
   { name: "unit", cmd: ["bun", "run", "test:unit"] },
-  { name: "integracja (SQLite)", cmd: ["bun", "run", "test:int"] },
-  { name: "migracje (czysta baza + dryf)", cmd: ["bun", "run", "db:check"] },
+  { name: "integration (SQLite)", cmd: ["bun", "run", "test:int"] },
+  { name: "migrations (clean database + drift)", cmd: ["bun", "run", "db:check"] },
   { name: "e2e (Playwright)", cmd: ["bun", "run", "e2e"] },
   { name: "build (api + web: expo export static)", cmd: ["bun", "run", "build"] },
   {
@@ -35,13 +35,13 @@ function missing(needs: string[] = []): string[] {
 }
 
 function summary() {
-  console.log("\n================ verify: podsumowanie ================");
+  console.log("\n================== verify: summary ===================");
   for (const r of results) {
     const t = `${(r.ms / 1000).toFixed(1)}s`.padStart(7);
     console.log(`${r.status.padEnd(4)} ${t}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
   }
   const total = results.reduce((a, r) => a + r.ms, 0);
-  console.log(`------------------------------------------------------\nrazem ${(total / 1000).toFixed(1)}s`);
+  console.log(`------------------------------------------------------\ntotal ${(total / 1000).toFixed(1)}s`);
 }
 
 for (const stage of stages) {
@@ -55,7 +55,7 @@ for (const stage of stages) {
       name: stage.name,
       status: "FAIL",
       ms: 0,
-      note: `brak: ${lacking.join(", ")} — uruchom w 'nix develop${stage.shell ? ` ${stage.shell}` : ""}'`,
+      note: `missing: ${lacking.join(", ")} — run in 'nix develop${stage.shell ? ` ${stage.shell}` : ""}'`,
     });
     summary();
     process.exit(1);
@@ -78,4 +78,4 @@ for (const stage of stages) {
 }
 summary();
 const skipped = results.filter((r) => r.status === "SKIP").length;
-console.log(skipped ? `verify: OK z pominięciami (${skipped})` : "verify: OK");
+console.log(skipped ? `verify: OK with skips (${skipped})` : "verify: OK");

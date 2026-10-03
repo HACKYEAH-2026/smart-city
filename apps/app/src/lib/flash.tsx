@@ -1,8 +1,8 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 
 /**
- * Komunikat „flash” dla konkretnego ekranu: przeżywa nawigację (np. wynik narzędzia wtyczki pokazany
- * na ekranie, na który wtyczka przekierowała) i nie wycieka na inne ekrany. Provider w app/_layout.tsx.
+ * "Flash" message for a specific screen: survives navigation (e.g. a plugin tool result shown
+ * on the screen the plugin redirected to) and does not leak to other screens. Provider in app/_layout.tsx.
  */
 type Message = { text: string; href: string };
 type Flash = { messageFor: (href: string) => string | null; show: (message: Message | null) => void };

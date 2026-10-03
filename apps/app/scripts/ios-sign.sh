@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Podpisane archiwum iOS (tylko CI, z sekretami, po `expo prebuild --platform ios`).
-# Wejście: P12, P12_PASSWORD, PROFILE, TEAM_ID, EXPO_PUBLIC_API_URL. Bundle id = ios.bundleIdentifier z app.config.ts.
+# Signed iOS archive (CI only, with secrets, after `expo prebuild --platform ios`).
+# Input: P12, P12_PASSWORD, PROFILE, TEAM_ID, EXPO_PUBLIC_API_URL. Bundle id = ios.bundleIdentifier from app.config.ts.
 set -euo pipefail
 kc="$RUNNER_TEMP/signing.keychain-db"; kcpass="$(uuidgen)"
 security create-keychain -p "$kcpass" "$kc"

@@ -18,7 +18,7 @@ function check(re: RegExp, what: string, value: string) {
   if (!re.test(value)) throw new Error(`Invalid ${what}: ${value}`);
 }
 
-/** where: równość na polach najwyższego poziomu JSON (boolean w JSON SQLite to 1/0). */
+/** where: equality on top-level JSON fields (booleans in SQLite JSON are 1/0). */
 function whereClause(where: Record<string, unknown> = {}): SQL[] {
   return Object.entries(where).map(([field, value]) => {
     check(NAME, "where field", field);
@@ -33,8 +33,8 @@ function whereClause(where: Record<string, unknown> = {}): SQL[] {
 }
 
 /**
- * Magazyn dokumentów jednej instalacji. KAŻDE zapytanie filtruje po installationId — to jest
- * granica izolacji między społecznościami i wtyczkami.
+ * Document store of a single installation. EVERY query filters by installationId — this is
+ * the isolation boundary between communities and plugins.
  */
 export function createStorage(db: Db, installationId: string, userId: string | null): Storage {
   const scoped = (collection: string, id?: string) => {
@@ -67,7 +67,7 @@ export function createStorage(db: Db, installationId: string, userId: string | n
         .insert(pluginDocs)
         .values({ id: crypto.randomUUID(), installationId, collection, data, createdBy: userId })
         .returning();
-      if (!row) throw new Error("insert nie zwrócił wiersza");
+      if (!row) throw new Error("insert returned no row");
       return toDoc<T>(row);
     },
     async upsert<T extends Record<string, unknown>>(collection: string, key: string, data: T) {
@@ -81,7 +81,7 @@ export function createStorage(db: Db, installationId: string, userId: string | n
           set: { data, updatedAt: new Date() },
         })
         .returning();
-      if (!row) throw new Error("upsert nie zwrócił wiersza");
+      if (!row) throw new Error("upsert returned no row");
       return toDoc<T>(row);
     },
     async update<T>(collection: string, id: string, patch: Partial<T>) {

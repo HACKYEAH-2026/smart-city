@@ -1,60 +1,64 @@
-# Frontend: wzorce Expo / React Native — dla agentów
+# Frontend: Expo / React Native patterns — for agents
 
-**Wersje: Expo SDK 57 · React Native 0.86 · React 19.2 · Expo Router 57 · react-native-web 0.21 · TanStack Query 5.**
-To NIE jest React DOM. Ten sam kod renderuje natywne widoki (iOS/Android) i HTML (web, statyczny eksport).
+**Versions: Expo SDK 57 · React Native 0.86 · React 19.2 · Expo Router 57 · react-native-web 0.21 · TanStack Query 5.**
+This is NOT React DOM. The same code renders native views (iOS/Android) and HTML (web, static export).
 
 ## Model
-- Elementy: `View`, `Text`, `Pressable`, `TextInput`, `ScrollView`, `Image`. Każdy tekst MUSI być w `<Text>`.
-- Style: `StyleSheet.create` + tokeny z `src/theme.ts`. Flexbox domyślnie `flexDirection: "column"`.
-- Responsywność: `flexWrap` + `flexBasis`/`flexGrow` (działa w statycznym HTML). NIE uzależniaj układu od
-  `useWindowDimensions` — prerender nie zna szerokości ekranu.
+- Elements: `View`, `Text`, `Pressable`, `TextInput`, `ScrollView`, `Image`. All text MUST be inside `<Text>`.
+- Styles: `StyleSheet.create` + tokens from `src/theme.ts`. Flexbox defaults to `flexDirection: "column"`.
+- Responsiveness: `flexWrap` + `flexBasis`/`flexGrow` (works in static HTML). Do NOT make the layout depend on
+  `useWindowDimensions` — the prerender does not know the screen width.
 
-## Semantyka (web = dostępność + selektory E2E)
-Używaj prymitywów z `src/components/ui.tsx`, które ustawiają to za Ciebie:
-| Chcesz | Użyj | Na webie |
+## Semantics (web = accessibility + E2E selectors)
+Use the primitives from `src/components/ui.tsx`; they set these for you:
+| You want | Use | On the web |
 |---|---|---|
-| nagłówek | `<Heading level={1..3}>` (`role="heading"`, `aria-level`) | `<h1>`–`<h3>` |
-| link wewnętrzny | `<AppLink href="/app">` (Expo Router `Link`) | `<a href>` |
-| przycisk | `<Button label=… onPress=…>` (`role="button"`) | `<button>` |
-| pole formularza | `<TextField label=…>` (`aria-label`) | `<input aria-label>` |
-| lista | `<View role="list" aria-label=…>` + `role="listitem"` | `<ul>`/`<li>` |
-| komunikat błędu | `<Body tone="error" role="alert">` | `role="alert"` |
+| heading | `<Heading level={1..3}>` (`role="heading"`, `aria-level`) | `<h1>`–`<h3>` |
+| internal link | `<AppLink href="/app">` (Expo Router `Link`) | `<a href>` |
+| button | `<Button label=… onPress=…>` (`role="button"`) | `<button>` |
+| form field | `<TextField label=…>` (`aria-label`) | `<input aria-label>` |
+| list | `<View role="list" aria-label=…>` + `role="listitem"` | `<ul>`/`<li>` |
+| error message | `<Body tone="error" role="alert">` | `role="alert"` |
 
 ## Routing (Expo Router)
-- Pliki w `app/` = trasy. Trzymaj je cienkie (`export { default } from "../src/screens/X"`).
-- Layout z ochroną sesji: `app/app/_layout.tsx` (`<Redirect href="/login" />`, `<Slot />`).
-- Nawigacja w kodzie: `const router = useRouter(); router.replace("/app")`. Linki: `<AppLink>`.
-- 404: `app/+not-found.tsx` (w buildzie web staje się `404.html`).
-- `<Head>` z `expo-router/head` na każdym ekranie: `<title>` trafia do statycznego HTML.
+- Files in `app/` = routes. Keep them thin (`export { default } from "../src/screens/X"`).
+- Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, `<Slot />`).
+- Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<AppLink>`.
+- 404: `app/+not-found.tsx` (becomes `404.html` in the web build).
+- `<Head>` from `expo-router/head` on every screen: `<title>` ends up in the static HTML.
 
-## Dane (jedyny wzorzec)
+## Data (the only pattern)
 ```ts
 export const communitiesKey = ["communities"] as const;
 export const useCommunities = () =>
   useQuery({ queryKey: communitiesKey, queryFn: () => parseResponse(api.api.communities.$get()) });
-// Mutacja: useMutation({ mutationFn, onSuccess: () => qc.invalidateQueries({ queryKey }) }) — pełny przykład
-// w src/data/communities.ts (wywołanie narzędzia wtyczki).
+// Mutation: useMutation({ mutationFn, onSuccess: () => qc.invalidateQueries({ queryKey }) }) — full example
+// in src/data/communities.ts (calling a plugin tool).
 ```
-- Klient: tylko `api` z `src/lib/api.ts` (Hono RPC, typy z backendu). Nie pisz `fetch` ręcznie.
-- Sesja: `useSession()` / `useAuthActions()` (`src/data/session.ts`). Po zmianie sesji `fetchQuery`, nie samo `invalidateQueries`.
-- Token: bearer w Keychain/Keystore (natywnie) lub localStorage (web) — przez `src/lib/storage.ts`.
+- Client: only `api` from `src/lib/api.ts` (Hono RPC, types from the backend). Do not write `fetch` by hand.
+  The single exception is the multipart photo upload in `src/lib/upload.ts`.
+- Session: `useSession()` / `useAuthActions()` (`src/data/session.ts`). After a session change use `fetchQuery`,
+  not just `invalidateQueries`.
+- Token: bearer in Keychain/Keystore (native) or localStorage (web) — via `src/lib/storage.ts`.
 
 ## i18n (messages/*.json)
-- Teksty: `messages/en.json` (bazowy) i `pl.json`. Ładowane wprost w `src/lib/i18n.tsx` (bez kompilacji); nowy język = nowy plik + wpis w `catalogs`.
-- Użycie: `const { t, locale, setLocale } = useI18n(); t.communities_title()`. NIE importuj JSON-ów z messages w ekranach.
-- Język: preferencja (zapisana) → język urządzenia → en. Przełącznik w stopce (`Page` w `src/components/ui.tsx`).
-- Komunikaty z API/Zod/Better Auth nie trafiają do UI wprost; pokazuj własny `t.*`.
+- Texts: `messages/en.json` (base) and `pl.json`. Loaded directly in `src/lib/i18n.tsx` (no compile step);
+  a new language = a new file + an entry in `catalogs`.
+- Usage: `const { t, locale, setLocale } = useI18n(); t.communities_title()`. Do NOT import the messages JSON in screens.
+- Language: saved preference → device language → en. Switcher in the footer (`Page` in `src/components/ui.tsx`).
+- Messages from the API/Zod/Better Auth never reach the UI directly; show your own `t.*`.
+  Plugin screens are the exception: their (Polish) content comes from the server as Server-Driven UI.
 
-## Natywne
-- `android/`, `ios/` generuje `expo prebuild` z `app.config.ts` — nie edytuj ręcznie, nie commituj.
-- Emulator Androida nie widzi `localhost` hosta: `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000`.
-- Moduły natywne tylko z Expo SDK albo z config pluginem; po dodaniu sprawdź `bunx expo install --check`.
+## Native
+- `android/` and `ios/` are generated by `expo prebuild` from `app.config.ts` — do not edit by hand, do not commit.
+- The Android emulator cannot see the host's `localhost`: `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000`.
+- Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
 
-## Zakazane (częste halucynacje)
-- React DOM: `<div>`, `<span>`, `<p>`, `<button>`, `<input>`, `className`, `onClick`, `onChange` na inputach
-  (w RN: `onPress`, `onChangeText`), CSS w plikach `.css`, jednostki `px`/`rem`/`%` w stringach tam, gdzie RN wymaga liczb.
-- `window`, `document`, `localStorage` poza `src/lib/` (nie istnieją natywnie ani w prerenderze).
-- `react-router`, `next/*`, `@react-navigation/*` bezpośrednio (routing = Expo Router).
-- `AsyncStorage` do tokenów (niebezpieczne) — tylko `src/lib/storage.ts`.
-- Paczki bez wsparcia React Native/web (DOM-only UI kity).
-- Ręczna edycja `android/`/`ios/`, `expo eject` (nie istnieje), EAS jako wymóg (buildy robi CI lokalnie).
+## Forbidden (common hallucinations)
+- React DOM: `<div>`, `<span>`, `<p>`, `<button>`, `<input>`, `className`, `onClick`, `onChange` on inputs
+  (in RN: `onPress`, `onChangeText`), CSS in `.css` files, `px`/`rem`/`%` units in strings where RN expects numbers.
+- `window`, `document`, `localStorage` outside `src/lib/` (they do not exist natively or in the prerender).
+- `react-router`, `next/*`, `@react-navigation/*` directly (routing = Expo Router).
+- `AsyncStorage` for tokens (insecure) — only `src/lib/storage.ts`.
+- Packages without React Native/web support (DOM-only UI kits).
+- Editing `android/`/`ios/` by hand, `expo eject` (does not exist), EAS as a requirement (builds run locally in CI).

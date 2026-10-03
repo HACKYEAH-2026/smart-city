@@ -2,7 +2,7 @@ import { ScrollViewStyleReset } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 import { color } from "../src/theme";
 
-/** Szkielet HTML dla statycznego eksportu web (tylko web, tylko build-time). */
+/** HTML shell for the static web export (web only, build time only). */
 export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="en">

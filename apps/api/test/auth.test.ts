@@ -9,8 +9,8 @@ afterEach(async () => {
   await t.close();
 });
 
-describe("auth (email + hasło)", () => {
-  test("rejestracja zwraca token bearer, który otwiera sesję", async () => {
+describe("auth (email + password)", () => {
+  test("sign-up returns a bearer token that opens a session", async () => {
     const u = await t.signUp({ email: "ala@example.test" });
     const res = await t.request("/api/auth/get-session", { headers: u.headers });
     expect(res.status).toBe(200);
@@ -18,7 +18,7 @@ describe("auth (email + hasło)", () => {
     expect(body.user.email).toBe("ala@example.test");
   });
 
-  test("logowanie poprawnym hasłem działa, błędnym nie", async () => {
+  test("sign-in works with the correct password, not with a wrong one", async () => {
     await t.signUp({ email: "ola@example.test", password: "password123" });
     const ok = await t.request("/api/auth/sign-in/email", {
       method: "POST",
@@ -34,7 +34,7 @@ describe("auth (email + hasło)", () => {
     expect(bad.status).toBe(401);
   });
 
-  test("duplikat emaila jest odrzucany", async () => {
+  test("duplicate email is rejected", async () => {
     await t.signUp({ email: "dup@example.test" });
     const res = await t.request("/api/auth/sign-up/email", {
       method: "POST",

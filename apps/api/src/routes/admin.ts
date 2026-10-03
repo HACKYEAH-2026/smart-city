@@ -9,9 +9,9 @@ import { schema } from "../db";
 import { PluginError } from "../plugins/host";
 
 /**
- * API administracyjne (wgrywanie wtyczek, społeczności, instalacje). Chronione tokenem
- * PLUGIN_ADMIN_TOKEN (nagłówek Authorization: Bearer ...). Bez tokenu w env — całość zwraca 404.
- * Wgrana wtyczka wykonuje się w procesie API, więc token = pełne zaufanie (docs/plugins.md).
+ * Admin API (plugin uploads, communities, installations). Protected by the PLUGIN_ADMIN_TOKEN
+ * token (Authorization: Bearer ... header). Without the token in env — everything returns 404.
+ * An uploaded plugin runs in the API process, so token = full trust (docs/plugins.md).
  */
 const { communities, memberships, pluginInstallations, user } = schema;
 
@@ -81,7 +81,7 @@ export function createAdminRoutes(token: string | undefined) {
         }
         return c.json({ ok: true }, 201);
       })
-      /** Nadaje rolę admina w społeczności użytkownikowi o podanym e-mailu (musi mieć konto). */
+      /** Grants the community admin role to the user with the given email (must have an account). */
       .post("/communities/:slug/admins", zValidator("json", adminGrantSchema), async (c) => {
         const [community] = await c.var.db
           .select()

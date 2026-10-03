@@ -3,6 +3,6 @@ import { defineConfig } from "drizzle-kit";
 export default defineConfig({
   dialect: "sqlite",
   schema: "./src/db/schema.ts",
-  // DRIZZLE_OUT pozwala scripts/check.ts wykryć dryf schematu bez ruszania ./migrations.
+  // DRIZZLE_OUT lets scripts/check.ts detect schema drift without touching ./migrations.
   out: process.env.DRIZZLE_OUT ?? "./migrations",
 });

@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 /**
- * Server-Driven UI: wtyczka NIE dostarcza kodu do aplikacji, tylko drzewo węzłów z zamkniętego
- * katalogu komponentów. Aplikacja (RN/web) renderuje je natywnymi prymitywami, więc każda wtyczka
- * wygląda spójnie i jest dostępna. Akcje to dane (nawigacja albo wywołanie narzędzia), nie kod.
+ * Server-Driven UI: a plugin does NOT ship code to the app, only a tree of nodes from a closed
+ * component catalog. The app (RN/web) renders them with native primitives, so every plugin
+ * looks consistent and is accessible. Actions are data (navigation or a tool call), not code.
  *
- * Nowy komponent = schemat tutaj + builder w `ui` + renderer w apps/app/src/plugins/Renderer.tsx.
+ * New component = schema here + builder in `ui` + renderer in apps/app/src/plugins/Renderer.tsx.
  */
 
-/** Parametry widoku (query string): zawsze płaskie stringi. */
+/** View params (query string): always flat strings. */
 export const viewParamsSchema = z.record(z.string(), z.string());
 const params = viewParamsSchema;
 export type ViewParams = z.infer<typeof params>;
@@ -29,17 +29,17 @@ export type NavigateAction = z.infer<typeof navigateActionSchema>;
 export type ToolAction = z.infer<typeof toolActionSchema>;
 export type Action = z.infer<typeof actionSchema>;
 
-/** Wynik narzędzia: co aplikacja ma zrobić po wywołaniu (komunikat, przejście, odświeżenie widoku). */
+/** Tool result: what the app should do after the call (message, navigation, view refresh). */
 export const toolResultSchema = z.object({
-  /** Komunikat sukcesu. */
+  /** Success message. */
   toast: z.string().optional(),
-  /** Komunikat błędu dla użytkownika (np. „Głosowanie jest zamknięte”); nic nie zostało zapisane. */
+  /** Error message for the user (e.g. "the poll is closed", written in Polish by the plugin); nothing was saved. */
   error: z.string().optional(),
   navigate: navigateActionSchema.optional(),
-  /** Zamknij bieżący ekran (wróć). */
+  /** Close the current screen (go back). */
   close: z.boolean().optional(),
   refresh: z.boolean().optional(),
-  /** Dane wyniku dla asystentów AI (MCP) i narzędzi readOnly. */
+  /** Result data for AI assistants (MCP) and readOnly tools. */
   data: z.unknown().optional(),
 });
 export type ToolResult = z.infer<typeof toolResultSchema>;
@@ -47,7 +47,7 @@ export type ToolResult = z.infer<typeof toolResultSchema>;
 const tone = z.enum(["neutral", "info", "success", "warning", "danger"]);
 export type Tone = z.infer<typeof tone>;
 
-/** Węzły liściowe (bez dzieci). */
+/** Leaf nodes (no children). */
 const leafSchemas = [
   z.object({ type: z.literal("Heading"), text: z.string(), level: z.union([z.literal(2), z.literal(3)]).optional() }),
   z.object({ type: z.literal("Text"), text: z.string(), tone: z.enum(["ink", "soft"]).optional() }),
@@ -66,9 +66,9 @@ const leafSchemas = [
   }),
   z.object({ type: z.literal("Stat"), label: z.string(), value: z.string() }),
   z.object({ type: z.literal("Empty"), text: z.string() }),
-  /** Zdjęcie z ctx.files. `url` (podpisany, krótkotrwały) dokleja host przy renderowaniu widoku. */
+  /** Photo from ctx.files. The host adds `url` (signed, short-lived) when rendering the view. */
   z.object({ type: z.literal("Image"), file: z.string(), alt: z.string(), url: z.string().optional() }),
-  /** Pole formularza: wybór zdjęcia; aplikacja wysyła plik i wstawia do formularza jego FileId. */
+  /** Form field: photo picker; the app uploads the file and puts its FileId into the form. */
   z.object({ type: z.literal("ImagePicker"), name: z.string().min(1), label: z.string() }),
   z.object({
     type: z.literal("TextInput"),
@@ -88,7 +88,7 @@ const leafSchemas = [
 
 type Leaf = z.infer<(typeof leafSchemas)[number]>;
 
-/** Węzły z dziećmi. Typ zapisany ręcznie, bo schemat jest rekurencyjny (z.lazy). */
+/** Nodes with children. Type written by hand because the schema is recursive (z.lazy). */
 export type UINode =
   | Leaf
   | { type: "Screen"; title: string; children: UINode[] }
@@ -131,13 +131,13 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
   ]),
 );
 
-/** Widok zwracany przez wtyczkę: zawsze Screen na szczycie. */
+/** View returned by a plugin: always a Screen at the root. */
 export const screenSchema = uiNodeSchema.refine((n) => n.type === "Screen", "View must return a Screen node");
 
 type Of<T extends UINodeType> = Extract<UINode, { type: T }>;
 type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 
-/** Buildery węzłów — wtyczka składa z nich widok. Zwracają zwykłe obiekty JSON. */
+/** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
   screen: (title: string, children: UINode[]): Of<"Screen"> => ({ type: "Screen", title, children }),
   stack: (children: UINode[]): Of<"Stack"> => ({ type: "Stack", children }),

@@ -3,7 +3,7 @@ import type { Db } from "./db";
 import type { FileService } from "./files/service";
 import type { PluginHost } from "./plugins/host";
 
-/** Typ kontekstu Hono współdzielony przez wszystkie routery. */
+/** Hono context type shared by all routers. */
 export type AppEnv = {
   Variables: {
     db: Db;

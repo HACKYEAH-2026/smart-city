@@ -5,9 +5,9 @@ import { expect, TEST_ADMIN_TOKEN, test } from "./fixtures";
 import { en } from "./messages";
 
 /**
- * Kryteria akceptacji systemu wtyczek: wtyczka wbudowana działa end-to-end, a wtyczka wgrana
- * przez API administracyjne pojawia się w społeczności bez przeładowania aplikacji.
- * Teksty wtyczek (po polsku) to treść z serwera, nie komunikaty z messages/*.json.
+ * Plugin system acceptance criteria: a built-in plugin works end to end, and a plugin uploaded
+ * through the admin API shows up in the community without reloading the app.
+ * Plugin texts (in Polish) are server content, not messages from messages/*.json.
  */
 const register = async (page: Page, email: string) => {
   await page.goto("/register");
@@ -60,7 +60,7 @@ const openNewIssueForm = async (page: Page) => {
   await page.getByRole("button", { name: "Nowe zgłoszenie" }).click();
 };
 
-/** Minimalny nagłówek JPEG — serwer sprawdza typ pliku, nie jego treść. */
+/** Minimal JPEG header — the server checks the file type, not its content. */
 const PHOTO = { name: "latarnia.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16]) };
 
 test("photo report, then a similar report is merged under it; the city admin closes it", async ({ page }) => {

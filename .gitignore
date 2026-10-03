@@ -5,18 +5,18 @@ dist-ssr/
 *.tsbuildinfo
 .env
 .env.*
-# Lokalne reguły agentów (każdy ma swoje)
+# Local agent rules (everyone has their own)
 AGENTS.local.md
 !.env.example
 test-results/
 playwright-report/
-# Lokalne bazy SQLite (dev)
+# Local SQLite databases (dev)
 *.db
 *.db-wal
 *.db-shm
 .data/
 coverage/
-# Expo: projekty natywne są GENEROWANE z app.config.ts (expo prebuild) — nie commitujemy ich
+# Expo: native projects are GENERATED from app.config.ts (expo prebuild) — not committed
 apps/app/android/
 apps/app/ios/
 .expo/

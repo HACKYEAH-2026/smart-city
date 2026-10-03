@@ -1,5 +1,5 @@
 /**
- * Lokalny podgląd dist/: /x -> x.html | x/index.html, nieznana ścieżka -> 404.html. Używany przez E2E.
+ * Local preview of dist/: /x -> x.html | x/index.html, unknown path -> 404.html. Used by E2E.
  */
 import { join, normalize } from "node:path";
 

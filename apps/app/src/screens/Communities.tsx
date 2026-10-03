@@ -7,7 +7,7 @@ import { useAuthActions } from "../data/session";
 import { useI18n } from "../lib/i18n";
 import { color, radius, shadow, space } from "../theme";
 
-/** Lista społeczności, do których użytkownik ma dostęp. */
+/** List of communities the user has access to. */
 export default function Communities() {
   const { t } = useI18n();
   const router = useRouter();

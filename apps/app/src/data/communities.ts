@@ -4,8 +4,8 @@ import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
 
 /**
- * Dane społeczności i wtyczek (wzorzec danych frontu: useQuery + useMutation). Widoki wtyczek przychodzą z API jako drzewo UI
- * (Server-Driven UI); po wywołaniu narzędzia odświeżamy wszystkie widoki tej wtyczki.
+ * Community and plugin data (frontend data pattern: useQuery + useMutation). Plugin views arrive from the API as a UI tree
+ * (Server-Driven UI); after a tool call we refresh all views of that plugin.
  */
 const c = api.api.communities;
 
@@ -21,7 +21,7 @@ export function useCommunity(slug: string) {
   return useQuery({ queryKey: communityKey(slug), queryFn: () => parseResponse(c[":slug"].$get({ param: { slug } })) });
 }
 
-/** Nawigacja odpytywana co kilka sekund: nowo zainstalowana wtyczka pojawia się bez przeładowania. */
+/** Navigation polled every few seconds: a newly installed plugin appears without a reload. */
 export function useCommunityNav(slug: string) {
   return useQuery({
     queryKey: [...communityKey(slug), "nav"],

@@ -13,7 +13,7 @@ const memory = (): Storage & { map: Map<string, string> } => {
 };
 
 describe("token", () => {
-  test("capture zapisuje token z set-auth-token i buduje nagłówek Bearer", async () => {
+  test("capture stores the token from set-auth-token and builds the Bearer header", async () => {
     const s = memory();
     const t = createTokenStore(s);
     await t.capture(new Headers({ "set-auth-token": "abc" }));
@@ -21,7 +21,7 @@ describe("token", () => {
     expect(s.map.get(TOKEN_KEY)).toBe("abc");
   });
 
-  test("load przywraca token po restarcie, clear usuwa go z pamięci i magazynu", async () => {
+  test("load restores the token after a restart, clear removes it from memory and storage", async () => {
     const s = memory();
     s.map.set(TOKEN_KEY, "persisted");
     const t = createTokenStore(s);
@@ -33,7 +33,7 @@ describe("token", () => {
     expect(s.map.has(TOKEN_KEY)).toBe(false);
   });
 
-  test("odpowiedź bez nagłówka nie nadpisuje tokenu", async () => {
+  test("a response without the header does not overwrite the token", async () => {
     const t = createTokenStore(memory());
     await t.capture(new Headers({ "set-auth-token": "abc" }));
     await t.capture(new Headers());

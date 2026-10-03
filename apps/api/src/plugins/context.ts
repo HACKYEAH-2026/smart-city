@@ -5,7 +5,7 @@ import type { FileService } from "../files/service";
 import type { LoadedPlugin } from "./host";
 import { createStorage } from "./storage";
 
-/** Usługa bez uprawnienia w manifeście: każde użycie kończy się czytelnym błędem. */
+/** Service without a manifest permission: every use fails with a clear error. */
 function denied<T extends object>(permission: Permission): T {
   return new Proxy({} as T, {
     get: () => () => Promise.reject(new Error(`Plugin did not declare the "${permission}" permission`)),
@@ -14,10 +14,10 @@ function denied<T extends object>(permission: Permission): T {
 
 export type PluginServices = { db: Db; files: FileService; ai: AIService };
 
-/** Użytkownik systemowy dla onInstall (dane startowe): admin, bez konta w bazie. */
+/** System user for onInstall (seed data): admin, with no account in the database. */
 export const SYSTEM_USER: PluginUser = { id: "system", name: "System", role: "admin" };
 
-/** Buduje kontekst wywołania wtyczki: tylko to, na co pozwala jej manifest. */
+/** Builds a plugin call context: only what its manifest allows. */
 export function createPluginContext(
   services: PluginServices,
   args: { plugin: LoadedPlugin; installationId: string; community: PluginCommunity; user: PluginUser },

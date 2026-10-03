@@ -1,95 +1,103 @@
-# AGENTS.md — reguły dla agentów (Twoje Miejsce)
+# AGENTS.md — rules for agents (Twoje Miejsce)
 
-Produkt: `README.md` i `PRODUCT.md`. Nowy kod powstaje przez kopiowanie istniejących wzorców (tabele niżej).
+Product: `README.md` and `PRODUCT.md`. New code is written by copying existing patterns (tables below).
 
-Stack: Bun + Hono + Drizzle (SQLite przez bun:sqlite; w pamięci w testach) + Better Auth + Expo (React Native,
-Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JSON (en domyślny).
+Stack: Bun + Hono + Drizzle (SQLite via bun:sqlite; in-memory in tests) + Better Auth + Expo (React Native,
+Expo Router; web via react-native-web with static HTML) + i18n with JSON files (en is the default).
 
-## HackYeah 2026 (zadanie SMART CITY)
-Kontekst i ramy czasowe: sekcja „HackYeah 2026” w `README.md`.
-- Stan sprzed hackathonu to commit `9533f98`. Nie przepisuj historii sprzed niego: jury musi odróżnić pracę z HackYeah od istniejącej.
-- Kryteria oceny: pomysł 30%, zgodność z kategorią 20%, użyteczność 20%, design 20%, kompletność 10%.
-  Nowe funkcje mają rozwiązywać konkretny problem miasta lub mieszkańców i działać w demo („Kraków”).
-- Nowa zewnętrzna biblioteka, API albo zbiór danych: dopisz go do sekcji HackYeah w `README.md` (wymóg ujawnienia).
+## HackYeah 2026 (SMART CITY challenge)
+Context and timeline: the "HackYeah 2026" section in `README.md`.
+- The pre-hackathon state is commit `9533f98`. Do not rewrite history before it: the jury must be able to tell
+  HackYeah work apart from what already existed.
+- Judging criteria: idea 30%, relation to category 20%, usability 20%, design 20%, completeness 10%.
+  New features must solve a concrete problem of the city or its residents and work in the demo ("Kraków").
+- New external library, API or dataset: add it to the HackYeah section of `README.md` (disclosure requirement).
 
-## Ustawienia lokalne
-Lokalne reguły (poza gitem): @AGENTS.local.md
-Jeśli plik `AGENTS.local.md` istnieje, przeczytaj go na starcie sesji i traktuj jako obowiązujące reguły.
-Ten plik tylko dodaje reguły, nie nadpisuje ich. Przy sprzeczności wygrywa AGENTS.md.
+## Local settings
+Local rules (outside git): @AGENTS.local.md
+If `AGENTS.local.md` exists, read it at the start of the session and treat it as binding.
+It only adds rules, it never overrides them. On conflict, AGENTS.md wins.
 
-## Język
-- Interfejs aplikacji (wszystko, co widzi użytkownik) musi być po polsku.
-- Kod po angielsku: nazwy zmiennych, funkcji, typów, plików, tras API, kolumn bazy i kluczy i18n.
+## Language
+- The app UI (everything a user sees) must be in Polish. UI text lives only in `apps/app/messages/<locale>.json`
+  and in the Polish content that plugins render (screen titles, labels, toasts, user-facing validation messages).
+- Everything else is in English: identifiers (variables, functions, types, files, API routes, DB columns,
+  i18n keys), code comments and JSDoc, test names, log/console output, developer-facing error messages,
+  script and CI output, commit messages and developer docs (`AGENTS.md`, `docs/`).
+- Exceptions: `README.md` and `PRODUCT.md` describe the product for the team and the jury and stay in Polish.
+- In tests, Polish strings are allowed only as data or as selectors/assertions that must match the Polish UI.
 
-## Definicja gotowości (jedyna)
-Zadanie jest skończone tylko wtedy, gdy `bun run verify` kończy się kodem 0, a w raporcie jest
-jego realny output (tabela podsumowania). "Powinno działać" nie jest dowodem.
-`VERIFY_SKIP` nie jest zielonym verify — każde pominięcie musisz zgłosić z powodem.
-Komendy uruchamiaj w `nix develop` (albo przez direnv: `.envrc`); pełny `verify` (z buildem Androida)
-w `nix develop .#android`.
+## Definition of done (the only one)
+A task is done only when `bun run verify` exits with code 0 and the report contains its real
+output (the summary table). "Should work" is not evidence.
+`VERIFY_SKIP` is not a green verify — report every skipped stage with a reason.
+Run commands in `nix develop` (or via direnv: `.envrc`); the full `verify` (with the Android build)
+in `nix develop .#android`.
 
-## Kolejność pracy
-1. Najpierw testy E2E z kryteriów akceptacji (`apps/app/e2e/*.spec.ts`), mają failować.
-2. Potem implementacja od dołu: schemat → migracja → kontrakt → API + test integracyjny → ekran.
+## Order of work
+1. E2E tests from the acceptance criteria first (`apps/app/e2e/*.spec.ts`); they must fail.
+2. Then implement bottom-up: schema → migration → contract → API + integration test → screen.
 3. `bun run verify` → commit → push.
 
-## Nowy zasób platformy = skopiuj wzorzec "communities"
-| Warstwa | Plik wzorcowy |
+## New platform resource = copy the "communities" pattern
+| Layer | Pattern file |
 |---|---|
-| Tabela | `apps/api/src/db/schema.ts` (`communities`) → `bun run db:generate` |
-| Kontrakt (Zod + typ) | `packages/shared/src/communities.ts` |
-| Router API | `apps/api/src/routes/communities.ts`, montaż w `apps/api/src/app.ts` |
-| Test integracyjny | `apps/api/test/plugins.test.ts` (`describe("społeczności i nawigacja")`: 401 bez sesji, 404) |
-| Dane frontu | `apps/app/src/data/communities.ts` (TanStack Query: useQuery + useMutation) |
-| Ekran | `apps/app/src/screens/Communities.tsx`, trasa (cienki plik) w `apps/app/app/` |
+| Table | `apps/api/src/db/schema.ts` (`communities`) → `bun run db:generate` |
+| Contract (Zod + type) | `packages/shared/src/communities.ts` |
+| API router | `apps/api/src/routes/communities.ts`, mounted in `apps/api/src/app.ts` |
+| Integration test | `apps/api/test/plugins.test.ts` (communities/navigation: 401 without a session, 404) |
+| Frontend data | `apps/app/src/data/communities.ts` (TanStack Query: useQuery + useMutation) |
+| Screen | `apps/app/src/screens/Communities.tsx`, route (thin file) in `apps/app/app/` |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
-Funkcja dla mieszkańców (zgłoszenia, rezerwacje, ogłoszenia…) to NIE nowy zasób, tylko wtyczka (niżej).
+A feature for residents (issue reports, bookings, announcements…) is NOT a new resource but a plugin (below).
 
-## Nowa funkcja społeczności = wtyczka (docs/plugins.md)
-| Warstwa | Plik wzorcowy |
+## New community feature = plugin (docs/plugins.md)
+| Layer | Pattern file |
 |---|---|
-| Wtyczka (widoki, narzędzia) | `plugins/issues/` (pakiet zależny TYLKO od `@app/plugin-sdk`); wbudowana = wpis w `apps/api/src/plugins/builtin/index.ts` |
-| Test wtyczki (bez API) | `plugins/issues/issues.test.ts` (`testPlugin` z `@app/plugin-sdk/testing`) |
-| Kontrakt i katalog UI | `packages/sdk/src/` (nowy węzeł UI = schemat + builder + `apps/app/src/plugins/Renderer.tsx`) |
-| Test hosta (API) | `apps/api/test/plugins.test.ts` (routing, admin, izolacja przez `app.request()`) |
+| Plugin (views, tools) | `plugins/issues/` (a package that depends ONLY on `@app/plugin-sdk`); built-in = entry in `apps/api/src/plugins/builtin/index.ts` |
+| Plugin test (no API) | `plugins/issues/issues.test.ts` (`testPlugin` from `@app/plugin-sdk/testing`) |
+| Contract and UI catalog | `packages/sdk/src/` (new UI node = schema + builder + `apps/app/src/plugins/Renderer.tsx`) |
+| Host test (API) | `apps/api/test/plugins.test.ts` (routing, admin, isolation via `app.request()`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
-Wtyczka nie dostaje bazy ani dysku: tylko `ctx` (user z rolą, community, now, storage, files, ai; docs/plugins.md). Nie dopisuj tabel dla pojedynczej wtyczki —
-dane trzyma `ctx.storage` (odizolowany per instalacja).
+A plugin gets no database and no disk: only `ctx` (user with role, community, now, storage, files, ai;
+docs/plugins.md). Do not add tables for a single plugin — its data lives in `ctx.storage` (isolated per installation).
 
-## Jedno źródło prawdy (zakaz równoległych ścieżek kodu)
-- Typy i walidacja: tylko `packages/shared`. Front importuje typy API przez Hono RPC (`AppType`), nie pisze ich ręcznie.
-- Schemat bazy: tylko `apps/api/src/db/schema.ts`. Migracje wyłącznie generowane (`bun run db:generate`).
-- Klient bazy: tylko `createDb()` z `apps/api/src/db`. Kod aplikacji dostaje `Db` (Drizzle na SQLite).
-- Konfiguracja aplikacji: tylko `apps/app/app.config.ts`. `android/` i `ios/` są GENEROWANE (`expo prebuild`) —
-  nie edytuj ich i nie commituj. Zmiana natywna = config plugin albo pole w `app.config.ts`.
-- Trasy: tylko `apps/app/app/` (Expo Router, cienkie pliki). Logika ekranów: `apps/app/src/screens/`.
-- Adres API: tylko `apps/app/src/lib/config.ts`. Trwałe dane urządzenia: tylko `src/lib/storage.ts`.
-- Rozgałęzienia `Platform.OS` tylko w `src/lib/` i w trasach, nigdy w ekranach.
-- Teksty UI: WYŁĄCZNIE `apps/app/messages/<locale>.json` przez `const { t } = useI18n(); t.klucz()`.
-  Angielski (`en`) jest bazowy; każdy klucz musi istnieć we wszystkich językach (test `src/lib/i18n.test.ts`).
-- Wygląd: tylko tokeny z `apps/app/src/theme.ts`; ekrany składaj z prymitywów `src/components/ui.tsx`.
-- Prawda produktowa i ton: `PRODUCT.md`. Bez wymyślonych liczb i opinii.
-- Jeden runner testów: `bun test` (unit + integracja) i Playwright (E2E). Bez Jest/Vitest.
-- Jeden linter/formatter: Biome. Wersje narzędzi: `flake.nix` + `bun.lock`. Wersje paczek Expo/RN tylko zgodne
-  z SDK (`bunx expo install --check` w `apps/app`).
+## Single source of truth (no parallel code paths)
+- Types and validation: only `packages/shared` (app contracts) and `packages/sdk` (plugin contract).
+  The frontend imports API types via Hono RPC (`AppType`) and never writes them by hand.
+- Database schema: only `apps/api/src/db/schema.ts`. Migrations are generated only (`bun run db:generate`).
+- Database client: only `createDb()` from `apps/api/src/db`. Application code receives `Db` (Drizzle on SQLite).
+- App configuration: only `apps/app/app.config.ts`. `android/` and `ios/` are GENERATED (`expo prebuild`) —
+  do not edit or commit them. A native change = a config plugin or a field in `app.config.ts`.
+- Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.
+- API address: only `apps/app/src/lib/config.ts`. Persistent device data: only `src/lib/storage.ts`.
+- `Platform.OS` branches only in `src/lib/` and in routes, never in screens.
+- UI text: ONLY `apps/app/messages/<locale>.json` via `const { t } = useI18n(); t.key()`.
+  English (`en`) is the base locale; every key must exist in all locales (test `src/lib/i18n.test.ts`).
+- Look and feel: only tokens from `apps/app/src/theme.ts`; build screens from the primitives in `src/components/ui.tsx`.
+- Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
+- One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
+- One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only
+  as compatible with the SDK (`bunx expo install --check` in `apps/app`).
 
-## Testy
-- Unit: czysta logika, obok kodu (`*.test.ts` w `packages/shared`, `apps/app/src`).
-- Integracja: `apps/api/test`, zawsze przez `setup()` (świeża baza SQLite w pamięci ze zrzutu + `app.request()`), `close()` w `afterEach`.
-- E2E: web (produkcyjny statyczny eksport), import `test`/`expect` z `e2e/fixtures.ts`
-  (reset bazy przed każdym testem jest automatyczny). Selektory przez role i etykiety — dlatego prymitywy UI
-  ustawiają `role`, `aria-level`, `aria-label`. Natywne ekrany sprawdza build Androida/iOS (brak E2E na urządzeniu).
-- `/__test/*` istnieje tylko w `apps/api/src/test-server.ts`. Nigdy nie importuj `test-*.ts` z kodu produkcyjnego.
+## Tests
+- Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`).
+- Integration: `apps/api/test`, always through `setup()` (a fresh in-memory SQLite DB from a snapshot +
+  `app.request()`), `close()` in `afterEach`.
+- E2E: web (production static export), import `test`/`expect` from `e2e/fixtures.ts`
+  (the DB is reset automatically before every test). Select by roles and labels — that is why UI primitives
+  set `role`, `aria-level`, `aria-label`. Native screens are covered by the Android/iOS build (no on-device E2E).
+- `/__test/*` exists only in `apps/api/src/test-server.ts`. Never import `test-*.ts` from production code.
 
 ## Frontend
-Wzorce, i18n i zakazane API: `docs/expo.md`.
+Patterns, i18n and forbidden APIs: `docs/expo.md`.
 
-## Zakazy
-- Żadnych sekretów w repo (`.env` jest w .gitignore). Sekrety tylko w GitHub Secrets.
-- Żadnego deployu z maszyny lokalnej.
-- Żadnych TODO bez uzasadnienia i numeru zadania. Żadnego martwego kodu "na później".
-- Nie wyłączaj reguł Biome/TS globalnie; lokalny `biome-ignore` tylko z powodem.
-- Jeśli coś wymaga kliknięcia w panelu (Cloudflare, GitHub, sklepy), napisz to wprost w raporcie — nie udawaj naprawy.
+## Don'ts
+- No secrets in the repo (`.env` is gitignored). Secrets only in GitHub Secrets.
+- No deploys from a local machine.
+- No TODOs without a reason and a task number. No dead code "for later".
+- Do not disable Biome/TS rules globally; a local `biome-ignore` only with a reason.
+- If something requires clicking in a dashboard (Cloudflare, GitHub, stores), say so plainly in the report — do not fake a fix.
 
-## Raport końcowy agenta
-hash commita · output `bun run verify` (podsumowanie) · status CI · lista pominięć z powodem · rzeczy dla człowieka.
+## Final agent report
+commit hash · `bun run verify` output (summary) · CI status · skipped items with reasons · things for a human.

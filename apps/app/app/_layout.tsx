@@ -7,7 +7,7 @@ import { FlashProvider } from "../src/lib/flash";
 import { I18nProvider } from "../src/lib/i18n";
 import { color } from "../src/theme";
 
-/** Korzeń: dostawcy (dane, i18n, safe area) + stos nawigacji. Jedyne miejsce montowania providerów. */
+/** Root: providers (data, i18n, safe area) + navigation stack. The only place providers are mounted. */
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }));
   return (

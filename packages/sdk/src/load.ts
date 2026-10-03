@@ -2,17 +2,17 @@ import { z } from "zod";
 import { definePlugin, fileRef, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
 import { ui } from "./ui";
 
-/** Błąd wtyczki (zły manifest, wyjątek, niepoprawny wynik). Komunikat jest bezpieczny dla autora/admina. */
+/** Plugin error (bad manifest, exception, invalid result). The message is safe to show the author/admin. */
 export class PluginError extends Error {}
 
-/** SDK przekazywane modułowi wtyczki — jedyne, czego wtyczka używa w runtime. */
+/** SDK passed to the plugin module — the only thing a plugin uses at runtime. */
 export const sdk = { definePlugin, ui, z, fileRef };
 
 export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDefinition };
 
 /**
- * Wywołuje moduł wtyczki z SDK i sprawdza manifest oraz spójność (nav → istniejące widoki,
- * narzędzia mają schemat i handler). Używane przez hosta w API i przez test harness.
+ * Calls the plugin module with the SDK and checks the manifest and consistency (nav → existing views,
+ * tools have a schema and handler). Used by the API host and by the test harness.
  */
 export function loadPlugin(mod: unknown): LoadedDefinition {
   if (typeof mod !== "function") throw new PluginError("Plugin module must export a default function (sdk) => plugin");

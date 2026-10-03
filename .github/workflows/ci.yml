@@ -1,5 +1,5 @@
-# CI. Bez sekretów MUSI być zielone: joby zależne od sekretów są pomijane,
-# a job "secrets" wypisuje czytelną informację, czego brakuje.
+# CI. MUST be green without secrets: secret-dependent jobs are skipped,
+# and the "secrets" job prints a readable note about what is missing.
 name: ci
 
 on:
@@ -21,7 +21,7 @@ env:
 
 jobs:
   secrets:
-    name: sekrety (co jest skonfigurowane)
+    name: secrets (what is configured)
     runs-on: ubuntu-latest
     outputs:
       android_signing: ${{ steps.s.outputs.android_signing }}
@@ -34,11 +34,11 @@ jobs:
         run: |
           report() {
             echo "$1=$2" >> "$GITHUB_OUTPUT"
-            if [ "$2" = "true" ]; then echo "OK    $1"; else
-              echo "::notice title=Pominięte: $1::$3"; echo "BRAK  $1 -> $3"; fi
+            if [ "$2" = "true" ]; then echo "OK       $1"; else
+              echo "::notice title=Skipped: $1::$3"; echo "MISSING  $1 -> $3"; fi
           }
-          report android_signing "$ANDROID_SIGNING" "podpisany release Androida pominięty: brak ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
-          report ios_signing "$IOS_SIGNING" "podpisany build iOS pominięty: brak IOS_CERTIFICATE_P12_BASE64 / IOS_CERTIFICATE_PASSWORD / IOS_PROVISIONING_PROFILE_BASE64 / IOS_TEAM_ID"
+          report android_signing "$ANDROID_SIGNING" "signed Android release skipped: missing ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
+          report ios_signing "$IOS_SIGNING" "signed iOS build skipped: missing IOS_CERTIFICATE_P12_BASE64 / IOS_CERTIFICATE_PASSWORD / IOS_PROVISIONING_PROFILE_BASE64 / IOS_TEAM_ID"
 
   verify:
     name: bun run verify
@@ -67,8 +67,8 @@ jobs:
           path: apps/app/android/app/build/outputs/apk/debug/*.apk
 
   ios:
-    name: iOS (build bez podpisu)
-    # Expo SDK 57 / RN 0.86 wymagają toolchainu Xcode 26 (macos-15 ma domyślnie 16.4 -> błąd Swift w ExpoLogBox).
+    name: iOS (unsigned build)
+    # Expo SDK 57 / RN 0.86 require the Xcode 26 toolchain (macos-15 defaults to 16.4 -> Swift error in ExpoLogBox).
     runs-on: macos-26
     timeout-minutes: 40
     steps:
@@ -79,16 +79,16 @@ jobs:
           primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
           gc-max-store-size-linux: 8G
       - run: nix develop -c bun install --frozen-lockfile
-      - name: expo prebuild (ios/ generowany z app.config.ts, CocoaPods z runnera)
+      - name: expo prebuild (ios/ generated from app.config.ts, CocoaPods from the runner)
         run: nix develop -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform ios'
-      - name: xcodebuild (symulator, CODE_SIGNING_ALLOWED=NO)
+      - name: xcodebuild (simulator, CODE_SIGNING_ALLOWED=NO)
         run: |
           set -o pipefail
           xcodebuild -version
           xcodebuild -workspace apps/app/ios/TwojeMiejsce.xcworkspace -scheme TwojeMiejsce -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build | tail -n 30
-      - name: podpisane archiwum (tylko z sekretami)
+      - name: signed archive (only with secrets)
         if: needs.secrets.outputs.ios_signing == 'true' && startsWith(github.ref, 'refs/tags/v')
         env:
           P12: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
@@ -105,7 +105,7 @@ jobs:
     needs: [secrets]
 
   android-release:
-    name: Android release (podpisany)
+    name: Android release (signed)
     needs: [secrets, verify]
     if: needs.secrets.outputs.android_signing == 'true'
     runs-on: ubuntu-latest
@@ -127,7 +127,7 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ startsWith(github.ref, 'refs/tags/v') && vars.PROD_API_URL || vars.STAGING_API_URL }}
         run: |
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
-          # Podpis przez właściwości wstrzykiwane do AGP — bez keystore i haseł w wygenerowanym projekcie.
+          # Signing via properties injected into AGP — no keystore or passwords in the generated project.
           nix develop .#android -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform android --no-install \
             && cd android && ./gradlew bundleRelease --no-daemon \
               -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
@@ -140,7 +140,7 @@ jobs:
           path: apps/app/android/app/build/outputs/bundle/release/*.aab
 
   images:
-    name: obrazy -> GHCR
+    name: images -> GHCR
     needs: [verify]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
@@ -173,7 +173,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
 
   release:
-    name: GitHub Release (artefakty mobilne)
+    name: GitHub Release (mobile artifacts)
     needs: [verify, ios, images]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest

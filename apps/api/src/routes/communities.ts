@@ -10,9 +10,9 @@ import { requireUser } from "../middleware";
 import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
 
 /**
- * Społeczności i ich wtyczki (dla aplikacji). Widok, narzędzie i upload wtyczki są dostępne tylko,
- * gdy wtyczka jest zainstalowana i włączona w danej społeczności; inaczej 404.
- * Społeczności są na razie otwarte: pierwsze wejście zakłada członkostwo z rolą "user".
+ * Communities and their plugins (for the app). A plugin's views, tools and uploads are available only
+ * when the plugin is installed and enabled in the given community; otherwise 404.
+ * Communities are open for now: the first visit creates a membership with the "user" role.
  */
 const { communities, memberships, pluginInstallations } = schema;
 
@@ -22,7 +22,7 @@ const toCommunity = (row: typeof communities.$inferSelect): Community => ({
   name: row.name,
 });
 
-/** Rola użytkownika w społeczności; brak członkostwa = dołączenie jako "user". */
+/** User's role in a community; no membership = join as "user". */
 async function roleIn(db: Db, communityId: string, userId: string): Promise<Role> {
   await db.insert(memberships).values({ communityId, userId }).onConflictDoNothing();
   const [row] = await db
@@ -89,7 +89,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
       return pluginFailure(c, err);
     }
   })
-  /** Upload pliku dla wtyczki z uprawnieniem "files" (multipart, pole "file"). Zwraca FileId (pending). */
+  /** File upload for a plugin with the "files" permission (multipart, "file" field). Returns a FileId (pending). */
   .post("/:slug/plugins/:pluginId/files", async (c) => {
     const target = await resolve(c, c.req.param("slug"), c.req.param("pluginId"));
     if (!target?.plugin.manifest.permissions.includes("files")) return c.json({ error: "not_found" }, 404);
@@ -110,7 +110,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
     }
   });
 
-/** Społeczność + włączona instalacja + załadowana wtyczka + kontekst z rolą użytkownika, albo null (→ 404). */
+/** Community + enabled installation + loaded plugin + context with the user's role, or null (→ 404). */
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const [row] = await c.var.db
     .select({ community: communities, installationId: pluginInstallations.id })

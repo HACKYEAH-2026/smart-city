@@ -25,9 +25,9 @@
             };
           };
 
-          # Wersje MUSZĄ zgadzać się z React Native (node_modules/react-native/gradle/libs.versions.toml):
-          # compileSdk 36, buildTools 36.0.0, NDK 27.1.12297006. SDK z nixa jest tylko do odczytu,
-          # więc Gradle nie doinstaluje brakujących elementów — brak = błąd builda.
+          # Versions MUST match React Native (node_modules/react-native/gradle/libs.versions.toml):
+          # compileSdk 36, buildTools 36.0.0, NDK 27.1.12297006. The nix SDK is read-only,
+          # so Gradle cannot install missing components — missing = build error.
           android = pkgs.androidenv.composeAndroidPackages {
             platformVersions = [ "36" ];
             buildToolsVersions = [
@@ -43,22 +43,22 @@
           androidSdk = android.androidsdk;
           sdkRoot = "${androidSdk}/libexec/android-sdk";
 
-          # Biome, Playwright, Expo CLI są w bun.lock — nie dublujemy ich tutaj.
+          # Biome, Playwright, Expo CLI are in bun.lock — not duplicated here.
           base = with pkgs; [
             bun
-            nodejs_24 # Expo CLI / Metro / Gradle autolinking działają na Node
+            nodejs_24 # Expo CLI / Metro / Gradle autolinking run on Node
             sqlite
             gh
           ];
 
-          # mkShellNoCC: nie nadpisujemy DEVELOPER_DIR/SDKROOT na macOS (xcodebuild, CocoaPods).
+          # mkShellNoCC: does not override DEVELOPER_DIR/SDKROOT on macOS (xcodebuild, CocoaPods).
           mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // extra);
         in
         {
-          # Domyślny: wszystko do dev, testów i weba (szybki, bez Android SDK).
+          # Default: everything for dev, tests and web (fast, no Android SDK).
           devShells.default = mkShell base { };
 
-          # Pełny `bun run verify` (z buildem Androida): nix develop .#android
+          # Full `bun run verify` (with the Android build): nix develop .#android
           devShells.android = mkShell (base ++ [ pkgs.jdk17 androidSdk ]) {
             JAVA_HOME = pkgs.jdk17.home;
             ANDROID_HOME = sdkRoot;
