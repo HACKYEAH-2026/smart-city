@@ -52,8 +52,14 @@
             mprocs # `just dev`: API + Expo in one terminal (mprocs.yaml)
           ];
 
+          # Linux: nix's bun loads native addons with nix's loader, which never looks in /usr/lib, so the prebuilt
+          # @surrealdb/node binary cannot find libstdc++.so.6 / libgcc_s.so.1 ("Cannot find native binding" in CI).
+          nativeLibs = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
+          };
+
           # mkShellNoCC: does not override DEVELOPER_DIR/SDKROOT on macOS (xcodebuild, CocoaPods).
-          mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // extra);
+          mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // nativeLibs // extra);
         in
         {
           # Default: everything for dev, tests and web (fast, no Android SDK).
