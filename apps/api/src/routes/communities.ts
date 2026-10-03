@@ -33,7 +33,7 @@ import {
   rows,
   toCommunity,
 } from "../db";
-import { requireUser } from "../middleware";
+import { requirePlaceAdmin, requireUser } from "../middleware";
 import { ForbiddenError, type LoadedPlugin, PluginError, type PluginHost, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
 
@@ -256,19 +256,19 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json({ canEdit: role === "admin", widgets }, 200);
   })
   /** Community admins set the dashboard order (keys "<pluginId>/<widget>"). */
-  .patch("/:slug/dashboard", zValidator("json", dashboardOrderSchema), async (c) => {
-    const member = await memberOf(c, c.req.param("slug"));
-    if (!member) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(member.row);
-    if (member.role !== "admin") {
-      return c.json({ error: "forbidden" }, 403);
-    }
-    const { order } = c.req.valid("json");
-    await c.var.db.query(
-      surql`UPSERT ${ref("dashboard", community.id)} SET order = ${order}, updated_at = time::now();`,
-    );
-    return c.json({ order }, 200);
-  })
+  .patch(
+    "/:slug/dashboard",
+    requirePlaceAdmin("only admins arrange the dashboard"),
+    zValidator("json", dashboardOrderSchema),
+    async (c) => {
+      const community = toCommunity(c.var.place);
+      const { order } = c.req.valid("json");
+      await c.var.db.query(
+        surql`UPSERT ${ref("dashboard", community.id)} SET order = ${order}, updated_at = time::now();`,
+      );
+      return c.json({ order }, 200);
+    },
+  )
   .get("/:slug/plugins/:pluginId/views/:view", zValidator("query", viewParamsSchema), async (c) => {
     const target = await resolve(c, c.req.param("slug"), c.req.param("pluginId"));
     if (!target) return c.json({ error: "not_found" }, 404);

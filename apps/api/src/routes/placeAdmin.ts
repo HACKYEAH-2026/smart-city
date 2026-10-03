@@ -6,11 +6,11 @@ import {
   pluginSwitchSchema,
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { type CommunityRow, communityBySlug, first, geoPoint, keyOf, memberRole, ref, rows, toCommunity } from "../db";
-import { requireUser } from "../middleware";
+import { first, geoPoint, keyOf, ref, rows, toCommunity } from "../db";
+import { requirePlaceAdmin, requireUser } from "../middleware";
 
 /**
  * Managing a place, for its admins (the app's "Zarządzaj miejscem"): its settings, members, built-in plugins on and
@@ -18,26 +18,22 @@ import { requireUser } from "../middleware";
  * every route of a place, a member who is not an admin 403. (Invitations: routes/invitations.ts; the dashboard
  * order: PATCH /:slug/dashboard in routes/communities.ts.)
  */
+const admin = requirePlaceAdmin("only admins manage a place");
+
 export const placeAdminRoutes = new Hono<AppEnv>()
-  .patch("/:slug", requireUser, zValidator("json", placeUpdateSchema), async (c) => {
-    const place = await adminPlace(c);
-    if (place === "not_found") return c.json({ error: "not_found" }, 404);
-    if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
+  .patch("/:slug", requireUser, admin, zValidator("json", placeUpdateSchema), async (c) => {
+    const { place } = c.var;
     await first(c.var.db, surql`UPDATE ${place.id} MERGE ${toColumns(c.req.valid("json"))};`);
     return c.json({ ok: true }, 200);
   })
   /** Deletes the place: memberships, invitations, plugin installations (with their data) and inbox entries cascade. */
-  .delete("/:slug", requireUser, async (c) => {
-    const place = await adminPlace(c);
-    if (place === "not_found") return c.json({ error: "not_found" }, 404);
-    if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
+  .delete("/:slug", requireUser, admin, async (c) => {
+    const { place } = c.var;
     await c.var.db.query(surql`DELETE ${ref("dashboard", keyOf(place.id))}; DELETE ${place.id};`);
     return c.json({ ok: true }, 200);
   })
-  .get("/:slug/members", requireUser, async (c) => {
-    const place = await adminPlace(c);
-    if (place === "not_found") return c.json({ error: "not_found" }, 404);
-    if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
+  .get("/:slug/members", requireUser, admin, async (c) => {
+    const { place } = c.var;
     const found = await rows<{ id: RecordId; name: string | null; email: string; role: PlaceMember["role"] }>(
       c.var.db,
       surql`SELECT user.id AS id, user.name AS name, user.email AS email, role
@@ -55,10 +51,8 @@ export const placeAdminRoutes = new Hono<AppEnv>()
    * The plugins an admin can switch in this place, with whether each is on: the built-in ones (as in GET /api/plugins),
    * then the ones the AI wrote for this place and its admins published (routes/drafts.ts).
    */
-  .get("/:slug/plugins", requireUser, async (c) => {
-    const place = await adminPlace(c);
-    if (place === "not_found") return c.json({ error: "not_found" }, 404);
-    if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
+  .get("/:slug/plugins", requireUser, admin, async (c) => {
+    const { place } = c.var;
     const enabled = new Set(
       (
         await rows<{ plugin: string }>(
@@ -85,10 +79,8 @@ export const placeAdminRoutes = new Hono<AppEnv>()
    * Switches a plugin of the list above on (its data from before comes back) or off (the data stays, hidden). Another
    * place's AI plugin is not found here.
    */
-  .put("/:slug/plugins/:pluginId", requireUser, zValidator("json", pluginSwitchSchema), async (c) => {
-    const place = await adminPlace(c);
-    if (place === "not_found") return c.json({ error: "not_found" }, 404);
-    if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
+  .put("/:slug/plugins/:pluginId", requireUser, admin, zValidator("json", pluginSwitchSchema), async (c) => {
+    const { place } = c.var;
     const plugin = c.var.plugins.get(c.req.param("pluginId"));
     const own =
       plugin?.origin === "builtin" || (await c.var.drafts.publishedPluginIds(place)).has(plugin?.manifest.id ?? "");
@@ -105,14 +97,6 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     }
     return c.json({ ok: true }, 200);
   });
-
-/** The place if the signed-in user is its admin; "not_found" for a non-member (or no such place), else "forbidden". */
-export async function adminPlace(c: Context<AppEnv>): Promise<CommunityRow | "not_found" | "forbidden"> {
-  const place = await communityBySlug(c.var.db, c.req.param("slug") ?? "");
-  const role = place ? await memberRole(c.var.db, keyOf(place.id), c.var.user.id) : null;
-  if (!place || !role) return "not_found";
-  return role === "admin" ? place : "forbidden";
-}
 
 /** The settings as database columns, leaving out the ones not sent. */
 /** The given settings as columns. No pin (null) clears the location: undefined in a MERGE is stored as NONE. */
