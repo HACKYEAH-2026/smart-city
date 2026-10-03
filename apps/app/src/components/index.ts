@@ -44,6 +44,8 @@ export { RadioCard } from "./RadioCard";
 export { ScannerFrame } from "./ScannerFrame";
 export { Screen } from "./Screen";
 export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentedProgressProps } from "./SegmentedProgress";
+export { SegmentedProgress } from "./SegmentedProgress";
 export type { SelectableCardProps } from "./SelectableCard";
 export { SelectableCard } from "./SelectableCard";
 export type { StatusPillProps } from "./StatusPill";
