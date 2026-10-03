@@ -94,7 +94,7 @@ export const useCommunities = () =>
   `google.web.ts`, none): the native account picker (`@react-native-google-signin/google-signin`) returns an ID token
   issued to the web client ID, `authClient.signIn.social({ idToken })` turns it into our bearer session, and the first
   sign-in creates the account. The client IDs come from the API (`GET /api/auth-providers`, from `GOOGLE_CLIENT_ID`
-  and `GOOGLE_IOS_CLIENT_ID` in its env; locally `apps/api/.env`, read by `just dev`). Expo Go does not ship the
+  and `GOOGLE_IOS_CLIENT_ID` in its env; locally the repo-root `.env`, read by `just dev`; see `.env.example`). Expo Go does not ship the
   native module, so the button is hidden there: use the dev build (`android:debug`). Google Cloud project, three
   OAuth clients: "Web application" (its ID is `GOOGLE_CLIENT_ID`; no secret, origins or redirect URIs needed),
   "Android" (package `pl.twojemiejsce.app` + SHA-1 of the signing key; dev builds use the `debug.keystore` that

@@ -20,7 +20,7 @@ import {
   type ViewParams,
 } from "@app/plugin-sdk";
 import { DbError } from "@app/plugin-sdk/engine";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import { z } from "zod";
 import { first, keyOf, ref, rows, toDate, visitRef } from "../db";
 import { planPluginTables, syncPluginTables } from "../services/db/service";
@@ -72,7 +72,10 @@ export class PluginHost {
   ready(): Promise<void> {
     this.stored ??= (async () => {
       for (const plugin of this.plugins.values()) await syncPluginTables(this.db, plugin);
-      const stored = await rows<{ id: RecordId; source: string }>(this.db, "SELECT id, source FROM plugin_source;");
+      const stored = await rows<{ id: RecordId; source: string }>(
+        this.db,
+        surql`SELECT id, source FROM plugin_source;`,
+      );
       for (const row of stored) {
         try {
           const loaded = await this.compile(row.source);
@@ -111,11 +114,9 @@ export class PluginHost {
     const loaded = await this.validate(source);
     const { id, version } = loaded.manifest;
     await syncPluginTables(this.db, loaded).catch(failAs("schema"));
-    await this.db.query("UPSERT $r SET version = $version, source = $source, updated_at = time::now();", {
-      r: ref("source", id),
-      version,
-      source,
-    });
+    await this.db.query(
+      surql`UPSERT ${ref("source", id)} SET version = ${version}, source = ${source}, updated_at = time::now();`,
+    );
     this.plugins.set(id, { ...loaded, origin: "uploaded" });
     return loaded.manifest;
   }
@@ -133,12 +134,11 @@ export class PluginHost {
    */
   async enable(plugin: LoadedPlugin, community: PluginCommunity): Promise<void> {
     await this.ready();
-    const vars = { c: ref("community", community.id), plugin: plugin.manifest.id };
+    const [c, id] = [ref("community", community.id), plugin.manifest.id];
     const [created] = await rows<{ id: RecordId }>(
       this.db,
-      `UPDATE plugin_installation SET enabled = true WHERE community = $c AND plugin = $plugin;
-       INSERT IGNORE INTO plugin_installation { community: $c, plugin: $plugin } RETURN id;`,
-      vars,
+      surql`UPDATE plugin_installation SET enabled = true WHERE community = ${c} AND plugin = ${id};
+            INSERT IGNORE INTO plugin_installation { community: ${c}, plugin: ${id} } RETURN id;`,
     );
     const onInstall = plugin.definition.onInstall;
     if (!created || !onInstall) return;
@@ -180,20 +180,20 @@ export class PluginHost {
 
   /** When the user last opened a view of this installation (ctx.lastVisit), or null. */
   async lastVisit(installationId: string, userId: string): Promise<Date | null> {
-    const row = await first<{ at: Date | { toDate(): Date } }>(this.db, "SELECT at FROM $v;", {
-      v: visitRef(installationId, userId),
-    });
+    const row = await first<{ at: Date | { toDate(): Date } }>(
+      this.db,
+      surql`SELECT at FROM ${visitRef(installationId, userId)};`,
+    );
     return row ? toDate(row.at) : null;
   }
 
   /** Best effort: a failed write (e.g. a conflict between parallel views) only logs; the view still renders. */
   async recordVisit(installationId: string, userId: string): Promise<void> {
     await this.db
-      .query("UPSERT $v SET installation = $i, user = $u, at = time::now();", {
-        v: visitRef(installationId, userId),
-        i: ref("installation", installationId),
-        u: ref("user", userId),
-      })
+      .query(
+        surql`UPSERT ${visitRef(installationId, userId)}
+              SET installation = ${ref("installation", installationId)}, user = ${ref("user", userId)}, at = time::now();`,
+      )
       .catch((err: unknown) => console.error(`visit ${installationId}/${userId} not recorded`, err));
   }
 

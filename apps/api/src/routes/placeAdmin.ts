@@ -7,7 +7,7 @@ import {
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import { type CommunityRow, communityBySlug, first, keyOf, memberRole, ref, rows, toCommunity } from "../db";
 import { requireUser } from "../middleware";
@@ -23,7 +23,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     const place = await adminPlace(c);
     if (place === "not_found") return c.json({ error: "not_found" }, 404);
     if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
-    await first(c.var.db, "UPDATE $c MERGE $columns;", { c: place.id, columns: toColumns(c.req.valid("json")) });
+    await first(c.var.db, surql`UPDATE ${place.id} MERGE ${toColumns(c.req.valid("json"))};`);
     return c.json({ ok: true }, 200);
   })
   /** Deletes the place: memberships, invitations, plugin installations (with their data) and inbox entries cascade. */
@@ -31,7 +31,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     const place = await adminPlace(c);
     if (place === "not_found") return c.json({ error: "not_found" }, 404);
     if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
-    await c.var.db.query("DELETE $d; DELETE $c;", { d: ref("dashboard", keyOf(place.id)), c: place.id });
+    await c.var.db.query(surql`DELETE ${ref("dashboard", keyOf(place.id))}; DELETE ${place.id};`);
     return c.json({ ok: true }, 200);
   })
   .get("/:slug/members", requireUser, async (c) => {
@@ -40,9 +40,8 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     if (place === "forbidden") return c.json({ error: "forbidden", message: "only admins manage a place" }, 403);
     const found = await rows<{ id: RecordId; name: string | null; email: string; role: PlaceMember["role"] }>(
       c.var.db,
-      `SELECT user.id AS id, user.name AS name, user.email AS email, role
-         FROM membership WHERE community = $c ORDER BY role, name, email;`,
-      { c: place.id },
+      surql`SELECT user.id AS id, user.name AS name, user.email AS email, role
+         FROM membership WHERE community = ${place.id} ORDER BY role, name, email;`,
     );
     const members: PlaceMember[] = found.map((m) => ({
       id: keyOf(m.id),
@@ -61,8 +60,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
       (
         await rows<{ plugin: string }>(
           c.var.db,
-          "SELECT plugin FROM plugin_installation WHERE community = $c AND enabled;",
-          { c: place.id },
+          surql`SELECT plugin FROM plugin_installation WHERE community = ${place.id} AND enabled;`,
         )
       ).map((installation) => installation.plugin),
     );
@@ -89,10 +87,11 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     }
     if (c.req.valid("json").enabled) await c.var.plugins.enable(plugin, toCommunity(place));
     else {
-      await first(c.var.db, "UPDATE plugin_installation SET enabled = false WHERE community = $c AND plugin = $p;", {
-        c: place.id,
-        p: plugin.manifest.id,
-      });
+      await first(
+        c.var.db,
+        surql`UPDATE plugin_installation SET enabled = false
+              WHERE community = ${place.id} AND plugin = ${plugin.manifest.id};`,
+      );
     }
     return c.json({ ok: true }, 200);
   });

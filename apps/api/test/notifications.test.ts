@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { NotificationInbox, Place } from "@app/shared";
-import { RecordId } from "surrealdb";
+import { RecordId, surql } from "surrealdb";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_COMMUNITY } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
@@ -193,7 +193,7 @@ describe("near: saved places and the current location", () => {
     expect((await addPlace(reporter, { label: "Dom", ...SIGHTING })).status).toBe(201);
     expect((await shareLocation(walking, NEXT_BLOCK)).status).toBe(204);
     expect((await shareLocation(stale, NEXT_BLOCK)).status).toBe(204);
-    await t.db.query("UPDATE $l SET at = time::now() - 2h;", { l: new RecordId("user_location", stale.id) });
+    await t.db.query(surql`UPDATE ${new RecordId("user_location", stale.id)} SET at = time::now() - 2h;`);
 
     const res = await send(reporter, { to: { near: { ...SIGHTING, radius: 500 } }, title: "Uwaga, dzik!" });
     expect(res.status).toBe(200);

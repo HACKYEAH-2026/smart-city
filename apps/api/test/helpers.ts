@@ -1,4 +1,5 @@
 import { testEngine } from "@app/plugin-sdk/testing";
+import { surql } from "surrealdb";
 import { createApp } from "../src/app";
 import { communityBySlug, type DbHandle, first, keyOf, membershipRef, migrate, ref } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
@@ -68,11 +69,11 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
   const join = async (user: TestUser, slug: string = DEMO_COMMUNITY.slug) => {
     const community = await communityBySlug(handle.db, slug);
     if (!community) throw new Error(`join: no place ${slug}`);
-    await first(handle.db, "UPSERT $m MERGE { community: $c, user: $u };", {
-      m: membershipRef(keyOf(community.id), user.id),
-      c: ref("community", keyOf(community.id)),
-      u: ref("user", user.id),
-    });
+    await first(
+      handle.db,
+      surql`UPSERT ${membershipRef(keyOf(community.id), user.id)}
+            MERGE { community: ${community.id}, user: ${ref("user", user.id)} };`,
+    );
   };
 
   /** Data factory: registers a user via the real Better Auth endpoint; member of the demo place unless `place: null`. */

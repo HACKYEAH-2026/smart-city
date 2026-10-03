@@ -1,6 +1,6 @@
 import { afterEach } from "bun:test";
 import { createNodeEngines } from "@surrealdb/node";
-import { RecordId, Surreal, type SurrealSession } from "surrealdb";
+import { RecordId, Surreal, type SurrealSession, surql } from "surrealdb";
 import type { z } from "zod";
 import { deniedService } from "./denied";
 import { createDatabase } from "./engine/client";
@@ -84,7 +84,7 @@ export async function testDatabase(): Promise<SurrealSession> {
 async function platform(): Promise<SurrealSession> {
   const surreal = await testDatabase();
   await surreal.query(PLATFORM_SCHEMA);
-  await surreal.query("CREATE $i;", { i: new RecordId(HOST.installation, INSTALLATION) });
+  await surreal.query(surql`CREATE ${new RecordId(HOST.installation, INSTALLATION)};`);
   return surreal;
 }
 
@@ -130,7 +130,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
 
   const ensureUser = async (user: PluginUser) => {
     if (user.id === SYSTEM.id) return;
-    await surreal.query("UPSERT $u SET name = $name;", { u: new RecordId(HOST.user, user.id), name: user.name });
+    await surreal.query(surql`UPSERT ${new RecordId(HOST.user, user.id)} SET name = ${user.name};`);
   };
   const dbFor = (user: PluginUser): Database =>
     createDatabase({
@@ -142,9 +142,10 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       now,
     });
   const fileRow = async (id: string) => {
-    const [rows] = await surreal.query<[{ mime: string; size: number; status: string }[]]>(
-      "SELECT mime, size, status FROM $f;",
-      { f: new RecordId(HOST.file, id) },
+    const [rows] = await surreal.query(
+      surql<
+        [{ mime: string; size: number; status: string }[]]
+      >`SELECT mime, size, status FROM ${new RecordId(HOST.file, id)};`,
     );
     return rows[0];
   };
@@ -155,22 +156,20 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       return { mime: row.mime, size: row.size };
     },
     async remove(id) {
-      await surreal.query("DELETE $f;", { f: new RecordId(HOST.file, id) });
+      await surreal.query(surql`DELETE ${new RecordId(HOST.file, id)};`);
     },
   };
   /** A pending upload by `user`, like POST …/files in the app. */
   const fakeFile = async (user: PluginUser, mime = "image/jpeg"): Promise<FileId> => {
     await ensureUser(user);
     const id = `file_${crypto.randomUUID()}` as FileId;
-    await surreal.query("CREATE $f CONTENT $data;", {
-      f: new RecordId(HOST.file, id),
-      data: {
-        installation: new RecordId(HOST.installation, INSTALLATION),
-        uploaded_by: new RecordId(HOST.user, user.id),
-        mime,
-        size: 1024,
-      },
-    });
+    const data = {
+      installation: new RecordId(HOST.installation, INSTALLATION),
+      uploaded_by: new RecordId(HOST.user, user.id),
+      mime,
+      size: 1024,
+    };
+    await surreal.query(surql`CREATE ${new RecordId(HOST.file, id)} CONTENT ${data};`);
     return id;
   };
   const can = (permission: Permission) => manifest.permissions.includes(permission);
@@ -251,7 +250,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     db: dbFor(SYSTEM),
     /** Deletes a platform user (e.g. to check reference cascades). */
     deleteUser: async (id: string) => {
-      await surreal.query("DELETE $u;", { u: new RecordId(HOST.user, id) });
+      await surreal.query(surql`DELETE ${new RecordId(HOST.user, id)};`);
     },
     files: {
       fake: (mime?: string) => fakeFile(main, mime),

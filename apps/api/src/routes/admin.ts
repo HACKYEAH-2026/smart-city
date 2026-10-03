@@ -4,7 +4,7 @@ import { adminGrantSchema, communityCreateSchema, pluginInstallSchema, pluginUpl
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import { type CommunityRow, communityBySlug, first, keyOf, membershipRef, ref, toCommunity } from "../db";
 
@@ -48,9 +48,10 @@ export function createAdminRoutes(token: string | undefined) {
         return c.json(await c.var.plugins.check(c.req.valid("json").source));
       })
       .post("/communities", zValidator("json", communityCreateSchema), async (c) => {
-        const row = await first<CommunityRow>(c.var.db, "INSERT IGNORE INTO community $data RETURN id, slug, name;", {
-          data: c.req.valid("json"),
-        });
+        const row = await first<CommunityRow>(
+          c.var.db,
+          surql`INSERT IGNORE INTO community ${c.req.valid("json")} RETURN id, slug, name;`,
+        );
         if (!row) return c.json({ error: "slug_taken" }, 409);
         return c.json(toCommunity(row), 201);
       })
@@ -67,16 +68,16 @@ export function createAdminRoutes(token: string | undefined) {
       .post("/communities/:slug/admins", zValidator("json", adminGrantSchema), async (c) => {
         const community = await communityBySlug(c.var.db, c.req.param("slug"));
         if (!community) return c.json({ error: "not_found" }, 404);
-        const account = await first<{ id: RecordId }>(c.var.db, "SELECT id FROM user WHERE email = $email;", {
-          email: c.req.valid("json").email,
-        });
+        const account = await first<{ id: RecordId }>(
+          c.var.db,
+          surql`SELECT id FROM user WHERE email = ${c.req.valid("json").email};`,
+        );
         if (!account) return c.json({ error: "unknown_user" }, 400);
         const [communityId, userId] = [keyOf(community.id), keyOf(account.id)];
-        await c.var.db.query('UPSERT $m MERGE { community: $c, user: $u, role: "admin" };', {
-          m: membershipRef(communityId, userId),
-          c: ref("community", communityId),
-          u: ref("user", userId),
-        });
+        await c.var.db.query(
+          surql`UPSERT ${membershipRef(communityId, userId)}
+                MERGE { community: ${ref("community", communityId)}, user: ${ref("user", userId)}, role: "admin" };`,
+        );
         return c.json({ ok: true }, 201);
       })
   );

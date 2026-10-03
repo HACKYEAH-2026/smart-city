@@ -9,7 +9,7 @@ import {
   parseNotification,
 } from "@app/plugin-sdk";
 import { LOCATION_FRESH_MINUTES, NOTIFICATIONS_PAGE, type NotificationInbox } from "@app/shared";
-import { GeometryPoint, type RecordId } from "surrealdb";
+import { type BoundQuery, Duration, GeometryPoint, type RecordId, surql } from "surrealdb";
 import { type Db, keyOf, ref, rows, toDate } from "../../db";
 import type { PushMessage, PushSender } from "../push/types";
 
@@ -28,23 +28,24 @@ type NotificationRow = {
 /** A point for SurrealDB (GeoJSON order: longitude, latitude). */
 export const geoPoint = ({ lat, lng }: GeoPoint) => new GeometryPoint([lng, lat]);
 
+/** Location updates older than this do not count as "the user is here". */
+const LOCATION_FRESH = new Duration(`${LOCATION_FRESH_MINUTES}m`);
+
 /**
- * Members of the community who match the audience, as a SurrealQL condition on `membership` (vars below).
+ * Members of the community who match the audience, as a SurrealQL condition on `membership`.
  * `near` = a saved place or a fresh shared position within the radius; geo::distance is in metres.
  */
-function audienceFilter(to: NotificationAudience): { where: string; vars: Record<string, unknown> } {
-  if ("users" in to) return { where: "user IN $users", vars: { users: to.users.map((id) => ref("user", id)) } };
+function audienceFilter(to: NotificationAudience): BoundQuery {
+  if ("users" in to) return surql`user IN ${to.users.map((id) => ref("user", id))}`;
   if ("near" in to) {
-    return {
-      where: `user IN array::union(
-        (SELECT VALUE user FROM place WHERE geo::distance(point, $point) <= $radius),
-        (SELECT VALUE user FROM user_location
-           WHERE at > time::now() - ${LOCATION_FRESH_MINUTES}m AND geo::distance(point, $point) <= $radius)
-      )`,
-      vars: { point: geoPoint(to.near), radius: to.near.radius },
-    };
+    const [point, radius] = [geoPoint(to.near), to.near.radius];
+    return surql`user IN array::union(
+      (SELECT VALUE user FROM place WHERE geo::distance(point, ${point}) <= ${radius}),
+      (SELECT VALUE user FROM user_location
+         WHERE at > time::now() - ${LOCATION_FRESH} AND geo::distance(point, ${point}) <= ${radius})
+    )`;
   }
-  return { where: "true", vars: {} };
+  return surql`true`;
 }
 
 type Sender = { pluginId: string; installationId: string; community: PluginCommunity; from: string | null };
@@ -109,31 +110,22 @@ export class NotificationService {
   }
 
   private store(sender: Sender, n: Notification): Promise<Delivered[]> {
-    const audience = audienceFilter(n.to);
+    const installation = ref("installation", sender.installationId);
+    const community = ref("community", sender.community.id);
+    const from = sender.from ? ref("user", sender.from) : null;
     return rows<Delivered>(
       this.db,
-      `INSERT INTO notification (
-         SELECT user, community, $installation AS installation, $plugin AS plugin, $title AS title, $body AS body,
-                $tone AS tone, $open AS open
-         FROM membership WHERE community = $community AND user != $from AND ${audience.where}
+      surql`INSERT INTO notification (
+         SELECT user, community, ${installation} AS installation, ${sender.pluginId} AS plugin, ${n.title} AS title,
+                ${n.body} AS body, ${n.tone} AS tone, ${n.open} AS open
+         FROM membership WHERE community = ${community} AND user != ${from} AND ${audienceFilter(n.to)}
        ) RETURN id, user;`,
-      {
-        ...audience.vars,
-        community: ref("community", sender.community.id),
-        installation: ref("installation", sender.installationId),
-        plugin: sender.pluginId,
-        from: sender.from ? ref("user", sender.from) : null,
-        title: n.title,
-        body: n.body,
-        tone: n.tone,
-        open: n.open,
-      },
     );
   }
 
   private devicesOf(users: RecordId[]): Promise<Device[]> {
     if (!users.length) return Promise.resolve([]);
-    return rows<Device>(this.db, "SELECT id AS token, user FROM push_token WHERE user IN $users;", { users });
+    return rows<Device>(this.db, surql`SELECT id AS token, user FROM push_token WHERE user IN ${users};`);
   }
 
   private deliver(messages: PushMessage[]): void {
@@ -149,7 +141,7 @@ export class NotificationService {
   /** Devices the push service reports as gone (app uninstalled). */
   private async forget(tokens: string[]): Promise<void> {
     if (!tokens.length) return;
-    await this.db.query("DELETE $tokens RETURN NONE;", { tokens: tokens.map((t) => ref("pushToken", t)) });
+    await this.db.query(surql`DELETE ${tokens.map((t) => ref("pushToken", t))} RETURN NONE;`);
   }
 
   /** The newest notifications of the user (enabled plugins only) and the unread count. */
@@ -157,11 +149,10 @@ export class NotificationService {
     const [items, unread] = await Promise.all([
       rows<NotificationRow>(
         this.db,
-        `SELECT id, community.{ slug, name } AS community, plugin, title, body, tone, open, created_at,
+        surql`SELECT id, community.{ slug, name } AS community, plugin, title, body, tone, open, created_at,
                 read_at IS NOT NONE AS read
-           FROM notification WHERE user = $user AND installation.enabled
-           ORDER BY created_at DESC LIMIT $limit;`,
-        { user: ref("user", userId), limit: NOTIFICATIONS_PAGE },
+           FROM notification WHERE user = ${ref("user", userId)} AND installation.enabled
+           ORDER BY created_at DESC LIMIT ${NOTIFICATIONS_PAGE};`,
       ),
       this.unread(userId),
     ]);
@@ -170,10 +161,9 @@ export class NotificationService {
 
   /** Marks the user's notifications as read (the given ids, or all); others' ids are ignored. Returns unread. */
   async markRead(userId: string, ids?: string[]): Promise<number> {
-    const only = ids ? "AND id IN $ids" : "";
+    const only = ids ? surql`AND id IN ${ids.map((id) => ref("notification", id))}` : surql``;
     await this.db.query(
-      `UPDATE notification SET read_at = time::now() WHERE user = $user AND read_at IS NONE ${only} RETURN NONE;`,
-      { user: ref("user", userId), ids: ids?.map((id) => ref("notification", id)) },
+      surql`UPDATE notification SET read_at = time::now() WHERE user = ${ref("user", userId)} AND read_at IS NONE ${only} RETURN NONE;`,
     );
     return this.unread(userId);
   }
@@ -181,9 +171,8 @@ export class NotificationService {
   private async unread(userId: string): Promise<number> {
     const [row] = await rows<{ count: number }>(
       this.db,
-      `SELECT count() FROM notification
-         WHERE user = $user AND read_at IS NONE AND installation.enabled GROUP ALL;`,
-      { user: ref("user", userId) },
+      surql`SELECT count() FROM notification
+         WHERE user = ${ref("user", userId)} AND read_at IS NONE AND installation.enabled GROUP ALL;`,
     );
     return row?.count ?? 0;
   }

@@ -72,6 +72,10 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
   Only additive changes; plugin tables come from the plugins' `tables` (engine in `packages/sdk/src/engine`).
 - Database client: only `createDb()` from `apps/api/src/db`. Application code receives `Db` (SurrealDB client)
   and queries with the helpers in `apps/api/src/db/query.ts` (`rows`, `first`, `ref`, `keyOf`).
+- SurrealQL only through the `surql` tag (`import { surql } from "surrealdb"`), never as a plain string:
+  `rows<T>(db, surql\`SELECT … WHERE user = ${ref("user", id)};\`)`. Values always go through `${}` (bound, never
+  spliced). A dynamic table in the API is `${new Table(name)}`; only the plugin engine splices identifiers, via
+  `ident()` and `joinQueries()` from `packages/sdk/src/engine/schema.ts`.
 - App configuration: only `apps/app/app.config.ts`. `android/` and `ios/` are GENERATED (`expo prebuild`) —
   do not edit or commit them. A native change = a config plugin or a field in `app.config.ts`.
 - Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import type { Auth } from "./auth";
 import {
   communityBySlug,
@@ -28,16 +28,15 @@ export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password", na
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
 
 const userIdByEmail = async (db: Db, email: string) =>
-  (await first<{ id: RecordId }>(db, "SELECT id FROM user WHERE email = $email;", { email }))?.id;
+  (await first<{ id: RecordId }>(db, surql`SELECT id FROM user WHERE email = ${email};`))?.id;
 
 /**
  * Dev/E2E seed data (idempotent): a demo community with built-in plugins (with onInstall)
  * and a community admin account.
  */
 export async function seedDemo({ db, auth, plugins }: Deps) {
-  await db.query("INSERT IGNORE INTO community $data;", {
-    data: { ...DEMO_COMMUNITY, kind: "district", join_rule: "open", invite_code: DEMO_INVITE_CODE },
-  });
+  const data = { ...DEMO_COMMUNITY, kind: "district", join_rule: "open", invite_code: DEMO_INVITE_CODE };
+  await db.query(surql`INSERT IGNORE INTO community ${data};`);
   const row = await communityBySlug(db, DEMO_COMMUNITY.slug);
   if (!row) throw new Error("seed: community missing");
   const community = toCommunity(row);
@@ -46,11 +45,10 @@ export async function seedDemo({ db, auth, plugins }: Deps) {
 
   const existing = await userIdByEmail(db, DEMO_ADMIN.email);
   const adminId = existing ? keyOf(existing) : (await auth.api.signUpEmail({ body: { ...DEMO_ADMIN } })).user.id;
-  await db.query('UPSERT $m MERGE { community: $c, user: $u, role: "admin" };', {
-    m: membershipRef(community.id, adminId),
-    c: ref("community", community.id),
-    u: ref("user", adminId),
-  });
+  await db.query(
+    surql`UPSERT ${membershipRef(community.id, adminId)}
+          MERGE { community: ${ref("community", community.id)}, user: ${ref("user", adminId)}, role: "admin" };`,
+  );
 }
 
 /**
@@ -74,28 +72,29 @@ export function createTestRoutes(deps: Deps) {
       /** Invites an existing user to Kraków from its admin (the invitations screen shows it). */
       .post("/__test/invitation", async (c) => {
         const { email, slug } = await c.req.json<{ email: string; slug: string }>();
-        const invitee = await first<{ id: RecordId }>(deps.db, "SELECT id FROM user WHERE email = $e;", { e: email });
+        const invitee = await first<{ id: RecordId }>(deps.db, surql`SELECT id FROM user WHERE email = ${email};`);
         const community = await communityBySlug(deps.db, slug);
         const admin = await userIdByEmail(deps.db, DEMO_ADMIN.email);
         if (!invitee || !community || !admin) return c.json({ error: "not_found" }, 404);
-        await first(deps.db, "CREATE invitation CONTENT { community: $c, user: $u, invited_by: $i };", {
-          c: ref("community", keyOf(community.id)),
-          u: ref("user", keyOf(invitee.id)),
-          i: ref("user", keyOf(admin)),
-        });
+        await first(
+          deps.db,
+          surql`CREATE invitation CONTENT {
+                  community: ${community.id}, user: ${invitee.id}, invited_by: ${admin}
+                };`,
+        );
         return c.json({ ok: true });
       })
       /** Adds an existing user to a place as a plain member (joining is a separate screen, not in the API yet). */
       .post("/__test/membership", async (c) => {
         const { email, slug } = await c.req.json<{ email: string; slug: string }>();
-        const user = await first<{ id: RecordId }>(deps.db, "SELECT id FROM user WHERE email = $e;", { e: email });
+        const user = await first<{ id: RecordId }>(deps.db, surql`SELECT id FROM user WHERE email = ${email};`);
         const community = await communityBySlug(deps.db, slug);
         if (!user || !community) return c.json({ error: "not_found" }, 404);
-        await first(deps.db, "UPSERT $m MERGE { community: $c, user: $u };", {
-          m: membershipRef(keyOf(community.id), keyOf(user.id)),
-          c: ref("community", keyOf(community.id)),
-          u: ref("user", keyOf(user.id)),
-        });
+        await first(
+          deps.db,
+          surql`UPSERT ${membershipRef(keyOf(community.id), keyOf(user.id))}
+                MERGE { community: ${community.id}, user: ${user.id} };`,
+        );
         return c.json({ ok: true });
       })
   );
