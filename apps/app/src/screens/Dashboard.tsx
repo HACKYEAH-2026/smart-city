@@ -1,10 +1,22 @@
 import type { MyPlace } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronDown, LayoutDashboard, LogIn, Plus } from "lucide-react-native";
+import { ChevronDown, LayoutDashboard, LogIn, Plus, Settings } from "lucide-react-native";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { BottomSheet, Button, Card, DashboardMap, Heading, Icon, Link, PlaceRow, Screen, Text } from "../components";
+import {
+  BottomSheet,
+  Button,
+  Card,
+  DashboardMap,
+  Heading,
+  Icon,
+  IconButton,
+  Link,
+  PlaceRow,
+  Screen,
+  Text,
+} from "../components";
 import { useCommunities, useCommunityNav, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { useSession } from "../data/session";
 import { tapFeedback } from "../lib/haptics";
@@ -101,7 +113,12 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
       <Head>
         <title>{place.name}</title>
       </Head>
-      <Greeting />
+      <View style={styles.top}>
+        <Greeting />
+        {place.role === "admin" ? (
+          <IconButton icon={Settings} label={t.manage_title} variant="round" href={`/app/c/${place.slug}/manage`} />
+        ) : null}
+      </View>
 
       <View style={styles.place}>
         <Text variant="label" color="textSecondary">
@@ -179,6 +196,7 @@ function EmptyDashboard() {
 }
 
 const styles = StyleSheet.create({
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[6] },
   place: { gap: spacing[2] },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   chevron: {

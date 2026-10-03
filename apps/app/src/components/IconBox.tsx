@@ -9,13 +9,15 @@ export interface IconBoxProps {
   size?: number;
   /** Selected variant: `primary` background, white icon (e.g. the chosen kind of place). */
   selected?: boolean;
+  /** Neutral variant: `surfaceSunken` background, `text` icon (e.g. a closed section of "Zarządzaj miejscem"). */
+  neutral?: boolean;
 }
 
 /** Rounded square with an accent icon (COMPONENTS.md → IconBox): `primaryTint` background, `primary` icon. */
-export function IconBox({ icon, size = sizes.iconBox, selected = false }: IconBoxProps) {
+export function IconBox({ icon, size = sizes.iconBox, selected = false, neutral = false }: IconBoxProps) {
   return (
-    <View style={[styles.box, { width: size, height: size }, selected && styles.selected]}>
-      <Icon icon={icon} color={selected ? "onPrimary" : "primary"} />
+    <View style={[styles.box, { width: size, height: size }, neutral && styles.neutral, selected && styles.selected]}>
+      <Icon icon={icon} color={selected ? "onPrimary" : neutral ? "text" : "primary"} />
     </View>
   );
 }
@@ -27,5 +29,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  neutral: { backgroundColor: colors.surfaceSunken },
   selected: { backgroundColor: colors.primary },
 });

@@ -18,6 +18,8 @@ export { CheckCard } from "./CheckCard";
 export type { CreateRowProps } from "./CreateRow";
 export { CreateRow } from "./CreateRow";
 export { DashboardMap } from "./DashboardMap";
+export type { DisclosureCardProps } from "./DisclosureCard";
+export { DisclosureCard } from "./DisclosureCard";
 export { GoogleLogo } from "./GoogleLogo";
 export type { HeadingProps } from "./Heading";
 export { Heading } from "./Heading";

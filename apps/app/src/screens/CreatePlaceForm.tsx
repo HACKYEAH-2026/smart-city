@@ -19,16 +19,11 @@ import {
 } from "../components";
 import { useCreatePlace, useVisitPlace } from "../data/communities";
 import { usePluginCatalog } from "../data/plugins";
+import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
 import { goBack } from "../lib/navigation";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { t } from "../texts";
 import { fontFamily, sizes, spacing } from "../theme";
-
-const JOIN_RULE_OPTIONS: { rule: JoinRule; label: string; hint: string; recommended?: boolean }[] = [
-  { rule: "open", label: t.join_rule_open, hint: t.join_rule_open_hint },
-  { rule: "approval", label: t.join_rule_approval, hint: t.join_rule_approval_hint, recommended: true },
-  { rule: "invite", label: t.join_rule_invite, hint: t.join_rule_invite_hint },
-];
 
 type WizardStep = 1 | 2 | 3 | 4;
 

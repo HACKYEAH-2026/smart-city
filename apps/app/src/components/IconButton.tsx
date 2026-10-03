@@ -1,3 +1,4 @@
+import { Link as RouterLink } from "expo-router";
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet } from "react-native";
 import { tapFeedback } from "../lib/haptics";
@@ -14,23 +15,33 @@ export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
   label: string;
-  onPress: () => void;
   variant?: IconButtonVariant;
 } & (
-  | { icon: LucideIcon; text?: undefined }
-  /** Initials instead of an icon (account avatar, `typography.buttonS`). */
-  | { text: string; icon?: undefined }
-);
+  | { onPress: () => void; href?: undefined }
+  /** A link to a route of the app instead of an action (role link), e.g. "Zarządzaj miejscem" on the dashboard. */
+  | { href: string; onPress?: undefined }
+) &
+  (
+    | { icon: LucideIcon; text?: undefined }
+    /** Initials instead of an icon (account avatar, `typography.buttonS`). */
+    | { text: string; icon?: undefined }
+  );
 
 /** 44 × 44 icon button (COMPONENTS.md → IconButton). A press gives a light haptic tick. */
-export function IconButton({ label, onPress, variant = "square", icon, text }: IconButtonProps) {
-  return (
+export function IconButton({ label, onPress, href, variant = "square", icon, text }: IconButtonProps) {
+  const button = (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={href ? "link" : "button"}
       accessibilityLabel={label}
       onPress={onPress}
       onPressIn={tapFeedback}
-      style={({ pressed }) => [styles.button, styles[variant], pressed && { opacity: opacity.pressed }]}
+      // A link gets one flat style object: expo-router's Link (asChild) drops a style function and, on the web,
+      // hands a style array to the DOM <a> as is (which throws).
+      style={
+        href
+          ? StyleSheet.flatten([styles.button, styles[variant]])
+          : ({ pressed }) => [styles.button, styles[variant], pressed && { opacity: opacity.pressed }]
+      }
     >
       {icon ? (
         <Icon
@@ -42,6 +53,13 @@ export function IconButton({ label, onPress, variant = "square", icon, text }: I
         <Text variant="buttonS">{text}</Text>
       )}
     </Pressable>
+  );
+  return href ? (
+    <RouterLink href={href as never} asChild>
+      {button}
+    </RouterLink>
+  ) : (
+    button
   );
 }
 

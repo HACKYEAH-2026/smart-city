@@ -1,11 +1,10 @@
 # Local dev in one terminal: `just dev` (or `mprocs`). Run inside `nix develop` / direnv.
-# api: SurrealDB on disk with the "Kraków" demo, :4000. Data and photos survive restarts in apps/api/.data/
-#      (gitignored); delete that folder for a fresh database.
+# api: in-memory SurrealDB with the "Kraków" demo, :4000 (restart = fresh database)
 # app: Expo dev server on localhost:8081 (w = web, a = Android: installs Expo Go if needed and opens the app)
 # usb: Android phone over USB / emulator: adb reverse of :4000 and :8081, so the phone's localhost is this machine
 procs:
   api:
-    shell: DATABASE_URL="surrealkv://$PWD/.data/db" FILES_DIR="$PWD/.data/files" bun run dev
+    shell: bun run dev
     cwd: apps/api
   app:
     shell: bun run dev

@@ -116,6 +116,9 @@ Jak SelectableCard, ale w układzie poziomym (padding 16, radius 18, gap 14): po
 ### CheckCard (funkcje nowego miejsca)
 Jak RadioCard, ale każdą opcję włącza się osobno: po lewej kwadrat 22 (radius 6, border 2 `border`; zaznaczony: tło i border `primary` + ikona `Check` `onPrimary`), potem emoji wtyczki i tytuł 16/600, pod spodem opis `caption` `textSecondary`. Zaznaczona karta: border 2 `primary` + `shadows.selected`. `accessibilityRole="checkbox"`, kontener `role="group"` z etykietą.
 
+### DisclosureCard (sekcje „Zarządzaj miejscem")
+Biała karta radius 20, `shadows.card` (otwarta: `cardRaised`). Nagłówek (cały jest przyciskiem, `aria-expanded`): padding 16, gap 14, `IconBox` 44 (zamknięta: wariant `neutral` — tło `surfaceSunken`, ikona `text`; otwarta: `selected`), tytuł `cardTitle` + podsumowanie `small` `textSecondary`, po prawej chevron 18 (otwarta: `ChevronUp` w kole 44 `surfaceSunken`). Treść pod linią 1 px `borderSubtle`, padding 16, gap 14. Otwarta jest jedna sekcja naraz.
+
 ### PlaceRow (przełącznik miejsc)
 Przycisk pełnej szerokości: padding 10/14/10/10, radius 16, gap 14, tło `surface`, border 1.5. Aktywny: border `primary` + `shadows.selected`; nieaktywny: border transparent + `shadows.card`. Zawartość: `PlaceAvatar` 44 → nazwa 16/600 (+ Badge „Domyślne") nad rodzajem `small` `textSecondary`.
 

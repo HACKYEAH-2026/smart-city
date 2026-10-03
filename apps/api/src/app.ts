@@ -12,6 +12,7 @@ import { communitiesRoutes } from "./routes/communities";
 import { filesRoutes } from "./routes/files";
 import { invitationsRoutes } from "./routes/invitations";
 import { meRoutes } from "./routes/me";
+import { placeAdminRoutes } from "./routes/placeAdmin";
 import { pluginsRoutes } from "./routes/plugins";
 import { AIService } from "./services/ai/service";
 import { StrandsLanguageModel } from "./services/ai/strands";
@@ -94,6 +95,7 @@ export function createApp({
     /** Public: which sign-in methods the login screen shows (outside /api/auth/*, which belongs to Better Auth). */
     .get("/api/auth-providers", (c) => c.json(authProviders(env), 200))
     .route("/api/communities", communitiesRoutes)
+    .route("/api/communities", placeAdminRoutes)
     .route("/api/invitations", invitationsRoutes)
     .route("/api/files", filesRoutes)
     .route("/api/me", meRoutes)

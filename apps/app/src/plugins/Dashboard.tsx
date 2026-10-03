@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { type LayoutRectangle, PanResponder, StyleSheet, View } from "react-native";
 import { Button, Icon, IconButton, Text } from "../components";
 import { useDashboard, useSaveDashboardOrder } from "../data/communities";
+import { moveTo } from "../lib/order";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { pluginHref } from "./href";
@@ -30,12 +31,6 @@ const arrange = (keys: string[], order: string[]) => {
   const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
   // Copy then sort: `toSorted` is missing in Hermes (the phone runtime), so no ES2023 array methods in the app.
   return [...keys].sort((a, b) => rank(a) - rank(b));
-};
-
-/** `keys` with `key` moved to `index`. */
-const moveTo = (keys: string[], key: string, index: number) => {
-  const rest = keys.filter((k) => k !== key);
-  return [...rest.slice(0, index), key, ...rest.slice(index)];
 };
 
 const contains = (r: LayoutRectangle, x: number, y: number) =>

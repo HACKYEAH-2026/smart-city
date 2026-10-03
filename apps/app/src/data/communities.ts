@@ -1,5 +1,5 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
-import type { JoinPlace, NewPlace } from "@app/shared";
+import type { JoinPlace, NewPlace, PlaceUpdate } from "@app/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
@@ -149,5 +149,59 @@ export function useDeclineInvitation() {
   return useMutation({
     mutationFn: (id: string) => parseResponse(invitations[":id"].$delete({ param: { id } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: invitationsKey }),
+  });
+}
+
+/** Managing a place, for its admins ("Zarządzaj miejscem"): members, plugins on and off, settings, deleting it. */
+export function usePlaceMembers(slug: string) {
+  return useQuery({
+    queryKey: [...communityKey(slug), "members"],
+    queryFn: () => parseResponse(c[":slug"].members.$get({ param: { slug } })),
+  });
+}
+
+/** The built-in plugins and whether each is on in the place. */
+export function usePlacePlugins(slug: string) {
+  return useQuery({
+    queryKey: [...communityKey(slug), "plugins"],
+    queryFn: () => parseResponse(c[":slug"].plugins.$get({ param: { slug } })),
+  });
+}
+
+/** Switches a built-in plugin on or off; the place's navigation, dashboard and views follow. */
+export function useSwitchPlugin(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }) =>
+      parseResponse(c[":slug"].plugins[":pluginId"].$put({ param: { slug, pluginId }, json: { enabled } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communityKey(slug) }),
+  });
+}
+
+/** Changes the place's settings (its name shows in every list of places, so all place data is refetched). */
+export function useUpdatePlace(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (update: PlaceUpdate) => parseResponse(c[":slug"].$patch({ param: { slug }, json: update })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}
+
+/** Deletes the place for everyone. */
+export function useDeletePlace(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => parseResponse(c[":slug"].$delete({ param: { slug } })),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: communityKey(slug) });
+      return qc.invalidateQueries({ queryKey: communitiesKey });
+    },
+  });
+}
+
+/** An admin invites a user to the place by the email of their account. */
+export function useInvite(slug: string) {
+  return useMutation({
+    mutationFn: (email: string) => parseResponse(invitations.$post({ json: { slug, email } })),
   });
 }

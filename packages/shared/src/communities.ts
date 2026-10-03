@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PluginCatalogItem } from "./plugins";
 
 /** Admin contracts: communities and plugin installation. */
 export const communitySlugSchema = z
@@ -23,18 +24,39 @@ export type JoinRule = (typeof JOIN_RULES)[number];
  * A user creates a place (the answers of the "new place" wizard). Only the name is required; the slug and the
  * invite code are made on the server, and the creator becomes the place's admin.
  */
-export const newPlaceSchema = z.object({
+/** What describes a place: the wizard (newPlaceSchema) asks for it, its admins change it (placeUpdateSchema). */
+const placeFields = {
   name: z.string().trim().min(1).max(80),
-  kind: z.enum(PLACE_KINDS).default("other"),
-  address: z.string().trim().max(200).default(""),
-  description: z.string().trim().max(500).default(""),
-  joinRule: z.enum(JOIN_RULES).default("approval"),
+  kind: z.enum(PLACE_KINDS),
+  address: z.string().trim().max(200),
+  description: z.string().trim().max(500),
+  joinRule: z.enum(JOIN_RULES),
+};
+
+export const newPlaceSchema = z.object({
+  name: placeFields.name,
+  kind: placeFields.kind.default("other"),
+  address: placeFields.address.default(""),
+  description: placeFields.description.default(""),
+  joinRule: placeFields.joinRule.default("approval"),
   /** Make it the user's default place (the first place is the default anyway). */
   makeDefault: z.boolean().default(false),
   /** Built-in plugins to enable in the place (ids from GET /api/plugins); its navigation keeps this order. */
   plugins: z.array(z.string().min(1).max(64)).max(20).default([]),
 });
 export type NewPlace = z.input<typeof newPlaceSchema>;
+
+/** A place's admin changes its settings (PATCH /api/communities/:slug): any of them; the slug stays. */
+export const placeUpdateSchema = z.object(placeFields).partial();
+export type PlaceUpdate = z.input<typeof placeUpdateSchema>;
+
+/** A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name. */
+export type PlaceMember = { id: string; name: string; email: string; role: "admin" | "user" };
+
+/** A built-in plugin and whether it is on in the place (GET /api/communities/:slug/plugins), for its admins. */
+export type PlacePlugin = PluginCatalogItem & { enabled: boolean };
+/** A place's admin switches a built-in plugin on or off (PUT /api/communities/:slug/plugins/:pluginId). */
+export const pluginSwitchSchema = z.object({ enabled: z.boolean() });
 
 /** Invite code: 6 characters without look-alikes (no 0/O, 1/I); stored bare, shown as "ABC-DEF". */
 export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
