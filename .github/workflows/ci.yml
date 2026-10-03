@@ -1,4 +1,4 @@
-# CI szablonu. Bez sekretów MUSI być zielone: joby zależne od sekretów są pomijane,
+# CI. Bez sekretów MUSI być zielone: joby zależne od sekretów są pomijane,
 # a job "secrets" wypisuje czytelną informację, czego brakuje.
 name: ci
 
@@ -18,24 +18,17 @@ concurrency:
 
 env:
   CI: "true"
-  WRANGLER_SEND_METRICS: "false"
 
 jobs:
   secrets:
     name: sekrety (co jest skonfigurowane)
     runs-on: ubuntu-latest
     outputs:
-      tofu: ${{ steps.s.outputs.tofu }}
-      staging: ${{ steps.s.outputs.staging }}
-      prod: ${{ steps.s.outputs.prod }}
       android_signing: ${{ steps.s.outputs.android_signing }}
       ios_signing: ${{ steps.s.outputs.ios_signing }}
     steps:
       - id: s
         env:
-          TOFU: ${{ secrets.TOFU_STATE_PASSPHRASE != '' && secrets.TOFU_STATE_BUCKET != '' && secrets.R2_STATE_ACCESS_KEY_ID != '' && secrets.R2_STATE_SECRET_ACCESS_KEY != '' && secrets.HCLOUD_TOKEN != '' && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.CLOUDFLARE_ZONE_ID != '' }}
-          STAGING: ${{ secrets.STAGING_SSH_HOST != '' && secrets.STAGING_SSH_KEY != '' && secrets.STAGING_ENV_FILE != '' && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.STAGING_API_URL != '' && vars.STAGING_WEB_DOMAIN != '' }}
-          PROD: ${{ secrets.PROD_SSH_HOST != '' && secrets.PROD_SSH_KEY != '' && secrets.PROD_ENV_FILE != '' && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.PROD_API_URL != '' && vars.PROD_WEB_DOMAIN != '' }}
           ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' }}
           IOS_SIGNING: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 != '' && secrets.IOS_CERTIFICATE_PASSWORD != '' && secrets.IOS_PROVISIONING_PROFILE_BASE64 != '' && secrets.IOS_TEAM_ID != '' }}
         run: |
@@ -44,9 +37,6 @@ jobs:
             if [ "$2" = "true" ]; then echo "OK    $1"; else
               echo "::notice title=Pominięte: $1::$3"; echo "BRAK  $1 -> $3"; fi
           }
-          report tofu "$TOFU" "tofu plan pominięty: brak TOFU_STATE_PASSPHRASE / TOFU_STATE_BUCKET / R2_STATE_* / HCLOUD_TOKEN / CLOUDFLARE_*"
-          report staging "$STAGING" "deploy staging pominięty: brak STAGING_SSH_HOST / STAGING_SSH_KEY / STAGING_ENV_FILE / CLOUDFLARE_* lub vars STAGING_API_URL / STAGING_WEB_DOMAIN"
-          report prod "$PROD" "deploy prod pominięty: brak PROD_SSH_HOST / PROD_SSH_KEY / PROD_ENV_FILE / CLOUDFLARE_* lub vars PROD_API_URL / PROD_WEB_DOMAIN"
           report android_signing "$ANDROID_SIGNING" "podpisany release Androida pominięty: brak ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
           report ios_signing "$IOS_SIGNING" "podpisany build iOS pominięty: brak IOS_CERTIFICATE_P12_BASE64 / IOS_CERTIFICATE_PASSWORD / IOS_PROVISIONING_PROFILE_BASE64 / IOS_TEAM_ID"
 
@@ -62,9 +52,9 @@ jobs:
         with:
           primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
           gc-max-store-size-linux: 8G
-      - run: nix develop -c bun install --frozen-lockfile
-      - run: nix develop -c bash -c 'cd apps/app && bunx playwright install --with-deps chromium'
-      - run: nix develop -c bun run verify
+      - run: nix develop .#android -c bun install --frozen-lockfile
+      - run: nix develop .#android -c bash -c 'cd apps/app && bunx playwright install --with-deps chromium'
+      - run: nix develop .#android -c bun run verify
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -75,20 +65,6 @@ jobs:
         with:
           name: android-debug-apk
           path: apps/app/android/app/build/outputs/apk/debug/*.apk
-
-  backup:
-    name: backup SQLite (kopia -> odtworzenie -> sprawdzenie danych)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
-          gc-max-store-size-linux: 8G
-      - run: nix develop .#light -c bun install --frozen-lockfile
-      - run: nix develop .#light -c bun run backup:test
 
   ios:
     name: iOS (build bez podpisu)
@@ -102,14 +78,14 @@ jobs:
         with:
           primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
           gc-max-store-size-linux: 8G
-      - run: nix develop .#light -c bun install --frozen-lockfile
+      - run: nix develop -c bun install --frozen-lockfile
       - name: expo prebuild (ios/ generowany z app.config.ts, CocoaPods z runnera)
-        run: nix develop .#light -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform ios'
+        run: nix develop -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform ios'
       - name: xcodebuild (symulator, CODE_SIGNING_ALLOWED=NO)
         run: |
           set -o pipefail
           xcodebuild -version
-          xcodebuild -workspace apps/app/ios/Notebook.xcworkspace -scheme Notebook -configuration Debug \
+          xcodebuild -workspace apps/app/ios/TwojeMiejsce.xcworkspace -scheme TwojeMiejsce -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build | tail -n 30
       - name: podpisane archiwum (tylko z sekretami)
@@ -142,7 +118,7 @@ jobs:
         with:
           primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
           gc-max-store-size-linux: 8G
-      - run: nix develop -c bun install --frozen-lockfile
+      - run: nix develop .#android -c bun install --frozen-lockfile
       - env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -152,7 +128,7 @@ jobs:
         run: |
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
           # Podpis przez właściwości wstrzykiwane do AGP — bez keystore i haseł w wygenerowanym projekcie.
-          nix develop -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform android --no-install \
+          nix develop .#android -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform android --no-install \
             && cd android && ./gradlew bundleRelease --no-daemon \
               -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
               -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
@@ -163,54 +139,14 @@ jobs:
           name: android-release-aab
           path: apps/app/android/app/build/outputs/bundle/release/*.aab
 
-  tofu-plan:
-    name: tofu plan (${{ matrix.env }})
-    needs: [secrets]
-    if: needs.secrets.outputs.tofu == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        env: [staging, prod]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
-          gc-max-store-size-linux: 8G
-      - name: plan
-        env:
-          TF_VAR_state_passphrase: ${{ secrets.TOFU_STATE_PASSPHRASE }}
-          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
-          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          TF_VAR_api_hostname: ${{ matrix.env == 'prod' && vars.PROD_API_HOSTNAME || vars.STAGING_API_HOSTNAME }}
-          TF_VAR_ssh_public_keys: ${{ vars.SSH_PUBLIC_KEYS }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_STATE_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_STATE_SECRET_ACCESS_KEY }}
-          BUCKET: ${{ secrets.TOFU_STATE_BUCKET }}
-          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          cd infra/envs/${{ matrix.env }}
-          nix develop ../../..#light -c tofu init -input=false \
-            -backend-config="bucket=$BUCKET" \
-            -backend-config="endpoints={s3=\"https://$ACCOUNT.r2.cloudflarestorage.com\"}"
-          nix develop ../../..#light -c tofu plan -input=false -lock-timeout=60s
-
   images:
     name: obrazy -> GHCR
-    needs: [verify, backup]
+    needs: [verify]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      api_image: ${{ steps.names.outputs.api }}
-      backup_image: ${{ steps.names.outputs.backup }}
-      tag: ${{ steps.names.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
       - id: names
@@ -218,7 +154,6 @@ jobs:
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           repo=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
           echo "api=ghcr.io/$owner/$repo-api" >> "$GITHUB_OUTPUT"
-          echo "backup=ghcr.io/$owner/$repo-backup" >> "$GITHUB_OUTPUT"
           echo "tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
@@ -236,47 +171,6 @@ jobs:
             ${{ steps.names.outputs.api }}:${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'main' }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
-      - uses: docker/build-push-action@v7
-        with:
-          context: deploy/backup
-          push: true
-          tags: |
-            ${{ steps.names.outputs.backup }}:${{ steps.names.outputs.tag }}
-            ${{ steps.names.outputs.backup }}:${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'main' }}
-          cache-from: type=gha,scope=backup
-          cache-to: type=gha,mode=max,scope=backup
-
-  deploy-staging:
-    name: deploy staging
-    needs: [secrets, images]
-    if: github.ref == 'refs/heads/main' && needs.secrets.outputs.staging == 'true'
-    uses: ./.github/workflows/deploy.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      environment: staging
-      prefix: STAGING
-      api_image: ${{ needs.images.outputs.api_image }}
-      backup_image: ${{ needs.images.outputs.backup_image }}
-      tag: ${{ needs.images.outputs.tag }}
-    secrets: inherit
-
-  deploy-prod:
-    name: deploy prod
-    needs: [secrets, images]
-    if: startsWith(github.ref, 'refs/tags/v') && needs.secrets.outputs.prod == 'true'
-    uses: ./.github/workflows/deploy.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      environment: production
-      prefix: PROD
-      api_image: ${{ needs.images.outputs.api_image }}
-      backup_image: ${{ needs.images.outputs.backup_image }}
-      tag: ${{ needs.images.outputs.tag }}
-    secrets: inherit
 
   release:
     name: GitHub Release (artefakty mobilne)

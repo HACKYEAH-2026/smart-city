@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, TEST_ADMIN_TOKEN, test } from "@app/testing/playwright";
 import type { Page } from "@playwright/test";
+import { expect, TEST_ADMIN_TOKEN, test } from "./fixtures";
 import { en } from "./messages";
 
 /**
@@ -14,13 +14,11 @@ const register = async (page: Page, email: string) => {
   await page.getByLabel(en.auth_email!).fill(email);
   await page.getByLabel(en.auth_password!).fill("password123");
   await page.getByRole("button", { name: en.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: en.notes_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
 };
 
 test("community -> issues plugin: report an issue and find it on the list", async ({ page }) => {
   await register(page, "issues@example.test");
-  await page.getByRole("link", { name: en.nav_communities }).click();
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
   await page.getByRole("link", { name: "Kraków" }).click();
   await expect(page.getByRole("heading", { name: "Kraków" })).toBeVisible();
 
@@ -43,7 +41,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await expect(list.getByRole("button", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
 });
 
-const BENCHES = readFileSync(join(import.meta.dirname, "../../api/src/plugins/examples/benches.ts"), "utf8");
+const BENCHES = readFileSync(join(import.meta.dirname, "../../../plugins/benches/index.ts"), "utf8");
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test");

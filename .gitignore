@@ -16,12 +16,6 @@ playwright-report/
 *.db-shm
 .data/
 coverage/
-# OpenTofu
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-.terraform.lock.hcl.bak
 # Expo: projekty natywne są GENEROWANE z app.config.ts (expo prebuild) — nie commitujemy ich
 apps/app/android/
 apps/app/ios/

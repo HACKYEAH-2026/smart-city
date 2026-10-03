@@ -1,4 +1,4 @@
-import type { Action, Tone, ToolAction, UINode } from "@app/shared";
+import type { Action, Tone, ToolAction, UINode } from "@app/plugin-sdk";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Body, Button, Heading, TextField } from "../components/ui";
@@ -8,7 +8,7 @@ import { color, font, radius, shadow, space, tone as tones } from "../theme";
 /**
  * Renderer Server-Driven UI: zamienia drzewo z API wtyczki na prymitywy z components/ui.tsx.
  * Wtyczka nie wykonuje tu żadnego kodu — akcje (nawigacja, narzędzie) obsługuje ekran przez `onAction`.
- * Nowy typ węzła: schemat w packages/shared/src/plugins/ui.ts + gałąź w `PluginNode`.
+ * Nowy typ węzła: schemat w packages/sdk/src/ui.ts + gałąź w `PluginNode`.
  */
 type Actions = { onAction: (action: Action) => void; busy: boolean };
 const ActionsContext = createContext<Actions>({ onAction: () => {}, busy: false });

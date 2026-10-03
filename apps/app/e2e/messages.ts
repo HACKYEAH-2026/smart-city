@@ -9,4 +9,3 @@ const load = (locale: string) =>
   >;
 
 export const en = load("en");
-export const pl = load("pl");

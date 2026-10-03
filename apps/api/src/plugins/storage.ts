@@ -1,7 +1,6 @@
-import type { Db } from "@app/db";
-import { schema } from "@app/db";
-import type { PluginDoc, PluginStorage } from "@app/shared";
+import type { PluginDoc, PluginStorage } from "@app/plugin-sdk";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { type Db, schema } from "../db";
 
 const { pluginDocs } = schema;
 const COLLECTION = /^[a-z][a-z0-9_-]{0,39}$/;

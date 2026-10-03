@@ -7,14 +7,14 @@ To NIE jest React DOM. Ten sam kod renderuje natywne widoki (iOS/Android) i HTML
 - Elementy: `View`, `Text`, `Pressable`, `TextInput`, `ScrollView`, `Image`. Każdy tekst MUSI być w `<Text>`.
 - Style: `StyleSheet.create` + tokeny z `src/theme.ts`. Flexbox domyślnie `flexDirection: "column"`.
 - Responsywność: `flexWrap` + `flexBasis`/`flexGrow` (działa w statycznym HTML). NIE uzależniaj układu od
-  `useWindowDimensions` na stronach marketingowych — prerender nie zna szerokości ekranu.
+  `useWindowDimensions` — prerender nie zna szerokości ekranu.
 
-## Semantyka (web = SEO + dostępność + selektory E2E)
+## Semantyka (web = dostępność + selektory E2E)
 Używaj prymitywów z `src/components/ui.tsx`, które ustawiają to za Ciebie:
 | Chcesz | Użyj | Na webie |
 |---|---|---|
 | nagłówek | `<Heading level={1..3}>` (`role="heading"`, `aria-level`) | `<h1>`–`<h3>` |
-| link wewnętrzny | `<AppLink href="/about">` (Expo Router `Link`) | `<a href>` (+ prefiks `/pl` dla stron marketingowych) |
+| link wewnętrzny | `<AppLink href="/app">` (Expo Router `Link`) | `<a href>` |
 | przycisk | `<Button label=… onPress=…>` (`role="button"`) | `<button>` |
 | pole formularza | `<TextField label=…>` (`aria-label`) | `<input aria-label>` |
 | lista | `<View role="list" aria-label=…>` + `role="listitem"` | `<ul>`/`<li>` |
@@ -25,17 +25,15 @@ Używaj prymitywów z `src/components/ui.tsx`, które ustawiają to za Ciebie:
 - Layout z ochroną sesji: `app/app/_layout.tsx` (`<Redirect href="/login" />`, `<Slot />`).
 - Nawigacja w kodzie: `const router = useRouter(); router.replace("/app")`. Linki: `<AppLink>`.
 - 404: `app/+not-found.tsx` (w buildzie web staje się `404.html`).
-- `<Head>` z `expo-router/head` na każdym ekranie: `<title>` i `description` trafiają do statycznego HTML.
+- `<Head>` z `expo-router/head` na każdym ekranie: `<title>` trafia do statycznego HTML.
 
 ## Dane (jedyny wzorzec)
 ```ts
-export const notesKey = ["notes"] as const;
-export const useNotes = () => useQuery({ queryKey: notesKey, queryFn: () => parseResponse(api.api.notes.$get()) });
-export function useCreateNote() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (i: NoteCreate) => parseResponse(api.api.notes.$post({ json: i })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notesKey }) });
-}
+export const communitiesKey = ["communities"] as const;
+export const useCommunities = () =>
+  useQuery({ queryKey: communitiesKey, queryFn: () => parseResponse(api.api.communities.$get()) });
+// Mutacja: useMutation({ mutationFn, onSuccess: () => qc.invalidateQueries({ queryKey }) }) — pełny przykład
+// w src/data/communities.ts (wywołanie narzędzia wtyczki).
 ```
 - Klient: tylko `api` z `src/lib/api.ts` (Hono RPC, typy z backendu). Nie pisz `fetch` ręcznie.
 - Sesja: `useSession()` / `useAuthActions()` (`src/data/session.ts`). Po zmianie sesji `fetchQuery`, nie samo `invalidateQueries`.
@@ -43,9 +41,8 @@ export function useCreateNote() {
 
 ## i18n (messages/*.json)
 - Teksty: `messages/en.json` (bazowy) i `pl.json`. Ładowane wprost w `src/lib/i18n.tsx` (bez kompilacji); nowy język = nowy plik + wpis w `catalogs`.
-- Użycie: `const { t, locale, setLocale } = useI18n(); t.notes_title()`. NIE importuj JSON-ów z messages w ekranach.
-- Język: web + strony marketingowe → z URL (`/`, `/about` = en; `/pl`, `/pl/about` = pl); reszta → preferencja
-  (zapisana) → język urządzenia → en. Nowa strona marketingowa: dopisz ścieżkę do `MARKETING_PATHS` i dodaj plik w `app/pl/`.
+- Użycie: `const { t, locale, setLocale } = useI18n(); t.communities_title()`. NIE importuj JSON-ów z messages w ekranach.
+- Język: preferencja (zapisana) → język urządzenia → en. Przełącznik w stopce (`Page` w `src/components/ui.tsx`).
 - Komunikaty z API/Zod/Better Auth nie trafiają do UI wprost; pokazuj własny `t.*`.
 
 ## Natywne

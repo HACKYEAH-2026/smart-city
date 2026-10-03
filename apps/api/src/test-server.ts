@@ -2,10 +2,10 @@
  * Serwer dla E2E i lokalnego dev: migruje bazę SQLite (DATABASE_URL, domyślnie w pamięci)
  * i dokłada /__test/reset. Odmawia startu poza NODE_ENV=test.
  */
-import { createDb, migrate } from "@app/db";
-import { TEST_ENV } from "@app/testing/api";
 import { createApp } from "./app";
+import { createDb, migrate } from "./db";
 import { loadEnv } from "./env";
+import { TEST_ENV } from "./test-env";
 import { createTestRoutes, seedDemo } from "./test-routes";
 
 // Dev/E2E: domyślnie :4000 (3000 bywa zajęty przez inne narzędzia). Produkcja: PORT z env (3000).

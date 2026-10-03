@@ -23,11 +23,11 @@ cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
   <key>method</key><string>app-store-connect</string>
   <key>teamID</key><string>$TEAM_ID</string>
   <key>signingStyle</key><string>manual</string>
-  <key>provisioningProfiles</key><dict><key>com.example.notebook</key><string>$uuid</string></dict>
+  <key>provisioningProfiles</key><dict><key>pl.twojemiejsce.app</key><string>$uuid</string></dict>
 </dict></plist>
 PLIST
 
-xcodebuild -workspace apps/app/ios/Notebook.xcworkspace -scheme Notebook -configuration Release \
+xcodebuild -workspace apps/app/ios/TwojeMiejsce.xcworkspace -scheme TwojeMiejsce -configuration Release \
   -archivePath build/ios/App.xcarchive -destination 'generic/platform=iOS' \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE="$uuid" archive | tail -n 30
 xcodebuild -exportArchive -archivePath build/ios/App.xcarchive \

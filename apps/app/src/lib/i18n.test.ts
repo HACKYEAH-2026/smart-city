@@ -13,11 +13,9 @@ describe("komunikaty i18n", () => {
     for (const file of files) expect(Object.keys(load(file)).sort(), file).toEqual(Object.keys(base).sort());
   });
 
-  test("żaden komunikat nie jest pusty, a hero_highlight występuje w hero_title", () => {
+  test("żaden komunikat nie jest pusty", () => {
     for (const file of files) {
-      const msgs = load(file);
-      for (const [k, v] of Object.entries(msgs)) expect(v.trim().length, `${file}:${k}`).toBeGreaterThan(0);
-      expect(msgs.hero_title, file).toContain(msgs.hero_highlight as string);
+      for (const [k, v] of Object.entries(load(file))) expect(v.trim().length, `${file}:${k}`).toBeGreaterThan(0);
     }
   });
 });

@@ -1,26 +1,22 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Db } from "@app/db";
-import { schema } from "@app/db";
 import {
-  definePlugin,
+  loadPlugin,
   type PluginContext,
-  type PluginDefinition,
+  PluginError,
   type PluginManifest,
   type PluginModule,
-  pluginManifestSchema,
   screenSchema,
   type ToolResult,
   toolResultSchema,
   type UINode,
-  ui,
   type ViewParams,
-} from "@app/shared";
+} from "@app/plugin-sdk";
 import { z } from "zod";
+import { type Db, schema } from "../db";
 
-/** Błąd po stronie wtyczki (zły manifest, wyjątek w widoku, niepoprawny wynik). Komunikat jest bezpieczny dla admina. */
-export class PluginError extends Error {}
+export { PluginError };
 
 /** Błędne wejście narzędzia — wina wywołującego, nie wtyczki (HTTP 400). */
 export class PluginInputError extends Error {
@@ -29,41 +25,7 @@ export class PluginInputError extends Error {
   }
 }
 
-export type LoadedPlugin = {
-  manifest: PluginManifest;
-  definition: PluginDefinition;
-  origin: "builtin" | "uploaded";
-};
-
-const sdk = { definePlugin, ui, z };
-
-/** Wywołuje moduł wtyczki z SDK i sprawdza manifest oraz spójność (nav → istniejące widoki). */
-export function instantiate(mod: unknown): Omit<LoadedPlugin, "origin"> {
-  if (typeof mod !== "function") throw new PluginError("Plugin module must export a default function (sdk) => plugin");
-  let definition: PluginDefinition;
-  try {
-    definition = (mod as PluginModule)(sdk);
-  } catch (err) {
-    throw new PluginError(`Plugin factory threw: ${(err as Error).message}`);
-  }
-  if (!definition || typeof definition !== "object")
-    throw new PluginError("Plugin factory must return definePlugin({...})");
-  const parsed = pluginManifestSchema.safeParse(definition);
-  if (!parsed.success) throw new PluginError(`Invalid manifest: ${z.prettifyError(parsed.error)}`);
-  const manifest = parsed.data;
-  if (!definition.views || typeof definition.views !== "object") throw new PluginError("Plugin must define views");
-  for (const entry of manifest.nav) {
-    if (typeof definition.views[entry.view] !== "function") {
-      throw new PluginError(`Nav entry "${entry.label}" points to missing view "${entry.view}"`);
-    }
-  }
-  for (const [name, tool] of Object.entries(definition.tools ?? {})) {
-    if (typeof tool?.handler !== "function" || !(tool.input instanceof z.ZodType)) {
-      throw new PluginError(`Tool "${name}" must have an input schema (z.object) and a handler`);
-    }
-  }
-  return { manifest, definition };
-}
+export type LoadedPlugin = ReturnType<typeof loadPlugin> & { origin: "builtin" | "uploaded" };
 
 /**
  * Rejestr wtyczek. Wbudowane są rejestrowane przy starcie; wgrane przez API są zapisywane
@@ -80,7 +42,7 @@ export class PluginHost {
     builtins: PluginModule[],
   ) {
     for (const mod of builtins) {
-      const loaded = instantiate(mod);
+      const loaded = loadPlugin(mod);
       this.plugins.set(loaded.manifest.id, { ...loaded, origin: "builtin" });
     }
   }
@@ -151,7 +113,7 @@ export class PluginHost {
     return parsed.data;
   }
 
-  private async compile(source: string): Promise<Omit<LoadedPlugin, "origin">> {
+  private async compile(source: string): Promise<ReturnType<typeof loadPlugin>> {
     // Osobny katalog per hash treści: każda wersja to nowy moduł (import() cache'uje po ścieżce),
     // a resolver Buna nie widzi plików dopisanych do katalogu, który już raz odczytał.
     const dir = join(this.dir, Bun.hash(source).toString(16));
@@ -164,7 +126,7 @@ export class PluginHost {
     } catch (err) {
       throw new PluginError(`Plugin source does not compile: ${(err as Error).message}`);
     }
-    return instantiate(mod.default);
+    return loadPlugin(mod.default);
   }
 }
 

@@ -1,11 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
-import { schema } from "@app/db";
 import { communityCreateSchema, pluginInstallSchema, pluginUploadSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv } from "../context";
+import { schema } from "../db";
 import { PluginError } from "../plugins/host";
 
 /**

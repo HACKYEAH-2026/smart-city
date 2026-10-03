@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { isMarketing, locales, localizedPath, useI18n } from "../lib/i18n";
+import { locales, useI18n } from "../lib/i18n";
 import { color, font, maxWidth, radius, space } from "../theme";
 
 /**
@@ -80,10 +80,8 @@ export function TextField(props: TextInputProps & { label: string }) {
   );
 }
 
-/** Link wewnętrzny. Do stron marketingowych na webie dokleja prefiks języka (/pl/...). */
+/** Link wewnętrzny. */
 export function AppLink(props: { href: string; children: ReactNode; variant?: "text" | "nav" | "button" | "quiet" }) {
-  const { locale } = useI18n();
-  const href = isMarketing(props.href) ? localizedPath(props.href, locale) : props.href;
   const v = props.variant ?? "text";
   const box = v === "button" ? [styles.btn, styles.btn_primary] : v === "quiet" ? [styles.btn, styles.btn_quiet] : null;
   const txt =
@@ -95,7 +93,7 @@ export function AppLink(props: { href: string; children: ReactNode; variant?: "t
           ? styles.navLink
           : styles.link;
   return (
-    <Link href={href as never} style={[txt, box]}>
+    <Link href={props.href as never} style={[txt, box]}>
       {props.children}
     </Link>
   );
@@ -109,13 +107,10 @@ export function Page(props: { children: ReactNode; narrow?: boolean }) {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.frame}>
           <View style={styles.masthead}>
-            <AppLink href="/" variant="nav">
-              <Text style={styles.wordmark}>Notebook</Text>
+            <AppLink href="/app" variant="nav">
+              <Text style={styles.wordmark}>{t.app_name()}</Text>
             </AppLink>
             <View role="navigation" aria-label={t.nav_label()} style={styles.nav}>
-              <AppLink href="/about" variant="nav">
-                {t.nav_about()}
-              </AppLink>
               <AppLink href="/login" variant="nav">
                 {t.nav_login()}
               </AppLink>
@@ -129,7 +124,7 @@ export function Page(props: { children: ReactNode; narrow?: boolean }) {
           </View>
           <View style={styles.colophon}>
             <Body size="small" tone="soft">
-              Notebook · {t.footer_note()}
+              {t.app_name()}
             </Body>
             <View role="navigation" aria-label={t.language_label()} style={styles.nav}>
               {locales.map((l) => (

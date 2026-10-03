@@ -19,7 +19,7 @@ export default function Community() {
         <title>{community.data?.name ?? t.communities_title()}</title>
       </Head>
       <View style={styles.head}>
-        <AppLink href="/app/c">{t.community_back()}</AppLink>
+        <AppLink href="/app">{t.community_back()}</AppLink>
         <Heading level={1} size="section">
           {community.data?.name ?? t.loading()}
         </Heading>

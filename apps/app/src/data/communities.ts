@@ -1,10 +1,10 @@
-import type { ToolResult, ViewParams } from "@app/shared";
+import type { ToolResult, ViewParams } from "@app/plugin-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
 
 /**
- * Dane społeczności i wtyczek (wzorzec jak notes.ts). Widoki wtyczek przychodzą z API jako drzewo UI
+ * Dane społeczności i wtyczek (wzorzec danych frontu: useQuery + useMutation). Widoki wtyczek przychodzą z API jako drzewo UI
  * (Server-Driven UI); po wywołaniu narzędzia odświeżamy wszystkie widoki tej wtyczki.
  */
 const c = api.api.communities;

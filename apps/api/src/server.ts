@@ -2,8 +2,9 @@
  * Wejście PRODUKCYJNE. Nie importuje niczego z test-*.ts (sprawdza to scripts/build.ts).
  * Migracje uruchamia osobny proces (dist/migrate.js) przed startem, nie serwer.
  */
-import { createDb } from "@app/db";
+
 import { createApp } from "./app";
+import { createDb } from "./db";
 import { loadEnv } from "./env";
 
 const env = loadEnv();

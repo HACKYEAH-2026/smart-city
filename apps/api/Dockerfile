@@ -11,13 +11,13 @@ ENV NODE_ENV=production \
     MIGRATIONS_DIR=/app/migrations \
     PORT=3000
 COPY --from=build /src/apps/api/dist/ ./
-COPY --from=build /src/packages/db/migrations ./migrations
-# Plik bazy SQLite żyje na wolumenie /data (docker-compose); nowy wolumen dziedziczy właściciela z obrazu.
+COPY --from=build /src/apps/api/migrations ./migrations
+# Plik bazy SQLite żyje na wolumenie /data; nowy wolumen dziedziczy właściciela z obrazu.
 RUN mkdir -p /data && chown bun:bun /data
 VOLUME /data
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
   CMD bun -e "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# Migracje: docker compose run --rm migrate  (bun migrate-cli.js)
+# Migracje: bun migrate-cli.js (w kontenerze z tym samym wolumenem /data)
 CMD ["bun", "server.js"]
