@@ -111,7 +111,7 @@ const BENCHES = readFileSync(join(import.meta.dirname, "../../../plugins/benches
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test", api.url);
-  await page.goto("/app/c/krakow");
+  await page.goto("/app");
   await expect(page.getByRole("link", { name: "Zgłoszenia" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Ławki" })).toHaveCount(0);
 
@@ -174,7 +174,7 @@ const publishAnnouncement = async (page: Page, title: string) => {
 test("admin reorders the dashboard; residents see the new order and cannot edit", async ({ page, api }) => {
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Zebranie mieszkańców");
-  await page.goto("/app/c/krakow");
+  await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
 
@@ -196,7 +196,7 @@ test("admin drags a widget to a new place on the dashboard", async ({ page }) =>
   await page.setViewportSize({ width: 1280, height: 1400 });
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Przerwa w dostawie wody");
-  await page.goto("/app/c/krakow");
+  await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
   await page.getByRole("button", { name: t.dashboard_edit }).click();
 
