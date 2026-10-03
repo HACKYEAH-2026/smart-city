@@ -8,7 +8,6 @@
   "files": {
     "includes": [
       "**",
-      "!demo-video",
       "!**/dist",
       "!**/android",
       "!**/ios",
@@ -16,7 +15,8 @@
       "!**/migrations/meta",
       "!**/playwright-report",
       "!**/test-results",
-      "!**/expo-env.d.ts"
+      "!**/expo-env.d.ts",
+      "!demo-video/out"
     ]
   },
   "formatter": {

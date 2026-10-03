@@ -1,13 +1,9 @@
 {
+  "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "strict": true,
-    "noEmit": true,
-    "lib": ["DOM", "ES2022"],
-    "skipLibCheck": true
+    "lib": ["DOM", "ES2023"],
+    "types": ["bun"]
   },
-  "include": ["src"]
+  "include": ["src", "remotion.config.ts"]
 }
