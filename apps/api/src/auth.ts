@@ -1,4 +1,4 @@
-import type { AuthProviders } from "@app/shared";
+import { type AuthProviders, MIN_PASSWORD_LENGTH } from "@app/shared";
 import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins";
 import { surrealdbAdapter } from "surreal-better-auth";
@@ -41,8 +41,7 @@ export function createAuth(db: Db, env: Env, opts: { verifyGoogleIdToken?: Googl
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: env.TRUSTED_ORIGINS,
     database: surrealdbAdapter(db, { schemaMode: "schemaless" }),
-    // The only password rule; must match MIN_PASSWORD_LENGTH in apps/app/src/lib/passwordStrength.ts.
-    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: 5 },
+    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: MIN_PASSWORD_LENGTH },
     socialProviders: googleProvider(env, opts.verifyGoogleIdToken),
     plugins: [bearer()],
     rateLimit: { enabled: env.NODE_ENV === "production" },

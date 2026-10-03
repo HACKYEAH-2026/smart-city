@@ -3,6 +3,8 @@
 Every community feature (issue reports, discussions, lost & found…) is a plugin. The core only knows
 communities, users and installations; plugins bring everything else: their own typed tables, tools
 (actions), live streams and views.
+An interactive walkthrough of how the runtime works (a tool call step by step, isolation, the generated
+SurrealQL, `watch()`, Server-Driven UI) is in [architecture/plugins.html](architecture/plugins.html).
 
 > **Status (read first)**
 > - **Ready and tested:** the plugin SDK (`packages/sdk`) — contract, typed tables on SurrealDB, `watch()`
@@ -416,7 +418,7 @@ handler: async (ctx, input) => {
 ## `ctx.ai`
 
 The model is host configuration (Strands + an OpenAI-compatible endpoint: `AI_API_KEY`, `AI_MODEL`,
-optional `AI_BASE_URL`). Tests never call a model — use the harness mocks.
+optional `AI_BASE_URL`; embeddings: `AI_EMBEDDING_MODEL`). Tests never call a model — use the harness mocks.
 
 ```ts
 // Text
@@ -441,6 +443,42 @@ if (match) match.item.id; match?.score; match?.reason;   // item is your row typ
 
 Without a configured model, `findSimilar` works lexically (shared words) and so does the demo; with a
 model, the model decides (using the query image) and writes the `reason`.
+
+### Embeddings: `ctx.ai.embed`
+
+`embed(text)` returns the meaning of a text as a vector (`number[]`) from the host's embedding model. The plugin
+stores the vectors in its own table and compares them itself, e.g. to look for a duplicate among all open reports
+(`findSimilar` sees at most 30 candidates).
+
+```ts
+tables: { issues: t.table({ title: t.text(), status: t.text(), vector: t.json<number[]>() }) },
+
+// On insert: embed once, store the vector with the row
+const vector = await ctx.ai.embed(input.title);
+
+// Compare: cosine similarity (1 = the same direction), written in the plugin
+const cosine = (a: number[], b: number[]) => {
+  const dot = a.reduce((sum, x, i) => sum + x * (b[i] ?? 0), 0);
+  const norm = (v: number[]) => Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
+  return dot / (norm(a) * norm(b) || 1);
+};
+const open = await ctx.db.issues.findMany({ where: { status: "open" } });
+const nearest = open
+  .filter((i) => i.vector.length === vector.length)       // skip vectors of another model
+  .map((i) => ({ item: i, score: cosine(i.vector, vector) }))
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 5);
+// Scores depend on the model: pick a threshold on real texts, or let the model judge the nearest few
+const [match] = await ctx.ai.findSimilar({ text: input.title }, nearest.map((n) => n.item), { text: (i) => i.title, limit: 1 });
+if (!match) await ctx.db.issues.insert({ title: input.title, status: "open", vector });
+```
+
+- Vectors of different models are not comparable. When the host switches models, the length usually changes:
+  compare only vectors of the same length and embed older rows again when needed.
+- Without an embedding model (`AI_EMBEDDING_MODEL` unset) `embed` throws, like `call` without a model. A plugin
+  that must work in a keyless demo catches it and falls back (e.g. to `findSimilar` alone).
+- The text is trimmed; empty or longer than 8000 characters → error. At most 600 embeddings per minute per
+  installation, counted apart from the 60 model calls (`call`, `findSimilar`).
 
 ## `ctx.notify`
 
@@ -667,6 +705,7 @@ No API, no AI model; connections close after each test.
 | `.files.isKept(id)` | `true` once a `t.ref("file")` column referenced it |
 | `.ai.mockSimilar((query, candidates) => matches)` | `findSimilar` result (default `[]`) |
 | `.ai.mockCall((req) => value)` | `call` result, parsed with `req.schema` if given (default: throws) |
+| `.ai.mockEmbed((text) => vector)` | `embed` result (default: throws) |
 | `.notifications()` | what `ctx.notify` sent, validated like in the host, oldest first, each with `from` (sender id); recipients are resolved by the host only |
 | `.db` | the plugin database as the system user (assertions); untyped tables → `plugin.db.items!` |
 | `.install()` | runs `onInstall` |

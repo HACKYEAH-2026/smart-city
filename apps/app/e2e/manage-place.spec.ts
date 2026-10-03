@@ -1,35 +1,12 @@
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, joinKrakow, test } from "./fixtures";
+import { DEMO_ADMIN, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
  * by email), plugins on and off, the dashboard order, the members with their roles, the place's settings, and
  * deleting the place. Each section is a card that opens in place. Place and plugin names are data, not app texts.
  */
-const login = async (page: Page, email: string) => {
-  await page.goto("/login");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password");
-  await page.getByRole("button", { name: t.auth_submit_login }).click();
-  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
-};
-
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
-
-const signOut = async (page: Page) => {
-  await page.goto("/app/account");
-  await page.getByRole("button", { name: t.sign_out }).click();
-  await expect(page).toHaveURL(/\/login$/);
-};
-
 const openManage = async (page: Page) => {
   await page.getByRole("link", { name: t.manage_title }).click();
   await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
@@ -60,7 +37,7 @@ test("only admins manage a place; the screen shows its sections, closed", async 
   await expect(page.getByText(t.manage_admins_only)).toBeVisible();
 
   await signOut(page);
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await openManage(page);
   // The place's name above the title; the dashboard stays mounted behind (screen animations), so only main counts.
   await expect(page.getByRole("main").getByText("Kraków", { exact: true })).toBeVisible();
@@ -73,7 +50,7 @@ test("only admins manage a place; the screen shows its sections, closed", async 
 });
 
 test("plugins: switching one off takes it out of the place, switching it on brings it back", async ({ page }) => {
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toBeVisible();
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
@@ -93,7 +70,7 @@ test("plugins: switching one off takes it out of the place, switching it on brin
 });
 
 test("settings: renaming the place and changing who may join", async ({ page }) => {
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await openManage(page);
   await openSection(page, t.manage_settings_title);
   const name = page.getByLabel(t.create_name);
@@ -114,12 +91,12 @@ test("members: everyone in the place, admins marked", async ({ page, api }) => {
   await register(page, "member@example.test");
   await joinKrakow(api.url, "member@example.test");
   await signOut(page);
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await openManage(page);
   await openSection(page, t.manage_members_title);
   const members = page.getByRole("list", { name: t.manage_members_title });
   await expect(members.getByRole("listitem")).toHaveCount(2);
-  await expect(members.getByRole("listitem").filter({ hasText: "admin@krakow.test" })).toContainText(t.role_admin);
+  await expect(members.getByRole("listitem").filter({ hasText: DEMO_ADMIN.email })).toContainText(t.role_admin);
   await expect(members.getByRole("listitem").filter({ hasText: "member@example.test" })).not.toContainText(
     t.role_admin,
   );
@@ -128,7 +105,7 @@ test("members: everyone in the place, admins marked", async ({ page, api }) => {
 test("invitations: the code with its QR; inviting someone by the email of their account", async ({ page }) => {
   await register(page, "guest@example.test");
   await signOut(page);
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await openManage(page);
   await openSection(page, t.manage_invites_title);
   await expect(page.getByText(/^[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}$/)).toBeVisible();
@@ -145,7 +122,7 @@ test("invitations: the code with its QR; inviting someone by the email of their 
 });
 
 test("dashboard layout: the widgets in order; moving one changes the dashboard", async ({ page }) => {
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await page.goto("/app/c/krakow/announcements/list");
   await page.getByLabel("Tytuł").fill("Zebranie mieszkańców");
   await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
@@ -163,7 +140,7 @@ test("dashboard layout: the widgets in order; moving one changes the dashboard",
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {
-  await login(page, "admin@krakow.test");
+  await loginAdmin(page);
   await openManage(page);
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.getByRole("button", { name: t.manage_delete }).click();

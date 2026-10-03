@@ -23,14 +23,15 @@ Use the components from `src/components/` (design system); they set these for yo
 ## Routing (Expo Router)
 - Files in `app/` = routes. Keep them thin (`export { default } from "../src/screens/X"`).
 - Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, then a `<Stack>` of the /app screens).
-- Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<Link>`.
+- Navigation in code: `const router = useRouter(); router.push("/app/create")`, back with `goBack(router, "/app")`
+  (`replace` only where the flow must not stack; see Transitions). Links: `<Link>`.
 - 404: `app/+not-found.tsx` (becomes `404.html` in the web build).
 - `<Head>` from `expo-router/head` on every screen: `<title>` ends up in the static HTML.
 
 ## Transitions (screens and sections)
 - Screens move through the Expo Router `<Stack>`: the root (`app/_layout.tsx`) and `/app` (`app/app/_layout.tsx`).
-  Default `animation: "slide_from_right"`; the bottom bar's sections (`index`, `account`) use `fade`; the QR scanner
-  (`scan`) uses `slide_from_bottom`. `animationDuration: 250` is iOS only (Android keeps the system duration).
+  Default `animation: "slide_from_right"`; the bottom bar's sections (`index`, `map`, `account`) use `fade`; the QR
+  scanner (`scan`) uses `slide_from_bottom`. `animationDuration: 250` is iOS only (Android keeps the system duration).
 - A new screen needs no entry: it slides in from the right. A different animation goes into the layout as
   `<Stack.Screen name="..." options={{ animation: "..." }} />`.
 - Going forward: `router.push` or `<Link href>` (the stack grows, back works). Going back: `goBack(router, fallback)`

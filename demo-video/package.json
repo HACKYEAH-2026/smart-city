@@ -5,9 +5,10 @@
     "dev": "remotion studio",
     "render": "remotion render TwojeMiejsceDemo out/demo.mp4",
     "still": "remotion still TwojeMiejsceDemo out/still.png",
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . --incremental",
     "render:ad": "remotion render Reklama out/reklama.mp4",
-    "vo": "bun --env-file=../.env scripts/voiceover.ts"
+    "vo": "bun --env-file=../.env scripts/voiceover.ts",
+    "media": "bun --env-file=../.env scripts/media.ts"
   },
   "dependencies": {
     "@app/app": "workspace:*",

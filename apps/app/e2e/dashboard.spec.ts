@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, joinKrakow, test } from "./fixtures";
+import { expect, joinKrakow, register, test } from "./fixtures";
 
 /**
  * Dashboard acceptance criteria (designs E-BrakMiejsc, E-Dashboard, E-PrzelacznikMiejsc): after sign-in the user
@@ -8,15 +8,6 @@ import { expect, joinKrakow, test } from "./fixtures";
  * screen instead: the ways to join and creating their own place, without the bottom bar. The place name and the
  * Places tab both open the place switcher; there is no separate list of places.
  */
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
-
 /** Through the "new place" wizard with the least answers (create-place.spec.ts covers the wizard itself). */
 const createPlace = async (page: Page, name: string) => {
   await page.getByRole("link", { name: t.place_create_own }).click();

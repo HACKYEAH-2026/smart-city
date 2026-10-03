@@ -35,7 +35,7 @@ export default function ScanQr() {
   // The permission is read again whenever the app comes back to the front, e.g. from the system settings.
   useEffect(() => {
     const sync = () => {
-      Camera.getCameraPermissionsAsync().then(setPermission);
+      void Camera.getCameraPermissionsAsync().then(setPermission);
     };
     sync();
     const subscription = AppState.addEventListener("change", (state) => {
@@ -47,7 +47,7 @@ export default function ScanQr() {
   // Ask while the system still asks ("don't ask again" ends it); every visit to the screen asks again.
   useEffect(() => {
     if (status && status !== "granted" && canAskAgain) {
-      Camera.requestCameraPermissionsAsync().then(setPermission);
+      void Camera.requestCameraPermissionsAsync().then(setPermission);
     }
   }, [status, canAskAgain]);
 
@@ -145,7 +145,7 @@ function Prompt({ canAskAgain }: { canAskAgain: boolean }) {
           fullWidth={false}
           style={styles.action}
           onPress={() => {
-            Camera.requestCameraPermissionsAsync();
+            void Camera.requestCameraPermissionsAsync();
           }}
         />
       </View>
@@ -163,7 +163,7 @@ function Prompt({ canAskAgain }: { canAskAgain: boolean }) {
           fullWidth={false}
           style={styles.action}
           onPress={() => {
-            openAppSettings();
+            void openAppSettings();
           }}
         />
       ) : null}

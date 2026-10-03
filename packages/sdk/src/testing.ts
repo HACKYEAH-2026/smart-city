@@ -90,13 +90,17 @@ async function platform(): Promise<SurrealSession> {
 
 type CallMock = (req: AICall<z.ZodType | undefined>) => unknown;
 type SimilarMock = (query: { text: string; image?: FileId | null }, candidates: unknown[]) => SimilarMatch<unknown>[];
+type EmbedMock = (text: string) => number[];
 
 function mockAI() {
-  const mocks: { call: CallMock; similar: SimilarMock } = {
+  const mocks: { call: CallMock; similar: SimilarMock; embed: EmbedMock } = {
     call: () => {
       throw new Error("ctx.ai.call: no mock — use t.ai.mockCall(...)");
     },
     similar: () => [],
+    embed: () => {
+      throw new Error("ctx.ai.embed: no mock — use t.ai.mockEmbed(...)");
+    },
   };
   const api: AI = {
     async call(req) {
@@ -106,6 +110,9 @@ function mockAI() {
     async findSimilar(query, candidates) {
       return mocks.similar(query, candidates) as never;
     },
+    async embed(text) {
+      return mocks.embed(text);
+    },
   };
   return {
     api,
@@ -114,6 +121,9 @@ function mockAI() {
     },
     mockSimilar: (fn: SimilarMock) => {
       mocks.similar = fn;
+    },
+    mockEmbed: (fn: EmbedMock) => {
+      mocks.embed = fn;
     },
   };
 }
@@ -262,7 +272,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       fake: (mime?: string) => fakeFile(main, mime),
       isKept: async (id: FileId) => (await fileRow(id))?.status === "kept",
     },
-    ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar },
+    ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar, mockEmbed: ai.mockEmbed },
     /** Notifications sent with ctx.notify, oldest first (`from` = the acting user's id). */
     notifications: () => [...sent],
     setNow: (date: Date) => {

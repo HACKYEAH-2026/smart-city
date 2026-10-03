@@ -195,7 +195,9 @@ export const Captions = () => {
     (all, w) => {
       const last = all.at(-1) ?? [];
       const ends = /[.:]$/.test(last.at(-1)?.text ?? "") || last.length >= 12;
-      return ends ? [...all, [w]] : [...all.slice(0, -1), [...last, w]];
+      if (ends) all.push([w]);
+      else last.push(w);
+      return all;
     },
     [[]],
   );

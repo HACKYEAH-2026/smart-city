@@ -1,10 +1,15 @@
+> **Note:** this file is the design spec; the implemented components are the exports of `src/components/index.ts`.
+> Built under another name: ScreenHeader (step variant) → `StepHeader`, StepProgress → `SegmentedProgress`,
+> Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
+> QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
+> (no component): Avatar / PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
+> KeyValueRow. Not implemented: CountBadge, CtaCard, IconButton `roundDark`, the A4 printout.
+
 # Twoje Miejsce — specyfikacja komponentów (React Native)
 
 Źródło: projekt „E · Czerwień #E50101" (17 ekranów). Wszystkie wartości pochodzą z `src/theme/tokens.ts`
 (`colors.*`, `spacing.*`, `radii.*`, `sizes.*`, `typography.*`, `shadows.*`). Nazwy tokenów podane w nawiasach.
 Piksele z projektu = dp w RN (1:1).
-
-Kolejność implementacji: **1)** Text, Button (są gotowe) → **2)** Icon, IconButton, Label, TextField → **3)** reszta wg listy.
 
 ---
 
@@ -42,7 +47,7 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 - `square` — radius 14, tło `surface`, border `borderSubtle` (przycisk wstecz, w nagłówkach ekranów),
 - `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówku kroku, ikona wyrównana do krawędzi treści),
 - `round` — radius 22, tło `surface`, border `borderSubtle` (dzwonek powiadomień, awatar „JK" z inicjałami `typography.buttonS`),
-- `roundDark` — radius 22, tło `text`, ikona `surface` (zębatka admina; może mieć `CountBadge` w rogu top 2/right 2),
+- `roundDark` — **niezaimplementowany** (brak w `IconButtonVariant`); w projekcie: radius 22, tło `text`, ikona `surface` (zębatka admina; może mieć `CountBadge` w rogu top 2/right 2),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
 - `roundSunken` — radius 22, tło `surfaceSunken` (zamknij w bottom sheet),
 - `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` (wstecz na zdjęciu/mapie w PodgladMiejsca).
@@ -165,7 +170,7 @@ Padding 16, radius 18, border 1.5 dashed `dashed`, okrągły przycisk 44 dp `pri
 Koło 64 dp `primary` z ikoną `Check` (biała), pierścień 8 dp `primaryTint` (RN: otaczający `View` 80 dp), pod nim `heading` (wyśrodkowany) i `StatusPill`.
 
 ### QR / kod miejsca (karta)
-Card radius 22: lewa strona etykieta `label` „Kod zaproszeniowy" → `codeXL` → opis `small`; po prawej kod QR (`react-native-qrcode-svg`, tło białe, quiet zone). Pod spodem akcje 2 kolumny (gap 8) — np. „Kopiuj", „Udostępnij", „Drukuj". Wersja do druku (A4 595×842): `expo-print` z szablonem HTML w tych samych kolorach.
+Card radius 22: lewa strona etykieta `label` „Kod zaproszeniowy" → `codeXL` → opis `small`; po prawej kod QR (komponent `QrCode`: `qrcode-generator` rysowany przez `react-native-svg`, tło białe, quiet zone). Pod spodem akcje 2 kolumny (gap 8) — np. „Kopiuj", „Udostępnij", „Drukuj". W aplikacji (`InviteCodeCard`) jest tylko „Udostępnij" (systemowy arkusz `Share`); wersja do druku (A4 595×842, szablon w tych samych kolorach) nie jest zaimplementowana.
 
 ### ScannerFrame (skaner QR — tryb ciemny)
 Ekran: tło `scannerBg`, padding 56/24/40. Ramka 268×268, radius 32, tło `scannerFrame`; cztery narożniki 52×52 (border 3 `onPrimary`, zaokrąglenie 32 po zewnętrznej stronie); pozioma linia skanowania 2 dp `primary`, marginesy 32 (animowana w pionie). Podgląd z aparatu: `expo-camera` (`CameraView`, `barcodeScannerSettings: qr`). Tekst pomocniczy `bodyL` kolor `scannerText`, max szerokość 280, wyśrodkowany. Na dole przyciski `onDark` i `roundOnDark`-style (tło `onDarkOverlay`, tekst biały).
@@ -208,7 +213,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-ZaprosOsoby | Zaproś osoby | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary |
 | E-DashboardAdmin | Pulpit (administrator) | jak Dashboard + StatusPill, IconButton roundDark z CountBadge, CtaCard |
 | E-ZarzadzanieMiejscem | Zarządzaj miejscem | sekcje: prośby, zapraszanie (karta), członkowie (RoleBadge), ustawienia (GroupedList), Button destructiveGhost |
-| E-WydrukQR | Wydruk A4 z QR | szablon do `expo-print` (poza główną nawigacją) |
+| E-WydrukQR | Wydruk A4 z QR | szablon wydruku (poza główną nawigacją; niezaimplementowany) |
 
 Przepływy: Logowanie ⇄ Rejestracja → Brak miejsc → (QR / Kod·Link / Zaproszenia) → Podgląd miejsca → Pulpit ⇄ Przełącznik miejsc → Nowe miejsce (3 kroki) → Miejsce utworzone → Zaproś osoby / Pulpit admina → Zarządzaj miejscem.
 

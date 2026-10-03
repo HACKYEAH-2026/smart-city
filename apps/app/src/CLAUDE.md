@@ -1,34 +1,25 @@
-# Twoje Miejsce — aplikacja mobilna (React Native)
+# apps/app/src — design system rules
 
-Aplikacja do dołączania do „miejsc" (osiedle, budynek, firma, szkoła…) i zarządzania nimi. UI po polsku.
+Component spec: `COMPONENTS.md` · tokens: `theme/tokens.ts` · fonts: `theme/fonts.ts` (read them when you need them).
+Routing is Expo Router (thin route files in `app/`, screen logic in `src/screens/`); patterns, UI text and forbidden
+APIs: `docs/expo.md`. Done = `bun run verify` exits 0 (`AGENTS.md`).
 
-## Design system — OBOWIĄZKOWE zasady
-Pełna specyfikacja komponentów: `@COMPONENTS.md` · tokeny: `@src/theme/tokens.ts` · fonty: `@src/theme/fonts.ts`.
-
-1. **Wszystkie wartości wizualne tylko z `src/theme`.** Zero surowych hexów (`#E50101`), zero „magicznych" liczb odstępów, promieni i rozmiarów czcionek w komponentach i ekranach. Jeśli czegoś brakuje — dodaj token w `tokens.ts`, nie wpisuj wartości inline.
-2. **Teksty przez komponent `Text`** (`variant` + `color`), nie przez gołe `react-native/Text`. Cała aplikacja używa jednego kroju: Schibsted Grotesk (etykiety `label*`, `chip` to ten sam krój, UPPERCASE).
-3. **Najpierw użyj istniejących komponentów** z `src/components` (Text, Button są gotowe). Nowy komponent twórz według wzorca z `Button.tsx`: TypeScript, `StyleSheet.create`, warianty jako unie typów, `Pressable` zamiast `TouchableOpacity`, stany pressed/disabled, `accessibilityRole`/`accessibilityLabel`.
-4. **Jeden komponent = jeden plik** w `src/components/<Nazwa>.tsx` + eksport w `src/components/index.ts`. Props typowane i udokumentowane krótkim komentarzem.
-5. **Layout:** ekran = `Screen` (tło `background`, padding poziomy `layout.screenPaddingX` = 24, góra = `insets.top + layout.screenTopOffset`). Używaj `react-native-safe-area-context`, nie rysuj atrapy paska statusu. Dolne CTA przyklejone do dołu (spacer `flex: 1`).
-6. **Ikony:** `lucide-react-native`, `strokeWidth` 1.8, kolory z tokenów. Mapowanie nazw — `COMPONENTS.md → Icon`.
-7. **Cienie:** `...shadows.card | cardRaised | selected | floating` (iOS + Android w jednym).
-8. **Dostępność:** cel dotyku ≥ 44 dp, `accessibilityLabel` na przyciskach ikonowych, role `radio`/`switch`/`tab` zgodnie ze specyfikacją.
-9. **Język:** wszystkie teksty UI po polsku, trzymaj kopię z makiet (nie wymyślaj nowych sformułowań bez potrzeby). Dane przykładowe z makiet zastępuj propsami / danymi z API.
-10. **Nie** dodawaj ciężkich bibliotek UI (NativeBase, Paper, Tamagui…) — komponenty są własne.
-
-## Stack (zalecany)
-Expo (SDK aktualne) + TypeScript (strict) · React Navigation (native-stack + bottom-tabs) · `react-native-svg` · `lucide-react-native` · `react-native-safe-area-context` · `expo-camera` (skaner QR) · `react-native-qrcode-svg` · `@gorhom/bottom-sheet` · `expo-print`.
-
-## Struktura
-```
-src/
-  theme/        tokens.ts, fonts.ts, index.ts     ← źródło prawdy wyglądu
-  components/   Text, Button, … (wg COMPONENTS.md)
-  screens/      ekrany (nazwy: LoginScreen, RegisterScreen, NoPlacesScreen, …)
-  navigation/   stacki i tab bar
-```
-
-## Jak pracować
-- Zacznij od przeczytania `COMPONENTS.md`. Implementuj komponenty w kolejności z jego nagłówka, po każdym: `npx tsc --noEmit`.
-- Dla każdego komponentu pokaż mały „katalog" (Storybook lub ekran `/dev/components`) z wariantami i stanami.
-- Przy rozbieżności między kodem a `COMPONENTS.md` — specyfikacja wygrywa; zgłoś różnicę zamiast po cichu zmieniać wygląd.
+1. **Visual values only from `src/theme`.** No raw hex, no magic spacing, radii or font sizes in components and
+   screens; shadows are `...shadows.card | cardRaised | selected | floating` (iOS and Android in one). Missing a
+   value? Add a token to `tokens.ts` instead of writing it inline.
+2. **Text through `Text` / `Heading`** (`variant` + `color`), never the bare `Text` from `react-native`. One typeface
+   for the whole app: Schibsted Grotesk (the `label*` and `chip` variants are the same face, uppercase).
+3. **Reuse `src/components` first.** A new component follows `Button.tsx`: one file `src/components/<Name>.tsx`
+   exported from `src/components/index.ts`, typed props with a short doc comment, `StyleSheet.create`, variants as
+   union types, `Pressable` (not `TouchableOpacity`) with pressed/disabled states and `tapFeedback()` on press-in.
+4. **Layout:** a screen is `Screen` (background, `layout.screenPaddingX` at the sides, top `insets.top +
+   layout.screenTopOffset`). Insets come from `react-native-safe-area-context`; never draw a fake status bar.
+   The bottom CTA goes last, after a `flex: 1` spacer.
+5. **Icons:** `lucide-react-native` through `Icon` (default `strokeWidth` 1.8, colors from tokens). Name mapping:
+   `COMPONENTS.md → Icon`.
+6. **Accessibility:** touch target ≥ 44 dp (`layout.minTouchTarget`, smaller elements get `hitSlop`), an accessible
+   label on icon buttons, roles `radio`/`radiogroup`, `switch`, `tab`/`tablist` as in the spec.
+7. **UI copy** is Polish, taken from the designs (no new wording without need), and lives only in `src/texts.ts`.
+   Sample data from the designs becomes props or API data.
+8. **No heavy UI libraries** (NativeBase, Paper, Tamagui…): the components are our own.
+9. **Spec vs code:** when the code looks different from `COMPONENTS.md`, report it; do not silently change the look.

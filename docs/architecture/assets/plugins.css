@@ -1,0 +1,561 @@
+/* Page-specific widgets of plugins.html (shared building blocks are in docs.css). */
+
+.hero .cards {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.annotated {
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+}
+
+.annotated .code {
+  font-size: 0.8rem;
+}
+
+@media (max-width: 860px) {
+  .annotated {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ───────────────────────────── mental model ───────────────────────────── */
+
+.model-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(260px, 2.2fr) auto minmax(150px, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .model-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.model-arrow {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  color: var(--soft);
+  font-size: 0.75rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.model-arrow::before {
+  content: "⇄";
+  font-size: 1.3rem;
+  color: var(--faint);
+}
+
+.model-arrow span:first-child {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.model-inner {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.model-ctx {
+  display: grid;
+  gap: 0.15rem;
+  border: 1.5px dashed color-mix(in srgb, var(--c-api) 55%, transparent);
+  border-radius: var(--radius-s);
+  padding: 0.5rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--body);
+  background: var(--surface);
+}
+
+.model-ctx-label {
+  font-weight: 700;
+  color: var(--c-api);
+}
+
+/* ───────────────────────────── loading ───────────────────────────── */
+
+.load-flow {
+  margin-bottom: 1rem;
+}
+
+.load-flow .box {
+  flex: 1 1 110px;
+  min-width: 110px;
+}
+
+@media (max-width: 700px) {
+  .load-flow > .arrow {
+    display: none;
+  }
+}
+
+/* ───────────────────────────── request lanes ───────────────────────────── */
+
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 900px) {
+  .lanes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lane {
+  padding: 0.5rem 0.6rem;
+  min-width: 0;
+}
+
+.lane .box-title {
+  font-size: 0.85rem;
+}
+
+.lane .path {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#request-scenarios {
+  margin: 0;
+}
+
+/* ───────────────────────────── ctx permissions ───────────────────────────── */
+
+.perm-set {
+  border: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.perm-set label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.perm-set input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+.perm-outcome {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.line-denied {
+  display: inline-block;
+  min-width: 100%;
+  background: var(--accent-tint);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.line-ok {
+  display: inline-block;
+  min-width: 100%;
+  background: var(--ok-tint);
+}
+
+/* ───────────────────────────── isolation ───────────────────────────── */
+
+.iso-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .iso-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.iso-table td {
+  font-size: 0.85rem;
+}
+
+.iso-table code {
+  white-space: nowrap;
+}
+
+.iso-table tr.iso-foreign td {
+  opacity: 0.4;
+}
+
+.iso-table tr.iso-hit td {
+  background: var(--ok-tint);
+}
+
+.iso-result {
+  margin: 0;
+}
+
+/* ───────────────────────────── query builder ───────────────────────────── */
+
+.qb-field {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.qb-field label {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.qb-field select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  min-width: 0;
+}
+
+.qb .snippet {
+  margin-top: 1rem;
+}
+
+/* ───────────────────────────── event logs ───────────────────────────── */
+
+.event-log {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  max-height: 290px;
+  overflow-y: auto;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-s);
+  background: var(--code-bg);
+}
+
+.event-log li {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  border-top: 1px solid var(--divider);
+  font-size: 0.82rem;
+}
+
+.event-log li:first-child {
+  border-top: 0;
+}
+
+.event-log code {
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.event-change {
+  color: var(--soft);
+  font-size: 0.75rem;
+}
+
+.event-log li.is-quiet code {
+  color: var(--faint);
+}
+
+.event-log li.is-http code {
+  color: var(--info);
+}
+
+.event-log li.is-ok code {
+  color: var(--ok);
+}
+
+.event-log li.is-bad code {
+  color: var(--accent-strong);
+}
+
+.event-log li.is-nav code {
+  color: var(--soft);
+}
+
+.watch-btns {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.watch-btns .btn {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.55rem;
+}
+
+/* ───────────────────────────── Server-Driven UI ───────────────────────────── */
+
+.sdui {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sdui-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+}
+
+.sdui-bar .pills {
+  margin: 0;
+}
+
+.sdui-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .sdui-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sdui-json {
+  max-height: 560px;
+}
+
+.sdui-log-box .event-log {
+  margin-bottom: 0;
+}
+
+/* The phone shows the app's own look (the app is light only), whatever the page theme. */
+.phone {
+  --pv-bg: #f5f3ee;
+  --pv-surface: #ffffff;
+  --pv-ink: #1b1b1f;
+  --pv-soft: #5e5e66;
+  --pv-line: #e3e0d8;
+  --pv-red: #e50101;
+  --pv-red-strong: #b30000;
+  --pv-tint: #fdecec;
+  color-scheme: light;
+  background: var(--pv-bg);
+  color: var(--pv-ink);
+  border: 8px solid #1b1b1f;
+  border-radius: 34px;
+  padding: 0.9rem 0.9rem 1.2rem;
+  min-height: 520px;
+  max-width: 380px;
+  margin: 0 auto;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+}
+
+.pv-bar {
+  display: flex;
+  justify-content: space-between;
+  color: var(--pv-soft);
+  font-size: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.pv-bar span:first-child {
+  color: var(--pv-red-strong);
+  font-weight: 600;
+}
+
+.pv-screen {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.pv-title {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--pv-ink);
+}
+
+.pv-msg {
+  margin: 0 0 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.pv-msg.is-toast {
+  background: var(--pv-tint);
+  color: var(--pv-red-strong);
+}
+
+.pv-msg.is-alert {
+  color: var(--pv-red-strong);
+  padding-left: 0;
+}
+
+.pv-form {
+  display: grid;
+  gap: 0.55rem;
+  background: var(--pv-surface);
+  border: 1px solid var(--pv-line);
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+
+.pv-field {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--pv-soft);
+}
+
+.pv-field input,
+.pv-field textarea {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--pv-ink);
+  background: var(--pv-surface);
+  border: 1px solid #ddd9cf;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+}
+
+.pv-btn {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+.pv-btn.is-primary {
+  background: var(--pv-red);
+  color: #fff;
+}
+
+.pv-btn.is-quiet {
+  background: var(--pv-surface);
+  border-color: #ddd9cf;
+  color: var(--pv-ink);
+}
+
+.pv-btn.is-danger {
+  background: transparent;
+  color: var(--pv-red-strong);
+}
+
+.pv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pv-list li {
+  margin: 0;
+}
+
+.pv-card {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--pv-ink);
+  background: var(--pv-surface);
+  border: 1px solid var(--pv-line);
+  border-radius: 14px;
+  padding: 0.7rem 0.8rem;
+}
+
+.pv-card-title {
+  font-weight: 600;
+}
+
+.pv-card-sub {
+  color: var(--pv-soft);
+  font-size: 0.8rem;
+}
+
+.pv-widget {
+  background: var(--pv-surface);
+  border: 1px solid var(--pv-line);
+  border-radius: 16px;
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.pv-widget-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+}
+
+.pv-row {
+  display: grid;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--pv-ink);
+  background: none;
+  border: 0;
+  border-top: 1px solid #eeebe4;
+  padding: 0.5rem 0;
+}
+
+.pv-text {
+  margin: 0;
+  color: var(--pv-ink);
+}
+
+.pv-text.is-soft {
+  color: var(--pv-soft);
+}
+
+.pv-empty {
+  margin: 0;
+  color: var(--pv-soft);
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.is-pressable {
+  cursor: pointer;
+}
+
+.pv-card.is-pressable:hover,
+.pv-widget.is-pressable:hover {
+  border-color: #c9c4b8;
+}
+
+/* ───────────────────────────── services ───────────────────────────── */
+
+.file-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}

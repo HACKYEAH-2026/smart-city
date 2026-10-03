@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { GeoAddress, MapPlace, PlaceDetails } from "@app/shared";
 import { TEST_ADDRESSES } from "../src/test-geocoder";
-import { DEMO_ADDRESS, DEMO_LOCATION } from "../src/test-routes";
+import { DEMO_ADDRESS, DEMO_LOCATION, DEMO_MAP_PLACES, seedDemoMap } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
 
 /**
@@ -112,5 +112,15 @@ describe("the map of places", () => {
     ]);
     const member = await t.signUp();
     expect(await mapOf(member)).toContainEqual(expect.objectContaining({ ...demo, slug: "krakow" }));
+  });
+
+  test("local dev seeds more public places around Kraków: pins for everyone, once", async () => {
+    t = await setup();
+    await seedDemoMap(t.db);
+    await seedDemoMap(t.db);
+    const stranger = await t.signUp({ place: null });
+    const map = await mapOf(stranger);
+    expect(map).toHaveLength(DEMO_MAP_PLACES.length);
+    for (const place of DEMO_MAP_PLACES) expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null }));
   });
 });

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, test } from "./fixtures";
+import { expect, loginAdmin, test } from "./fixtures";
 
 /**
  * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin,
@@ -8,14 +8,6 @@ import { expect, test } from "./fixtures";
  * until the admin publishes it into the place; a change after that is a new version, published again. Plugin names
  * are data.
  */
-const loginAdmin = async (page: Page) => {
-  await page.goto("/login");
-  await page.getByLabel(t.auth_email).fill("admin@krakow.test");
-  await page.getByLabel(t.auth_password).fill("password");
-  await page.getByRole("button", { name: t.auth_submit_login }).click();
-  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
-};
-
 /**
  * How long a revision may take: the fake author answers at once, but every revision type-checks a whole plugin and
  * the test server's first check loads the compiler (seconds; docs/plugins.md, Known issues).

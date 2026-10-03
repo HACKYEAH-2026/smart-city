@@ -54,11 +54,13 @@ describe("membership gate", () => {
     expect(await myPlaces(stranger)).toEqual([]);
 
     const base = "/api/communities/krakow";
-    for (const path of [base, `${base}/nav`, `${base}/widgets`, `${base}/plugins/issues/views/list`]) {
+    for (const path of [base, `${base}/nav`, `${base}/dashboard`, `${base}/plugins/issues/views/list`]) {
       expect((await t.request(path, { headers: stranger.headers })).status, path).toBe(404);
     }
     expect((await t.request(`${base}/visit`, { method: "POST", headers: stranger.headers })).status).toBe(404);
     expect((await t.request(`${base}/default`, { method: "PUT", headers: stranger.headers })).status).toBe(404);
+    const reorder = { method: "PATCH", headers: stranger.headers, json: { order: [] } };
+    expect((await t.request(`${base}/dashboard`, reorder)).status).toBe(404);
   });
 
   test("the list holds only the user's places, with their role", async () => {

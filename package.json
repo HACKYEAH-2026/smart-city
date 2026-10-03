@@ -11,11 +11,11 @@
   ],
   "scripts": {
     "verify": "bun scripts/verify.ts",
-    "lint": "biome ci .",
+    "lint": "biome ci --error-on-warnings .",
     "format": "biome check --write .",
-    "typecheck": "bun run --filter '*' typecheck",
-    "test:unit": "bun test ./packages ./plugins ./apps/app/src",
-    "test:int": "bun test ./apps/api/test",
+    "typecheck": "bun run --parallel --no-exit-on-error --filter '*' typecheck",
+    "test:unit": "bun scripts/bun-test.ts ./packages ./plugins ./apps/app/src ./apps/api/src",
+    "test:int": "bun scripts/bun-test.ts ./apps/api/test",
     "db:check": "bun run --cwd apps/api db:check",
     "e2e": "bun run --cwd apps/app e2e",
     "build": "bun run --cwd apps/api build && bun run --cwd apps/app build",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
-    "@types/bun": "latest",
+    "@types/bun": "1.4.2",
     "typescript": "~6.0.3"
   }
 }

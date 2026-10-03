@@ -1,0 +1,413 @@
+/* Page-specific widgets of pipeline.html: the check runner, the schema simulator, lanes and state diagrams. */
+
+/* ───────────────────────────── ways in ───────────────────────────── */
+
+.ways {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .ways {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gate {
+  border-width: 2px;
+}
+
+.ways-detail {
+  margin-top: 1rem;
+}
+
+/* ───────────────────────────── check runner ───────────────────────────── */
+
+.runner {
+  background: var(--surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+  margin: 0 0 1.5em;
+}
+
+.runner .pills {
+  margin-bottom: 0.75rem;
+}
+
+.sample-intro {
+  margin: 0 0 1rem;
+  min-height: 1.6em;
+}
+
+.stages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.4rem;
+  counter-reset: stage;
+}
+
+@media (max-width: 760px) {
+  .stages {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.stages > li {
+  counter-increment: stage;
+  margin: 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-s);
+  background: var(--muted);
+  padding: 0.5rem 0.6rem;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.stage-name {
+  display: block;
+  font: 700 0.86rem / 1.3 var(--mono);
+  color: var(--ink);
+}
+
+.stage-name::before {
+  content: counter(stage) ". ";
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.stage-state {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--faint);
+}
+
+.stages > li[data-state="running"] {
+  border-color: var(--info);
+  background: var(--info-tint);
+}
+
+.stages > li[data-state="passed"] {
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  background: var(--ok-tint);
+}
+
+.stages > li[data-state="passed"] .stage-state {
+  color: var(--ok);
+}
+
+.stages > li[data-state="failed"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.stages > li[data-state="failed"] .stage-state {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.stages > li[data-state="skipped"] {
+  opacity: 0.45;
+}
+
+.runner-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .runner-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pane-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--soft);
+  padding: 0 0.15rem 0.35rem;
+}
+
+.src {
+  position: relative;
+  max-height: 400px;
+  overflow: auto;
+  padding: 0.6rem 0;
+}
+
+.src .ln {
+  display: block;
+  position: relative;
+  min-height: 1.6em;
+  padding: 0 1rem 0 3.3rem;
+  white-space: pre;
+}
+
+.src .ln::before {
+  content: attr(data-line);
+  position: absolute;
+  left: 0;
+  width: 2.5rem;
+  text-align: right;
+  color: var(--faint);
+  font-style: normal;
+}
+
+.src .ln.is-changed {
+  background: var(--info-tint);
+  box-shadow: inset 3px 0 0 var(--info);
+}
+
+.src .ln.is-error {
+  background: var(--accent-tint);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.result {
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.http-line {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  margin: 0.6rem 0 0;
+  color: var(--soft);
+}
+
+.http-line strong {
+  font-weight: 700;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  vertical-align: -0.05em;
+  margin-right: 0.3em;
+}
+
+.swatch.changed {
+  background: var(--info-tint);
+  box-shadow: inset 2px 0 0 var(--info);
+}
+
+.swatch.error {
+  background: var(--accent-tint);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* ───────────────────────────── safety ───────────────────────────── */
+
+.rule-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.rule-list li {
+  margin: 0;
+}
+
+.rule-list code {
+  font-size: 0.8rem;
+}
+
+.message {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--accent-strong);
+  background: var(--accent-tint);
+  border-radius: var(--radius-s);
+  padding: 0.55rem 0.75rem;
+  margin: 0 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+.message.ok {
+  color: var(--ok);
+  background: var(--ok-tint);
+}
+
+/* ───────────────────────────── lanes (steppers) ───────────────────────────── */
+
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.lanes .box {
+  padding: 0.5rem 0.65rem;
+}
+
+.lanes .box-title {
+  font-size: 0.86rem;
+}
+
+/* ───────────────────────────── schema simulator ───────────────────────────── */
+
+.sim {
+  background: var(--surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+  margin: 0 0 1.5em;
+}
+
+.sim-groups {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+.sim-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sim-group-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  min-width: 5.5rem;
+}
+
+.sim-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .sim-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.diff .d {
+  display: block;
+  white-space: pre;
+  padding: 0 0.4rem;
+  margin: 0 -0.4rem;
+  border-radius: 3px;
+}
+
+.diff .d-add {
+  background: var(--ok-tint);
+}
+
+.diff .d-del {
+  background: var(--accent-tint);
+}
+
+.verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.verdict .chip {
+  font-size: 0.85rem;
+  padding: 0.4em 0.75em;
+}
+
+.statements {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ───────────────────────────── state diagrams ───────────────────────────── */
+
+.states {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.state-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.state-row > .box {
+  flex: 0 1 auto;
+}
+
+.state-row > .arrow {
+  color: var(--soft);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.state-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  min-width: 4.5rem;
+}
+
+.transcript {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ───────────────────────────── tables and states ───────────────────────────── */
+
+.stage-table {
+  min-width: 680px;
+}
+
+.stage-table td:first-child {
+  white-space: nowrap;
+}
+
+.state-wait {
+  --layer: var(--info);
+  --layer-tint: var(--info-tint);
+}
+
+.state-ok {
+  --layer: var(--ok);
+  --layer-tint: var(--ok-tint);
+}
+
+.state-bad {
+  --layer: var(--accent);
+  --layer-tint: var(--accent-tint);
+}
+
+.state-draft {
+  --layer: var(--soft);
+  --layer-tint: var(--muted);
+}

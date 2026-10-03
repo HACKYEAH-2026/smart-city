@@ -3,7 +3,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . --incremental",
     "dev": "expo start --localhost --clear",
     "build": "expo export --platform web --clear && bun scripts/postexport.ts",
     "preview": "bun scripts/serve.ts",

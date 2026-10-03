@@ -58,5 +58,6 @@ function importIssue(source: string, path: string): CheckIssue {
   const message = `Runtime import of "${path}": a plugin may only use \`import type\`; the SDK (definePlugin, ui, z, fileRef, t) is the factory argument`;
   const lines = source.split("\n");
   const index = lines.findIndex((line) => line.includes(`"${path}"`) || line.includes(`'${path}'`));
-  return index < 0 ? { message } : { message, line: index + 1, snippet: lines[index]!.trim() };
+  const found = lines[index];
+  return found === undefined ? { message } : { message, line: index + 1, snippet: found.trim() };
 }

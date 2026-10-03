@@ -26,4 +26,10 @@ export interface AI {
     candidates: R[],
     opts: SimilarOptions<R>,
   ): Promise<SimilarMatch<R>[]>;
+  /**
+   * The meaning of a text as a vector (the host's embedding model). Store it yourself (`t.json<number[]>()`) and
+   * compare with cosine similarity. Vectors of different models are not comparable: when the host switches models,
+   * the length usually changes too.
+   */
+  embed(text: string): Promise<number[]>;
 }

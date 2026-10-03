@@ -6,11 +6,23 @@ import type { AIProviders, ModelImage } from "./types";
 const CANDIDATES_MAX = 30;
 const MATCH_THRESHOLD = 0.6;
 const CALLS_PER_MINUTE = 60;
+/** Embeddings cost a fraction of a model call, so a plugin may embed more often (e.g. a batch of old rows). */
+const EMBEDS_PER_MINUTE = 600;
+/** Characters per embedded text; well below the embedding models' input limit (8191 tokens for OpenAI's). */
+const EMBED_TEXT_MAX = 8000;
 
 export class AINotConfiguredError extends Error {
-  constructor() {
-    super("AI is not configured on this server (AI_API_KEY)");
+  constructor(variables = "AI_API_KEY") {
+    super(`AI is not configured on this server (${variables})`);
   }
+}
+
+/** The text ctx.ai.embed sends: trimmed, not empty and not longer than EMBED_TEXT_MAX. */
+function embeddable(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("ctx.ai.embed: empty text");
+  if (trimmed.length > EMBED_TEXT_MAX) throw new Error(`ctx.ai.embed: text longer than ${EMBED_TEXT_MAX} characters`);
+  return trimmed;
 }
 
 const words = (s: string) =>
@@ -44,6 +56,7 @@ const judgement = z.object({
 /**
  * ctx.ai: the single source of model calls for plugins. Key, limits and model choice live in the host.
  * findSimilar: language model judgement "is this the same problem" (without a model: lexical mode).
+ * embed: a vector from the embedding model; the plugin stores and compares vectors itself.
  */
 export class AIService {
   private readonly calls = new Map<string, number[]>();
@@ -62,7 +75,7 @@ export class AIService {
     const generate = async (prompt: string, imgs: ModelImage[], schema?: z.ZodType) => {
       const model = this.providers.language;
       if (!model) throw new AINotConfiguredError();
-      this.limit(installationId);
+      this.limit(installationId, CALLS_PER_MINUTE);
       return model.generate({ prompt, images: imgs, ...(schema ? { schema } : {}) });
     };
 
@@ -95,14 +108,23 @@ export class AIService {
           .slice(0, opts.limit ?? 3)
           .map((m) => ({ item: pool[m.index] as R, score: m.score, reason: m.reason }));
       },
+
+      embed: async (text) => {
+        const model = this.providers.embedding;
+        if (!model) throw new AINotConfiguredError("AI_API_KEY, AI_EMBEDDING_MODEL");
+        const input = embeddable(text);
+        this.limit(`${installationId}:embed`, EMBEDS_PER_MINUTE);
+        return model.embed(input);
+      },
     };
   }
 
-  private limit(installationId: string) {
+  /** At most `max` requests per minute under `key` (an installation, or an installation's embeddings). */
+  private limit(key: string, max: number) {
     const now = Date.now();
-    const recent = (this.calls.get(installationId) ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= CALLS_PER_MINUTE) throw new Error("AI rate limit exceeded for this plugin installation");
+    const recent = (this.calls.get(key) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= max) throw new Error("AI rate limit exceeded for this plugin installation");
     recent.push(now);
-    this.calls.set(installationId, recent);
+    this.calls.set(key, recent);
   }
 }

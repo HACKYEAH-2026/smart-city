@@ -6,7 +6,7 @@
     ".": "./index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p . --incremental"
   },
   "dependencies": {
     "@app/plugin-sdk": "workspace:*"
