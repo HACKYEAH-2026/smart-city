@@ -363,7 +363,8 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
       form?.set(node.name, await upload(asset));
       setPreview(asset.uri);
       setState("idle");
-    } catch {
+    } catch (error) {
+      console.warn("plugin photo upload failed", { mime: asset.mimeType, name: asset.fileName, error });
       setState("error");
     }
   };
@@ -602,13 +603,9 @@ const SELECT_ICON: Record<"alert" | "idea", LucideIcon> = { alert: AlertTriangle
 
 const styles = StyleSheet.create({
   photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
-  photoTile: {
-    width: sizes.photoTile,
-    height: sizes.photoTile,
-    borderRadius: radii.xl,
-    overflow: "hidden",
-  },
-  photoImage: { width: "100%", height: "100%" },
+  // No overflow clipping on the tile: the remove button sits over its corner. The rounding clips the photo only.
+  photoTile: { width: sizes.photoTile, height: sizes.photoTile },
+  photoImage: { width: "100%", height: "100%", borderRadius: radii.xl, overflow: "hidden" },
   photoRemove: {
     position: "absolute",
     top: -spacing[2],

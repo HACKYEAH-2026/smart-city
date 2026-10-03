@@ -298,7 +298,7 @@ export const t = {
   build_publish: "Opublikuj w miejscu",
   build_update: "Zaktualizuj w miejscu",
   build_published: "W miejscu działa wersja",
-  build_draft_note: "Szkic: widzą go tylko administratorzy. Opublikuj go, żeby trafił do mieszkańców.",
+  build_draft_note: "Szkic: widzą go tylko administratorzy. Opublikuj go, żeby trafił do użytkowników.",
   build_open: "Otwórz rozszerzenie",
   build_publish_error: "Nie udało się opublikować rozszerzenia.",
   build_change_label: "Co zmienić?",
