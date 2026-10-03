@@ -83,6 +83,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await page.addInitScript((u) => {
         (globalThis as unknown as { __API_URL__: string }).__API_URL__ = u;
       }, api.url);
+      // No network, as with the geocoder: the maps' MapLibre (unpkg.com) and tiles (OpenFreeMap) do not load. A map
+      // drawn with software WebGL kept the main thread busy enough that a long-press on a dashboard tile became a tap.
+      await page.context().route(/^https:\/\/(unpkg\.com|tiles\.openfreemap\.org)\//, (route) => route.abort());
       await use(undefined);
     },
     { auto: true },
