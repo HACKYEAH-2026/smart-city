@@ -37,7 +37,10 @@ type GugikAddress = {
   y: string;
 };
 
-/** "TwistCafe" / "Floriańska 15, 31-019 Kraków"; a building without a name: "Floriańska 15" / "31-019 Kraków". */
+/**
+ * "TwistCafe" / "Floriańska 15, 31-019 Kraków"; a building without a name: "Floriańska 15" / "31-019 Kraków". The
+ * postal address leaves the name out (a street is its own name).
+ */
 export function photonAddress({ geometry, properties: p }: PhotonFeature): GeoAddress {
   const street = [p.street, p.housenumber].filter(Boolean).join(" ");
   const town = [p.postcode, p.city ?? p.county].filter(Boolean).join(" ");
@@ -45,6 +48,7 @@ export function photonAddress({ geometry, properties: p }: PhotonFeature): GeoAd
   return {
     label: p.name ?? (street || town),
     detail: [p.name ? street : "", town].filter(Boolean).join(", "),
+    address: [street || p.name, town].filter(Boolean).join(", "),
     lat,
     lng,
   };
@@ -52,12 +56,9 @@ export function photonAddress({ geometry, properties: p }: PhotonFeature): GeoAd
 
 /** "Floriańska 12" / "31-022 Kraków"; in a village without streets: "Zabierzów 12" / "32-080 Zabierzów". */
 export function gugikAddress(a: GugikAddress): GeoAddress {
-  return {
-    label: [a.street ?? a.city, a.number].filter(Boolean).join(" "),
-    detail: [a.code, a.city].filter(Boolean).join(" "),
-    lat: Number(a.y),
-    lng: Number(a.x),
-  };
+  const label = [a.street ?? a.city, a.number].filter(Boolean).join(" ");
+  const detail = [a.code, a.city].filter(Boolean).join(" ");
+  return { label, detail, address: [label, detail].filter(Boolean).join(", "), lat: Number(a.y), lng: Number(a.x) };
 }
 
 const unique = (addresses: GeoAddress[]) =>

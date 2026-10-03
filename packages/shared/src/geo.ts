@@ -16,12 +16,13 @@ export const geoReverseSchema = z.object({
   lng: z.coerce.number().min(-180).max(180),
 });
 
-/** An address with its point: `label` = street and number (or the name), `detail` = postcode and town. */
-export const geoAddressSchema = geoPointSchema.extend({ label: z.string(), detail: z.string() });
+/**
+ * An address with its point. `label` and `detail` are the two lines of a search result ("TwistCafe" /
+ * "Floriańska 15, 31-019 Kraków"); `address` is the postal address alone, what a place stores: "Floriańska 15,
+ * 31-019 Kraków".
+ */
+export const geoAddressSchema = geoPointSchema.extend({ label: z.string(), detail: z.string(), address: z.string() });
 export type GeoAddress = z.infer<typeof geoAddressSchema>;
-/** One line, as stored in a place's address: "Floriańska 15, 31-019 Kraków". */
-export const addressLine = (a: Pick<GeoAddress, "label" | "detail">): string =>
-  [a.label, a.detail].filter(Boolean).join(", ");
 
 /**
  * A place on the map of places (GET /api/geo/places): public places and the user's own. `slug` only for its members

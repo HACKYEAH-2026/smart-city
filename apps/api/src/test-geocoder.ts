@@ -1,5 +1,5 @@
 import type { GeoPoint } from "@app/plugin-sdk";
-import { addressLine, type GeoAddress } from "@app/shared";
+import type { GeoAddress } from "@app/shared";
 import type { Geocoder } from "./services/geo/types";
 
 /**
@@ -11,14 +11,14 @@ export const TEST_ADDRESSES: GeoAddress[] = [
   { label: "Floriańska 15", detail: "31-019 Kraków", lat: 50.06274, lng: 19.93986 },
   { label: "pl. Wszystkich Świętych 3-4", detail: "31-004 Kraków", lat: 50.05967, lng: 19.93775 },
   { label: "Rynek Główny 1", detail: "31-042 Kraków", lat: 50.06165, lng: 19.93733 },
-];
+].map((a) => ({ ...a, address: `${a.label}, ${a.detail}` }));
 
 const distance2 = (a: GeoPoint, b: GeoPoint) => (a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2;
 
 export class TestGeocoder implements Geocoder {
   async search(query: string) {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return TEST_ADDRESSES.filter((a) => words.every((word) => addressLine(a).toLowerCase().includes(word)));
+    return TEST_ADDRESSES.filter((a) => words.every((word) => a.address.toLowerCase().includes(word)));
   }
 
   async reverse(point: GeoPoint) {

@@ -10,8 +10,8 @@ export interface SearchFieldProps extends Omit<TextInputProps, "onChangeText" | 
   label: string;
   value: string;
   onChangeText: (text: string) => void;
-  /** Enter / the keyboard's search key. */
-  onSubmit: () => void;
+  /** Enter / the keyboard's search key, with the field's text as submitted (not a state that may lag behind). */
+  onSubmit: (text: string) => void;
 }
 
 /**
@@ -28,7 +28,7 @@ export function SearchField({ label, value, onChangeText, onSubmit, ...rest }: S
         placeholderTextColor={colors.placeholder}
         value={value}
         onChangeText={onChangeText}
-        onSubmitEditing={onSubmit}
+        onSubmitEditing={(e) => onSubmit(e.nativeEvent.text)}
         returnKeyType="search"
         autoCorrect={false}
         style={styles.input}

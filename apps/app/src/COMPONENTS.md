@@ -142,7 +142,7 @@ Wariant prosty: `IconButton square` (wstecz). Wariant „krok": `IconButton plai
 N równych segmentów w rzędzie, wysokość 4, radius 2; wypełnienie `primary`, tło `border`. Wartość może być ułamkowa (częściowo wypełniony segment). Zmiana wartości animuje się płynnie od lewej do prawej (przy spadku — od prawej), `motion.base` na segment. Dekoracyjny (`aria-hidden`) — postęp jest też podany tekstem (StepProgress, PasswordStrength).
 
 ### BottomTabBar
-3 zakładki (Pulpit / Miejsca / Konto) w siatce, tło `surface`, górna krawędź 1 px `borderSubtle`, padding 8/12/(insets.bottom ≈ 28)/12. Zakładka: kolumna, gap 4, padding 8, ikona 22 + etykieta 12. Aktywna: kolor `primary`, `tabActive`, pod etykietą kropka 5 dp `primary`; nieaktywna: `textSecondary`, `tab`. „Miejsca" nie jest osobnym ekranem: otwiera przełącznik miejsc (BottomSheet) nad pulpitem (`/app?places=1`). Ekran „Brak miejsc" nie ma paska (konto: okrągły awatar w nagłówku).
+4 zakładki (Pulpit / Miejsca / Mapa / Konto) w siatce, tło `surface`, górna krawędź 1 px `borderSubtle`, padding 8/12/(insets.bottom ≈ 28)/12. Zakładka: kolumna, gap 4, padding 8, ikona 22 + etykieta 12. Aktywna: kolor `primary`, `tabActive`, pod etykietą kropka 5 dp `primary`; nieaktywna: `textSecondary`, `tab`. „Miejsca" nie jest osobnym ekranem: otwiera przełącznik miejsc (BottomSheet) nad pulpitem (`/app?places=1`); „Mapa" (`Map`) to mapa miejsc (`/app/map`). Ekran „Brak miejsc" nie ma paska (konto: okrągły awatar w nagłówku; do mapy prowadzi wiersz „Znajdź na mapie").
 
 ### BottomSheet
 Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: `headingS` + `IconButton roundSunken` (zamknij). Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
@@ -169,6 +169,20 @@ Card radius 22: lewa strona etykieta `label` „Kod zaproszeniowy" → `codeXL` 
 
 ### ScannerFrame (skaner QR — tryb ciemny)
 Ekran: tło `scannerBg`, padding 56/24/40. Ramka 268×268, radius 32, tło `scannerFrame`; cztery narożniki 52×52 (border 3 `onPrimary`, zaokrąglenie 32 po zewnętrznej stronie); pozioma linia skanowania 2 dp `primary`, marginesy 32 (animowana w pionie). Podgląd z aparatu: `expo-camera` (`CameraView`, `barcodeScannerSettings: qr`). Tekst pomocniczy `bodyL` kolor `scannerText`, max szerokość 280, wyśrodkowany. Na dole przyciski `onDark` i `roundOnDark`-style (tło `onDarkOverlay`, tekst biały).
+
+## Mapy
+
+### MapView ✅ (`src/components/MapView.tsx`)
+Żywa mapa: MapLibre GL JS na kafelkach OpenFreeMap (dane OpenStreetMap), przemalowana tokenami `mapBase` (tło, zabudowa mieszkaniowa), `mapBuilding`, `mapPark`, `mapWater`; podpisy po polsku (`name:pl`). Pinezki miejsc: koło `primary` z obrysem `onPrimary` (`mapMarks.pinRadius` / `pinRadiusSelected`), podpis pod spodem (`Noto Sans Bold`, `mapMarks.labelSize`, obwódka `surface`). Pozycja użytkownika: kropka `mapMe` z obwódką `surface` i halo `mapMe` (`opacity.routeHalo`). Atrybucja OSM (wymagana licencją) zawsze widoczna w lewym dolnym rogu, nad panelem zachodzącym na mapę (`bottomInset`); w nieruchomym podglądzie (`interactive={false}`) zwinięta do „i". Tło `mapBase` widać, dopóki mapa się nie wczyta. Implementacja: `src/lib/map/` (strona HTML w `react-native-webview` / iframe na webie). Pinezki rysuje canvas, więc ekran z mapą pokazuje obok ich dostępną listę.
+
+### PlacePin ✅ (`src/components/PlacePin.tsx`)
+Pinezka ustawianego miejsca nad środkiem mapy (wybór lokalizacji): koło 48 dp (`sizes.iconBoxLg`) `primary`, obramowanie 3 dp `surface`, cień `selected`, ikona rodzaju miejsca 20 dp `onPrimary`; nóżka 3×14 `primary`; pod nią cień-elipsa 16×6 `dot`. Koniec nóżki wypada dokładnie w środku rodzica. Nieinteraktywna.
+
+### SearchField ✅ (`src/components/SearchField.tsx`)
+Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `IconButton floating`.
+
+### Ekran „Lokalizacja miejsca" (kreator, krok 2)
+Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod nimi ciemna pigułka podpowiedzi (`text`, tekst `caption` `onPrimary`) albo karta wyników (`Card`, wiersze: `MapPin` `primary` + nazwa `buttonM` + adres `small`). Prawy dolny róg mapy: „Moja lokalizacja" (`IconButton floating`, ikona `LocateFixed` w kolorze `mapMe`). Panel na dole zachodzi na mapę o `radii.sheet`: uchwyt, `IconBox MapPin` + adres pod pinezką (`cardTitle`) + „<nazwa> · tu pojawi się pinezka miejsca" (`small`), przycisk „Potwierdź lokalizację". W kroku 2 kreatora: podgląd `MapView` 140 dp (`sizes.locationPreview`, radius `xl`, ramka `border`) + „Zmień lokalizację" (`secondary sm`) / „Usuń lokalizację" (`ghost sm`).
 
 ---
 

@@ -1,5 +1,5 @@
 import type { GeoPoint } from "@app/plugin-sdk";
-import { addressLine, type GeoAddress, type PlaceKind } from "@app/shared";
+import type { GeoAddress, PlaceKind } from "@app/shared";
 import Head from "expo-router/head";
 import { ChevronLeft, LocateFixed, MapPin } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -82,9 +82,9 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
     movePin(position);
     map.current?.flyTo(position, STREET_ZOOM);
   };
-  const submit = () => {
-    const text = query.trim();
-    if (text.length >= 2) setSubmitted(text);
+  const submit = (text: string) => {
+    const trimmed = text.trim();
+    if (trimmed.length >= 2) setSubmitted(trimmed);
   };
 
   return (
@@ -143,7 +143,7 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
           <IconBox icon={MapPin} />
           <View style={styles.addressText}>
             <Text variant="cardTitle">
-              {address ? addressLine(address) : lookup.isFetching ? t.location_looking_up : t.location_unknown}
+              {address ? address.address : lookup.isFetching ? t.location_looking_up : t.location_unknown}
             </Text>
             <Text variant="small" color="textSecondary">{`${name} · ${t.location_pin_hint}`}</Text>
           </View>
@@ -155,7 +155,7 @@ export default function LocationPicker({ name, kind, initial, onConfirm, onCance
         ) : null}
         <Button
           label={t.location_confirm}
-          onPress={() => onConfirm({ location: pin, address: address ? addressLine(address) : "" })}
+          onPress={() => onConfirm({ location: pin, address: address?.address ?? "" })}
         />
       </View>
     </View>
@@ -193,7 +193,7 @@ function SearchResults({
             <View role="listitem" key={`${result.label}|${result.detail}|${result.lat}`}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={addressLine(result)}
+                accessibilityLabel={[result.label, result.detail].filter(Boolean).join(", ")}
                 onPressIn={tapFeedback}
                 onPress={() => onChoose(result)}
                 style={({ pressed }) => [styles.result, pressed && styles.pressed]}
