@@ -54,6 +54,10 @@ export const useCommunities = () =>
   and the default API URL works; press `a` in the `app` pane (installs a matching Expo Go if needed).
   Phone over Wi-Fi instead: `bunx expo start --lan` in `apps/app` with `EXPO_PUBLIC_API_URL=http://<LAN IP>:4000`.
 - Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
+- Keyboard: `Screen` scrolls with `KeyboardAwareScrollView` (react-native-keyboard-controller, also in Expo Go), so a
+  focused field and the button below it stay above the keyboard. Forms inside `Screen` need nothing more; do not add
+  your own `KeyboardAvoidingView`. `dev` starts Metro with `--clear`: the Metro cache in `$TMPDIR` is shared between
+  projects, and a stale transform from a project with another react-native-worklets version breaks worklets.
 - Push notifications (`src/lib/push.ts`, `src/data/push.ts`; web: `push.web.ts`, no pushes): after sign-in the phone
   registers its Expo push token with the API; a tapped push opens the plugin view. They need `EXPO_PROJECT_ID`
   (expo.dev project) and, on Android, `google-services.json` from Firebase (FCM) — see `app.config.ts`. The FCM

@@ -83,6 +83,9 @@ export const layout = {
   contentMaxWidth: 560,
   /** Login screen: the brand row starts this far from the top edge (design y = 200). */
   loginContentTop: 200,
+  /** Outside the design: a focused field stays this far above the keyboard, so the form's button below it
+   * (gap 14 + buttonLg 54) is visible too. */
+  keyboardBottomOffset: 84,
 } as const;
 
 export const radii = {

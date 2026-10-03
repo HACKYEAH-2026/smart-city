@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, layout } from "../theme";
 import { AppFooter, AppHeader } from "./AppHeader";
@@ -18,6 +19,8 @@ export interface ScreenProps {
 /**
  * Screen shell (COMPONENTS.md → Screen): background, safe-area insets, scrolling content,
  * optional app header and footer. Dedicated CTA buttons go last in `children`.
+ * Keyboard: the focused field scrolls above it together with the button below it, and the first tap on a
+ * button while the keyboard is open presses it (instead of only closing the keyboard).
  */
 export function Screen({ children, chrome = true, backdrop, tabBar = false }: ScreenProps) {
   const insets = useSafeAreaInsets();
@@ -28,8 +31,10 @@ export function Screen({ children, chrome = true, backdrop, tabBar = false }: Sc
           {backdrop}
         </View>
       ) : null}
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
+        bottomOffset={layout.keyboardBottomOffset}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.content,
           {
@@ -43,7 +48,7 @@ export function Screen({ children, chrome = true, backdrop, tabBar = false }: Sc
           {children}
           {chrome ? <AppFooter /> : null}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       {tabBar ? <BottomTabBar /> : null}
     </View>
   );
