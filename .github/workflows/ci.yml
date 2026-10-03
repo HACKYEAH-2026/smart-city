@@ -104,7 +104,7 @@ jobs:
           gc-max-store-size-linux: 8G
       - run: nix develop .#light -c bun install --frozen-lockfile
       - name: expo prebuild (ios/ generowany z app.config.ts, CocoaPods z runnera)
-        run: nix develop .#light -c bash -c 'cd apps/app && bun run i18n && CI=1 bunx expo prebuild --platform ios'
+        run: nix develop .#light -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform ios'
       - name: xcodebuild (symulator, CODE_SIGNING_ALLOWED=NO)
         run: |
           set -o pipefail
@@ -152,7 +152,7 @@ jobs:
         run: |
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
           # Podpis przez właściwości wstrzykiwane do AGP — bez keystore i haseł w wygenerowanym projekcie.
-          nix develop -c bash -c 'cd apps/app && bun run i18n && CI=1 bunx expo prebuild --platform android --no-install \
+          nix develop -c bash -c 'cd apps/app && CI=1 bunx expo prebuild --platform android --no-install \
             && cd android && ./gradlew bundleRelease --no-daemon \
               -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
               -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \

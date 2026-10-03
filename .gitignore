@@ -20,9 +20,6 @@ coverage/
 *.tfstate.*
 *.tfplan
 .terraform.lock.hcl.bak
-# Paraglide (generowane z messages/*.json)
-apps/web/src/paraglide/
-apps/web/project.inlang/cache/
 # Expo: projekty natywne są GENEROWANE z app.config.ts (expo prebuild) — nie commitujemy ich
 apps/app/android/
 apps/app/ios/

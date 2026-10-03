@@ -7,7 +7,7 @@ import { en } from "./messages";
 /**
  * Kryteria akceptacji systemu wtyczek: wtyczka wbudowana działa end-to-end, a wtyczka wgrana
  * przez API administracyjne pojawia się w społeczności bez przeładowania aplikacji.
- * Teksty wtyczek (po polsku) to treść z serwera, nie komunikaty Paraglide.
+ * Teksty wtyczek (po polsku) to treść z serwera, nie komunikaty z messages/*.json.
  */
 const register = async (page: Page, email: string) => {
   await page.goto("/register");

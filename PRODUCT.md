@@ -19,7 +19,7 @@ działa w przeglądarce, na Androidzie i iOS. Notatki należą do użytkownika (
 | `/app` notatki | Operate | Dodaj / edytuj / usuń notatkę |
 
 ## Języki
-Angielski (domyślny) i polski. Na webie strony marketingowe mają język w URL (`/pl/...`), ekrany aplikacji — z preferencji/urządzenia. Teksty wyłącznie w Paraglide (`apps/app/messages`).
+Angielski (domyślny) i polski. Na webie strony marketingowe mają język w URL (`/pl/...`), ekrany aplikacji — z preferencji/urządzenia. Teksty wyłącznie w `apps/app/messages`.
 
 ## Ton
 Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii klientów.

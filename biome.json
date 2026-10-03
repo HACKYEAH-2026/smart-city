@@ -17,8 +17,6 @@
       "!**/.terraform",
       "!**/playwright-report",
       "!**/test-results",
-      "!**/src/paraglide",
-      "!**/project.inlang/cache",
       "!**/expo-env.d.ts"
     ]
   },

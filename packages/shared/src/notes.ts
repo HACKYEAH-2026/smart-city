@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Kontrakt zasobu "notes". Jedno źródło prawdy dla walidacji w API (zod-validator)
  * i w formularzach frontendu. Nowy zasób = skopiuj ten plik.
- * Komunikaty Zod są po angielsku (język API); UI pokazuje własne tłumaczenia z Paraglide.
+ * Komunikaty Zod są po angielsku (język API); UI pokazuje własne tłumaczenia (apps/app/messages).
  */
 export const NOTE_TITLE_MAX = 200;
 export const NOTE_BODY_MAX = 10_000;

@@ -6,7 +6,12 @@
  */
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import settings from "../project.inlang/settings.json" with { type: "json" };
+
+/** Języki = pliki messages/<locale>.json; bazowy to angielski (jak w src/lib/i18n.tsx). */
+const baseLocale = "en";
+const locales = readdirSync(join(import.meta.dir, "..", "messages"))
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => f.slice(0, -".json".length));
 
 const dist = join(import.meta.dir, "..", "dist");
 if (!existsSync(join(dist, "index.html")))
@@ -19,16 +24,16 @@ const htmlFiles = (dir: string): string[] =>
     e.isDirectory() ? htmlFiles(join(dir, e.name)) : e.name.endsWith(".html") ? [join(dir, e.name)] : [],
   );
 
-for (const locale of settings.locales.filter((l) => l !== settings.baseLocale)) {
+for (const locale of locales.filter((l) => l !== baseLocale)) {
   const files = [
     join(dist, `${locale}.html`),
     ...(existsSync(join(dist, locale)) ? htmlFiles(join(dist, locale)) : []),
   ];
   // Expo generuje "<html  lang=...>" (podwójna spacja) — dopasowanie regexem, nie dosłownym tekstem.
-  const baseLang = new RegExp(`<html\\s+lang="${settings.baseLocale}"`);
+  const baseLang = new RegExp(`<html\\s+lang="${baseLocale}"`);
   for (const file of files.filter(existsSync)) {
     const html = readFileSync(file, "utf8");
-    if (!baseLang.test(html)) throw new Error(`${file}: brak <html lang="${settings.baseLocale}">`);
+    if (!baseLang.test(html)) throw new Error(`${file}: brak <html lang="${baseLocale}">`);
     writeFileSync(file, html.replace(baseLang, `<html lang="${locale}"`));
   }
   console.log(`postexport: <html lang="${locale}"> w ${files.filter(existsSync).length} plikach`);

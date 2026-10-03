@@ -41,9 +41,9 @@ export function useCreateNote() {
 - Sesja: `useSession()` / `useAuthActions()` (`src/data/session.ts`). Po zmianie sesji `fetchQuery`, nie samo `invalidateQueries`.
 - Token: bearer w Keychain/Keystore (natywnie) lub localStorage (web) — przez `src/lib/storage.ts`.
 
-## i18n (Paraglide JS)
-- Teksty: `messages/en.json` (bazowy) i `pl.json`. Kompilacja: `bun run --cwd apps/app i18n` (robią to dev/build/typecheck/E2E).
-- Użycie: `const { t, locale, setLocale } = useI18n(); t.notes_title()`. NIE importuj `m` z paraglide w ekranach.
+## i18n (messages/*.json)
+- Teksty: `messages/en.json` (bazowy) i `pl.json`. Ładowane wprost w `src/lib/i18n.tsx` (bez kompilacji); nowy język = nowy plik + wpis w `catalogs`.
+- Użycie: `const { t, locale, setLocale } = useI18n(); t.notes_title()`. NIE importuj JSON-ów z messages w ekranach.
 - Język: web + strony marketingowe → z URL (`/`, `/about` = en; `/pl`, `/pl/about` = pl); reszta → preferencja
   (zapisana) → język urządzenia → en. Nowa strona marketingowa: dopisz ścieżkę do `MARKETING_PATHS` i dodaj plik w `app/pl/`.
 - Komunikaty z API/Zod/Better Auth nie trafiają do UI wprost; pokazuj własny `t.*`.

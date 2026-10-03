@@ -4,7 +4,7 @@ To repo jest szablonem. Każda nowa aplikacja powstaje przez KOPIOWANIE wzorców
 Jakość i spójność wzorca są ważniejsze niż liczba funkcji.
 
 Stack: Bun + Hono + Drizzle (SQLite przez bun:sqlite; w pamięci w testach) + Better Auth + Expo (React Native,
-Expo Router; web przez react-native-web ze statycznym HTML) + Paraglide JS (i18n, en domyślny).
+Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JSON (en domyślny).
 
 ## Definicja gotowości (jedyna)
 Zadanie jest skończone tylko wtedy, gdy `bun run verify` kończy się kodem 0, a w raporcie jest
@@ -49,7 +49,7 @@ dane trzyma `ctx.storage` (odizolowany per instalacja).
 - Trasy: tylko `apps/app/app/` (Expo Router, cienkie pliki). Logika ekranów: `apps/app/src/screens/`.
 - Adres API: tylko `apps/app/src/lib/config.ts`. Trwałe dane urządzenia: tylko `src/lib/storage.ts`.
 - Rozgałęzienia `Platform.OS` tylko w `src/lib/` i w trasach (`app/index.tsx`), nigdy w ekranach.
-- Teksty UI: WYŁĄCZNIE Paraglide (`apps/app/messages/<locale>.json`) przez `const { t } = useI18n(); t.klucz()`.
+- Teksty UI: WYŁĄCZNIE `apps/app/messages/<locale>.json` przez `const { t } = useI18n(); t.klucz()`.
   Angielski (`en`) jest bazowy; każdy klucz musi istnieć we wszystkich językach (test `src/lib/i18n.test.ts`).
 - Wygląd: tylko tokeny z `apps/app/src/theme.ts`; ekrany składaj z prymitywów `src/components/ui.tsx`.
 - Prawda produktowa i ton: `PRODUCT.md`. Bez wymyślonych liczb i opinii.
