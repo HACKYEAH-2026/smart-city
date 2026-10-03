@@ -6,6 +6,7 @@ import { type ReactNode, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
+  CheckCard,
   Heading,
   Icon,
   RadioCard,
@@ -17,6 +18,7 @@ import {
   TextField,
 } from "../components";
 import { useCreatePlace, useVisitPlace } from "../data/communities";
+import { usePluginCatalog } from "../data/plugins";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { t } from "../texts";
 import { fontFamily, sizes, spacing } from "../theme";
@@ -28,26 +30,33 @@ const JOIN_RULE_OPTIONS: { rule: JoinRule; label: string; hint: string; recommen
 ];
 
 /**
- * New place in three steps (designs E-NoweMiejsceTyp, E-NoweMiejsceDane, E-NoweMiejsceDostep): the kind, the name
- * with address and description, then who may join. Back keeps the answers; the place opens on "place created".
+ * New place in four steps (designs E-NoweMiejsceTyp, E-NoweMiejsceDane, E-NoweMiejsceDostep): the kind, the name
+ * with address and description, the features (built-in plugins, all on by default), then who may join. Back keeps
+ * the answers; the place opens on "place created".
  */
 export default function CreatePlaceForm() {
   const router = useRouter();
   const create = useCreatePlace();
   const visit = useVisitPlace();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const catalog = usePluginCatalog();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [kind, setKind] = useState<PlaceKind | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [joinRule, setJoinRule] = useState<JoinRule>("approval");
   const [makeDefault, setMakeDefault] = useState(true);
+  // Features the creator switched off; every other built-in plugin is on, so the default needs no loaded catalog.
+  const [skipped, setSkipped] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const plugins = (catalog.data ?? []).filter((plugin) => !skipped.includes(plugin.id)).map((plugin) => plugin.id);
+  const toggle = (id: string, on: boolean) =>
+    setSkipped((off) => (on ? off.filter((other) => other !== id) : [...off, id]));
 
   const submit = () => {
     setError(null);
     create.mutate(
-      { name, kind: kind ?? "other", address, description, joinRule, makeDefault },
+      { name, kind: kind ?? "other", address, description, joinRule, makeDefault, plugins },
       {
         onSuccess: (place) =>
           visit.mutate(place.slug, {
@@ -68,7 +77,7 @@ export default function CreatePlaceForm() {
           header={
             <StepHeader
               step={1}
-              total={3}
+              total={4}
               label={t.create_step_1}
               backIcon={X}
               backLabel={t.create_cancel}
@@ -115,9 +124,34 @@ export default function CreatePlaceForm() {
             multiline
           />
         </Step>
-      ) : (
+      ) : step === 3 ? (
         <Step
           header={<BackHeader step={3} label={t.create_step_3} onBack={() => setStep(2)} />}
+          title={t.create_features_title}
+          lead={t.create_features_lead}
+          action={<Button label={t.create_next} disabled={!plugins.length} onPress={() => setStep(4)} />}
+        >
+          {catalog.isError ? (
+            <Text variant="bodyL" color="primaryPressed" role="alert">
+              {t.create_features_error}
+            </Text>
+          ) : null}
+          <View role="group" aria-label={t.create_features_label} style={styles.options}>
+            {(catalog.data ?? []).map((plugin) => (
+              <CheckCard
+                key={plugin.id}
+                label={plugin.name}
+                description={plugin.description}
+                emoji={plugin.icon}
+                checked={!skipped.includes(plugin.id)}
+                onChange={(on) => toggle(plugin.id, on)}
+              />
+            ))}
+          </View>
+        </Step>
+      ) : (
+        <Step
+          header={<BackHeader step={4} label={t.create_step_4} onBack={() => setStep(3)} />}
           title={t.create_access_title}
           lead={t.create_access_lead}
           action={
@@ -132,7 +166,7 @@ export default function CreatePlaceForm() {
             </>
           }
         >
-          <View role="radiogroup" aria-label={t.join_rules_label} style={styles.rules}>
+          <View role="radiogroup" aria-label={t.join_rules_label} style={styles.options}>
             {JOIN_RULE_OPTIONS.map((option) => (
               <RadioCard
                 key={option.rule}
@@ -181,8 +215,8 @@ function Step({
   );
 }
 
-function BackHeader({ step, label, onBack }: { step: 2 | 3; label: string; onBack: () => void }) {
-  return <StepHeader step={step} total={3} label={label} backIcon={ChevronLeft} backLabel={t.back} onBack={onBack} />;
+function BackHeader({ step, label, onBack }: { step: 2 | 3 | 4; label: string; onBack: () => void }) {
+  return <StepHeader step={step} total={4} label={label} backIcon={ChevronLeft} backLabel={t.back} onBack={onBack} />;
 }
 
 /** "Zostaniesz administratorem tego miejsca…" with a shield (design E-NoweMiejsceDostep). */
@@ -205,7 +239,7 @@ const styles = StyleSheet.create({
   intro: { gap: spacing[4] },
   fields: { gap: spacing[8] },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: spacing[5] },
-  rules: { gap: spacing[5] },
+  options: { gap: spacing[5] },
   grow: { flex: 1 },
   action: { gap: spacing[8] },
   note: { flexDirection: "row", alignItems: "flex-start", gap: spacing[5] },

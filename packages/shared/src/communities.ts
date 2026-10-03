@@ -31,6 +31,8 @@ export const newPlaceSchema = z.object({
   joinRule: z.enum(JOIN_RULES).default("approval"),
   /** Make it the user's default place (the first place is the default anyway). */
   makeDefault: z.boolean().default(false),
+  /** Built-in plugins to enable in the place (ids from GET /api/plugins); its navigation keeps this order. */
+  plugins: z.array(z.string().min(1).max(64)).max(20).default([]),
 });
 export type NewPlace = z.input<typeof newPlaceSchema>;
 

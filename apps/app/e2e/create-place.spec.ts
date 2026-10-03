@@ -4,8 +4,10 @@ import { expect, test } from "./fixtures";
 
 /**
  * Creating a place (designs E-NoweMiejsceTyp → Dane → Dostep → Gotowe): the kind, then the name, address and
- * description, then who may join. The new place is ready with its invite code and QR; its creator is its admin.
+ * description, then its features (the built-in plugins, all on by default), then who may join. The new place is
+ * ready with its invite code and QR; its creator is its admin. Plugin names are server content, not app texts.
  */
+const FEATURES = ["Zgłoszenia", "Ogłoszenia", "Dyskusje"];
 const register = async (page: Page, email: string) => {
   await page.goto("/register");
   await page.getByLabel(t.auth_email).fill(email);
@@ -33,6 +35,13 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await page.getByLabel(t.create_description).fill("Ogłoszenia, awarie, zebrania.");
   await next.click();
 
+  await expect(page.getByRole("heading", { name: t.create_features_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.create_step_3)).toBeVisible();
+  for (const name of FEATURES) await expect(page.getByRole("checkbox", { name })).toBeChecked();
+  await page.getByRole("checkbox", { name: "Dyskusje" }).click();
+  await expect(page.getByRole("checkbox", { name: "Dyskusje" })).not.toBeChecked();
+  await next.click();
+
   await expect(page.getByRole("heading", { name: t.create_access_title, level: 1 })).toBeVisible();
   await expect(page.getByRole("radio", { name: t.join_rule_approval })).toBeChecked();
   await page.getByRole("radio", { name: t.join_rule_open }).click();
@@ -46,6 +55,9 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await page.getByRole("button", { name: t.created_go_dashboard }).click();
 
   await expect(page.getByRole("heading", { name: "Kamienica Lipowa 12", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Zgłoszenia", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ogłoszenia", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Kamienica Lipowa 12" }).click();
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
 });
@@ -60,6 +72,20 @@ test("going back a step keeps the answers", async ({ page }) => {
   await expect(page.getByRole("radio", { name: t.place_kind_estate })).toBeChecked();
   await page.getByRole("button", { name: t.create_next }).click();
   await expect(page.getByLabel(t.create_name)).toHaveValue("Osiedle Słoneczne");
+});
+
+test("a place needs at least one feature", async ({ page }) => {
+  await register(page, "features@example.test");
+  await page.getByRole("link", { name: t.place_create_own }).click();
+  await page.getByRole("radio", { name: t.place_kind_estate }).click();
+  const next = page.getByRole("button", { name: t.create_next });
+  await next.click();
+  await page.getByLabel(t.create_name).fill("Osiedle Słoneczne");
+  await next.click();
+  for (const name of FEATURES) await page.getByRole("checkbox", { name }).click();
+  await expect(next).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Ogłoszenia" }).click();
+  await expect(next).toBeEnabled();
 });
 
 test("cancelling on the first step goes back to the dashboard", async ({ page }) => {

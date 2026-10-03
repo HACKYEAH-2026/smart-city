@@ -24,6 +24,7 @@ const createPlace = async (page: Page, name: string) => {
   await page.getByRole("button", { name: t.create_next }).click();
   await page.getByLabel(t.create_name).fill(name);
   await page.getByRole("button", { name: t.create_next }).click();
+  await page.getByRole("button", { name: t.create_next }).click(); // features: the defaults
   await page.getByRole("button", { name: t.create_submit }).click();
   await page.getByRole("button", { name: t.created_go_dashboard }).click();
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();

@@ -29,7 +29,7 @@ import {
   toCommunity,
 } from "../db";
 import { requireUser } from "../middleware";
-import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
+import { ForbiddenError, type LoadedPlugin, PluginError, type PluginHost, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
 
 type DashboardWidgetItem = {
@@ -44,6 +44,7 @@ type DashboardWidgetItem = {
  * Places (communities) and their plugins, for the app. A user sees only the places they are a member of;
  * everything else in a place answers 404 (the place may exist, the user does not learn it).
  * Creating a place makes its creator an admin and gives the place an invite code (shown to its admins only).
+ * The creator picks which built-in plugins the place starts with.
  * Joining a place is not part of the API yet.
  */
 export const communitiesRoutes = new Hono<AppEnv>()
@@ -80,7 +81,9 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json(places);
   })
   .post("/", zValidator("json", newPlaceSchema), async (c) => {
-    const { name, kind, address, description, joinRule, makeDefault } = c.req.valid("json");
+    const { name, kind, address, description, joinRule, makeDefault, plugins } = c.req.valid("json");
+    const chosen = builtinPlugins(c.var.plugins, plugins);
+    if (!chosen) return c.json({ error: "unknown_plugin", message: "plugins must be ids of built-in plugins" }, 400);
     const slug = await freeSlug(c.var.db, name);
     if (!slug) return c.json({ error: "conflict", message: "could not derive a free slug" }, 409);
     const inviteCode = await freeInviteCode(c.var.db);
@@ -110,7 +113,10 @@ export const communitiesRoutes = new Hono<AppEnv>()
       u,
       def: makeDefault || !hasDefault,
     });
-    const place: CreatedPlace = { ...toCommunity(created), inviteCode };
+    const community = toCommunity(created);
+    // One after another: the place's navigation lists plugins in the order they were enabled.
+    for (const plugin of chosen) await c.var.plugins.enable(plugin, community);
+    const place: CreatedPlace = { ...community, inviteCode };
     return c.json(place, 201);
   })
   .get("/:slug", async (c) => {
@@ -290,6 +296,12 @@ async function freeSlug(db: Db, name: string): Promise<string | null> {
     if (!(await communityBySlug(db, candidate))) return candidate;
   }
   return null;
+}
+
+/** The built-in plugins with these ids (repeats dropped), or null when an id is not a built-in plugin. */
+function builtinPlugins(host: PluginHost, ids: string[]): LoadedPlugin[] | null {
+  const found = [...new Set(ids)].map((id) => host.get(id));
+  return found.every((plugin): plugin is LoadedPlugin => plugin?.origin === "builtin") ? found : null;
 }
 
 /** A random invite code no other place has (INVITE_CODE_LENGTH characters of INVITE_CODE_ALPHABET). */

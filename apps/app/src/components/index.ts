@@ -12,6 +12,8 @@ export { Button } from "./Button";
 export { Card } from "./Card";
 export type { CheckboxProps } from "./Checkbox";
 export { Checkbox } from "./Checkbox";
+export type { CheckCardProps } from "./CheckCard";
+export { CheckCard } from "./CheckCard";
 export type { CreateRowProps } from "./CreateRow";
 export { CreateRow } from "./CreateRow";
 export { DashboardMap } from "./DashboardMap";

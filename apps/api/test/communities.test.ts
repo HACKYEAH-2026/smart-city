@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { TEST_ENV } from "../src/test-env";
 import { type Ctx, setup, type TestUser } from "./helpers";
 
 /**
@@ -27,6 +30,7 @@ type PlaceInput = {
   description?: string;
   joinRule?: string;
   makeDefault?: boolean;
+  plugins?: string[];
 };
 /** Six characters without look-alikes (no 0/O, 1/I). */
 const INVITE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
@@ -160,6 +164,32 @@ describe("creating a place", () => {
     );
     expect(new Set(codes).size).toBe(2);
     expect(await placeOf(await t.signUp(), "krakow")).toMatchObject({ role: "user", inviteCode: null });
+  });
+
+  test("the chosen built-in plugins are enabled in order; an unknown or uploaded plugin is rejected", async () => {
+    t = await setup();
+    const u = await t.signUp({ place: null });
+    const res = await create(u, { name: "Kamienica Lipowa 12", plugins: ["discussions", "issues"] });
+    expect(res.status).toBe(201);
+    const { slug } = (await res.json()) as { slug: string };
+    const nav = async (s: string) =>
+      (
+        (await (await t.request(`/api/communities/${s}/nav`, { headers: u.headers })).json()) as { pluginId: string }[]
+      ).map((n) => n.pluginId);
+    expect(await nav(slug)).toEqual(["discussions", "issues"]);
+
+    const bare = (await (await create(u, "Bez funkcji")).json()) as { slug: string };
+    expect(await nav(bare.slug)).toEqual([]);
+
+    const notes = readFileSync(join(import.meta.dir, "fixtures/notes-plugin.ts"), "utf8");
+    const platform = { authorization: `Bearer ${TEST_ENV.PLUGIN_ADMIN_TOKEN}` };
+    expect(
+      (await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: notes } })).status,
+    ).toBe(201);
+    for (const plugins of [["nie-ma"], ["issues", "notes"]]) {
+      expect((await create(u, { name: "Odrzucone", plugins })).status, plugins.join()).toBe(400);
+    }
+    expect(await myPlaces(u)).toHaveLength(2); // the rejected place was not created
   });
 
   test("an unknown kind or join rule is rejected", async () => {
