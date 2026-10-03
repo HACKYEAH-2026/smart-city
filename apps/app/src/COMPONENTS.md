@@ -66,7 +66,7 @@ Pole z mapą (Adres): kontener radius 14, border `border`, `overflow:hidden`; u 
 Stany komórki: wypełniona/domyślna (tło `surface`, border 1 `border`, `shadows.card`) · aktywna (border 2 `primary` + poświata 4 dp `focusRingStrong`) · pusta nieaktywna (tło `surfaceDisabled`, border `borderEmpty`). Auto-przeskok do następnej, backspace cofa, obsługa wklejania całego kodu, uppercase. Pod spodem: tekst pomocniczy `small` (lewa) + akcja „Wklej kod" z ikoną `ClipboardPaste` (prawa; `typography.buttonS`, `primary`, wysokość 44).
 
 ### PasswordStrength
-4 segmenty (grid 4 kol., gap 4, wysokość 4, radius 2): wypełnione `primary`, puste `border`; pod spodem podpowiedź `small` `textSecondary`.
+4 segmenty (grid 4 kol., gap 4, wysokość 4, radius 2): wypełnione `primary`, puste `border`; pod spodem podpowiedź `small` `textSecondary`. Wypełnienie animuje się płynnie od lewej do prawej (przy spadku — od prawej), `motion.base` na segment.
 
 ### Checkbox / Switch
 Zgoda (regulamin): checkbox 20 dp, kolor zaznaczenia `primary`, tekst `typography.caption` kolor `textBody` lineHeight ~20, linki `primary`, gap 12, wyrównanie do góry.
@@ -108,6 +108,9 @@ Min wysokość 128, padding 14, radius 18, gap 14, układ kolumnowy. Zawartość
 
 ### RadioCard (zasady dołączania)
 Jak SelectableCard, ale w układzie poziomym (padding 16, radius 18, gap 14): po lewej `RadioDot` (koło 22: border 2 `border`, zaznaczone: border `primary` + wypełnienie 10–12 dp `primary`), potem tytuł 16/600 (+ `Badge` „Polecane") i opis `caption` `textSecondary`. Kontener `accessibilityRole="radiogroup"`.
+
+### CheckCard (funkcje nowego miejsca)
+Jak RadioCard, ale każdą opcję włącza się osobno: po lewej kwadrat 22 (radius 6, border 2 `border`; zaznaczony: tło i border `primary` + ikona `Check` `onPrimary`), potem emoji wtyczki i tytuł 16/600, pod spodem opis `caption` `textSecondary`. Zaznaczona karta: border 2 `primary` + `shadows.selected`. `accessibilityRole="checkbox"`, kontener `role="group"` z etykietą.
 
 ### PlaceRow (przełącznik miejsc)
 Przycisk pełnej szerokości: padding 10/14/10/10, radius 16, gap 14, tło `surface`, border 1.5. Aktywny: border `primary` + `shadows.selected`; nieaktywny: border transparent + `shadows.card`. Zawartość: `PlaceAvatar` 44 → nazwa 16/600 (+ Badge „Domyślne") nad rodzajem `small` `textSecondary`.
@@ -171,9 +174,10 @@ Ekran: tło `scannerBg`, padding 56/24/40. Ramka 268×268, radius 32, tło `scan
 | E-PodgladMiejsca | Podgląd miejsca | zdjęcie/mapa + IconButton floating, panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
 | E-Dashboard | Pulpit (członek) | DashboardHeader, EmptyStateCard, BottomTabBar |
 | E-PrzelacznikMiejsc | Przełącznik miejsc | BottomSheet, PlaceRow ×N, Button secondary ×2 |
-| E-NoweMiejsceTyp | Nowe miejsce 1/3 | ScreenHeader (krok), SelectableCard ×6, Button primary |
-| E-NoweMiejsceDane | Nowe miejsce 2/3 | TextField, pole adresu z mapą, textarea |
-| E-NoweMiejsceDostep | Nowe miejsce 3/3 | RadioCard ×3, Switch row, notka |
+| E-NoweMiejsceTyp | Nowe miejsce 1/4 | ScreenHeader (krok), SelectableCard ×6, Button primary |
+| E-NoweMiejsceDane | Nowe miejsce 2/4 | TextField, pole adresu z mapą, textarea |
+| — | Nowe miejsce 3/4: funkcje (bez projektu; wzór: RadioCard) | CheckCard × wbudowane wtyczki, Button primary |
+| E-NoweMiejsceDostep | Nowe miejsce 4/4 | RadioCard ×3, Switch row, notka |
 | E-NoweMiejsceGotowe | Miejsce utworzone | SuccessMark, StatusPill, karta kodu+QR, Button primary + ghost |
 | E-ZaprosOsoby | Zaproś osoby | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary |
 | E-DashboardAdmin | Pulpit (administrator) | jak Dashboard + StatusPill, IconButton roundDark z CountBadge, CtaCard |
@@ -189,6 +193,6 @@ Przepływy: Logowanie ⇄ Rejestracja → Brak miejsc → (QR / Kod·Link / Zapr
 - Każdy przycisk-ikona ma `accessibilityLabel`; pola mają powiązane etykiety (`accessibilityLabel` = tekst Label).
 - Kontrast: tekst `text`/`textSecondary` na `background`/`surface` oraz `onPrimary` na `primary` spełnia 4,5:1. `placeholder` NIE używać do informacji istotnych (tylko placeholder pola).
 - Uwaga: `primary` (#E50101) na `background` daje ok. 4,4:1, a na `primaryTint` ok. 4,2:1 — poniżej 4,5:1 dla małego tekstu. Linki i małe napisy w kolorze `primary` pisz w wadze 600+ (lub ≥ 18 px); na `primaryTint` dla tekstu używaj `primaryPressed` (6,3:1), tak jak w badge'ach.
-- Stan zaznaczenia nie może zależeć wyłącznie od koloru — SelectableCard/RadioCard zmieniają też grubość ramki i wypełnienie kropki.
+- Stan zaznaczenia nie może zależeć wyłącznie od koloru — SelectableCard/RadioCard/CheckCard zmieniają też grubość ramki i wypełnienie kropki lub kwadratu.
 - Role: `radio`/`radiogroup`, `switch`, `tab`/`tablist`, `button`, `link`.
 - `allowFontScaling` włączone (domyślnie); nie ustawiaj sztywnych wysokości dla tekstu — tylko `minHeight`.

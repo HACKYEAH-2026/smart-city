@@ -21,6 +21,8 @@ import { syncPluginTables } from "./services/db/service";
  * Never import this file from production code.
  */
 export const DEMO_COMMUNITY = { slug: "krakow", name: "Kraków" } as const;
+/** The demo place's invite code (shown as "KRK-MST"); anyone with it may join (join rule "open"). */
+export const DEMO_INVITE_CODE = "KRKMST";
 export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password123", name: "Urząd Miasta" } as const;
 
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
@@ -33,7 +35,9 @@ const userIdByEmail = async (db: Db, email: string) =>
  * and a community admin account.
  */
 export async function seedDemo({ db, auth, plugins }: Deps) {
-  await db.query("INSERT IGNORE INTO community $data;", { data: DEMO_COMMUNITY });
+  await db.query("INSERT IGNORE INTO community $data;", {
+    data: { ...DEMO_COMMUNITY, kind: "district", join_rule: "open", invite_code: DEMO_INVITE_CODE },
+  });
   const row = await communityBySlug(db, DEMO_COMMUNITY.slug);
   if (!row) throw new Error("seed: community missing");
   const community = toCommunity(row);

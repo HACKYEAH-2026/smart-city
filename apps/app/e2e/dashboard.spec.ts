@@ -17,10 +17,16 @@ const register = async (page: Page, email: string) => {
   await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
 };
 
+/** Through the "new place" wizard with the least answers (create-place.spec.ts covers the wizard itself). */
 const createPlace = async (page: Page, name: string) => {
   await page.getByRole("link", { name: t.place_create_own }).click();
+  await page.getByRole("radio", { name: t.place_kind_estate }).click();
+  await page.getByRole("button", { name: t.create_next }).click();
   await page.getByLabel(t.create_name).fill(name);
+  await page.getByRole("button", { name: t.create_next }).click();
+  await page.getByRole("button", { name: t.create_next }).click(); // features: the defaults
   await page.getByRole("button", { name: t.create_submit }).click();
+  await page.getByRole("button", { name: t.created_go_dashboard }).click();
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
 };
 
@@ -69,7 +75,7 @@ test("clicking the place name opens the place switcher with set-as-default, join
   await page.goto("/app");
   await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
   const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("heading", { name: t.places_sheet_title })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: t.places_sheet_title })).toBeInViewport();
   await expect(sheet.getByRole("button", { name: t.place_set_default })).toBeVisible();
   await expect(sheet.getByRole("button", { name: t.place_join, exact: true })).toBeVisible();
   await expect(sheet.getByRole("button", { name: t.place_create, exact: true })).toBeVisible();
@@ -98,7 +104,8 @@ test("the Places tab opens the place switcher over the dashboard", async ({ page
   await joinKrakow(api.url, "tab@example.test");
   await page.goto("/app/account");
   await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_places }).click();
-  await expect(page.getByRole("dialog").getByRole("heading", { name: t.places_sheet_title })).toBeVisible();
+  // The sheet opens on arrival, not only after a tap on the dashboard (it is mounted closed until then).
+  await expect(page.getByRole("dialog").getByRole("heading", { name: t.places_sheet_title })).toBeInViewport();
   await expect(page).toHaveURL(/\/app\?places=1$/);
 });
 

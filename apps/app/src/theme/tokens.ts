@@ -132,6 +132,15 @@ export const sizes = {
   /** Red hero banner (no-places screen): minimum height, text sits at the bottom. */
   heroBanner: 172,
   successMark: 64,
+  /** Success mark: the light ring around the 64 dp circle (8 dp wide) and its check. */
+  successRing: 80,
+  successIcon: 30,
+  /** "Jesteś administratorem" pill. */
+  statusPill: 30,
+  /** QR code on the invite card ("place created"). */
+  qrCard: 104,
+  /** Choice cards in a two-column grid (kind of place): minimum height. */
+  selectableCard: 128,
   scannerFrame: 268,
   /** QR scanner frame: corner length and the frame's corner radius (design: 52 and 32). */
   scannerCorner: 52,

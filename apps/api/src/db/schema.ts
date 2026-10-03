@@ -30,6 +30,14 @@ DEFINE FIELD IF NOT EXISTS slug ON community TYPE string;
 DEFINE FIELD IF NOT EXISTS name ON community TYPE string;
 DEFINE FIELD IF NOT EXISTS created_at ON community TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS community_slug ON community FIELDS slug UNIQUE;
+-- Answers of the "new place" wizard (@app/shared newPlaceSchema). Places created before have none: read with defaults.
+DEFINE FIELD IF NOT EXISTS kind ON community TYPE "estate" | "building" | "company" | "school" | "district" | "other" DEFAULT "other";
+DEFINE FIELD IF NOT EXISTS address ON community TYPE string DEFAULT "";
+DEFINE FIELD IF NOT EXISTS description ON community TYPE string DEFAULT "";
+DEFINE FIELD IF NOT EXISTS join_rule ON community TYPE "open" | "approval" | "invite" DEFAULT "approval";
+-- Invite code for joining by code, link or QR (@app/shared INVITE_CODE_ALPHABET); the API keeps it unique.
+DEFINE FIELD IF NOT EXISTS invite_code ON community TYPE option<string>;
+DEFINE INDEX IF NOT EXISTS community_invite_code ON community FIELDS invite_code;
 
 -- Membership with a role: "admin" moderates plugin content, "user" is a member.
 DEFINE TABLE IF NOT EXISTS membership SCHEMAFULL;

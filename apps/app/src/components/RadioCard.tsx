@@ -1,10 +1,15 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
 import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { Badge } from "./Badge";
 import { Text } from "./Text";
 
 export interface RadioCardProps {
   label: string;
+  /** What the option means, under the label (e.g. a join rule). */
+  description?: string;
+  /** Chip next to the label, e.g. "Polecane". */
+  badge?: string;
   selected: boolean;
   onPress: () => void;
 }
@@ -13,20 +18,30 @@ export interface RadioCardProps {
  * Selectable option (COMPONENTS.md → RadioCard). Selection is shown by the border, the shadow and the filled dot,
  * not by color alone. Put several inside a View with role="radiogroup".
  */
-export function RadioCard({ label, selected, onPress }: RadioCardProps) {
+export function RadioCard({ label, description, badge, selected, onPress }: RadioCardProps) {
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
-      accessibilityState={{ checked: selected }}
+      aria-checked={selected}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={[styles.card, selected ? styles.selected : styles.idle]}
+      style={[styles.card, description ? styles.top : null, selected ? styles.selected : styles.idle]}
     >
       <View style={[styles.dot, selected && styles.dotSelected]}>
         {selected ? <View style={styles.dotFill} /> : null}
       </View>
-      <Text variant="button">{label}</Text>
+      <View style={styles.text}>
+        <View style={styles.titleRow}>
+          <Text variant="button">{label}</Text>
+          {badge ? <Badge text={badge} tone="accent" /> : null}
+        </View>
+        {description ? (
+          <Text variant="captionRelaxed" color="textSecondary">
+            {description}
+          </Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -41,6 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: radii["2xl"],
     borderWidth: borders.selected,
   },
+  top: { alignItems: "flex-start" },
   idle: { borderColor: "transparent", backgroundColor: colors.surface, ...shadows.card },
   selected: { borderColor: colors.primary, backgroundColor: colors.surface, ...shadows.selected },
   dot: {
@@ -54,4 +70,6 @@ const styles = StyleSheet.create({
   },
   dotSelected: { borderColor: colors.primary },
   dotFill: { width: spacing[6], height: spacing[6], borderRadius: spacing[6], backgroundColor: colors.primary },
+  text: { flex: 1, gap: spacing[1] },
+  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing[4] },
 });

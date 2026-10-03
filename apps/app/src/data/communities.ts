@@ -1,4 +1,5 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
+import type { NewPlace } from "@app/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
@@ -88,11 +89,11 @@ export function useSetDefaultPlace() {
   });
 }
 
-/** Creating a place: the creator becomes its admin. */
+/** Creating a place (the wizard's answers): the creator becomes its admin; the answer holds the invite code. */
 export function useCreatePlace() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => parseResponse(c.$post({ json: { name } })),
+    mutationFn: (place: NewPlace) => parseResponse(c.$post({ json: place })),
     onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
   });
 }
