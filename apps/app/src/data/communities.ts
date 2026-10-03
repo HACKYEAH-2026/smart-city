@@ -1,5 +1,5 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
-import type { NewPlace } from "@app/shared";
+import type { JoinPlace, NewPlace } from "@app/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
@@ -76,6 +76,31 @@ export function useVisitPlace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (slug: string) => parseResponse(c[":slug"].visit.$post({ param: { slug } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}
+
+/** The place behind an invite code, before joining; no retries, an unknown code is an answer. */
+export function usePlacePreview(code: string) {
+  return useQuery({
+    queryKey: ["communities", "invite", code],
+    queryFn: () => parseResponse(c.invite[":code"].$get({ param: { code } })),
+    retry: false,
+  });
+}
+
+/** Looks a place up by an invite code the user typed or pasted (nothing is joined); a wrong code is an error. */
+export function useFindPlace() {
+  return useMutation({
+    mutationFn: (code: string) => parseResponse(c.invite[":code"].$get({ param: { code } })),
+  });
+}
+
+/** Joins an open place by its invite code; the place becomes the user's last visited one. */
+export function useJoinPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (join: JoinPlace) => parseResponse(c.join.$post({ json: join })),
     onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
   });
 }

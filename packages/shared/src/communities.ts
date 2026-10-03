@@ -41,6 +41,16 @@ export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const INVITE_CODE_LENGTH = 6;
 export const formatInviteCode = (code: string): string => `${code.slice(0, 3)}-${code.slice(3)}`;
 
+/**
+ * An invite code as typed or scanned ("abc-def", " ABCDEF "): the bare code, or null when it is not one.
+ * Look-alikes (0/O, 1/I) are not in the alphabet, so they are rejected.
+ */
+export function parseInviteCode(raw: string): string | null {
+  const code = raw.trim().toUpperCase().replaceAll("-", "");
+  const valid = code.length === INVITE_CODE_LENGTH && [...code].every((ch) => INVITE_CODE_ALPHABET.includes(ch));
+  return valid ? code : null;
+}
+
 export const PLUGIN_SOURCE_MAX = 200_000;
 export const pluginUploadSchema = z.object({ source: z.string().min(1).max(PLUGIN_SOURCE_MAX) });
 export const pluginInstallSchema = z.object({ pluginId: z.string().min(1) });
@@ -71,6 +81,14 @@ export type PlaceDetails = Community & {
   joinRule: JoinRule;
   inviteCode: string | null;
 };
+/** A place as someone holding its invite code sees it before joining (GET /api/communities/invite/:code). */
+export type PlacePreview = { name: string; kind: PlaceKind; address: string; description: string; joinRule: JoinRule };
+/** Joining a place by its invite code (POST /api/communities/join); the place becomes the user's last visited one. */
+export const joinPlaceSchema = z.object({
+  code: z.string().min(1).max(20),
+  makeDefault: z.boolean().default(false),
+});
+export type JoinPlace = z.input<typeof joinPlaceSchema>;
 /** Answer to creating a place: the new place and its invite code. */
 export type CreatedPlace = Community & { inviteCode: string };
 export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };

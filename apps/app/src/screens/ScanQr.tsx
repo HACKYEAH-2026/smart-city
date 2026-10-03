@@ -2,11 +2,12 @@ import { Camera, CameraView } from "expo-camera";
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { Flashlight, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Button, IconButton, ScannerFrame, Text } from "../components";
+import { inviteCodeFromScan } from "../lib/inviteScan";
 import { scanWindowPath } from "../lib/scanWindow";
 import { hasAppSettings, openAppSettings } from "../lib/settings";
 import { t } from "../texts";
@@ -24,6 +25,8 @@ export default function ScanQr() {
   const insets = useSafeAreaInsets();
   const [permission, setPermission] = useState<CameraPermission | null>(null);
   const [torch, setTorch] = useState(false);
+  // The camera reports the same code again while it is in view; only the first one counts.
+  const scanned = useRef(false);
   const status = permission?.status;
   const canAskAgain = permission?.canAskAgain ?? false;
   const granted = status === "granted";
@@ -57,6 +60,12 @@ export default function ScanQr() {
           style={StyleSheet.absoluteFill}
           enableTorch={torch}
           barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          onBarcodeScanned={({ data }) => {
+            const code = inviteCodeFromScan(data);
+            if (!code || scanned.current) return;
+            scanned.current = true;
+            router.replace({ pathname: "/app/preview", params: { code } } as never);
+          }}
         />
       ) : null}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>

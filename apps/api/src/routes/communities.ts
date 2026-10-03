@@ -6,10 +6,13 @@ import {
   INVITE_CODE_ALPHABET,
   INVITE_CODE_LENGTH,
   type JoinRule,
+  joinPlaceSchema,
   type MyPlace,
   newPlaceSchema,
   type PlaceDetails,
   type PlaceKind,
+  type PlacePreview,
+  parseInviteCode,
   toolCallSchema,
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
@@ -118,6 +121,35 @@ export const communitiesRoutes = new Hono<AppEnv>()
     for (const plugin of chosen) await c.var.plugins.enable(plugin, community);
     const place: CreatedPlace = { ...community, inviteCode };
     return c.json(place, 201);
+  })
+  /** The place behind an invite code, before joining (the scanned QR code's screen). */
+  .get("/invite/:code", async (c) => {
+    const code = parseInviteCode(c.req.param("code"));
+    const place = code ? await placeByInviteCode(c.var.db, code) : null;
+    if (!place) return c.json({ error: "not_found", message: "no place has this invite code" }, 404);
+    const preview: PlacePreview = {
+      name: place.name,
+      kind: place.kind ?? "other",
+      address: place.address ?? "",
+      description: place.description ?? "",
+      joinRule: place.join_rule ?? "approval",
+    };
+    return c.json(preview);
+  })
+  /**
+   * Joining by invite code. Only places that open to anyone with the code (join rule "open") can be joined here;
+   * the others wait for an admin, which is not built yet.
+   */
+  .post("/join", zValidator("json", joinPlaceSchema), async (c) => {
+    const { code: raw, makeDefault } = c.req.valid("json");
+    const code = parseInviteCode(raw);
+    const place = code ? await placeByInviteCode(c.var.db, code) : null;
+    if (!place) return c.json({ error: "not_found", message: "no place has this invite code" }, 404);
+    if ((place.join_rule ?? "approval") !== "open") {
+      return c.json({ error: "approval_required", message: "this place admits members only after approval" }, 403);
+    }
+    await joinAsMember(c.var.db, place, c.var.user.id, makeDefault);
+    return c.json(toCommunity(place));
   })
   .get("/:slug", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
@@ -278,6 +310,51 @@ async function memberOf(c: Context<AppEnv>, slug: string) {
   if (!row) return null;
   const role = await memberRole(c.var.db, keyOf(row.id), c.var.user.id);
   return role ? { row, role } : null;
+}
+
+type PlaceByCode = CommunityRow & {
+  kind: PlaceKind | null;
+  address: string | null;
+  description: string | null;
+  join_rule: JoinRule | null;
+};
+
+/** The place with this invite code, if any. */
+function placeByInviteCode(db: Db, code: string): Promise<PlaceByCode | undefined> {
+  return first<PlaceByCode>(
+    db,
+    "SELECT id, slug, name, kind, address, description, join_rule FROM community WHERE invite_code = $code LIMIT 1;",
+    { code },
+  );
+}
+
+/**
+ * Makes the user a member of an open place (as a plain member, unless already a member), remembers it as the last
+ * visited place, and makes it the default one when asked.
+ */
+async function joinAsMember(db: Db, place: CommunityRow, userId: string, makeDefault: boolean): Promise<void> {
+  const communityId = keyOf(place.id);
+  const u = ref("user", userId);
+  const c = ref("community", communityId);
+  const existing = await first<{ id: RecordId }>(
+    db,
+    "SELECT id FROM membership WHERE user = $u AND community = $c LIMIT 1;",
+    { u, c },
+  );
+  if (!existing) {
+    await first(db, "CREATE $m CONTENT { community: $c, user: $u, role: 'user', is_default: false };", {
+      m: membershipRef(communityId, userId),
+      c,
+      u,
+    });
+  }
+  if (makeDefault) {
+    await first(db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+  }
+  await first(db, "UPDATE $m SET last_visit = time::now(), is_default = $def OR is_default;", {
+    m: membershipRef(communityId, userId),
+    def: makeDefault,
+  });
 }
 
 /** Slug from the place name (ASCII, lowercase, hyphens), with a numeric suffix when taken. Null after 50 tries. */

@@ -221,3 +221,65 @@ describe("last visited and default place", () => {
     expect(defaults).toEqual(["biuro"]);
   });
 });
+
+describe("invite codes", () => {
+  test("the place behind an invite code is previewed to anyone signed in; an unknown code is 404", async () => {
+    t = await setup();
+    await t.seed();
+    const stranger = await t.signUp({ place: null });
+    const preview = await t.request("/api/communities/invite/krk-mst", { headers: stranger.headers });
+    expect(preview.status).toBe(200);
+    expect(await preview.json()).toMatchObject({ name: "Kraków", joinRule: "open" });
+    const unknown = await t.request("/api/communities/invite/ZZZZZZ", { headers: stranger.headers });
+    expect(unknown.status).toBe(404);
+  });
+
+  test("joining an open place makes its member, the last visited and default place when asked", async () => {
+    t = await setup();
+    await t.seed();
+    const u = await t.signUp({ place: null });
+    const joined = await t.request("/api/communities/join", {
+      method: "POST",
+      headers: u.headers,
+      json: { code: "KRK-MST", makeDefault: true },
+    });
+    expect(joined.status).toBe(200);
+    expect(await joined.json()).toMatchObject({ slug: "krakow", name: "Kraków" });
+    const places = await myPlaces(u);
+    expect(places).toEqual([expect.objectContaining({ slug: "krakow", role: "user", isDefault: true })]);
+    expect(places[0]?.lastVisitAt).not.toBeNull();
+  });
+
+  test("a place that admits members after approval cannot be joined by its code", async () => {
+    t = await setup();
+    const admin = await t.signUp({ place: null });
+    const closed = (await (await create(admin, { name: "Zamknięte", joinRule: "approval" })).json()) as {
+      inviteCode: string;
+    };
+    const stranger = await t.signUp({ place: null });
+    const refused = await t.request("/api/communities/join", {
+      method: "POST",
+      headers: stranger.headers,
+      json: { code: closed.inviteCode },
+    });
+    expect(refused.status).toBe(403);
+    expect(await myPlaces(stranger)).toEqual([]);
+  });
+
+  test("an unknown or malformed code cannot be joined", async () => {
+    t = await setup();
+    const u = await t.signUp({ place: null });
+    const unknown = await t.request("/api/communities/join", {
+      method: "POST",
+      headers: u.headers,
+      json: { code: "ZZZZZZ" },
+    });
+    expect(unknown.status).toBe(404);
+    const malformed = await t.request("/api/communities/join", {
+      method: "POST",
+      headers: u.headers,
+      json: { code: "0OIL1!" },
+    });
+    expect(malformed.status).toBe(404);
+  });
+});

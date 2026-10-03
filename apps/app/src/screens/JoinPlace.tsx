@@ -25,8 +25,8 @@ export default function JoinPlace() {
           {t.join_methods_title}
         </Heading>
         <ActionRow icon={QrCode} title={t.join_qr} subtitle={t.join_qr_hint} href="/app/scan" />
-        <ActionRow icon={Keyboard} title={t.join_code} subtitle={t.join_code_hint} />
-        <ActionRow icon={LinkIcon} title={t.join_link} subtitle={t.join_link_hint} />
+        <ActionRow icon={Keyboard} title={t.join_code} subtitle={t.join_code_hint} href="/app/join-code" />
+        <ActionRow icon={LinkIcon} title={t.join_link} subtitle={t.join_link_hint} href="/app/join-code?tab=link" />
         <ActionRow icon={UserPlus} title={t.join_invites} subtitle={t.join_invites_hint} />
       </View>
       <View style={styles.grow} />
