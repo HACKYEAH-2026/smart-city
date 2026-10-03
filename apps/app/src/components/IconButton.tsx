@@ -1,15 +1,15 @@
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, sizes } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 /**
- * square: back button in screen headers · round: bell or account avatar · roundSunken: close in a bottom sheet ·
- * roundOnDark: close and torch on the dark QR scanner.
+ * square: back button in screen headers · plain: back without a background in a step header · round: bell or
+ * account avatar · roundSunken: close in a bottom sheet · roundOnDark: close and torch on the dark QR scanner.
  */
-export type IconButtonVariant = "square" | "round" | "roundSunken" | "roundOnDark";
+export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark";
 
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
@@ -35,7 +35,7 @@ export function IconButton({ label, onPress, variant = "square", icon, text }: I
       {icon ? (
         <Icon
           icon={icon}
-          size={variant === "roundSunken" ? sizes.iconS : spacing[9]}
+          size={variant === "roundSunken" ? sizes.iconS : sizes.iconM}
           color={variant === "roundOnDark" ? "onPrimary" : "text"}
         />
       ) : (
@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
+  plain: {},
   round: {
     borderRadius: radii.pill,
     borderWidth: borders.hairline,

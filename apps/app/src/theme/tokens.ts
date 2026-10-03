@@ -124,6 +124,8 @@ export const sizes = {
   radioDot: 22,
   stepBarHeight: 4,
   tabIcon: 22,
+  /** The icon in an IconButton (20). */
+  iconM: 20,
   /** Small icons: chevrons in list rows and icons inside buttons (18), the check in the active-place mark (14). */
   iconS: 18,
   iconXs: 14,

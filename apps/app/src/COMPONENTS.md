@@ -37,6 +37,7 @@ Stany: pressed (primary → `primaryPressed`; inne `opacity.pressed`), disabled 
 ### IconButton
 44×44 dp, ikona 20 dp. Warianty:
 - `square` — radius 14, tło `surface`, border `borderSubtle` (przycisk wstecz, w nagłówkach ekranów),
+- `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówku kroku, ikona wyrównana do krawędzi treści),
 - `round` — radius 22, tło `surface`, border `borderSubtle` (dzwonek powiadomień, awatar „JK" z inicjałami `typography.buttonS`),
 - `roundDark` — radius 22, tło `text`, ikona `surface` (zębatka admina; może mieć `CountBadge` w rogu top 2/right 2),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
@@ -66,7 +67,7 @@ Pole z mapą (Adres): kontener radius 14, border `border`, `overflow:hidden`; u 
 Stany komórki: wypełniona/domyślna (tło `surface`, border 1 `border`, `shadows.card`) · aktywna (border 2 `primary` + poświata 4 dp `focusRingStrong`) · pusta nieaktywna (tło `surfaceDisabled`, border `borderEmpty`). Auto-przeskok do następnej, backspace cofa, obsługa wklejania całego kodu, uppercase. Pod spodem: tekst pomocniczy `small` (lewa) + akcja „Wklej kod" z ikoną `ClipboardPaste` (prawa; `typography.buttonS`, `primary`, wysokość 44).
 
 ### PasswordStrength
-4 segmenty (grid 4 kol., gap 4, wysokość 4, radius 2): wypełnione `primary`, puste `border`; pod spodem podpowiedź `small` `textSecondary`. Wypełnienie animuje się płynnie od lewej do prawej (przy spadku — od prawej), `motion.base` na segment.
+`SegmentedProgress` z 4 segmentami (gap 4); pod spodem podpowiedź `small` `textSecondary`.
 
 ### Checkbox / Switch
 Zgoda (regulamin): checkbox 20 dp, kolor zaznaczenia `primary`, tekst `typography.caption` kolor `textBody` lineHeight ~20, linki `primary`, gap 12, wyrównanie do góry.
@@ -126,10 +127,13 @@ W białej grupie: wiersz `space-between`, padding 14/16, tekst 15; etykieta `tex
 `backgroundColor: colors.background`, `paddingHorizontal: 24`, `paddingTop: insets.top + 12`, `paddingBottom: 32` (lub insets.bottom + 8), kolumna z `gap` 24–28, spacer `flex:1` przed dolnym CTA. Używaj `react-native-safe-area-context`, `ScrollView` dla ekranów dłuższych niż ekran (np. Zarządzaj miejscem, min. wysokość 1100 dp w makiecie). Nie rysuj atrap paska statusu.
 
 ### ScreenHeader
-Wariant prosty: `IconButton square` (wstecz). Wariant „krok": wstecz + `StepProgress` + etykieta „Krok N z M" (`stepNumber`, `textSecondary`), gap 16. Wariant z tytułem: etykieta `label` nad `headingS` (np. nazwa miejsca nad „Zarządzaj miejscem"). Pod nagłówkiem blok tytułu: `title` + lead `bodyL` `textSecondary`, gap 8.
+Wariant prosty: `IconButton square` (wstecz). Wariant „krok": `IconButton plain` (wstecz) + `StepProgress` + etykieta „Krok N z M" (`stepNumber`, `textSecondary`), gap 16. Wariant z tytułem: etykieta `label` nad `headingS` (np. nazwa miejsca nad „Zarządzaj miejscem"). Pod nagłówkiem blok tytułu: `title` + lead `bodyL` `textSecondary`, gap 8.
 
 ### StepProgress
-N segmentów (grid, gap 6), wysokość 4, radius 2; wypełnione `primary`, reszta `border`.
+`SegmentedProgress` z N segmentami (gap 6), wypełnione do bieżącego kroku. Nagłówek kroku zostaje zamontowany między krokami, więc przejście do następnego (lub poprzedniego) kroku animuje pasek.
+
+### SegmentedProgress
+N równych segmentów w rzędzie, wysokość 4, radius 2; wypełnienie `primary`, tło `border`. Wartość może być ułamkowa (częściowo wypełniony segment). Zmiana wartości animuje się płynnie od lewej do prawej (przy spadku — od prawej), `motion.base` na segment. Dekoracyjny (`aria-hidden`) — postęp jest też podany tekstem (StepProgress, PasswordStrength).
 
 ### BottomTabBar
 3 zakładki (Pulpit / Miejsca / Konto) w siatce, tło `surface`, górna krawędź 1 px `borderSubtle`, padding 8/12/(insets.bottom ≈ 28)/12. Zakładka: kolumna, gap 4, padding 8, ikona 22 + etykieta 12. Aktywna: kolor `primary`, `tabActive`, pod etykietą kropka 5 dp `primary`; nieaktywna: `textSecondary`, `tab`. „Miejsca" nie jest osobnym ekranem: otwiera przełącznik miejsc (BottomSheet) nad pulpitem (`/app?places=1`). Ekran „Brak miejsc" nie ma paska (konto: okrągły awatar w nagłówku).

@@ -1,7 +1,8 @@
 import type { LucideIcon } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
-import { colors, radii, sizes, spacing } from "../theme";
+import { sizes, spacing } from "../theme";
 import { IconButton } from "./IconButton";
+import { SegmentedProgress } from "./SegmentedProgress";
 import { Text } from "./Text";
 
 export interface StepHeaderProps {
@@ -16,16 +17,18 @@ export interface StepHeaderProps {
   onBack: () => void;
 }
 
-/** Header of a multi-step form (COMPONENTS.md → ScreenHeader, step variant): back, StepProgress, "Krok N z M". */
+/**
+ * Header of a multi-step form (COMPONENTS.md → ScreenHeader, step variant): back, StepProgress, "Krok N z M".
+ * Keep it mounted across steps (one element above the steps) so the progress animates from step to step.
+ */
 export function StepHeader({ step, total, label, backIcon, backLabel, onBack }: StepHeaderProps) {
   return (
     <View style={styles.row}>
-      <IconButton icon={backIcon} label={backLabel} onPress={onBack} />
-      <View style={styles.progress} aria-hidden>
-        {Array.from({ length: total }, (_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: fixed number of identical segments
-          <View key={i} style={[styles.segment, i < step && styles.done]} />
-        ))}
+      <View style={styles.back}>
+        <IconButton variant="plain" icon={backIcon} label={backLabel} onPress={onBack} />
+      </View>
+      <View style={styles.progress}>
+        <SegmentedProgress value={step} segments={total} />
       </View>
       <Text variant="stepNumber" color="textSecondary">
         {label}
@@ -36,7 +39,8 @@ export function StepHeader({ step, total, label, backIcon, backLabel, onBack }: 
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing[8] },
-  progress: { flex: 1, flexDirection: "row", gap: spacing[3] },
-  segment: { flex: 1, height: sizes.stepBarHeight, borderRadius: radii.pill, backgroundColor: colors.border },
-  done: { backgroundColor: colors.primary },
+  // The plain button keeps its 44 dp touch target; pull it out by the padding around its icon so the icon lines up
+  // with the screen edge (like the title below) and sits `gap` away from the progress.
+  back: { marginHorizontal: -(sizes.iconButton - sizes.iconM) / 2 },
+  progress: { flex: 1 },
 });
