@@ -594,15 +594,17 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 
 | Node | Builder |
 |---|---|
-| Screen | `ui.screen(title, children)` — always the root |
+| Screen | `ui.screen(title, children, { eyebrow? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name) |
 | Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
 | Highlight | `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item: a thumbnail (`image`, a photo from `ctx.files`), a vote count with an up arrow |
 | Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally) |
 | List | `ui.list(label, items)` |
-| Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, onPress?, children? })` |
+| Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, tags?, counter?, onPress?, children? })` — `tags`: `{ text, tone?, icon?, dot? }` (up to 4); `counter`: `{ label, value, pressed, action? }`, a button at the left (votes): pressed, or without `action`, it cannot be pressed |
 | Heading / Text | `ui.heading(text, 2 \| 3)`, `ui.text(text, "ink" \| "soft"?)` |
 | Badge | `ui.badge(text, tone?)` — `neutral`, `info`, `success`, `warning`, `danger` |
-| Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?)` |
+| Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?, icon?)` |
+| Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips", options: [{ label, selected?, action }] })` — options only navigate (sorting, filters); `ui.navigate(view, params, { replace: true })` replaces the view instead of stacking one |
+| Fab | `ui.fab({ label, icon?, action })` — a floating button over the screen (bottom right, outside its scroll), e.g. "Zgłoś"; navigates |
 | Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` |
 | Empty | `ui.empty(text)` |
 | Image | `ui.image(fileId, alt)` |

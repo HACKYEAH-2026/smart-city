@@ -27,8 +27,13 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "cleanliness", label: "Czystość" },
   { value: "other", label: "Inne" },
 ];
+/** The tag that says what a report is: a problem (red) or a suggestion (blue). */
+const KIND_TAG = {
+  problem: { text: "Problem", tone: "danger", icon: "alert" },
+  suggestion: { text: "Sugestia", tone: "info", icon: "idea" },
+} as const;
 const STATUS = {
-  open: { text: "Nowe", tone: "info" },
+  open: { text: "Nowe", tone: "neutral" },
   accepted: { text: "Przyjęte", tone: "warning" },
   fixed: { text: "Naprawione", tone: "success" },
 } as const;
@@ -145,6 +150,15 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
     return (id: string) => counts.get(id) ?? 0;
   };
 
+  /** The issues the viewer has already confirmed (their report, or "Ja też to widzę"), as a set of issue ids. */
+  const confirmedBy = async (ctx: Ctx, ids: string[]) => {
+    const own = await ctx.db.reports.findMany({
+      where: { author: ctx.user.id, issue: { in: ids } },
+      limit: 1000,
+    });
+    return new Set(own.map((r) => r.issue));
+  };
+
   /** What the AI compares: the title, the description and the address (the same lamp post is at the same address). */
   const describe = (i: { title: string; description: string; location?: GeoLocation | null }) =>
     [i.title, i.description, i.location?.address].filter(Boolean).join(". ");
@@ -182,7 +196,12 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
   };
 
   /** The issue's address and a map with its pin. */
-  const issuePlace = (id: string, title: string, location: GeoLocation, tone: "info" | "warning" | "success") => [
+  const issuePlace = (
+    id: string,
+    title: string,
+    location: GeoLocation,
+    tone: "neutral" | "info" | "warning" | "success",
+  ) => [
     ...(location.address ? [ui.text(location.address, "soft")] : []),
     ui.map({
       label: "Miejsce zgłoszenia",
@@ -214,32 +233,84 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
     tables,
 
     views: {
-      list: async (ctx) => {
-        const items = await ctx.db.issues.findMany({
+      /**
+       * Every report, as cards with a vote counter; the tabs sort (popular, newest, mine) and the chips narrow it to
+       * problems or suggestions. "Zgłoś" floats over the list.
+       */
+      list: async (ctx, params) => {
+        const sort = params.sort === "newest" || params.sort === "mine" ? params.sort : "popular";
+        const kind = params.kind === "problem" || params.kind === "suggestion" ? params.kind : "all";
+        const all = await ctx.db.issues.findMany({
+          where: kind === "all" ? {} : { kind },
           orderBy: { createdAt: "desc" },
+          limit: 1000,
         });
-        const count = await supportOf(
-          ctx,
-          items.map((i) => i.id),
+        const ids = all.map((i) => i.id);
+        const count = await supportOf(ctx, ids);
+        const confirmed = await confirmedBy(ctx, ids);
+        const shown = sort === "mine" ? all.filter((i) => confirmed.has(i.id)) : all;
+        // A stable sort: equal support keeps the newest first.
+        const ordered = sort === "popular" ? [...shown].sort((a, b) => count(b.id) - count(a.id)) : shown;
+
+        const tab = (value: string, label: string) => ({
+          label,
+          selected: sort === value,
+          action: ui.navigate("list", { sort: value, kind }, { replace: true }),
+        });
+        const chip = (value: string, label: string) => ({
+          label,
+          selected: kind === value,
+          action: ui.navigate("list", { sort, kind: value }, { replace: true }),
+        });
+        const card = (i: (typeof all)[number]) => {
+          const pressed = confirmed.has(i.id);
+          return ui.card({
+            title: i.title,
+            subtitle: categoryLabel(i.category),
+            tags: [
+              KIND_TAG[i.kind],
+              {
+                text: STATUS[i.status].text,
+                tone: STATUS[i.status].tone,
+                dot: true,
+              },
+            ],
+            counter: {
+              label: "Podbij zgłoszenie",
+              value: count(i.id),
+              pressed,
+              ...(pressed ? {} : { action: ui.tool("support", { id: i.id }) }),
+            },
+            onPress: ui.navigate("detail", { id: i.id }),
+          });
+        };
+
+        return ui.screen(
+          "Zgłoszenia i sugestie",
+          [
+            ui.tabs({
+              label: "Sortowanie",
+              variant: "segmented",
+              options: [tab("popular", "Popularne"), tab("newest", "Najnowsze"), tab("mine", "Moje")],
+            }),
+            ui.tabs({
+              label: "Rodzaj",
+              variant: "chips",
+              options: [chip("all", "Wszystkie"), chip("problem", "Problemy"), chip("suggestion", "Sugestie")],
+            }),
+            ui.list(
+              "Lista zgłoszeń",
+              ordered.length ? ordered.map(card) : [ui.empty("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.")],
+            ),
+            ...openIssuesMap(all, count),
+            ui.fab({
+              label: "Zgłoś",
+              icon: "camera",
+              action: ui.navigate("new"),
+            }),
+          ],
+          { eyebrow: ctx.community.name },
         );
-        return ui.screen("Zgłoszenia i sugestie", [
-          ui.text(`Usterki zgłoszone przez użytkowników: ${ctx.community.name}.`, "soft"),
-          ui.button("Nowe zgłoszenie", ui.navigate("new")),
-          ...openIssuesMap(items, count),
-          ui.list(
-            "Lista zgłoszeń",
-            items.length
-              ? items.map((i) =>
-                  ui.card({
-                    title: i.title,
-                    subtitle: `${categoryLabel(i.category)} · ${supporters(count(i.id))}`,
-                    badge: STATUS[i.status],
-                    onPress: ui.navigate("detail", { id: i.id }),
-                  }),
-                )
-              : [ui.empty("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.")],
-          ),
-        ]);
       },
 
       /** "Sugestia" on the dashboard opens this form with the suggestion kind already picked. */

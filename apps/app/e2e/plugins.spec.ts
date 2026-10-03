@@ -30,7 +30,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await expect(page.getByRole("heading", { name: "Zgłoszenia" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze zgłoszeń")).toBeVisible();
 
-  await page.getByRole("button", { name: "Nowe zgłoszenie" }).click();
+  await page.getByRole("button", { name: "Zgłoś", exact: true }).click();
   await page.getByLabel("Tytuł").fill("Nie świeci latarnia na Długiej");
   await page.getByRole("radio", { name: "Oświetlenie" }).click();
   await page.getByLabel("Opis").fill("Przy przystanku, od tygodnia");
@@ -64,7 +64,7 @@ const login = async (page: Page, email: string) => {
 
 const openNewIssueForm = async (page: Page) => {
   await page.goto("/app/c/krakow/issues/list");
-  await page.getByRole("button", { name: "Nowe zgłoszenie" }).click();
+  await page.getByRole("button", { name: "Zgłoś", exact: true }).click();
 };
 
 /** Minimal JPEG header — the server checks the file type, not its content. */
@@ -240,7 +240,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await publishAnnouncement(page, "Zebranie użytkowników");
   await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
-  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
 
   await holdTile(page, "Ogłoszenia");
   await expect(page).toHaveURL(/\/app$/);
@@ -256,8 +256,8 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await signOut(page);
   await register(page, "sasiad@example.test", api.url);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
-  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
-  await holdTile(page, "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
+  await holdTile(page, "Zgłoszenia i sugestie");
   await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: t.dashboard_done })).toHaveCount(0);
 });
@@ -269,7 +269,7 @@ test("admin drags a widget to a new place on the dashboard", async ({ page }) =>
   await publishAnnouncement(page, "Przerwa w dostawie wody");
   await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
-  await holdTile(page, "Zgłoszenia");
+  await holdTile(page, "Zgłoszenia i sugestie");
 
   const handle = page.getByLabel(`${t.dashboard_drag}: Ogłoszenia`);
   const target = await dashboardRegions(page).nth(0).boundingBox();
@@ -331,4 +331,15 @@ test("issues widget: the most reported open issues; tapping the tile opens the l
     .click();
   await expect(page).toHaveURL(/\/app\/c\/krakow\/issues\/list$/);
   await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
+});
+
+test("issues list: a tab or chip changes the list in place; going back leaves the list", async ({ page, api }) => {
+  await register(page, "filtry@example.test", api.url);
+  await page.goto("/app/c/krakow/issues/list");
+  await expect(page.getByRole("heading", { name: "Zgłoszenia i sugestie", level: 1 })).toBeVisible();
+  await page.getByRole("radio", { name: "Problemy" }).click();
+  await expect(page).toHaveURL(/kind=problem/);
+  await expect(page.getByRole("radio", { name: "Problemy" })).toHaveAttribute("aria-checked", "true");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/app$/);
 });

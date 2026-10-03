@@ -10,6 +10,15 @@ export const colors = {
   primary: "#E50101", // primary CTA, active elements, links, accent icons
   primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
   primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
+  // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
+  neutralTint: "#ECEAE5",
+  neutralText: "#3E3E46",
+  infoTint: "#E8EEF8",
+  infoText: "#1F4E8C",
+  warningTint: "#FFF1D6",
+  warningText: "#7A4F00",
+  successTint: "#E3F1E6",
+  successText: "#1E6B34",
   onPrimary: "#FFFFFF",
 
   // Text
@@ -196,6 +205,14 @@ export const sizes = {
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
+  /** A list card's counter (votes): its width and minimum height. */
+  voteWidth: 48,
+  voteHeight: 64,
+  /** A tag (badge) on a list card: its height, and the dot in a status tag. */
+  tagHeight: 24,
+  tagDot: 6,
+  /** The floating button over a screen. */
+  fab: 56,
   highlightThumb: 64,
 } as const;
 
@@ -243,6 +260,8 @@ export const typography = {
   labelL: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 17, letterSpacing: 0.78 },
   labelHero: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96 }, // 0.08em on the red banner
   chip: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 15, letterSpacing: 0.55 }, // 0.05em
+  /** Tags on list cards: sentence case, unlike the uppercase chip. */
+  tag: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
   stepNumber: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 },
   abbr: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 20, letterSpacing: 0 }, // place abbreviation (e.g. "OS")
   codeInline: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20, letterSpacing: 1.28 }, // K7M-4QX in a row
