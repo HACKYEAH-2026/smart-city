@@ -2,11 +2,13 @@
 # and the "secrets" job prints a readable note about what is missing.
 name: ci
 
+# Automatic runs are OFF for now: `bun run verify` locally is the check (AGENTS.md). Only a manual run
+# (Actions -> ci -> Run workflow) starts it. To turn CI back on, uncomment push / pull_request.
 on:
-  push:
-    branches: [master]
-    tags: ["v*"]
-  pull_request:
+  # push:
+  #   branches: [master]
+  #   tags: ["v*"]
+  # pull_request:
   workflow_dispatch:
 
 permissions:
