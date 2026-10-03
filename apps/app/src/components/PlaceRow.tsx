@@ -1,9 +1,12 @@
 import type { MyPlace } from "@app/shared";
+import { Check } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
-import { placeAbbr } from "../lib/places";
+import { tapFeedback } from "../lib/haptics";
+import { initials } from "../lib/places";
 import { t } from "../texts";
 import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
 import { Badge } from "./Badge";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export interface PlaceRowProps {
@@ -12,7 +15,7 @@ export interface PlaceRowProps {
   onPress: () => void;
 }
 
-/** A place in a list (COMPONENTS.md → PlaceRow): abbreviation, name, role; the active place has a red frame. */
+/** A place in the switcher (COMPONENTS.md → PlaceRow): abbreviation, name, role; the active place has a red frame and a check. */
 export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
   return (
     <Pressable
@@ -20,11 +23,12 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
       accessibilityLabel={`${place.name}, ${place.role === "admin" ? t.place_role_admin : t.place_role_member}`}
       accessibilityState={{ selected: active }}
       onPress={onPress}
+      onPressIn={tapFeedback}
       style={[styles.row, active ? styles.active : styles.idle]}
     >
       <View style={styles.avatar}>
         <Text variant="abbr" color="primary">
-          {placeAbbr(place.name)}
+          {initials(place.name)}
         </Text>
       </View>
       <View style={styles.body}>
@@ -36,6 +40,11 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
           {place.role === "admin" ? t.place_role_admin : t.place_role_member}
         </Text>
       </View>
+      {active ? (
+        <View style={styles.check}>
+          <Icon icon={Check} size={sizes.iconXs} color="onPrimary" strokeWidth={3} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -64,4 +73,12 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: spacing[1] },
   titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing[4] },
+  check: {
+    width: sizes.selectedMark,
+    height: sizes.selectedMark,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

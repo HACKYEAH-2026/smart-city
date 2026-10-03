@@ -37,7 +37,8 @@ test("sign out closes /app, logging back in opens the dashboard of the place", a
 
 test("wrong password shows an error and does not let you in", async ({ page }) => {
   await register(page, "wrong@example.test");
-  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_account }).click();
+  // Without places there is no bottom bar: the account opens from the avatar button (design E-BrakMiejsc).
+  await page.getByRole("button", { name: t.account_title }).click();
   await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
   await login(page, "wrong@example.test", "incorrect1");

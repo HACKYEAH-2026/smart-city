@@ -1,20 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { passwordStrength } from "./passwordStrength";
+import { MIN_PASSWORD_LENGTH, passwordStrength } from "./passwordStrength";
 
 describe("passwordStrength", () => {
-  test("empty password fails every check, starting with length", () => {
-    expect(passwordStrength("")).toEqual({ score: 0, missing: "length" });
+  test("the only rule is the length: 5 characters", () => {
+    expect(MIN_PASSWORD_LENGTH).toBe(5);
+    expect(passwordStrength("abcd").missing).toBe("length");
+    expect(passwordStrength("abcde").missing).toBeNull();
   });
 
-  test("lowercase with a digit is missing the case check", () => {
-    expect(passwordStrength("password123")).toEqual({ score: 2, missing: "case" });
+  test("no other rule: case, digits and symbols do not matter", () => {
+    for (const password of ["HASLO", "haslo", "12345", "!!!!!", "Ąęśćź"]) {
+      expect(passwordStrength(password)).toEqual({ score: 4, missing: null });
+    }
   });
 
-  test("mixed case, digit, symbol and 8+ characters is strong", () => {
-    expect(passwordStrength("Password123!")).toEqual({ score: 4, missing: null });
-  });
-
-  test("a short password counts only the checks it passes", () => {
-    expect(passwordStrength("Ab1!")).toEqual({ score: 3, missing: "length" });
+  test("the meter fills as the password approaches the minimum and is full only when it is met", () => {
+    expect(["", "a", "ab", "abc", "abcd", "abcde", "abcdefghij"].map((p) => passwordStrength(p).score)).toEqual([
+      0, 0, 1, 2, 3, 4, 4,
+    ]);
   });
 });

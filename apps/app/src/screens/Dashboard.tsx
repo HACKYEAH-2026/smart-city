@@ -1,20 +1,51 @@
 import type { MyPlace } from "@app/shared";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronDown, LayoutDashboard } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import {
+  ChevronDown,
+  Keyboard,
+  LayoutDashboard,
+  Link as LinkIcon,
+  LogIn,
+  Plus,
+  QrCode,
+  User,
+  UserPlus,
+} from "lucide-react-native";
+import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { BottomSheet, Button, Card, DashboardMap, Heading, Icon, Link, PlaceRow, Screen, Text } from "../components";
+import {
+  ActionRow,
+  BottomSheet,
+  Brand,
+  Button,
+  Card,
+  CreateRow,
+  DashboardMap,
+  Heading,
+  HeroBanner,
+  Icon,
+  IconButton,
+  Link,
+  PlaceRow,
+  Screen,
+  Text,
+} from "../components";
 import { useCommunities, useCommunityNav, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { useSession } from "../data/session";
+import { tapFeedback } from "../lib/haptics";
 import { currentPlace } from "../lib/places";
 import { widgetsCount } from "../lib/plural";
 import { Dashboard as DashboardWidgets } from "../plugins/Dashboard";
 import { pluginHref } from "../plugins/href";
 import { t } from "../texts";
-import { borders, colors, radii, sizes, spacing } from "../theme";
+import { colors, radii, sizes, spacing } from "../theme";
+import CreatePlace from "./CreatePlace";
 
-/** Dashboard after sign-in (design E-Dashboard): greeting, the current place, its widgets, the switcher and the bottom bar. */
+/**
+ * Dashboard after sign-in (design E-Dashboard): greeting, the current place, its widgets, the place switcher and the
+ * bottom bar. Without places: the ways to join a place and creating one (design E-BrakMiejsc).
+ */
 export default function Dashboard() {
   const places = useCommunities();
   if (places.isPending) {
@@ -28,28 +59,7 @@ export default function Dashboard() {
   }
   const list = places.data ?? [];
   const current = currentPlace(list);
-  return current ? <PlaceDashboard place={current} places={list} /> : <NoPlaces />;
-}
-
-/** Stage for a user without places: create one or join an existing one. */
-function NoPlaces() {
-  const router = useRouter();
-  return (
-    <Screen chrome={false} tabBar backdrop={<DashboardMap />}>
-      <Head>
-        <title>{t.app_name}</title>
-      </Head>
-      <Greeting />
-      <Heading level={1} variant="heading">
-        {t.dashboard_empty_title}
-      </Heading>
-      <Text variant="bodyL" color="textSecondary">
-        {t.dashboard_empty_body}
-      </Text>
-      <Button label={t.place_create} onPress={() => router.push("/app/create-place")} />
-      <Button label={t.place_join} variant="secondary" onPress={() => router.push("/app/join")} />
-    </Screen>
-  );
+  return current ? <PlaceDashboard place={current} places={list} /> : <CreatePlace />;
 }
 
 /** "Dzień dobry, <name>" — the signed-in user's name from the session. */
@@ -68,18 +78,17 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
   const setDefault = useSetDefaultPlace();
   const nav = useCommunityNav(place.slug);
   const widgets = useDashboard(place.slug);
-  const [switching, setSwitching] = useState(false);
   const { mutate: visitPlace } = visit;
+  // The switcher is part of the URL (/app?places=1), so the "Miejsca" tab can open it from any screen.
+  const { places: switcherParam } = useLocalSearchParams<{ places?: string }>();
+  const switching = switcherParam === "1";
+  const openSwitcher = () => router.setParams({ places: "1" });
+  const closeSwitcher = () => router.setParams({ places: undefined });
 
   // Showing a place remembers it as the last visited one; the dashboard opens on it next time.
   useEffect(() => {
     visitPlace(place.slug);
   }, [place.slug, visitPlace]);
-
-  const choose = (slug: string) => {
-    setSwitching(false);
-    visitPlace(slug);
-  };
 
   const widgetList = widgets.data?.widgets ?? [];
 
@@ -89,28 +98,29 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
       tabBar
       backdrop={<DashboardMap />}
       overlay={
-        <BottomSheet visible={switching} title={t.places_sheet_title} onClose={() => setSwitching(false)}>
+        // Design E-PrzelacznikMiejsc: picking a row switches the dashboard behind the sheet; the sheet stays open.
+        <BottomSheet visible={switching} title={t.places_sheet_title} onClose={closeSwitcher}>
           <View style={styles.sheetList}>
             {places.map((p) => (
-              <PlaceRow key={p.id} place={p} active={p.id === place.id} onPress={() => choose(p.slug)} />
+              <PlaceRow key={p.id} place={p} active={p.id === place.id} onPress={() => visitPlace(p.slug)} />
             ))}
           </View>
           <Button label={t.place_set_default} variant="secondary" onPress={() => setDefault.mutate(place.slug)} />
-          <Button
-            label={t.place_join}
-            variant="secondary"
-            onPress={() => {
-              setSwitching(false);
-              router.push("/app/join");
-            }}
-          />
-          <Button
-            label={t.place_create}
-            onPress={() => {
-              setSwitching(false);
-              router.push("/app/create-place");
-            }}
-          />
+          <View style={styles.sheetActions}>
+            <Button
+              label={t.place_join}
+              variant="secondary"
+              leftIcon={<Icon icon={LogIn} size={sizes.iconS} strokeWidth={2} />}
+              style={styles.sheetAction}
+              onPress={() => router.push("/app/join")}
+            />
+            <Button
+              label={t.place_create}
+              leftIcon={<Icon icon={Plus} size={sizes.iconS} color="onPrimary" strokeWidth={2.2} />}
+              style={styles.sheetAction}
+              onPress={() => router.push("/app/create-place")}
+            />
+          </View>
         </BottomSheet>
       }
     >
@@ -125,9 +135,10 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={place.name}
+          accessibilityLabel={`${t.place_switch}: ${place.name}`}
           hitSlop={spacing[6]}
-          onPress={() => setSwitching(true)}
+          onPress={openSwitcher}
+          onPressIn={tapFeedback}
           style={styles.nameRow}
         >
           <Heading level={1} variant="heading">
@@ -148,7 +159,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
             {widgetsCount(widgetList.length)}
           </Text>
         </View>
-        {widgets.isPending ? null : widgetList.length ? <DashboardWidgets slug={place.slug} /> : <EmptyGrid />}
+        {widgets.isPending ? null : widgetList.length ? <DashboardWidgets slug={place.slug} /> : <EmptyDashboard />}
       </View>
 
       <View style={styles.section}>
@@ -174,39 +185,24 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
   );
 }
 
-/** Two-column grid with a span-2 empty-state card and dashed placeholder tiles (design: no widgets yet). */
-function EmptyGrid() {
+/** Empty-state card while the place has no widgets yet (designs E-Dashboard, E-DashboardAdmin). */
+function EmptyDashboard() {
   return (
-    <View style={styles.grid}>
-      <Card style={styles.emptyCard}>
-        <View style={styles.emptyIcon}>
-          <Icon icon={LayoutDashboard} size={spacing[9]} color="primary" />
-        </View>
-        <View style={styles.emptyText}>
-          <Heading level={2}>{t.widgets_empty_title}</Heading>
-          <Text variant="caption" color="textSecondary">
-            {t.widgets_empty_body}
-          </Text>
-        </View>
-      </Card>
-      <PlaceholderTile number="01" />
-      <PlaceholderTile number="02" />
-      <PlaceholderTile number="03" wide />
-    </View>
+    <Card style={styles.emptyCard}>
+      <View style={styles.emptyIcon}>
+        <Icon icon={LayoutDashboard} size={sizes.emptyIcon} color="primary" />
+      </View>
+      <View style={styles.emptyText}>
+        <Heading level={2} variant="cardTitle">
+          {t.widgets_empty_title}
+        </Heading>
+        <Text variant="captionRelaxed" color="textSecondary">
+          {t.widgets_empty_body}
+        </Text>
+      </View>
+    </Card>
   );
 }
-
-function PlaceholderTile({ number, wide = false }: { number: string; wide?: boolean }) {
-  return (
-    <View style={[styles.placeholder, wide ? styles.placeholderWide : styles.placeholderSquare]}>
-      <Text variant="label" color="textMuted">
-        {number}
-      </Text>
-    </View>
-  );
-}
-
-const GAP = spacing[6];
 
 const styles = StyleSheet.create({
   place: { gap: spacing[2] },
@@ -221,8 +217,7 @@ const styles = StyleSheet.create({
   },
   section: { gap: spacing[6] },
   sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
-  emptyCard: { width: "100%", flexDirection: "row", alignItems: "center", gap: spacing[8] },
+  emptyCard: { flexDirection: "row", alignItems: "center", gap: spacing[8] },
   emptyIcon: {
     width: sizes.iconBoxLg,
     height: sizes.iconBoxLg,
@@ -231,18 +226,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyText: { flex: 1, gap: spacing[1] },
-  placeholder: {
-    height: sizes.placeholderTile,
-    borderWidth: borders.row,
-    borderStyle: "dashed",
-    borderColor: colors.dashed,
-    borderRadius: radii["3xl"],
-    padding: spacing[7],
-    justifyContent: "flex-end",
-  },
-  placeholderSquare: { flexBasis: "47%", flexGrow: 1 },
-  placeholderWide: { width: "100%", height: sizes.placeholderTileWide },
+  emptyText: { flex: 1, gap: spacing[2] },
   feature: { flexDirection: "row", alignItems: "center" },
   sheetList: { gap: spacing[4] },
+  sheetActions: { flexDirection: "row", gap: spacing[5] },
+  sheetAction: { flex: 1 },
 });

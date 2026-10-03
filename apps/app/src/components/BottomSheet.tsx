@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { t } from "../texts";
-import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
+import { colors, opacity, radii, sizes, spacing } from "../theme";
 import { Heading } from "./Heading";
 import { IconButton } from "./IconButton";
 
@@ -18,7 +18,8 @@ export interface BottomSheetProps {
 /**
  * Bottom sheet (COMPONENTS.md → BottomSheet) on @gorhom/bottom-sheet: native gestures and spring motion. The dimmed
  * backdrop fades on its own (it does not move with the sheet); pan down or a tap on the backdrop closes it.
- * Render it outside the scrolling content (`Screen` → `overlay`).
+ * Render it outside the scrolling content (`Screen` → `overlay`). The sheet stays mounted while closed, so its
+ * content is hidden from screen readers then; open, it is a dialog named by its title.
  */
 export function BottomSheet({ visible, title, onClose, children }: BottomSheetProps) {
   const ref = useRef<GorhomBottomSheet>(null);
@@ -45,10 +46,15 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
         />
       )}
     >
-      <BottomSheetView style={styles.content}>
+      <BottomSheetView
+        role={visible ? "dialog" : undefined}
+        aria-label={visible ? title : undefined}
+        aria-hidden={!visible}
+        style={styles.content}
+      >
         <View style={styles.head}>
           <Heading level={2}>{title}</Heading>
-          <IconButton icon={X} label={t.close} onPress={onClose} />
+          <IconButton icon={X} label={t.close} onPress={onClose} variant="roundSunken" />
         </View>
         {children}
       </BottomSheetView>
@@ -61,11 +67,8 @@ const styles = StyleSheet.create({
   handle: {
     width: sizes.sheetHandleWidth,
     height: sizes.sheetHandleHeight,
-    borderRadius: radii.xs,
-    borderWidth: borders.hairline,
-    borderStyle: "dashed",
-    borderColor: colors.dashed,
-    backgroundColor: "transparent",
+    borderRadius: radii.pill,
+    backgroundColor: colors.dashed,
   },
   content: {
     paddingTop: spacing[4],

@@ -11,8 +11,11 @@ export function currentPlace(places: MyPlace[]): MyPlace | null {
   return visited[0] ?? places.find((p) => p.isDefault) ?? places[0] ?? null;
 }
 
-/** Two-letter abbreviation for a place avatar: first letters of the first two words ("Osiedle Słoneczne" → "OS"). */
-export function placeAbbr(name: string): string {
+/**
+ * Two-letter avatar text: first letters of the first two words. Place avatars ("Osiedle Słoneczne" → "OS") and the
+ * account avatar ("Jan Kowalski" → "JK").
+ */
+export function initials(name: string): string {
   return name
     .split(/\s+/)
     .filter(Boolean)

@@ -1,17 +1,13 @@
-/** Minimum password length. Must match `minPasswordLength` in apps/api/src/auth.ts. */
-export const MIN_PASSWORD_LENGTH = 8;
+/** Minimum password length, the only password rule. Must match `minPasswordLength` in apps/api/src/auth.ts. */
+export const MIN_PASSWORD_LENGTH = 5;
 
-export type PasswordCheck = "length" | "digit" | "case" | "symbol";
+export type PasswordCheck = "length";
 
-const CHECKS: { id: PasswordCheck; passes: (password: string) => boolean }[] = [
-  { id: "length", passes: (p) => p.length >= MIN_PASSWORD_LENGTH },
-  { id: "digit", passes: (p) => /\d/.test(p) },
-  { id: "case", passes: (p) => /\p{Lowercase_Letter}/u.test(p) && /\p{Uppercase_Letter}/u.test(p) },
-  { id: "symbol", passes: (p) => /[^\p{Letter}\p{Number}]/u.test(p) },
-];
-
-/** Score 0–4 (one point per passed check) and the first check still missing (null when all pass). */
+/**
+ * Meter score 0–4: the segments fill as the password approaches the minimum length and are all full exactly
+ * when it is met. `missing` = the unmet rule (null once the password is long enough).
+ */
 export function passwordStrength(password: string): { score: number; missing: PasswordCheck | null } {
-  const failing = CHECKS.filter((c) => !c.passes(password));
-  return { score: CHECKS.length - failing.length, missing: failing[0]?.id ?? null };
+  const score = Math.min(4, Math.floor((password.length * 4) / MIN_PASSWORD_LENGTH));
+  return { score, missing: password.length >= MIN_PASSWORD_LENGTH ? null : "length" };
 }

@@ -42,4 +42,11 @@ describe("auth (email + password)", () => {
     });
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
+
+  test("the only password rule is at least 5 characters (MIN_PASSWORD_LENGTH in the app)", async () => {
+    const signUp = (email: string, password: string) =>
+      t.request("/api/auth/sign-up/email", { method: "POST", json: { email, password, name: "X" } });
+    expect((await signUp("four@example.test", "abcd")).status).toBe(400);
+    expect((await signUp("five@example.test", "abcde")).status).toBe(200);
+  });
 });
