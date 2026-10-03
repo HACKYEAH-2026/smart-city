@@ -1,5 +1,6 @@
-/** Minimum password length, the only password rule. Must match `minPasswordLength` in apps/api/src/auth.ts. */
-export const MIN_PASSWORD_LENGTH = 5;
+import { MIN_PASSWORD_LENGTH } from "@app/shared";
+
+export { MIN_PASSWORD_LENGTH };
 
 export type PasswordCheck = "length";
 

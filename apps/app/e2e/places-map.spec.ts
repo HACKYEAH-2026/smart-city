@@ -1,5 +1,5 @@
 import { t } from "../src/texts";
-import { expect, test } from "./fixtures";
+import { expect, register, test } from "./fixtures";
 
 /**
  * The map of places (bottom bar → "Mapa"): places their admins show on the map, for every signed-in user, and the
@@ -7,12 +7,7 @@ import { expect, test } from "./fixtures";
  * drawn on a canvas). The demo place "Kraków" (test-routes.ts seedDemo) is on the map, at the city hall.
  */
 test("a public place on the map: its card with address; a non-member learns how to join", async ({ page }) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill("explorer@example.test");
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+  await register(page, "explorer@example.test");
 
   // Without places there is no bottom bar (design E-BrakMiejsc): the map is one of the ways to find a place.
   await page.getByRole("link", { name: new RegExp(t.join_map) }).click();

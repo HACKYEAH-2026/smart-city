@@ -1,19 +1,9 @@
 import type { Page } from "@playwright/test";
 import { testGoogleIdToken } from "../../api/src/test-google";
 import { t } from "../src/texts";
-import { expect, joinKrakow, test } from "./fixtures";
+import { expect, joinKrakow, PASSWORD, register, signOut, test } from "./fixtures";
 
 /** Auth acceptance criteria: sign-up, sign-out, /app protection, sign-in, wrong password. */
-/** Registers and lands on the dashboard; a new user has no places yet. */
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
-
 const login = async (page: Page, email: string, password: string) => {
   await page.getByLabel(t.auth_email).fill(email);
   await page.getByLabel(t.auth_password).fill(password);
@@ -32,7 +22,7 @@ test("sign out closes /app, logging back in opens the dashboard of the place", a
   await page.goto("/app");
   await expect(page).toHaveURL(/\/login$/);
 
-  await login(page, "cycle@example.test", "password123");
+  await login(page, "cycle@example.test", PASSWORD);
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 });
 
@@ -59,13 +49,6 @@ const pickGoogleAccount = (page: Page, email: string | null) =>
     },
     email ? testGoogleIdToken({ email, name: "Jan Kowalski" }) : null,
   );
-
-/** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
-const signOut = async (page: Page) => {
-  await page.goto("/app/account");
-  await page.getByRole("button", { name: t.sign_out }).click();
-  await expect(page).toHaveURL(/\/login$/);
-};
 
 test("Google: the first sign-in creates the account, the next one opens the same account", async ({ page, api }) => {
   await pickGoogleAccount(page, "jan@gmail.test");
@@ -144,7 +127,7 @@ test("register screen follows the design: back button, step, consent required", 
   await expect(page.getByRole("checkbox", { name: t.auth_consent })).not.toBeChecked();
 
   await page.getByLabel(t.auth_email).fill("consent@example.test");
-  await page.getByLabel(t.auth_password).fill("password123");
+  await page.getByLabel(t.auth_password).fill(PASSWORD);
   await page.getByRole("button", { name: t.auth_submit_register }).click();
   await expect(page.getByRole("alert")).toHaveText(t.auth_consent_required);
   await expect(page).toHaveURL(/\/register$/);
@@ -166,7 +149,7 @@ test("login error appears under the button, so the form does not jump", async ({
   const button = page.getByRole("button", { name: t.auth_submit_login });
   const buttonTop = async () => (await button.boundingBox())?.y;
   const before = await buttonTop();
-  await login(page, "nobody@example.test", "password123");
+  await login(page, "nobody@example.test", PASSWORD);
   await expect(page.getByRole("alert")).toHaveText(t.auth_login_error);
   expect(await buttonTop()).toBe(before);
   const alert = await page.getByRole("alert").boundingBox();

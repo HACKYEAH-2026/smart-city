@@ -1,6 +1,5 @@
-import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, test } from "./fixtures";
+import { expect, register, test } from "./fixtures";
 
 /**
  * Creating a place (designs E-NoweMiejsceTyp → Dane → Dostep → Gotowe): the kind, then the name, address and
@@ -8,14 +7,6 @@ import { expect, test } from "./fixtures";
  * ready with its invite code and QR; its creator is its admin. Plugin names are server content, not app texts.
  */
 const FEATURES = ["Zgłoszenia", "Ogłoszenia", "Dyskusje"];
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
 
 test("creating a place: kind, details, who may join; the place is ready with its invite code", async ({ page }) => {
   await register(page, "creator@example.test");

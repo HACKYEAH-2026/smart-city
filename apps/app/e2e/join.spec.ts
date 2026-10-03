@@ -1,21 +1,12 @@
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, test } from "./fixtures";
+import { expect, register, test } from "./fixtures";
 
 /**
  * Joining by a scanned invite (design E-PodgladMiejsca): the scanned code opens the place's preview, joining it
  * makes the place the current one on the dashboard; an unknown code says so.
  */
 const DEMO_CODE = "KRKMST";
-
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
 
 test("a scanned invite opens the place preview; joining makes the place current", async ({ page }) => {
   await register(page, "preview@example.test");

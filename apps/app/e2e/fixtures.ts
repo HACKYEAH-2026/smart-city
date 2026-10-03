@@ -1,8 +1,9 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { type AddressInfo, createServer } from "node:net";
 import { resolve } from "node:path";
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { TEST_GOOGLE_CLIENT_ID } from "../../api/src/test-google";
+import { t } from "../src/texts";
 
 /**
  * E2E fixtures:
@@ -107,5 +108,39 @@ export const inviteToKrakow = async (apiUrl: string, email: string) => {
     body: JSON.stringify({ email, slug: "krakow" }),
   });
   if (!res.ok) throw new Error(`inviteToKrakow ${res.status}`);
+};
+
+/** The password of every user a test registers (register). */
+export const PASSWORD = "password123";
+/**
+ * The demo place's admin, seeded by the test API: DEMO_ADMIN in apps/api/src/test-routes.ts (copied, not imported:
+ * that file has runtime dependencies and Playwright loads this one).
+ */
+export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } as const;
+
+/** Registers and lands on the dashboard; a new user has no places yet. */
+export const register = async (page: Page, email: string) => {
+  await page.goto("/register");
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill(PASSWORD);
+  await page.getByRole("checkbox", { name: t.auth_consent }).click();
+  await page.getByRole("button", { name: t.auth_submit_register }).click();
+  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+};
+
+/** Signs in as the demo place's admin and lands on the dashboard of Kraków. */
+export const loginAdmin = async (page: Page) => {
+  await page.goto("/login");
+  await page.getByLabel(t.auth_email).fill(DEMO_ADMIN.email);
+  await page.getByLabel(t.auth_password).fill(DEMO_ADMIN.password);
+  await page.getByRole("button", { name: t.auth_submit_login }).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+};
+
+/** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
+export const signOut = async (page: Page) => {
+  await page.goto("/app/account");
+  await page.getByRole("button", { name: t.sign_out }).click();
+  await expect(page).toHaveURL(/\/login$/);
 };
 export { expect };

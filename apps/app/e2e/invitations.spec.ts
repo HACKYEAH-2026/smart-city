@@ -1,20 +1,10 @@
-import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, inviteToKrakow, test } from "./fixtures";
+import { expect, inviteToKrakow, register, test } from "./fixtures";
 
 /**
  * Invitations (design E-Zaproszenia): a user sees the places others invited them to, with who invited them;
  * accepting joins the place and opens its dashboard, declining removes the invitation.
  */
-const register = async (page: Page, email: string) => {
-  await page.goto("/register");
-  await page.getByLabel(t.auth_email).fill(email);
-  await page.getByLabel(t.auth_password).fill("password123");
-  await page.getByRole("checkbox", { name: t.auth_consent }).click();
-  await page.getByRole("button", { name: t.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
-};
-
 test("an invitation shows the place and its inviter; accepting joins the place", async ({ page, api }) => {
   await register(page, "invited@example.test");
   await inviteToKrakow(api.url, "invited@example.test");
