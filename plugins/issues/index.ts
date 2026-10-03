@@ -1,17 +1,17 @@
-import type { PluginContext, PluginDoc, PluginModule } from "@app/plugin-sdk";
+import type { Context, Doc, FileId, PluginModule } from "@app/plugin-sdk";
 
 /**
- * WZORZEC WTYCZKI: zgłoszenia usterek z poparciem „+1” i łączeniem duplikatów.
+ * WZORZEC WTYCZKI: zgłoszenia usterek.
+ * Przepływ: formularz (opcjonalnie zdjęcie) → ctx.ai.findSimilar sprawdza otwarte zgłoszenia →
+ * jeśli jest podobne, pytamy „czy to ten sam problem?” → połączenie dopisuje zgłoszenie mieszkańca
+ * (opis + zdjęcie) pod wcześniejszym zgłoszeniem. Status zmienia tylko admin społeczności.
  * Moduł nic nie importuje w runtime (tylko `import type`) — SDK dostaje od hosta.
- * Ten sam plik można wgrać przez POST /api/admin/plugins (bun run plugin:upload plugins/issues).
  */
-type Issue = {
-  title: string;
-  description: string;
-  category: string;
-  status: "new" | "accepted" | "fixed";
-  voters: string[];
-};
+type Status = "open" | "accepted" | "fixed";
+type Issue = { title: string; description: string; category: string; photo?: FileId; status: Status };
+/** Zgłoszenie mieszkańca pod problemem; klucz `${issueId}:${userId}` = jedno na osobę. */
+type Report = { issueId: string; author: string; description: string; photo?: FileId };
+type Draft = { title: string; description: string; category: string; photo?: FileId };
 
 const CATEGORIES = [
   { value: "lighting", label: "Oświetlenie" },
@@ -21,51 +21,56 @@ const CATEGORIES = [
   { value: "other", label: "Inne" },
 ];
 const STATUS = {
-  new: { text: "Nowe", tone: "info" },
+  open: { text: "Nowe", tone: "info" },
   accepted: { text: "Przyjęte", tone: "warning" },
   fixed: { text: "Naprawione", tone: "success" },
 } as const;
 
 const categoryLabel = (v: string) => CATEGORIES.find((c) => c.value === v)?.label ?? v;
-const words = (s: string) =>
-  new Set(
-    s
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .filter((w) => w.length > 2),
-  );
+const supporters = (n: number) => (n === 1 ? "1 osoba zgłasza" : `${n} osób zgłasza`);
+const issueText = (d: Doc<Issue>) => `${d.data.title}. ${d.data.description}`;
 
-/** Duplikat: ta sama kategoria i co najmniej połowa znaczących słów tytułu wspólna. */
-async function findDuplicate(ctx: PluginContext, input: { title: string; category: string }) {
-  const mine = words(input.title);
-  if (!mine.size) return null;
-  const open = (await ctx.storage.list<Issue>("issues")).filter(
-    (d) => d.data.category === input.category && d.data.status !== "fixed",
-  );
-  return (
-    open.find((d) => {
-      const theirs = words(d.data.title);
-      const common = [...mine].filter((w) => theirs.has(w)).length;
-      return common / Math.min(mine.size, theirs.size || 1) >= 0.5;
-    }) ?? null
-  );
+async function addReport(ctx: Context, issueId: string, draft: Draft) {
+  if (draft.photo) await ctx.files.keep(draft.photo);
+  await ctx.storage.upsert<Report>("reports", `${issueId}:${ctx.user.id}`, {
+    issueId,
+    author: ctx.user.name,
+    description: draft.description,
+    ...(draft.photo ? { photo: draft.photo } : {}),
+  });
 }
 
-const supporters = (n: number) => (n === 1 ? "1 osoba popiera" : `${n} osób popiera`);
+const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
+  const draftSchema = z.object({
+    title: z.string().trim().min(3, "Opisz problem w kilku słowach").max(120),
+    category: z.enum(CATEGORIES.map((c) => c.value) as [string, ...string[]]).default("other"),
+    description: z.string().trim().max(2000).default(""),
+    photo: fileRef().optional(),
+  });
+  /** Szkic formularza przekazywany w parametrze/argumencie jako JSON; niepoprawny = null. */
+  const parseDraft = (json: string | undefined): Draft | null => {
+    try {
+      const r = draftSchema.safeParse(JSON.parse(json ?? "null"));
+      return r.success ? r.data : null;
+    } catch {
+      return null;
+    }
+  };
 
-const issues: PluginModule = ({ definePlugin, ui, z }) =>
-  definePlugin({
+  return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "1.0.0",
+    version: "2.0.0",
     icon: "🛠️",
-    description: "Zgłaszanie usterek w okolicy, poparcie „+1” i automatyczne łączenie duplikatów.",
-    permissions: ["storage"],
+    description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
+    permissions: ["storage", "files", "ai"],
     nav: [{ view: "list", label: "Zgłoszenia" }],
 
     views: {
       list: async (ctx) => {
         const items = await ctx.storage.list<Issue>("issues");
+        const reports = await ctx.storage.list<Report>("reports", { limit: 500 });
+        const count = (id: string) => reports.filter((r) => r.data.issueId === id).length;
         return ui.screen("Zgłoszenia", [
           ui.text(`Usterki zgłoszone przez mieszkańców: ${ctx.community.name}.`, "soft"),
           ui.button("Nowe zgłoszenie", ui.navigate("new")),
@@ -75,7 +80,7 @@ const issues: PluginModule = ({ definePlugin, ui, z }) =>
               ? items.map((d) =>
                   ui.card({
                     title: d.data.title,
-                    subtitle: `${categoryLabel(d.data.category)} · ${supporters(d.data.voters.length)}`,
+                    subtitle: `${categoryLabel(d.data.category)} · ${supporters(count(d.id))}`,
                     badge: STATUS[d.data.status],
                     onPress: ui.navigate("detail", { id: d.id }),
                   }),
@@ -94,25 +99,66 @@ const issues: PluginModule = ({ definePlugin, ui, z }) =>
               ui.textInput({ name: "title", label: "Co się stało?" }),
               ui.select({ name: "category", label: "Kategoria", options: CATEGORIES, value: "other" }),
               ui.textInput({ name: "description", label: "Szczegóły i miejsce", multiline: true }),
+              ui.imagePicker({ name: "photo", label: "Zdjęcie (opcjonalnie)" }),
             ],
           }),
           ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
         ]),
 
+      /** Pytanie przed połączeniem: dane formularza przychodzą w parametrze `draft`. */
+      merge: async (ctx, params) => {
+        const target = params.target ? await ctx.storage.get<Issue>("issues", params.target) : null;
+        const draft = parseDraft(params.draft);
+        if (!target || !draft) return ui.screen("Nie znaleziono", [ui.button("Wróć", ui.navigate("list"))]);
+        return ui.screen("Czy to ten sam problem?", [
+          ui.text(params.reason || "Znaleźliśmy podobne zgłoszenie w okolicy.", "soft"),
+          ui.card({
+            title: target.data.title,
+            subtitle: categoryLabel(target.data.category),
+            badge: STATUS[target.data.status],
+            children: [
+              ui.text(target.data.description || "Brak opisu."),
+              ...(target.data.photo ? [ui.image(target.data.photo, `Zdjęcie: ${target.data.title}`)] : []),
+            ],
+          }),
+          ui.button("Tak, dołącz moje zgłoszenie", ui.tool("merge", { target: target.id, draft: params.draft })),
+          ui.button("Nie, to inny problem", ui.tool("report", { ...draft, force: true }), "quiet"),
+        ]);
+      },
+
       detail: async (ctx, params) => {
         const doc = params.id ? await ctx.storage.get<Issue>("issues", params.id) : null;
         if (!doc) return ui.screen("Nie znaleziono", [ui.empty("To zgłoszenie nie istnieje.")]);
-        const voted = doc.data.voters.includes(ctx.user.id);
+        const reports = await ctx.storage.list<Report>("reports", { where: { issueId: doc.id }, order: "oldest" });
+        const mine = reports.some((r) => r.id === `${doc.id}:${ctx.user.id}`);
+        const status = STATUS[doc.data.status];
         return ui.screen(doc.data.title, [
-          ui.row([
-            ui.badge(STATUS[doc.data.status].text, STATUS[doc.data.status].tone),
-            ui.badge(categoryLabel(doc.data.category)),
-          ]),
+          ui.row([ui.badge(status.text, status.tone), ui.badge(categoryLabel(doc.data.category))]),
           ui.text(doc.data.description || "Brak opisu."),
-          ui.stat("Poparcie", supporters(doc.data.voters.length)),
-          voted
-            ? ui.badge("Popierasz to zgłoszenie", "success")
-            : ui.button("+1 Popieram", ui.tool("upvote", { id: doc.id })),
+          ...(doc.data.photo ? [ui.image(doc.data.photo, `Zdjęcie: ${doc.data.title}`)] : []),
+          ui.stat("Poparcie", supporters(reports.length)),
+          mine
+            ? ui.badge("Zgłaszasz ten problem", "success")
+            : ui.button("Ja też to widzę", ui.tool("support", { id: doc.id })),
+          ...(ctx.user.role === "admin"
+            ? [
+                ui.row([
+                  ui.button("Przyjmij", ui.tool("setStatus", { id: doc.id, status: "accepted" }), "quiet"),
+                  ui.button("Oznacz jako naprawione", ui.tool("setStatus", { id: doc.id, status: "fixed" }), "quiet"),
+                ]),
+              ]
+            : []),
+          ui.heading(`Zgłoszenia mieszkańców (${reports.length})`, 3),
+          ui.list(
+            "Zgłoszenia mieszkańców",
+            reports.map((r) =>
+              ui.card({
+                title: r.data.author,
+                ...(r.data.description ? { subtitle: r.data.description } : {}),
+                ...(r.data.photo ? { children: [ui.image(r.data.photo, `Zdjęcie od: ${r.data.author}`)] } : {}),
+              }),
+            ),
+          ),
           ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
         ]);
       },
@@ -120,39 +166,98 @@ const issues: PluginModule = ({ definePlugin, ui, z }) =>
 
     tools: {
       report: {
-        description: "Zgłoś usterkę w społeczności. Jeśli podobne zgłoszenie już istnieje, dodaje do niego poparcie.",
-        input: z.object({
-          title: z.string().trim().min(3, "Opisz problem w kilku słowach").max(120),
-          category: z.enum(CATEGORIES.map((c) => c.value) as [string, ...string[]]).default("other"),
-          description: z.string().trim().max(2000).default(""),
-        }),
-        handler: async (ctx, input) => {
-          const dup: PluginDoc<Issue> | null = await findDuplicate(ctx, input);
-          if (dup) {
-            const voters = dup.data.voters.includes(ctx.user.id) ? dup.data.voters : [...dup.data.voters, ctx.user.id];
-            await ctx.storage.update("issues", dup.id, { voters });
-            return {
-              toast: "Takie zgłoszenie już istnieje — dodaliśmy Twoje poparcie.",
-              navigate: ui.navigate("detail", { id: dup.id }),
-            };
+        description:
+          "Zgłoś usterkę w społeczności (opcjonalnie ze zdjęciem). Jeśli AI znajdzie ten sam problem, pyta o połączenie.",
+        input: draftSchema.extend({ force: z.boolean().default(false) }),
+        handler: async (ctx, { force, ...draft }) => {
+          if (!force) {
+            const open = await ctx.storage.list<Issue>("issues", { limit: 50 });
+            const candidates = open.filter((d) => d.data.status !== "fixed");
+            const [match] = await ctx.ai.findSimilar(
+              { text: `${draft.title}. ${draft.description}`, ...(draft.photo ? { image: draft.photo } : {}) },
+              candidates,
+              { text: issueText, image: (d) => d.data.photo, limit: 1 },
+            );
+            if (match) {
+              return {
+                navigate: ui.navigate("merge", {
+                  target: match.doc.id,
+                  draft: JSON.stringify(draft),
+                  reason: match.reason,
+                }),
+                data: { similar: match.doc.id, reason: match.reason },
+              };
+            }
           }
-          const doc = await ctx.storage.add<Issue>("issues", { ...input, status: "new", voters: [ctx.user.id] });
-          return { toast: "Dziękujemy! Zgłoszenie zostało wysłane.", navigate: ui.navigate("detail", { id: doc.id }) };
+          if (draft.photo) await ctx.files.keep(draft.photo);
+          const issue = await ctx.storage.create<Issue>("issues", {
+            title: draft.title,
+            description: draft.description,
+            category: draft.category,
+            status: "open",
+            ...(draft.photo ? { photo: draft.photo } : {}),
+          });
+          await addReport(ctx, issue.id, draft);
+          return {
+            toast: "Dziękujemy! Zgłoszenie zostało wysłane.",
+            navigate: ui.navigate("detail", { id: issue.id }),
+            data: { id: issue.id },
+          };
         },
       },
-      upvote: {
-        description: "Poprzyj istniejące zgłoszenie (+1).",
+
+      merge: {
+        description: "Dołącz zgłoszenie mieszkańca (opis, zdjęcie) do istniejącego zgłoszenia tego samego problemu.",
+        input: z.object({ target: z.string().min(1), draft: z.string() }),
+        handler: async (ctx, { target, draft }) => {
+          const parsed = parseDraft(draft);
+          const issue = await ctx.storage.get<Issue>("issues", target);
+          if (!issue || !parsed) return { error: "To zgłoszenie już nie istnieje." };
+          await addReport(ctx, target, parsed);
+          return {
+            toast: "Dołączyliśmy Twoje zgłoszenie. Dzięki!",
+            navigate: ui.navigate("detail", { id: target }),
+            data: { id: target },
+          };
+        },
+      },
+
+      support: {
+        description: "Potwierdź, że widzisz ten sam problem (bez opisu i zdjęcia).",
         input: z.object({ id: z.string().min(1) }),
         handler: async (ctx, { id }) => {
-          const doc = await ctx.storage.get<Issue>("issues", id);
-          if (!doc) return { toast: "To zgłoszenie już nie istnieje." };
-          if (!doc.data.voters.includes(ctx.user.id)) {
-            await ctx.storage.update("issues", id, { voters: [...doc.data.voters, ctx.user.id] });
-          }
-          return { toast: "Dzięki za poparcie!", refresh: true };
+          if (!(await ctx.storage.get<Issue>("issues", id))) return { error: "To zgłoszenie już nie istnieje." };
+          await addReport(ctx, id, { title: "", description: "", category: "other" });
+          return { toast: "Dzięki za potwierdzenie!", refresh: true };
+        },
+      },
+
+      setStatus: {
+        description: "Zmień status zgłoszenia (tylko administrator społeczności).",
+        input: z.object({ id: z.string().min(1), status: z.enum(["open", "accepted", "fixed"]) }),
+        requires: "admin",
+        handler: async (ctx, { id, status }) => {
+          const updated = await ctx.storage.update<Issue>("issues", id, { status });
+          if (!updated) return { error: "To zgłoszenie już nie istnieje." };
+          return { toast: `Status: ${STATUS[status].text}`, refresh: true };
+        },
+      },
+
+      list: {
+        description: "Lista otwartych zgłoszeń w społeczności (dla asystentów AI).",
+        input: z.object({}),
+        readOnly: true,
+        handler: async (ctx) => {
+          const items = await ctx.storage.list<Issue>("issues");
+          return {
+            data: items
+              .filter((d) => d.data.status !== "fixed")
+              .map((d) => ({ id: d.id, title: d.data.title, category: d.data.category, status: d.data.status })),
+          };
         },
       },
     },
   });
+};
 
 export default issues;

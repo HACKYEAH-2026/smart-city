@@ -42,7 +42,7 @@ const benches: PluginModule = ({ definePlugin, ui, z }) =>
         description: "Zgłoś zepsutą ławkę w parku",
         input: z.object({ park: z.string().trim().min(1), problem: z.string().trim().max(200).default("") }),
         handler: async (ctx, input) => {
-          await ctx.storage.add("benches", input);
+          await ctx.storage.create("benches", input);
           return { toast: "Dziękujemy! Ławka trafiła na listę.", refresh: true };
         },
       },

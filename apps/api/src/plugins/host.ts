@@ -2,8 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  type Context,
   loadPlugin,
-  type PluginContext,
+  type PluginCommunity,
   PluginError,
   type PluginManifest,
   type PluginModule,
@@ -14,13 +15,18 @@ import {
   type ViewParams,
 } from "@app/plugin-sdk";
 import { z } from "zod";
-import { type Db, schema } from "../db";
+import { schema } from "../db";
+import { FileInputError } from "../files/service";
+import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
 export { PluginError };
 
+/** Narzędzie wymaga roli, której użytkownik nie ma (HTTP 403). */
+export class ForbiddenError extends Error {}
+
 /** Błędne wejście narzędzia — wina wywołującego, nie wtyczki (HTTP 400). */
 export class PluginInputError extends Error {
-  constructor(readonly issues: z.core.$ZodIssue[]) {
+  constructor(readonly issues: { path: PropertyKey[]; message: string }[]) {
     super("invalid_input");
   }
 }
@@ -36,11 +42,14 @@ export class PluginHost {
   private readonly plugins = new Map<string, LoadedPlugin>();
   private stored?: Promise<void>;
 
+  private readonly db: PluginServices["db"];
+
   constructor(
-    private readonly db: Db,
+    private readonly services: PluginServices,
     private readonly dir: string,
     builtins: PluginModule[],
   ) {
+    this.db = services.db;
     for (const mod of builtins) {
       const loaded = loadPlugin(mod);
       this.plugins.set(loaded.manifest.id, { ...loaded, origin: "builtin" });
@@ -85,7 +94,19 @@ export class PluginHost {
     return loaded.manifest;
   }
 
-  async renderView(plugin: LoadedPlugin, view: string, ctx: PluginContext, params: ViewParams): Promise<UINode> {
+  context(plugin: LoadedPlugin, args: { installationId: string; community: PluginCommunity; user: Context["user"] }) {
+    return createPluginContext(this.services, { plugin, ...args });
+  }
+
+  /** Po włączeniu wtyczki w społeczności: dane startowe (onInstall) jako użytkownik systemowy. */
+  async install(plugin: LoadedPlugin, installationId: string, community: PluginCommunity): Promise<void> {
+    const onInstall = plugin.definition.onInstall;
+    if (!onInstall) return;
+    const ctx = this.context(plugin, { installationId, community, user: SYSTEM_USER });
+    await guard(plugin, "onInstall", () => onInstall(ctx));
+  }
+
+  async renderView(plugin: LoadedPlugin, view: string, ctx: Context, params: ViewParams): Promise<UINode> {
     const fn = plugin.definition.views[view];
     if (!fn) throw new PluginError(`view_not_found:${view}`);
     const out = await guard(plugin, `view ${view}`, () => fn(ctx, params));
@@ -95,12 +116,13 @@ export class PluginHost {
         `${plugin.manifest.id}: view "${view}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
       );
     }
-    return parsed.data;
+    return this.signImages(parsed.data);
   }
 
-  async callTool(plugin: LoadedPlugin, name: string, ctx: PluginContext, args: unknown): Promise<ToolResult> {
+  async callTool(plugin: LoadedPlugin, name: string, ctx: Context, args: unknown): Promise<ToolResult> {
     const tool = plugin.definition.tools?.[name];
     if (!tool) throw new PluginError(`tool_not_found:${name}`);
+    if (tool.requires === "admin" && ctx.user.role !== "admin") throw new ForbiddenError(`${name} requires admin`);
     const input = tool.input.safeParse(args);
     if (!input.success) throw new PluginInputError(input.error.issues);
     const out = (await guard(plugin, `tool ${name}`, () => tool.handler(ctx, input.data))) ?? {};
@@ -111,6 +133,15 @@ export class PluginHost {
       );
     }
     return parsed.data;
+  }
+
+  /** Węzły Image dostają podpisany, krótkotrwały URL (aplikacja nie musi znać mechanizmu plików). */
+  private signImages(node: UINode): UINode {
+    if (node.type === "Image") return { ...node, url: this.services.files.signedUrl(node.file) };
+    if ("children" in node && node.children) {
+      return { ...node, children: node.children.map((c) => this.signImages(c)) } as UINode;
+    }
+    return node;
   }
 
   private async compile(source: string): Promise<ReturnType<typeof loadPlugin>> {
@@ -134,7 +165,8 @@ async function guard<T>(plugin: LoadedPlugin, what: string, fn: () => T | Promis
   try {
     return await fn();
   } catch (err) {
-    if (err instanceof PluginError || err instanceof PluginInputError) throw err;
+    if (err instanceof PluginError || err instanceof PluginInputError || err instanceof ForbiddenError) throw err;
+    if (err instanceof FileInputError) throw new PluginInputError([{ path: [], message: err.message }]);
     throw new PluginError(`${plugin.manifest.id}: ${what} threw: ${(err as Error).message}`);
   }
 }

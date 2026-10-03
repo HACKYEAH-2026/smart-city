@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * Jedyny schemat bazy (SQLite). Tabele user/session/account/verification to rdzeń Better Auth
@@ -89,6 +89,25 @@ export const communities = sqliteTable("communities", {
   ...timestamps,
 });
 
+/** Członkostwo w społeczności: rola "admin" (zarządza treściami wtyczek) albo "user". */
+export const memberships = sqliteTable(
+  "memberships",
+  {
+    id: uuid("id"),
+    communityId: text("community_id")
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["admin", "user"] })
+      .notNull()
+      .default("user"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("memberships_community_user_idx").on(t.communityId, t.userId)],
+);
+
 /** Wtyczka włączona w społeczności. Każda instalacja ma własny, odizolowany magazyn danych. */
 export const pluginInstallations = sqliteTable(
   "plugin_installations",
@@ -104,11 +123,14 @@ export const pluginInstallations = sqliteTable(
   (t) => [uniqueIndex("plugin_installations_community_plugin_idx").on(t.communityId, t.pluginId)],
 );
 
-/** Magazyn dokumentów wtyczek (ctx.storage). Zawsze filtrowany po installation_id. */
+/**
+ * Magazyn dokumentów wtyczek (ctx.storage). Zawsze filtrowany po installation_id.
+ * Klucz główny (instalacja, kolekcja, id): id generuje host (create) albo podaje wtyczka (upsert).
+ */
 export const pluginDocs = sqliteTable(
   "plugin_docs",
   {
-    id: uuid("id"),
+    id: text("id").notNull(),
     installationId: text("installation_id")
       .notNull()
       .references(() => pluginInstallations.id, { onDelete: "cascade" }),
@@ -117,7 +139,32 @@ export const pluginDocs = sqliteTable(
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("plugin_docs_installation_collection_idx").on(t.installationId, t.collection, t.createdAt)],
+  (t) => [
+    primaryKey({ columns: [t.installationId, t.collection, t.id] }),
+    index("plugin_docs_installation_collection_idx").on(t.installationId, t.collection, t.createdAt),
+  ],
+);
+
+/**
+ * Pliki wtyczek (ctx.files). Upload tworzy plik "pending" przypisany do użytkownika i instalacji;
+ * wtyczka zatwierdza go przez ctx.files.keep(). Niezatwierdzone są usuwane po 24 h.
+ */
+export const pluginFiles = sqliteTable(
+  "plugin_files",
+  {
+    id: text("id").primaryKey(),
+    installationId: text("installation_id")
+      .notNull()
+      .references(() => pluginInstallations.id, { onDelete: "cascade" }),
+    uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["pending", "kept"] })
+      .notNull()
+      .default("pending"),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    ...timestamps,
+  },
+  (t) => [index("plugin_files_status_created_idx").on(t.status, t.createdAt)],
 );
 
 /** Kod wtyczek wgranych w locie (POST /api/admin/plugins); ładowane ponownie po restarcie. */
@@ -135,7 +182,9 @@ export const allTables = {
   account,
   verification,
   communities,
+  memberships,
   pluginInstallations,
   pluginDocs,
+  pluginFiles,
   pluginSources,
 };

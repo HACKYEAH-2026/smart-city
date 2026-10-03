@@ -1,47 +1,39 @@
 import { describe, expect, test } from "bun:test";
-import { testPlugin, textsOf } from "@app/plugin-sdk/testing";
+import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import issues from "./index";
 
-const alice = { id: "alice", name: "Alice" };
-const bob = { id: "bob", name: "Bob" };
+const alice = { id: "alice", name: "Alice", role: "user" } as const;
+const bob = { id: "bob", name: "Bob", role: "user" } as const;
+const admin = { id: "urzad", name: "Urząd", role: "admin" } as const;
 
-describe("issues", () => {
-  test("pusta lista, zgłoszenie, szczegóły", async () => {
+/** AI „widzi” ten sam problem, gdy w tekście jest słowo „latarnia”. */
+const lampsAreTheSame = (t: ReturnType<typeof testPlugin>) =>
+  t.ai.mockSimilar((query, candidates) =>
+    query.text.toLowerCase().includes("latarnia")
+      ? candidates.slice(0, 1).map((doc) => ({ doc, score: 0.9, reason: "Ta sama latarnia przy przystanku" }))
+      : [],
+  );
+
+describe("issues: zgłoszenie", () => {
+  test("pusta lista → zgłoszenie ze zdjęciem → szczegóły", async () => {
     const t = testPlugin(issues, { user: alice });
     expect(textsOf(await t.view("list"))).toContain("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.");
 
-    const res = await t.tool("report", { title: "Nie świeci latarnia", category: "lighting", description: "Długa 12" });
+    const photo = t.files.fake();
+    const res = await t.tool("report", {
+      title: "Nie świeci lampa",
+      category: "lighting",
+      description: "Długa 12",
+      photo,
+    });
     expect(res.toast).toContain("Dziękujemy");
-    expect(res.navigate?.view).toBe("detail");
+    expect(t.files.isKept(photo)).toBe(true);
 
     const detail = await t.view("detail", res.navigate!.params);
-    expect(textsOf(detail)).toEqual(expect.arrayContaining(["Nie świeci latarnia", "Długa 12", "1 osoba popiera"]));
-    expect(textsOf(detail)).toContain("Popierasz to zgłoszenie");
-  });
-
-  test("podobne zgłoszenie w tej samej kategorii dokłada poparcie", async () => {
-    const t = testPlugin(issues, { user: alice });
-    const first = await t.tool("report", { title: "Latarnia Długa nie świeci", category: "lighting" });
-    const dup = await t.as(bob).tool("report", { title: "nie świeci latarnia", category: "lighting" });
-    expect(dup.toast).toContain("już istnieje");
-    expect(dup.navigate?.params).toEqual(first.navigate!.params!);
-    expect(await t.storage.list("issues")).toHaveLength(1);
-  });
-
-  test("inna kategoria to nowe zgłoszenie", async () => {
-    const t = testPlugin(issues, { user: alice });
-    await t.tool("report", { title: "Latarnia Długa nie świeci", category: "lighting" });
-    await t.as(bob).tool("report", { title: "Latarnia Długa nie świeci", category: "other" });
-    expect(await t.storage.list("issues")).toHaveLength(2);
-  });
-
-  test("+1 jest idempotentne", async () => {
-    const t = testPlugin(issues, { user: alice });
-    const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
-    const id = navigate!.params!.id!;
-    await t.as(bob).tool("upvote", { id });
-    await t.as(bob).tool("upvote", { id });
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osób popiera");
+    expect(textsOf(detail)).toEqual(
+      expect.arrayContaining(["Nie świeci lampa", "Długa 12", "1 osoba zgłasza", "Zgłaszasz ten problem"]),
+    );
+    expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
   });
 
   test("walidacja wejścia", () => {
@@ -50,6 +42,85 @@ describe("issues", () => {
       "title",
       "category",
     ]);
-    expect(t.invalidInput("report", { title: "Latarnia" })).toBeNull();
+    expect(t.invalidInput("report", { title: "Latarnia", photo: "nie-plik" })?.[0]?.path).toEqual(["photo"]);
+  });
+});
+
+describe("issues: podobne zgłoszenia", () => {
+  test("AI znajduje ten sam problem → pytanie o połączenie, nic nie zapisano", async () => {
+    const t = testPlugin(issues, { user: alice });
+    lampsAreTheSame(t);
+    const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
+
+    const photo = t.as(bob).files.fake();
+    const ask = await t.as(bob).tool("report", { title: "Nie działa latarnia", category: "lighting", photo });
+    expect(ask.navigate?.view).toBe("merge");
+    expect(ask.navigate?.params?.target).toBe(first.navigate!.params!.id!);
+    expect(t.files.isKept(photo)).toBe(false);
+    expect(await t.storage.list("issues")).toHaveLength(1);
+
+    const question = await t.as(bob).view("merge", ask.navigate!.params);
+    expect(textsOf(question)).toEqual(
+      expect.arrayContaining(["Czy to ten sam problem?", "Ta sama latarnia przy przystanku", "Pierwsza usterka"]),
+    );
+  });
+
+  test("połączenie: zgłoszenie Boba ze zdjęciem jest pod wcześniejszym", async () => {
+    const t = testPlugin(issues, { user: alice });
+    lampsAreTheSame(t);
+    const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
+    const id = first.navigate!.params!.id!;
+    const photo = t.as(bob).files.fake();
+    const ask = await t.as(bob).tool("report", { title: "Latarnia nie świeci", description: "Od tygodnia", photo });
+
+    const merged = await t.as(bob).tool("merge", { target: id, draft: ask.navigate!.params!.draft! });
+    expect(merged.navigate?.params?.id).toBe(id);
+    expect(t.files.isKept(photo)).toBe(true);
+    expect(await t.storage.list("issues")).toHaveLength(1);
+
+    const detail = await t.as(bob).view("detail", { id });
+    expect(textsOf(detail)).toEqual(
+      expect.arrayContaining(["2 osób zgłasza", "Zgłoszenia mieszkańców (2)", "Bob", "Od tygodnia", "Zdjęcie od: Bob"]),
+    );
+  });
+
+  test("„to inny problem” (force) tworzy nowe zgłoszenie mimo podobieństwa", async () => {
+    const t = testPlugin(issues, { user: alice });
+    lampsAreTheSame(t);
+    await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
+    const res = await t.as(bob).tool("report", { title: "Latarnia na Krótkiej", force: true });
+    expect(res.toast).toContain("Dziękujemy");
+    expect(await t.storage.list("issues")).toHaveLength(2);
+  });
+
+  test("ponowne połączenie przez tę samą osobę nie dubluje zgłoszenia mieszkańca", async () => {
+    const t = testPlugin(issues, { user: alice });
+    const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
+    const id = navigate!.params!.id!;
+    await t.as(bob).tool("support", { id });
+    await t.as(bob).tool("support", { id });
+    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osób zgłasza");
+  });
+});
+
+describe("issues: role", () => {
+  test("status zmienia tylko admin; admin widzi przyciski", async () => {
+    const t = testPlugin(issues, { user: alice });
+    const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
+    const id = navigate!.params!.id!;
+
+    await expect(t.tool("setStatus", { id, status: "fixed" })).rejects.toBeInstanceOf(ForbiddenError);
+    expect(textsOf(await t.view("detail", { id }))).not.toContain("Oznacz jako naprawione");
+
+    expect(textsOf(await t.as(admin).view("detail", { id }))).toContain("Oznacz jako naprawione");
+    expect((await t.as(admin).tool("setStatus", { id, status: "fixed" })).toast).toBe("Status: Naprawione");
+    expect(textsOf(await t.view("detail", { id }))).toContain("Naprawione");
+  });
+
+  test("narzędzie readOnly list zwraca dane dla asystenta AI", async () => {
+    const t = testPlugin(issues, { user: alice });
+    await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
+    const { data } = await t.tool("list");
+    expect(data).toEqual([expect.objectContaining({ title: "Dziura w chodniku", status: "open" })]);
   });
 });

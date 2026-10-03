@@ -23,29 +23,35 @@ społeczności, użytkowników i instalacje; resztę dostarczają wtyczki.
 
 ## Pisanie wtyczki
 
-Moduł eksportuje domyślnie funkcję, która dostaje SDK od hosta. W runtime niczego nie importuje
-(tylko `import type`), dzięki czemu ten sam plik działa jako wtyczka wbudowana i wgrana w locie.
+Moduł eksportuje domyślnie funkcję, która dostaje SDK od hosta (`definePlugin`, `ui`, `z`, `fileRef`).
+W runtime niczego nie importuje (tylko `import type`), dzięki czemu ten sam plik działa jako wtyczka
+wbudowana i wgrana w locie. Każda wtyczka to pakiet w `plugins/<id>/` zależny **tylko** od
+`@app/plugin-sdk` — import czegokolwiek z `apps/api` nie przejdzie typechecku.
+Wzorce: `plugins/issues` (wbudowana: zdjęcia, AI, role) i `plugins/benches` (wgrywana w locie).
 
 ```ts
-import type { PluginModule } from "@app/shared";
+import type { PluginModule } from "@app/plugin-sdk";
 
-const benches: PluginModule = ({ definePlugin, ui, z }) =>
+const benches: PluginModule = ({ definePlugin, ui, z, fileRef }) =>
   definePlugin({
-    id: "benches",               // [a-z][a-z0-9-], unikalne
+    id: "benches",                          // [a-z][a-z0-9-], unikalne
     name: "Ławki",
     version: "1.0.0",
     icon: "🪑",
-    permissions: ["storage"],    // bez tego ctx.storage rzuca błąd
+    permissions: ["storage", "files"],      // bez uprawnienia ctx.storage / ctx.files / ctx.ai rzuca błąd
     nav: [{ view: "main", label: "Ławki" }],
+    onInstall: async (ctx) => { /* dane startowe; ctx.user = system (admin) */ },
     views: {
       main: async (ctx) => ui.screen("Ławki w parkach", [ /* węzły */ ]),
     },
     tools: {
       report: {
-        description: "Zgłoś zepsutą ławkę",           // także dla asystentów AI (MCP)
-        input: z.object({ park: z.string().min(1) }),
+        description: "Zgłoś zepsutą ławkę",  // także dla asystentów AI (MCP)
+        input: z.object({ park: z.string().min(1), photo: fileRef().optional() }),
+        requires: "user",                   // "user" (domyślnie) | "admin" — host zwraca 403
         handler: async (ctx, input) => {
-          await ctx.storage.add("benches", input);
+          if (input.photo) await ctx.files.keep(input.photo);
+          await ctx.storage.create("benches", input);
           return { toast: "Dziękujemy!", refresh: true };
         },
       },
@@ -55,19 +61,53 @@ const benches: PluginModule = ({ definePlugin, ui, z }) =>
 export default benches;
 ```
 
-Każda wtyczka to pakiet w `plugins/<id>/` zależny **tylko** od `@app/plugin-sdk` — import czegokolwiek
-z `apps/api` nie przejdzie typechecku. Wzorce: `plugins/issues` (wbudowana) i `plugins/benches` (wgrywana w locie).
-
-### Testy wtyczki (bez API i bazy)
+## API dla wtyczek (`ctx`)
 
 ```ts
-import { testPlugin, textsOf } from "@app/plugin-sdk/testing";
+ctx.user        { id, name, role: "admin" | "user" }   // rola w tej społeczności
+ctx.community   { id, slug, name }
+ctx.now()       Date                                    // w testach sterowany (t.setNow)
+
+ctx.storage     // "storage": dokumenty JSON odizolowane per instalacja (wtyczka × społeczność)
+  .get(col, id)                        → Doc | null
+  .list(col, { where?, order?, limit? }) → Doc[]       // where: równość na polach: { issueId, pinned: true }
+  .create(col, data)                   → Doc            // id generuje host
+  .upsert(col, key, data)              → Doc            // id = key: jeden zapis na klucz (np. głos na osobę)
+  .update(col, id, patch)              → Doc | null     // płytkie scalenie
+  .remove(col, id)                     → boolean
+
+ctx.files       // "files": zdjęcia wysłane przez aplikację (POST …/files → FileId)
+  .keep(id)     // zatwierdź upload tego użytkownika; niezatwierdzone znikają po 24 h
+  .info(id)     → { mime, size }
+  .remove(id)
+
+ctx.ai          // "ai": dostawca to konfiguracja hosta (Strands + model zgodny z OpenAI)
+  .call({ prompt, images?, schema? })  → tekst albo obiekt zgodny ze schematem Zod
+  .findSimilar({ text, image? }, candidates, { text, image?, limit? }) → { doc, score, reason }[]
+```
+
+Wynik narzędzia: `{ toast?, error?, navigate?, close?, refresh?, data? }` — `error` to komunikat dla
+użytkownika (nic nie zapisano), `data` to wynik dla asystentów AI. `readOnly: true` oznacza narzędzie bez
+skutków ubocznych.
+
+`findSimilar` bez skonfigurowanego modelu działa leksykalnie (wspólne słowa) — testy i demo nie wymagają
+klucza. Z modelem: model ocenia „czy to ten sam problem” (z obrazem zapytania) i zwraca uzasadnienie.
+Konfiguracja API: `AI_API_KEY`, `AI_MODEL`, opcjonalnie `AI_BASE_URL` (dowolny endpoint zgodny z OpenAI).
+
+### Testy wtyczki (bez API, bazy i modelu AI)
+
+```ts
+import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import issues from "./index";
 
-const t = testPlugin(issues, { user: { id: "alice", name: "Alice" } });
-const res = await t.tool("report", { title: "Latarnia", category: "lighting" }); // walidacja Zod jak w hoście
+const t = testPlugin(issues, { user: { id: "alice", name: "Alice", role: "user" } });
+t.ai.mockSimilar((query, candidates) => []);                       // atrapa AI
+const photo = t.files.fake();                                      // „upload” bieżącego użytkownika
+const res = await t.tool("report", { title: "Latarnia", photo });  // walidacja Zod i requires jak w hoście
+expect(t.files.isKept(photo)).toBe(true);
 expect(textsOf(await t.view("detail", res.navigate!.params))).toContain("Latarnia");
-await t.as({ id: "bob", name: "Bob" }).tool("upvote", { id: res.navigate!.params!.id! }); // ten sam magazyn
+await expect(t.tool("setStatus", { id, status: "fixed" })).rejects.toBeInstanceOf(ForbiddenError);
+await t.as({ id: "urzad", name: "Urząd", role: "admin" }).tool("setStatus", { id, status: "fixed" });
 ```
 
 ### Katalog komponentów
@@ -83,8 +123,10 @@ await t.as({ id: "bob", name: "Bob" }).tool("upvote", { id: res.navigate!.params
 | Button | `ui.button(label, action, variant?)` | variant: primary, quiet, danger |
 | Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` | |
 | Empty | `ui.empty(text)` | pusty stan |
+| Image | `ui.image(fileId, alt)` | zdjęcie z `ctx.files`; host dokleja podpisany URL (1 h) |
 | Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` | wartości pól trafiają do `args` narzędzia |
 | TextInput / Select | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })` | tylko wewnątrz Form |
+| ImagePicker | `ui.imagePicker({ name, label })` | tylko w Form: aplikacja wysyła zdjęcie, w `args` trafia FileId |
 
 Nowy komponent: schemat w `ui.ts` + builder w `ui` + gałąź w `apps/app/src/plugins/Renderer.tsx`.
 Starsza aplikacja pokaże w miejscu nieznanego węzła komunikat zamiast się wywrócić.
@@ -121,5 +163,6 @@ Wgrana wtyczka wykonuje się **w procesie API** — to model „zaufany administ
 moduł nic nie importuje, a cały dostęp idzie przez asynchroniczny `ctx`. Przeniesienie wtyczek do
 Workera albo sandboxa WebAssembly to zmiana transportu `ctx` w hoście, bez zmian w kodzie wtyczek.
 
-Dalej: członkostwo i weryfikacja (`requires: "verified"` w narzędziach), narzędzia wtyczek jako
-serwer MCP (opis + `z.toJSONSchema(input)` są już w kontrakcie), izolacja wtyczek zewnętrznych.
+Dalej: weryfikacja mieszkańca (`ctx.user.verified`), narzędzia wtyczek jako serwer MCP (opis, `readOnly`
+i `z.toJSONSchema(input)` są już w kontrakcie), embeddingi w `findSimilar` przy dużej liczbie zgłoszeń,
+pliki w R2 zamiast na dysku (`FileStore`), izolacja wtyczek zewnętrznych.

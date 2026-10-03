@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { definePlugin, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
+import { definePlugin, fileRef, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
 import { ui } from "./ui";
 
 /** Błąd wtyczki (zły manifest, wyjątek, niepoprawny wynik). Komunikat jest bezpieczny dla autora/admina. */
 export class PluginError extends Error {}
 
 /** SDK przekazywane modułowi wtyczki — jedyne, czego wtyczka używa w runtime. */
-export const sdk = { definePlugin, ui, z };
+export const sdk = { definePlugin, ui, z, fileRef };
 
 export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDefinition };
 

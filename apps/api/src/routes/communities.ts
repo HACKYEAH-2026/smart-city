@@ -1,25 +1,36 @@
-import { viewParamsSchema } from "@app/plugin-sdk";
+import { type Role, viewParamsSchema } from "@app/plugin-sdk";
 import { type Community, type CommunityNavItem, toolCallSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../context";
-import { schema } from "../db";
+import { type Db, schema } from "../db";
+import { FileInputError } from "../files/service";
 import { requireUser } from "../middleware";
-import { createPluginContext } from "../plugins/context";
-import { PluginError, PluginInputError } from "../plugins/host";
+import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
 
 /**
- * Społeczności i ich wtyczki (dla aplikacji). Widok i narzędzie wtyczki są dostępne tylko,
+ * Społeczności i ich wtyczki (dla aplikacji). Widok, narzędzie i upload wtyczki są dostępne tylko,
  * gdy wtyczka jest zainstalowana i włączona w danej społeczności; inaczej 404.
+ * Społeczności są na razie otwarte: pierwsze wejście zakłada członkostwo z rolą "user".
  */
-const { communities, pluginInstallations } = schema;
+const { communities, memberships, pluginInstallations } = schema;
 
 const toCommunity = (row: typeof communities.$inferSelect): Community => ({
   id: row.id,
   slug: row.slug,
   name: row.name,
 });
+
+/** Rola użytkownika w społeczności; brak członkostwa = dołączenie jako "user". */
+async function roleIn(db: Db, communityId: string, userId: string): Promise<Role> {
+  await db.insert(memberships).values({ communityId, userId }).onConflictDoNothing();
+  const [row] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId)));
+  return row?.role ?? "user";
+}
 
 export const communitiesRoutes = new Hono<AppEnv>()
   .use(requireUser)
@@ -37,7 +48,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
       .from(communities)
       .where(eq(communities.slug, c.req.param("slug")));
     if (!row) return c.json({ error: "not_found" }, 404);
-    return c.json(toCommunity(row), 200);
+    const role = await roleIn(c.var.db, row.id, c.var.user.id);
+    return c.json({ ...toCommunity(row), role }, 200);
   })
   .get("/:slug/nav", async (c) => {
     const rows = await c.var.db
@@ -76,9 +88,29 @@ export const communitiesRoutes = new Hono<AppEnv>()
     } catch (err) {
       return pluginFailure(c, err);
     }
+  })
+  /** Upload pliku dla wtyczki z uprawnieniem "files" (multipart, pole "file"). Zwraca FileId (pending). */
+  .post("/:slug/plugins/:pluginId/files", async (c) => {
+    const target = await resolve(c, c.req.param("slug"), c.req.param("pluginId"));
+    if (!target?.plugin.manifest.permissions.includes("files")) return c.json({ error: "not_found" }, 404);
+    const body = await c.req.parseBody();
+    const file = body.file;
+    if (!(file instanceof File)) return c.json({ error: "invalid_input", message: "missing file" }, 400);
+    try {
+      const fileId = await c.var.files.upload({
+        installationId: target.installationId,
+        userId: c.var.user.id,
+        mime: file.type,
+        data: new Uint8Array(await file.arrayBuffer()),
+      });
+      return c.json({ fileId }, 201);
+    } catch (err) {
+      if (err instanceof FileInputError) return c.json({ error: "invalid_input", message: err.message }, 400);
+      throw err;
+    }
   });
 
-/** Społeczność + włączona instalacja + załadowana wtyczka, albo null (→ 404). */
+/** Społeczność + włączona instalacja + załadowana wtyczka + kontekst z rolą użytkownika, albo null (→ 404). */
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const [row] = await c.var.db
     .select({ community: communities, installationId: pluginInstallations.id })
@@ -93,19 +125,18 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
     );
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
-  const community = toCommunity(row.community);
-  const ctx = createPluginContext({
-    db: c.var.db,
-    plugin,
+  const role = await roleIn(c.var.db, row.community.id, c.var.user.id);
+  const ctx = c.var.plugins.context(plugin, {
     installationId: row.installationId,
-    community,
-    user: c.var.user,
+    community: toCommunity(row.community),
+    user: { id: c.var.user.id, name: c.var.user.name, role },
   });
-  return { plugin, ctx };
+  return { plugin, ctx, installationId: row.installationId };
 }
 
 function pluginFailure(c: Context<AppEnv>, err: unknown) {
   if (err instanceof PluginInputError) return c.json({ error: "invalid_input", issues: err.issues }, 400);
+  if (err instanceof ForbiddenError) return c.json({ error: "forbidden" }, 403);
   if (err instanceof PluginError) {
     console.error(err.message);
     return c.json({ error: "plugin_error" }, 500);

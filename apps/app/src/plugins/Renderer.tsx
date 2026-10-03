@@ -1,6 +1,7 @@
 import type { Action, Tone, ToolAction, UINode } from "@app/plugin-sdk";
+import { launchImageLibraryAsync } from "expo-image-picker";
 import { createContext, type ReactNode, useContext, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Body, Button, Heading, TextField } from "../components/ui";
 import { useI18n } from "../lib/i18n";
 import { color, font, radius, shadow, space, tone as tones } from "../theme";
@@ -10,15 +11,28 @@ import { color, font, radius, shadow, space, tone as tones } from "../theme";
  * Wtyczka nie wykonuje tu żadnego kodu — akcje (nawigacja, narzędzie) obsługuje ekran przez `onAction`.
  * Nowy typ węzła: schemat w packages/sdk/src/ui.ts + gałąź w `PluginNode`.
  */
-type Actions = { onAction: (action: Action) => void; busy: boolean };
-const ActionsContext = createContext<Actions>({ onAction: () => {}, busy: false });
+/** Upload zdjęcia z pola ImagePicker → FileId (dostarcza ekran, bo zna społeczność i wtyczkę). */
+export type UploadImage = (asset: import("expo-image-picker").ImagePickerAsset) => Promise<string>;
 
-type Form = { values: Record<string, string>; set: (name: string, value: string) => void };
+type Actions = { onAction: (action: Action) => void; busy: boolean; upload: UploadImage };
+const ActionsContext = createContext<Actions>({
+  onAction: () => {},
+  busy: false,
+  upload: () => Promise.reject(new Error("upload unavailable")),
+});
+
+/** Wartości formularza; `undefined` usuwa pole (np. usunięte zdjęcie nie trafia do args). */
+type Form = { values: Record<string, string>; set: (name: string, value: string | undefined) => void };
 const FormContext = createContext<Form | null>(null);
 
-export function PluginRenderer(props: { node: UINode; onAction: (action: Action) => void; busy: boolean }) {
+export function PluginRenderer(props: {
+  node: UINode;
+  onAction: (action: Action) => void;
+  busy: boolean;
+  upload: UploadImage;
+}) {
   return (
-    <ActionsContext.Provider value={{ onAction: props.onAction, busy: props.busy }}>
+    <ActionsContext.Provider value={{ onAction: props.onAction, busy: props.busy, upload: props.upload }}>
       <PluginNode node={props.node} />
     </ActionsContext.Provider>
   );
@@ -147,6 +161,12 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       );
     case "TextInput":
       return <FormTextInput node={node} />;
+    case "Image":
+      return node.url ? (
+        <Image role="img" aria-label={node.alt} source={{ uri: node.url }} style={styles.image} resizeMode="cover" />
+      ) : null;
+    case "ImagePicker":
+      return <FormImagePicker node={node} />;
     case "Select":
       return <FormSelect node={node} />;
     default:
@@ -179,7 +199,16 @@ function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
   const [values, setValues] = useState(() => initialValues(node.children));
   const submit: ToolAction = { ...node.submit, args: { ...node.submit.args, ...values } };
   return (
-    <FormContext.Provider value={{ values, set: (k, v) => setValues((s) => ({ ...s, [k]: v })) }}>
+    <FormContext.Provider
+      value={{
+        values,
+        set: (k, v) =>
+          setValues((s) => {
+            const { [k]: _, ...rest } = s;
+            return v === undefined ? rest : { ...rest, [k]: v };
+          }),
+      }}
+    >
       <View style={styles.stack}>
         <Children nodes={node.children} />
         <Button label={node.submitLabel} disabled={busy} onPress={() => onAction(submit)} />
@@ -197,6 +226,57 @@ function FormTextInput({ node }: { node: Extract<UINode, { type: "TextInput" }> 
       value={form?.values[node.name] ?? ""}
       onChangeText={(v) => form?.set(node.name, v)}
     />
+  );
+}
+
+/** Wybór zdjęcia: galeria → upload → FileId w polu formularza; podgląd i usunięcie. */
+function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker" }> }) {
+  const { t } = useI18n();
+  const form = useContext(FormContext);
+  const { upload } = useContext(ActionsContext);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [state, setState] = useState<"idle" | "uploading" | "error">("idle");
+
+  const pick = async () => {
+    const res = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+    const asset = res.canceled ? undefined : res.assets[0];
+    if (!asset) return;
+    setState("uploading");
+    try {
+      form?.set(node.name, await upload(asset));
+      setPreview(asset.uri);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  };
+  const remove = () => {
+    form?.set(node.name, undefined);
+    setPreview(null);
+  };
+
+  return (
+    <View style={styles.stackTight}>
+      <Text style={styles.fieldLabel}>{node.label}</Text>
+      {preview ? (
+        <Image role="img" aria-label={t.plugin_photo_preview()} source={{ uri: preview }} style={styles.image} />
+      ) : null}
+      <View style={styles.row}>
+        <Button
+          label={preview ? t.plugin_photo_change() : t.plugin_photo_pick()}
+          variant="quiet"
+          disabled={state === "uploading"}
+          onPress={pick}
+        />
+        {preview ? <Button label={t.plugin_photo_remove()} variant="quiet" onPress={remove} /> : null}
+      </View>
+      {state === "uploading" ? <Body tone="soft">{t.plugin_photo_uploading()}</Body> : null}
+      {state === "error" ? (
+        <Body tone="error" role="alert">
+          {t.plugin_photo_error()}
+        </Body>
+      ) : null}
+    </View>
   );
 }
 
@@ -251,6 +331,7 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: font.text, fontSize: 14, fontWeight: "600" },
   track: { height: 10, borderRadius: radius.control, backgroundColor: color.paperDeep, overflow: "hidden" },
   fill: { height: "100%", backgroundColor: color.ink },
+  image: { width: "100%", aspectRatio: 4 / 3, borderRadius: radius.card, backgroundColor: color.paperDeep },
   statValue: { fontFamily: font.display, fontSize: 24, color: color.ink },
   empty: {
     padding: space.xl,

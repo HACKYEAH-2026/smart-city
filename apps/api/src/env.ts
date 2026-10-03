@@ -23,6 +23,13 @@ export const envSchema = z.object({
   PLUGIN_ADMIN_TOKEN: z.string().min(24, "PLUGIN_ADMIN_TOKEN musi mieć min. 24 znaki").optional(),
   /** Katalog na skompilowane wtyczki wgrane przez API (cache; źródłem prawdy jest baza). */
   PLUGINS_DIR: z.string().optional(),
+  /** Katalog na pliki wtyczek (zdjęcia). Domyślnie katalog tymczasowy. */
+  FILES_DIR: z.string().optional(),
+  /** Model językowy dla ctx.ai (Strands, API zgodne z OpenAI). Bez klucza: ctx.ai.call niedostępne. */
+  AI_API_KEY: z.string().min(1).optional(),
+  AI_MODEL: z.string().min(1).optional(),
+  /** Własny endpoint zgodny z OpenAI (np. inny dostawca). Brak = api.openai.com. */
+  AI_BASE_URL: z.url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

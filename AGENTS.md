@@ -5,6 +5,13 @@ Produkt: `README.md` i `PRODUCT.md`. Nowy kod powstaje przez kopiowanie istniej�
 Stack: Bun + Hono + Drizzle (SQLite przez bun:sqlite; w pamięci w testach) + Better Auth + Expo (React Native,
 Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JSON (en domyślny).
 
+## HackYeah 2026 (zadanie SMART CITY)
+Kontekst i ramy czasowe: sekcja „HackYeah 2026” w `README.md`.
+- Stan sprzed hackathonu to commit `9533f98`. Nie przepisuj historii sprzed niego: jury musi odróżnić pracę z HackYeah od istniejącej.
+- Kryteria oceny: pomysł 30%, zgodność z kategorią 20%, użyteczność 20%, design 20%, kompletność 10%.
+  Nowe funkcje mają rozwiązywać konkretny problem miasta lub mieszkańców i działać w demo („Kraków”).
+- Nowa zewnętrzna biblioteka, API albo zbiór danych: dopisz go do sekcji HackYeah w `README.md` (wymóg ujawnienia).
+
 ## Ustawienia lokalne
 Lokalne reguły (poza gitem): @AGENTS.local.md
 Jeśli plik `AGENTS.local.md` istnieje, przeczytaj go na starcie sesji i traktuj jako obowiązujące reguły.
@@ -46,7 +53,7 @@ Funkcja dla mieszkańców (zgłoszenia, rezerwacje, ogłoszenia…) to NIE nowy 
 | Kontrakt i katalog UI | `packages/sdk/src/` (nowy węzeł UI = schemat + builder + `apps/app/src/plugins/Renderer.tsx`) |
 | Test hosta (API) | `apps/api/test/plugins.test.ts` (routing, admin, izolacja przez `app.request()`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
-Wtyczka nie dostaje bazy: tylko `ctx` (user, community, storage). Nie dopisuj tabel dla pojedynczej wtyczki —
+Wtyczka nie dostaje bazy ani dysku: tylko `ctx` (user z rolą, community, now, storage, files, ai; docs/plugins.md). Nie dopisuj tabel dla pojedynczej wtyczki —
 dane trzyma `ctx.storage` (odizolowany per instalacja).
 
 ## Jedno źródło prawdy (zakaz równoległych ścieżek kodu)

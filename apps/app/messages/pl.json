@@ -36,5 +36,11 @@
   "plugin_back": "Wróć do społeczności",
   "plugin_load_error": "Nie udało się wczytać tej funkcji.",
   "plugin_action_error": "Coś poszło nie tak. Sprawdź formularz i spróbuj ponownie.",
-  "plugin_unsupported": "Ten element wymaga nowszej wersji aplikacji."
+  "plugin_unsupported": "Ten element wymaga nowszej wersji aplikacji.",
+  "plugin_photo_pick": "Wybierz zdjęcie",
+  "plugin_photo_change": "Zmień zdjęcie",
+  "plugin_photo_remove": "Usuń zdjęcie",
+  "plugin_photo_uploading": "Wysyłanie zdjęcia…",
+  "plugin_photo_error": "Nie udało się wysłać zdjęcia. Spróbuj ponownie.",
+  "plugin_photo_preview": "Wybrane zdjęcie"
 }

@@ -36,5 +36,11 @@
   "plugin_back": "Back to the community",
   "plugin_load_error": "This feature could not be loaded.",
   "plugin_action_error": "Something went wrong. Check the form and try again.",
-  "plugin_unsupported": "This element needs a newer version of the app."
+  "plugin_unsupported": "This element needs a newer version of the app.",
+  "plugin_photo_pick": "Choose a photo",
+  "plugin_photo_change": "Change photo",
+  "plugin_photo_remove": "Remove photo",
+  "plugin_photo_uploading": "Uploading the photo…",
+  "plugin_photo_error": "Could not upload the photo. Try again.",
+  "plugin_photo_preview": "Selected photo"
 }

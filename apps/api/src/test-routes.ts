@@ -1,33 +1,62 @@
 import { loadPlugin } from "@app/plugin-sdk";
 import { eq, getTableName, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import type { Auth } from "./auth";
 import { type Db, schema } from "./db";
 import { builtinPlugins } from "./plugins/builtin";
+import type { PluginHost } from "./plugins/host";
 
 /**
  * Endpointy wyłącznie dla testów i lokalnego dev. Montowane tylko przez test-server.ts przy NODE_ENV=test.
  * Nigdy nie importuj tego pliku z kodu produkcyjnego.
  */
 export const DEMO_COMMUNITY = { slug: "krakow", name: "Kraków" } as const;
+export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password123", name: "Urząd Miasta" } as const;
 
-/** Dane startowe dev/E2E (idempotentne): społeczność demo z zainstalowanymi wtyczkami wbudowanymi. */
-export function seedDemo(db: Db) {
+type Deps = { db: Db; auth: Auth; plugins: PluginHost };
+
+/**
+ * Dane startowe dev/E2E (idempotentne): społeczność demo z wtyczkami wbudowanymi (z onInstall)
+ * i kontem administratora społeczności.
+ */
+export async function seedDemo({ db, auth, plugins }: Deps) {
   db.insert(schema.communities).values(DEMO_COMMUNITY).onConflictDoNothing().run();
   const community = db.select().from(schema.communities).where(eq(schema.communities.slug, DEMO_COMMUNITY.slug)).get();
   if (!community) throw new Error("seed: brak społeczności");
   for (const mod of builtinPlugins) {
     const pluginId = loadPlugin(mod).manifest.id;
-    db.insert(schema.pluginInstallations).values({ communityId: community.id, pluginId }).onConflictDoNothing().run();
+    const created = db
+      .insert(schema.pluginInstallations)
+      .values({ communityId: community.id, pluginId })
+      .onConflictDoNothing()
+      .returning()
+      .get();
+    const plugin = plugins.get(pluginId);
+    if (created && plugin) await plugins.install(plugin, created.id, community);
   }
+
+  let admin = db.select().from(schema.user).where(eq(schema.user.email, DEMO_ADMIN.email)).get();
+  if (!admin) {
+    await auth.api.signUpEmail({ body: { ...DEMO_ADMIN } });
+    admin = db.select().from(schema.user).where(eq(schema.user.email, DEMO_ADMIN.email)).get();
+  }
+  if (!admin) throw new Error("seed: brak konta admina");
+  db.insert(schema.memberships)
+    .values({ communityId: community.id, userId: admin.id, role: "admin" })
+    .onConflictDoUpdate({
+      target: [schema.memberships.communityId, schema.memberships.userId],
+      set: { role: "admin" },
+    })
+    .run();
 }
 
-export function createTestRoutes(db: Db) {
-  return new Hono().post("/__test/reset", (c) => {
-    db.transaction((tx) => {
+export function createTestRoutes(deps: Deps) {
+  return new Hono().post("/__test/reset", async (c) => {
+    deps.db.transaction((tx) => {
       tx.run(sql`PRAGMA defer_foreign_keys = ON`);
       for (const table of Object.values(schema.allTables)) tx.run(sql.raw(`delete from "${getTableName(table)}"`));
     });
-    seedDemo(db);
+    await seedDemo(deps);
     return c.json({ ok: true });
   });
 }

@@ -9,6 +9,8 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 
 ## Odbiorcy
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
+- Administrator społeczności (np. urząd miasta): zarządza treściami wtyczek (np. zmienia status zgłoszeń).
+  Demo: `admin@krakow.test` / `password123`.
 - Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie
@@ -33,7 +35,7 @@ Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii.
 ## Ograniczenia
 - Wygląd w tokenach: `apps/app/src/theme.ts`.
 - Dostępność: kontrast AA, pełna obsługa klawiaturą, semantyczne nagłówki (E2E wybiera po rolach).
-- Bezpieczna rozszerzalność: wtyczka nie ma dostępu do bazy ani plików, tylko do `ctx` (user, community, storage).
+- Bezpieczna rozszerzalność: wtyczka nie ma dostępu do bazy ani plików, tylko do `ctx` (user z rolą, community, storage, files, ai).
 
 ## Platform
 Natywne iOS i Android (React Native przez Expo) + web (react-native-web, statyczny HTML) z jednego kodu.

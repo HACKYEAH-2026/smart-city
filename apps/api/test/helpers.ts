@@ -1,8 +1,10 @@
 import { Database } from "bun:sqlite";
+import type { AIProviders } from "../src/ai/types";
 import { createApp } from "../src/app";
 import { createDb, type DbHandle, fromSqlite, migrate } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
 import { TEST_ENV } from "../src/test-env";
+import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
 
 /**
  * Zrzut SQLite: migracje wykonują się RAZ na proces testowy, potem każdy test dostaje
@@ -29,9 +31,13 @@ export type TestUser = { id: string; email: string; headers: Record<string, stri
  * Kontekst testu integracyjnego: świeża baza + aplikacja wołana przez app.request() (bez portów).
  * Użycie: t = await setup(); ...; await t.close() w afterEach. `env` nadpisuje TEST_ENV.
  */
-export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}) {
+export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
   const handle = await freshTestDb();
-  const app = createApp({ db: handle.db, env: loadEnv({ ...TEST_ENV, ...env }) }).app;
+  const { app, auth, plugins } = createApp({
+    db: handle.db,
+    env: loadEnv({ ...TEST_ENV, ...env }),
+    ...(opts.ai ? { ai: opts.ai } : {}),
+  });
   let seq = 0;
 
   const request = (path: string, init: RequestInit & { json?: unknown } = {}) => {
@@ -56,6 +62,18 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return { id: body.user.id, email, headers: { authorization: `Bearer ${token}` } } satisfies TestUser;
   };
 
-  return { app, db: handle.db, request, signUp, close: handle.close };
+  /** Dane demo (społeczność „Kraków”, wtyczki wbudowane, konto admina) + zalogowany admin. */
+  const seed = async () => {
+    await seedDemo({ db: handle.db, auth, plugins });
+    const res = await request("/api/auth/sign-in/email", {
+      method: "POST",
+      json: { email: DEMO_ADMIN.email, password: DEMO_ADMIN.password },
+    });
+    const token = res.headers.get("set-auth-token");
+    if (!token) throw new Error(`seed: logowanie admina ${res.status}`);
+    return { admin: { headers: { authorization: `Bearer ${token}` } } };
+  };
+
+  return { app, db: handle.db, plugins, request, signUp, seed, close: handle.close };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

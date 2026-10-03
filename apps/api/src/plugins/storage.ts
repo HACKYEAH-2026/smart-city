@@ -1,11 +1,12 @@
-import type { PluginDoc, PluginStorage } from "@app/plugin-sdk";
-import { and, asc, desc, eq } from "drizzle-orm";
+import type { Doc, Query, Storage } from "@app/plugin-sdk";
+import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type Db, schema } from "../db";
 
 const { pluginDocs } = schema;
-const COLLECTION = /^[a-z][a-z0-9_-]{0,39}$/;
+const NAME = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/;
+const KEY = /^[^\s]{1,200}$/;
 
-const toDoc = <T>(row: typeof pluginDocs.$inferSelect): PluginDoc<T> => ({
+const toDoc = <T>(row: typeof pluginDocs.$inferSelect): Doc<T> => ({
   id: row.id,
   createdBy: row.createdBy,
   createdAt: row.createdAt.toISOString(),
@@ -13,68 +14,89 @@ const toDoc = <T>(row: typeof pluginDocs.$inferSelect): PluginDoc<T> => ({
   data: row.data as T,
 });
 
-function checkCollection(name: string) {
-  if (!COLLECTION.test(name)) throw new Error(`Invalid collection name: ${name}`);
+function check(re: RegExp, what: string, value: string) {
+  if (!re.test(value)) throw new Error(`Invalid ${what}: ${value}`);
+}
+
+/** where: równość na polach najwyższego poziomu JSON (boolean w JSON SQLite to 1/0). */
+function whereClause(where: Record<string, unknown> = {}): SQL[] {
+  return Object.entries(where).map(([field, value]) => {
+    check(NAME, "where field", field);
+    const path = `$.${field}`;
+    if (value === null) return sql`json_extract(${pluginDocs.data}, ${path}) is null`;
+    if (typeof value === "boolean") return sql`json_extract(${pluginDocs.data}, ${path}) = ${value ? 1 : 0}`;
+    if (typeof value === "string" || typeof value === "number") {
+      return sql`json_extract(${pluginDocs.data}, ${path}) = ${value}`;
+    }
+    throw new Error(`where.${field}: only string, number, boolean or null are supported`);
+  });
 }
 
 /**
  * Magazyn dokumentów jednej instalacji. KAŻDE zapytanie filtruje po installationId — to jest
  * granica izolacji między społecznościami i wtyczkami.
  */
-export function createStorage(db: Db, installationId: string, userId: string): PluginStorage {
-  const scoped = (collection: string, id?: string) =>
-    and(
+export function createStorage(db: Db, installationId: string, userId: string | null): Storage {
+  const scoped = (collection: string, id?: string) => {
+    check(NAME, "collection", collection);
+    return and(
       eq(pluginDocs.installationId, installationId),
       eq(pluginDocs.collection, collection),
-      id ? eq(pluginDocs.id, id) : undefined,
+      id === undefined ? undefined : eq(pluginDocs.id, id),
     );
+  };
 
   return {
-    async list<T>(collection: string, opts: { order?: "newest" | "oldest"; limit?: number } = {}) {
-      checkCollection(collection);
-      const order = opts.order === "oldest" ? asc(pluginDocs.createdAt) : desc(pluginDocs.createdAt);
-      const rows = await db
-        .select()
-        .from(pluginDocs)
-        .where(scoped(collection))
-        .orderBy(order)
-        .limit(Math.min(opts.limit ?? 100, 500));
-      return rows.map((r) => toDoc<T>(r));
-    },
     async get<T>(collection: string, id: string) {
-      checkCollection(collection);
       const [row] = await db.select().from(pluginDocs).where(scoped(collection, id));
       return row ? toDoc<T>(row) : null;
     },
-    async add<T extends Record<string, unknown>>(collection: string, data: T) {
-      checkCollection(collection);
+    async list<T>(collection: string, query: Query<T> = {}) {
+      const order = query.order === "oldest" ? asc(pluginDocs.createdAt) : desc(pluginDocs.createdAt);
+      const rows = await db
+        .select()
+        .from(pluginDocs)
+        .where(and(scoped(collection), ...whereClause(query.where as Record<string, unknown>)))
+        .orderBy(order)
+        .limit(Math.min(query.limit ?? 100, 500));
+      return rows.map((r) => toDoc<T>(r));
+    },
+    async create<T extends Record<string, unknown>>(collection: string, data: T) {
+      check(NAME, "collection", collection);
       const [row] = await db
         .insert(pluginDocs)
-        .values({ installationId, collection, data, createdBy: userId })
+        .values({ id: crypto.randomUUID(), installationId, collection, data, createdBy: userId })
         .returning();
       if (!row) throw new Error("insert nie zwrócił wiersza");
       return toDoc<T>(row);
     },
-    async update<T>(collection: string, id: string, patch: Record<string, unknown>) {
-      checkCollection(collection);
+    async upsert<T extends Record<string, unknown>>(collection: string, key: string, data: T) {
+      check(NAME, "collection", collection);
+      check(KEY, "key", key);
+      const [row] = await db
+        .insert(pluginDocs)
+        .values({ id: key, installationId, collection, data, createdBy: userId })
+        .onConflictDoUpdate({
+          target: [pluginDocs.installationId, pluginDocs.collection, pluginDocs.id],
+          set: { data, updatedAt: new Date() },
+        })
+        .returning();
+      if (!row) throw new Error("upsert nie zwrócił wiersza");
+      return toDoc<T>(row);
+    },
+    async update<T>(collection: string, id: string, patch: Partial<T>) {
       const [current] = await db.select().from(pluginDocs).where(scoped(collection, id));
       if (!current) return null;
       const [row] = await db
         .update(pluginDocs)
-        .set({ data: { ...current.data, ...patch } })
+        .set({ data: { ...current.data, ...(patch as Record<string, unknown>) } })
         .where(scoped(collection, id))
         .returning();
       return row ? toDoc<T>(row) : null;
     },
     async remove(collection: string, id: string) {
-      checkCollection(collection);
       const rows = await db.delete(pluginDocs).where(scoped(collection, id)).returning({ id: pluginDocs.id });
       return rows.length > 0;
     },
   };
 }
-
-/** Magazyn dla wtyczki bez uprawnienia "storage": każde użycie kończy się czytelnym błędem. */
-export const deniedStorage: PluginStorage = new Proxy({} as PluginStorage, {
-  get: () => () => Promise.reject(new Error('Plugin did not declare the "storage" permission')),
-});

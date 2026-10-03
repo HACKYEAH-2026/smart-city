@@ -31,9 +31,16 @@ export type Action = z.infer<typeof actionSchema>;
 
 /** Wynik narzędzia: co aplikacja ma zrobić po wywołaniu (komunikat, przejście, odświeżenie widoku). */
 export const toolResultSchema = z.object({
+  /** Komunikat sukcesu. */
   toast: z.string().optional(),
+  /** Komunikat błędu dla użytkownika (np. „Głosowanie jest zamknięte”); nic nie zostało zapisane. */
+  error: z.string().optional(),
   navigate: navigateActionSchema.optional(),
+  /** Zamknij bieżący ekran (wróć). */
+  close: z.boolean().optional(),
   refresh: z.boolean().optional(),
+  /** Dane wyniku dla asystentów AI (MCP) i narzędzi readOnly. */
+  data: z.unknown().optional(),
 });
 export type ToolResult = z.infer<typeof toolResultSchema>;
 
@@ -59,6 +66,10 @@ const leafSchemas = [
   }),
   z.object({ type: z.literal("Stat"), label: z.string(), value: z.string() }),
   z.object({ type: z.literal("Empty"), text: z.string() }),
+  /** Zdjęcie z ctx.files. `url` (podpisany, krótkotrwały) dokleja host przy renderowaniu widoku. */
+  z.object({ type: z.literal("Image"), file: z.string(), alt: z.string(), url: z.string().optional() }),
+  /** Pole formularza: wybór zdjęcia; aplikacja wysyła plik i wstawia do formularza jego FileId. */
+  z.object({ type: z.literal("ImagePicker"), name: z.string().min(1), label: z.string() }),
   z.object({
     type: z.literal("TextInput"),
     name: z.string().min(1),
@@ -146,6 +157,8 @@ export const ui = {
   progress: (props: Props<"Progress">): Of<"Progress"> => ({ type: "Progress", ...props }),
   stat: (label: string, value: string): Of<"Stat"> => ({ type: "Stat", label, value }),
   empty: (text: string): Of<"Empty"> => ({ type: "Empty", text }),
+  image: (file: string, alt: string): Of<"Image"> => ({ type: "Image", file, alt }),
+  imagePicker: (props: Props<"ImagePicker">): Of<"ImagePicker"> => ({ type: "ImagePicker", ...props }),
   textInput: (props: Props<"TextInput">): Of<"TextInput"> => ({ type: "TextInput", ...props }),
   select: (props: Props<"Select">): Of<"Select"> => ({ type: "Select", ...props }),
 

@@ -12,7 +12,9 @@ import { createDb, migrate, migrationsFolder } from "../src/db";
 const EXPECTED = [
   "account",
   "communities",
+  "memberships",
   "plugin_docs",
+  "plugin_files",
   "plugin_installations",
   "plugin_sources",
   "session",

@@ -7,6 +7,7 @@ import { AppLink, Body, Page } from "../components/ui";
 import { usePluginView, useToolCall } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { useI18n } from "../lib/i18n";
+import { uploadPluginImage } from "../lib/upload";
 import { pluginHref, viewParamsFrom } from "../plugins/href";
 import { PluginRenderer } from "../plugins/Renderer";
 import { space, tone } from "../theme";
@@ -25,8 +26,12 @@ export default function PluginView() {
   const toast = flash.messageFor(here);
   // Po udanym narzędziu: nowe drzewo (czyste formularze); zwykły refetch nie kasuje wpisanego tekstu.
   const [generation, setGeneration] = useState(0);
+  // Komunikat błędu z wyniku narzędzia (np. „To zgłoszenie już nie istnieje”) — treść od wtyczki.
+  const [toolError, setToolError] = useState<string | null>(null);
+  const upload = (asset: Parameters<typeof uploadPluginImage>[2]) => uploadPluginImage(slug, plugin, asset);
 
   const onAction = (action: Action) => {
+    setToolError(null);
     if (action.type === "navigate") {
       flash.show(null);
       router.push(pluginHref(slug, plugin, action.view, action.params) as never);
@@ -36,6 +41,15 @@ export default function PluginView() {
       { tool: action.tool, args: action.args ?? {} },
       {
         onSuccess: (result) => {
+          if (result.error) {
+            setToolError(result.error);
+            return;
+          }
+          if (result.close && !result.navigate) {
+            flash.show(null);
+            router.back();
+            return;
+          }
           const next = result.navigate ? pluginHref(slug, plugin, result.navigate.view, result.navigate.params) : here;
           flash.show(result.toast ? { text: result.toast, href: next } : null);
           setGeneration((g) => g + 1);
@@ -57,6 +71,11 @@ export default function PluginView() {
             <Body style={{ color: tone.success.fg }}>{toast}</Body>
           </View>
         ) : null}
+        {toolError ? (
+          <Body tone="error" role="alert">
+            {toolError}
+          </Body>
+        ) : null}
         {call.isError ? (
           <Body tone="error" role="alert">
             {t.plugin_action_error()}
@@ -69,7 +88,13 @@ export default function PluginView() {
             {t.plugin_load_error()}
           </Body>
         ) : (
-          <PluginRenderer key={generation} node={screen.data} onAction={onAction} busy={call.isPending} />
+          <PluginRenderer
+            key={generation}
+            node={screen.data}
+            onAction={onAction}
+            busy={call.isPending}
+            upload={upload}
+          />
         )}
       </View>
     </Page>

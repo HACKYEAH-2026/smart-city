@@ -14,6 +14,7 @@ export type CommunityCreate = z.input<typeof communityCreateSchema>;
 export const PLUGIN_SOURCE_MAX = 200_000;
 export const pluginUploadSchema = z.object({ source: z.string().min(1).max(PLUGIN_SOURCE_MAX) });
 export const pluginInstallSchema = z.object({ pluginId: z.string().min(1) });
+export const adminGrantSchema = z.object({ email: z.email() });
 
 /** Argumenty wywołania narzędzia wtyczki (dane formularza + args z akcji). */
 export const toolCallSchema = z.object({ args: z.record(z.string(), z.unknown()).default({}) });

@@ -23,9 +23,10 @@ if (env.NODE_ENV !== "test") {
 
 const handle = await createDb(env.DATABASE_URL);
 await migrate(handle);
-seedDemo(handle.db);
-const { app } = createApp({ db: handle.db, env });
-app.route("/", createTestRoutes(handle.db));
+const { app, auth, plugins } = createApp({ db: handle.db, env });
+const deps = { db: handle.db, auth, plugins };
+await seedDemo(deps);
+app.route("/", createTestRoutes(deps));
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
 console.log(`api(test): nasłuch na :${server.port} [${env.DATABASE_URL}]`);
