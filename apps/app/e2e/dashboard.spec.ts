@@ -104,9 +104,43 @@ test("the Places tab opens the place switcher over the dashboard", async ({ page
   await joinKrakow(api.url, "tab@example.test");
   await page.goto("/app/account");
   await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_places }).click();
-  // The sheet opens on arrival, not only after a tap on the dashboard (it is mounted closed until then).
+  // The sheet opens on arrival, not only after a tap on the dashboard.
   await expect(page.getByRole("dialog").getByRole("heading", { name: t.places_sheet_title })).toBeInViewport();
   await expect(page).toHaveURL(/\/app\?places=1$/);
+});
+
+test("leaving the Account tab for the dashboard shows no place switcher; the dashboard takes taps", async ({
+  page,
+  api,
+}) => {
+  await register(page, "tabs-back@example.test");
+  await joinKrakow(api.url, "tabs-back@example.test");
+  await page.goto("/app/account");
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_dashboard }).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("link", { name: "Zgłoszenia", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
+});
+
+test("the close button closes the place switcher, opened from the tab or from the place name", async ({
+  page,
+  api,
+}) => {
+  await register(page, "sheet-close@example.test");
+  await joinKrakow(api.url, "sheet-close@example.test");
+  await page.goto("/app/account");
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_places }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: t.places_sheet_title })).toBeInViewport();
+  await sheet.getByRole("button", { name: t.close }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page).toHaveURL(/\/app$/);
+
+  await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
+  await expect(sheet.getByRole("heading", { name: t.places_sheet_title })).toBeInViewport();
+  await sheet.getByRole("button", { name: t.close }).click();
+  await expect(sheet).toHaveCount(0);
 });
 
 test("picking a place in the switcher makes it the current place", async ({ page, api }) => {

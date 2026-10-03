@@ -1,7 +1,7 @@
 import GorhomBottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { X } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { t } from "../texts";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
@@ -17,21 +17,22 @@ export interface BottomSheetProps {
 
 /**
  * Bottom sheet (COMPONENTS.md → BottomSheet) on @gorhom/bottom-sheet: native gestures and spring motion. The dimmed
- * backdrop fades on its own (it does not move with the sheet); pan down or a tap on the backdrop closes it.
- * Render it outside the scrolling content (`Screen` → `overlay`). The sheet stays mounted while closed, so its
- * content is hidden from screen readers then; open, it is a dialog named by its title.
+ * backdrop fades on its own (it does not move with the sheet); pan down, a tap on the backdrop or the close button
+ * slide it away, then `onClose` runs. Render it outside the scrolling content (`Screen` → `overlay`).
+ * Mounted only while `visible`: gorhom never moves a sheet that mounts closed to its closed position, it stays at
+ * the window height. Where the app draws under the system bars and the window is shorter than the screen (Android
+ * in Expo Go), the top of the sheet then showed above the bottom edge, with an invisible backdrop taking every tap.
  */
-export function BottomSheet({ visible, title, onClose, children }: BottomSheetProps) {
+export function BottomSheet({ visible, ...sheet }: BottomSheetProps) {
+  return visible ? <OpenSheet {...sheet} /> : null;
+}
+
+function OpenSheet({ title, onClose, children }: Omit<BottomSheetProps, "visible">) {
   const ref = useRef<GorhomBottomSheet>(null);
-  useEffect(() => {
-    if (visible) ref.current?.snapToIndex(0);
-    else ref.current?.close();
-  }, [visible]);
   return (
     <GorhomBottomSheet
       ref={ref}
-      // Opened on mount too (/app?places=1 from the "Miejsca" tab): snapToIndex before the first layout is lost.
-      index={visible ? 0 : -1}
+      index={0}
       enableDynamicSizing
       enablePanDownToClose
       onClose={onClose}
@@ -47,15 +48,10 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
         />
       )}
     >
-      <BottomSheetView
-        role={visible ? "dialog" : undefined}
-        aria-label={visible ? title : undefined}
-        aria-hidden={!visible}
-        style={styles.content}
-      >
+      <BottomSheetView role="dialog" aria-label={title} style={styles.content}>
         <View style={styles.head}>
           <Heading level={2}>{title}</Heading>
-          <IconButton icon={X} label={t.close} onPress={onClose} variant="roundSunken" />
+          <IconButton icon={X} label={t.close} onPress={() => ref.current?.close()} variant="roundSunken" />
         </View>
         {children}
       </BottomSheetView>
