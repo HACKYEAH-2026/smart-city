@@ -48,7 +48,6 @@
             bun
             nodejs_24 # Expo CLI / Metro / Gradle autolinking działają na Node
             sqlite
-            opentofu
             gh
             jq
           ];

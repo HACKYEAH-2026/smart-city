@@ -70,12 +70,11 @@ dane trzyma `ctx.storage` (odizolowany per instalacja).
 Wzorce, i18n i zakazane API: `docs/expo.md`.
 
 ## Zakazy
-- Żadnych sekretów w repo (`.env` jest w .gitignore; wzór: `deploy/.env.example`). Sekrety tylko w GitHub Secrets.
-- Żadnego ręcznego `tofu apply` (lokalnie wolno tylko `bun run infra:check`). Apply: workflow `infra` w CI.
-- Żadnego deployu z maszyny lokalnej. Deploy robi CI (`main` → staging, tag `v*` → prod).
+- Żadnych sekretów w repo (`.env` jest w .gitignore). Sekrety tylko w GitHub Secrets.
+- Żadnego deployu z maszyny lokalnej.
 - Żadnych TODO bez uzasadnienia i numeru zadania. Żadnego martwego kodu "na później".
 - Nie wyłączaj reguł Biome/TS globalnie; lokalny `biome-ignore` tylko z powodem.
-- Jeśli coś wymaga kliknięcia w panelu (Cloudflare, Hetzner, GitHub, sklepy), napisz to wprost w raporcie — nie udawaj naprawy.
+- Jeśli coś wymaga kliknięcia w panelu (Cloudflare, GitHub, sklepy), napisz to wprost w raporcie — nie udawaj naprawy.
 
 ## Raport końcowy agenta
 hash commita · output `bun run verify` (podsumowanie) · status CI · lista pominięć z powodem · rzeczy dla człowieka.

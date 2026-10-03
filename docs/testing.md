@@ -17,6 +17,3 @@
 - Front: produkcyjny statyczny eksport Expo (`expo export -p web`) serwowany przez `scripts/serve.ts` jak na Workers.
 - Natywne ekrany: pokrywa je build Androida (verify) i iOS (CI); E2E na urządzeniu (Maestro/Detox) świadomie poza szablonem.
 - `/__test/reset` istnieje tylko w `test-server.ts` (NODE_ENV=test); `apps/api/scripts/build.ts` failuje, jeśli trafi do bundla.
-
-## Backup
-`bun run backup:test` (wymaga `sqlite3` z devShella): migracje + dane → `backup.sh` (`sqlite3 .backup` + gzip) → `restore.sh` do nowego pliku → porównanie.

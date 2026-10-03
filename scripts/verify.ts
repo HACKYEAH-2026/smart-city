@@ -1,6 +1,6 @@
 /**
  * bun run verify — JEDYNA definicja gotowości. Etapy po kolei; pierwszy błąd kończy
- * przebieg z kodem != 0. Pomijanie etapu tylko jawnie: VERIFY_SKIP=android,infra
+ * przebieg z kodem != 0. Pomijanie etapu tylko jawnie: VERIFY_SKIP=android,e2e
  * (pominięcie jest widoczne w podsumowaniu i nie jest "zielonym" verify dla zadania).
  */
 type Stage = { name: string; cmd: string[]; needs?: string[] };
@@ -18,7 +18,6 @@ const stages: Stage[] = [
     cmd: ["bun", "run", "android"],
     needs: ["JAVA_HOME", "ANDROID_HOME", "ANDROID_NDK_HOME"],
   },
-  { name: "infra (tofu fmt + validate)", cmd: ["bun", "run", "infra:check"], needs: ["tofu"] },
 ];
 
 const skip = new Set(
