@@ -74,7 +74,7 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 - `Platform.OS` branches only in `src/lib/` and in routes, never in screens.
 - UI text: ONLY `apps/app/messages/<locale>.json` via `const { t } = useI18n(); t.key()`.
   English (`en`) is the base locale; every key must exist in all locales (test `src/lib/i18n.test.ts`).
-- Look and feel: only tokens from `apps/app/src/theme.ts`; build screens from the primitives in `src/components/ui.tsx`.
+- Look and feel: only tokens from `apps/app/src/theme/` (`tokens.ts`, design system "Twoje Miejsce"); build screens from the components in `apps/app/src/components/` (see `apps/app/src/COMPONENTS.md`).
 - Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only
@@ -90,7 +90,7 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 - Integration: `apps/api/test`, always through `setup()` (a fresh in-memory SQLite DB from a snapshot +
   `app.request()`), `close()` in `afterEach`.
 - E2E: web (production static export), import `test`/`expect` from `e2e/fixtures.ts`
-  (the DB is reset automatically before every test). Select by roles and labels — that is why UI primitives
+  (the DB is reset automatically before every test). Select by roles and labels — that is why UI components
   set `role`, `aria-level`, `aria-label`. Native screens are covered by the Android/iOS build (no on-device E2E).
 - `/__test/*` exists only in `apps/api/src/test-server.ts`. Never import `test-*.ts` from production code.
 

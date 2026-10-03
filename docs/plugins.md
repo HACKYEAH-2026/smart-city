@@ -7,7 +7,7 @@ communities, users and installations; plugins provide everything else.
 
 ```
  Plugin (API, Bun)                          App (Expo: iOS / Android / web)
- views.list(ctx) ──► { type: "Screen", … } ──► PluginRenderer ──► native primitives from ui.tsx
+ views.list(ctx) ──► { type: "Screen", … } ──► PluginRenderer ──► design-system components (src/components)
  tools.report    ◄── POST …/tools/report  ◄── button / form (an action is data, not code)
 ```
 

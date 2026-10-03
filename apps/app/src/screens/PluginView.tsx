@@ -3,14 +3,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { AppLink, Body, Page } from "../components/ui";
+import { Link, Screen, Text } from "../components";
 import { usePluginView, useToolCall } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { useI18n } from "../lib/i18n";
 import { uploadPluginImage } from "../lib/upload";
 import { pluginHref, viewParamsFrom } from "../plugins/href";
 import { PluginRenderer } from "../plugins/Renderer";
-import { space, tone } from "../theme";
+import { colors, radii, spacing } from "../theme";
 
 /** Plugin view screen: fetches the UI tree from the API, renders it and handles actions. */
 export default function PluginView() {
@@ -60,48 +60,43 @@ export default function PluginView() {
   };
 
   return (
-    <Page narrow>
+    <Screen>
       <Head>
         <title>{screen.data?.type === "Screen" ? screen.data.title : t.communities_title()}</title>
       </Head>
-      <View style={styles.stack}>
-        <AppLink href={`/app/c/${slug}`}>{t.plugin_back()}</AppLink>
-        {toast ? (
-          <View role="status" style={styles.toast}>
-            <Body style={{ color: tone.success.fg }}>{toast}</Body>
-          </View>
-        ) : null}
-        {toolError ? (
-          <Body tone="error" role="alert">
-            {toolError}
-          </Body>
-        ) : null}
-        {call.isError ? (
-          <Body tone="error" role="alert">
-            {t.plugin_action_error()}
-          </Body>
-        ) : null}
-        {screen.isPending ? (
-          <Body tone="soft">{t.loading()}</Body>
-        ) : screen.isError ? (
-          <Body tone="error" role="alert">
-            {t.plugin_load_error()}
-          </Body>
-        ) : (
-          <PluginRenderer
-            key={generation}
-            node={screen.data}
-            onAction={onAction}
-            busy={call.isPending}
-            upload={upload}
-          />
-        )}
-      </View>
-    </Page>
+      <Link href={`/app/c/${slug}`}>{t.plugin_back()}</Link>
+      {toast ? (
+        <View role="status" style={styles.toast}>
+          <Text variant="bodyL" color="primaryPressed">
+            {toast}
+          </Text>
+        </View>
+      ) : null}
+      {toolError ? (
+        <Text variant="bodyL" color="primaryPressed" role="alert">
+          {toolError}
+        </Text>
+      ) : null}
+      {call.isError ? (
+        <Text variant="bodyL" color="primaryPressed" role="alert">
+          {t.plugin_action_error()}
+        </Text>
+      ) : null}
+      {screen.isPending ? (
+        <Text variant="bodyL" color="textSecondary">
+          {t.loading()}
+        </Text>
+      ) : screen.isError ? (
+        <Text variant="bodyL" color="primaryPressed" role="alert">
+          {t.plugin_load_error()}
+        </Text>
+      ) : (
+        <PluginRenderer key={generation} node={screen.data} onAction={onAction} busy={call.isPending} upload={upload} />
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: space.l },
-  toast: { backgroundColor: tone.success.bg, borderRadius: 12, padding: space.l },
+  toast: { backgroundColor: colors.primaryTint, borderRadius: radii.md, padding: spacing[8] },
 });

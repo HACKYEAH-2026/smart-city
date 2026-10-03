@@ -1,13 +1,23 @@
 import type { Action, Tone, ToolAction, UINode } from "@app/plugin-sdk";
 import { launchImageLibraryAsync } from "expo-image-picker";
 import { createContext, type ReactNode, useContext, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { Body, Button, Heading, TextField } from "../components/ui";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import {
+  Badge,
+  type BadgeTone,
+  Button,
+  type ButtonVariant,
+  Card,
+  Heading,
+  RadioCard,
+  Text,
+  TextField,
+} from "../components";
 import { useI18n } from "../lib/i18n";
-import { color, font, radius, shadow, space, tone as tones } from "../theme";
+import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 
 /**
- * Server-Driven UI renderer: turns the tree from the plugin API into primitives from components/ui.tsx.
+ * Server-Driven UI renderer: turns the tree from the plugin API into design-system components.
  * The plugin runs no code here — actions (navigation, tool) are handled by the screen via `onAction`.
  * New node type: schema in packages/sdk/src/ui.ts + a branch in `PluginNode`.
  */
@@ -24,6 +34,16 @@ const ActionsContext = createContext<Actions>({
 /** Form values; `undefined` removes the field (e.g. a removed photo does not end up in args). */
 type Form = { values: Record<string, string>; set: (name: string, value: string | undefined) => void };
 const FormContext = createContext<Form | null>(null);
+
+/** Plugin button variants (SDK) → design-system button variants. */
+const BUTTON_VARIANT: Record<NonNullable<Extract<UINode, { type: "Button" }>["variant"]>, ButtonVariant> = {
+  primary: "primary",
+  quiet: "secondary",
+  danger: "destructiveGhost",
+};
+
+/** Plugin tones → design-system badge tones. The design has no success/warning/info colors, so only danger stands out. */
+const toBadgeTone = (tone: Tone | undefined): BadgeTone => (tone === "danger" ? "accent" : "neutral");
 
 export function PluginRenderer(props: {
   node: UINode;
@@ -51,9 +71,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "Screen":
       return (
         <View style={styles.stack}>
-          <Heading level={1} size="section">
-            {node.title}
-          </Heading>
+          <Heading level={1}>{node.title}</Heading>
           <Children nodes={node.children} />
         </View>
       );
@@ -87,24 +105,28 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
             <Heading level={3} style={styles.cardTitle}>
               {node.title}
             </Heading>
-            {node.badge ? <Badge text={node.badge.text} tone={node.badge.tone} /> : null}
+            {node.badge ? <Badge text={node.badge.text} tone={toBadgeTone(node.badge.tone)} /> : null}
           </View>
-          {node.subtitle ? <Body tone="soft">{node.subtitle}</Body> : null}
+          {node.subtitle ? (
+            <Text variant="caption" color="textSecondary">
+              {node.subtitle}
+            </Text>
+          ) : null}
           <Children nodes={node.children} />
         </>
       );
       const onPress = node.onPress;
       return onPress ? (
         <Pressable
-          role="button"
-          aria-label={node.title}
+          accessibilityRole="button"
+          accessibilityLabel={node.title}
           onPress={() => onAction(onPress)}
-          style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
         >
-          {body}
+          <Card>{body}</Card>
         </Pressable>
       ) : (
-        <View style={styles.card}>{body}</View>
+        <Card>{body}</Card>
       );
     }
     case "Form":
@@ -112,14 +134,18 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "Heading":
       return <Heading level={node.level ?? 2}>{node.text}</Heading>;
     case "Text":
-      return <Body tone={node.tone === "soft" ? "soft" : "ink"}>{node.text}</Body>;
+      return (
+        <Text variant="body" color={node.tone === "soft" ? "textSecondary" : "text"}>
+          {node.text}
+        </Text>
+      );
     case "Badge":
-      return <Badge text={node.text} tone={node.tone} />;
+      return <Badge text={node.text} tone={toBadgeTone(node.tone)} />;
     case "Button":
       return (
         <Button
           label={node.label}
-          variant={node.variant ?? "primary"}
+          variant={BUTTON_VARIANT[node.variant ?? "primary"]}
           disabled={busy && node.action.type === "tool"}
           onPress={() => onAction(node.action)}
         />
@@ -128,9 +154,9 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       const pct = Math.min(100, Math.round((node.value / node.max) * 100));
       return (
         <View style={styles.stackTight}>
-          <Body size="small" tone="soft">
+          <Text variant="small" color="textSecondary">
             {node.label}
-          </Body>
+          </Text>
           <View
             role="progressbar"
             aria-label={node.label}
@@ -147,16 +173,18 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "Stat":
       return (
         <View style={styles.stackTight}>
-          <Body size="small" tone="soft">
+          <Text variant="label" color="textSecondary">
             {node.label}
-          </Body>
-          <Text style={styles.statValue}>{node.value}</Text>
+          </Text>
+          <Text variant="heading">{node.value}</Text>
         </View>
       );
     case "Empty":
       return (
         <View style={styles.empty}>
-          <Body tone="soft">{node.text}</Body>
+          <Text variant="bodyL" color="textSecondary">
+            {node.text}
+          </Text>
         </View>
       );
     case "TextInput":
@@ -170,17 +198,12 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "Select":
       return <FormSelect node={node} />;
     default:
-      return <Body tone="soft">{t.plugin_unsupported()}</Body>;
+      return (
+        <Text variant="bodyL" color="textSecondary">
+          {t.plugin_unsupported()}
+        </Text>
+      );
   }
-}
-
-function Badge(props: { text: string; tone?: Tone | undefined }) {
-  const c = tones[props.tone ?? "neutral"];
-  return (
-    <View style={[styles.badge, { backgroundColor: c.bg }]}>
-      <Text style={[styles.badgeText, { color: c.fg }]}>{props.text}</Text>
-    </View>
-  );
 }
 
 /** Initial form field values (from `value` on nodes), including nested ones. */
@@ -257,100 +280,99 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
 
   return (
     <View style={styles.stackTight}>
-      <Text style={styles.fieldLabel}>{node.label}</Text>
+      <Text variant="label" color="textSecondary">
+        {node.label}
+      </Text>
       {preview ? (
         <Image role="img" aria-label={t.plugin_photo_preview()} source={{ uri: preview }} style={styles.image} />
       ) : null}
       <View style={styles.row}>
         <Button
           label={preview ? t.plugin_photo_change() : t.plugin_photo_pick()}
-          variant="quiet"
+          variant="secondary"
+          size="sm"
+          fullWidth={false}
           disabled={state === "uploading"}
           onPress={pick}
         />
-        {preview ? <Button label={t.plugin_photo_remove()} variant="quiet" onPress={remove} /> : null}
+        {preview ? (
+          <Button
+            label={t.plugin_photo_remove()}
+            variant="destructiveGhost"
+            size="sm"
+            fullWidth={false}
+            onPress={remove}
+          />
+        ) : null}
       </View>
-      {state === "uploading" ? <Body tone="soft">{t.plugin_photo_uploading()}</Body> : null}
+      {state === "uploading" ? (
+        <Text variant="caption" color="textSecondary">
+          {t.plugin_photo_uploading()}
+        </Text>
+      ) : null}
       {state === "error" ? (
-        <Body tone="error" role="alert">
+        <Text variant="bodyL" color="primaryPressed" role="alert">
           {t.plugin_photo_error()}
-        </Body>
+        </Text>
       ) : null}
     </View>
   );
 }
 
-/** Select as a radio button group — same code native and web, keyboard accessible. */
+/** Select as a radio group — same code native and web, keyboard accessible. */
 function FormSelect({ node }: { node: Extract<UINode, { type: "Select" }> }) {
   const form = useContext(FormContext);
   const current = form?.values[node.name];
   return (
     <View style={styles.stackTight}>
-      <Text style={styles.fieldLabel}>{node.label}</Text>
-      <View role="radiogroup" aria-label={node.label} style={styles.row}>
-        {node.options.map((o) => {
-          const checked = o.value === current;
-          return (
-            <Pressable
-              key={o.value}
-              role="radio"
-              aria-checked={checked}
-              aria-label={o.label}
-              onPress={() => form?.set(node.name, o.value)}
-              style={[styles.chip, checked && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, checked && styles.chipTextOn]}>{o.label}</Text>
-            </Pressable>
-          );
-        })}
+      <Text variant="label" color="textSecondary">
+        {node.label}
+      </Text>
+      <View role="radiogroup" aria-label={node.label} style={styles.stackTight}>
+        {node.options.map((o) => (
+          <RadioCard
+            key={o.value}
+            label={o.label}
+            selected={o.value === current}
+            onPress={() => form?.set(node.name, o.value)}
+          />
+        ))}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: space.l },
-  stackTight: { gap: space.xs },
-  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.s },
-  list: { gap: space.m },
-  card: { backgroundColor: color.sheet, borderRadius: radius.card, padding: space.xl, gap: space.s, ...shadow.sheet },
+  stack: { gap: spacing[9] },
+  stackTight: { gap: spacing[2] },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[4] },
+  list: { gap: spacing[6] },
   cardHead: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: space.s,
+    gap: spacing[4],
   },
   cardTitle: { flexShrink: 1 },
-  badge: {
-    borderRadius: radius.control,
-    paddingHorizontal: space.m,
-    paddingVertical: space.xs,
-    alignSelf: "flex-start",
+  track: {
+    height: sizes.stepBarHeight,
+    borderRadius: sizes.stepBarHeight / 2,
+    backgroundColor: colors.border,
+    overflow: "hidden",
   },
-  badgeText: { fontFamily: font.text, fontSize: 14, fontWeight: "600" },
-  track: { height: 10, borderRadius: radius.control, backgroundColor: color.paperDeep, overflow: "hidden" },
-  fill: { height: "100%", backgroundColor: color.ink },
-  image: { width: "100%", aspectRatio: 4 / 3, borderRadius: radius.card, backgroundColor: color.paperDeep },
-  statValue: { fontFamily: font.display, fontSize: 24, color: color.ink },
+  fill: { height: "100%", backgroundColor: colors.primary },
+  image: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderRadius: radii["3xl"],
+    backgroundColor: colors.mapBase,
+  },
   empty: {
-    padding: space.xl,
-    borderWidth: 1,
+    padding: spacing[9],
+    borderWidth: borders.row,
     borderStyle: "dashed",
-    borderColor: color.rule,
-    borderRadius: radius.card,
+    borderColor: colors.dashed,
+    borderRadius: radii["3xl"],
   },
-  fieldLabel: { fontFamily: font.text, fontSize: 14, fontWeight: "600", color: color.inkSoft },
-  chip: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: space.l,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    borderColor: color.rule,
-    backgroundColor: color.sheet,
-  },
-  chipOn: { backgroundColor: color.ink, borderColor: color.ink },
-  chipText: { fontFamily: font.text, fontSize: 15, color: color.ink },
-  chipTextOn: { color: color.onInk, fontWeight: "600" },
 });

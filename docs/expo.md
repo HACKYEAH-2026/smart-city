@@ -5,25 +5,25 @@ This is NOT React DOM. The same code renders native views (iOS/Android) and HTML
 
 ## Model
 - Elements: `View`, `Text`, `Pressable`, `TextInput`, `ScrollView`, `Image`. All text MUST be inside `<Text>`.
-- Styles: `StyleSheet.create` + tokens from `src/theme.ts`. Flexbox defaults to `flexDirection: "column"`.
+- Styles: `StyleSheet.create` + tokens from `src/theme/` (`tokens.ts`, design system; spec in `src/COMPONENTS.md`). Flexbox defaults to `flexDirection: "column"`.
 - Responsiveness: `flexWrap` + `flexBasis`/`flexGrow` (works in static HTML). Do NOT make the layout depend on
   `useWindowDimensions` — the prerender does not know the screen width.
 
 ## Semantics (web = accessibility + E2E selectors)
-Use the primitives from `src/components/ui.tsx`; they set these for you:
+Use the components from `src/components/` (design system); they set these for you:
 | You want | Use | On the web |
 |---|---|---|
 | heading | `<Heading level={1..3}>` (`role="heading"`, `aria-level`) | `<h1>`–`<h3>` |
-| internal link | `<AppLink href="/app">` (Expo Router `Link`) | `<a href>` |
+| internal link | `<Link href="/app">` (Expo Router `Link`) | `<a href>` |
 | button | `<Button label=… onPress=…>` (`role="button"`) | `<button>` |
 | form field | `<TextField label=…>` (`aria-label`) | `<input aria-label>` |
 | list | `<View role="list" aria-label=…>` + `role="listitem"` | `<ul>`/`<li>` |
-| error message | `<Body tone="error" role="alert">` | `role="alert"` |
+| error message | `<Text variant="bodyL" color="primaryPressed" role="alert">` | `role="alert"` |
 
 ## Routing (Expo Router)
 - Files in `app/` = routes. Keep them thin (`export { default } from "../src/screens/X"`).
 - Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, `<Slot />`).
-- Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<AppLink>`.
+- Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<Link>`.
 - 404: `app/+not-found.tsx` (becomes `404.html` in the web build).
 - `<Head>` from `expo-router/head` on every screen: `<title>` ends up in the static HTML.
 
@@ -45,7 +45,7 @@ export const useCommunities = () =>
 - Texts: `messages/en.json` (base) and `pl.json`. Loaded directly in `src/lib/i18n.tsx` (no compile step);
   a new language = a new file + an entry in `catalogs`.
 - Usage: `const { t, locale, setLocale } = useI18n(); t.communities_title()`. Do NOT import the messages JSON in screens.
-- Language: saved preference → device language → en. Switcher in the footer (`Page` in `src/components/ui.tsx`).
+- Language: saved preference → device language → en. Switcher in the footer (`AppFooter` in `src/components/AppHeader.tsx`, rendered by `Screen`).
 - Messages from the API/Zod/Better Auth never reach the UI directly; show your own `t.*`.
   Plugin screens are the exception: their (Polish) content comes from the server as Server-Driven UI.
 

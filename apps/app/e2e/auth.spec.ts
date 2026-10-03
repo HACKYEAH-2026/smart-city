@@ -53,6 +53,13 @@ test("unknown URL shows the 404 page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: en.notfound_title })).toBeVisible();
 });
 
+test("auth screen uses the design system: primary button is brand red, field labels are visible", async ({ page }) => {
+  await page.goto("/login");
+  const submit = page.getByRole("button", { name: en.auth_submit_login });
+  await expect(submit).toHaveCSS("background-color", "rgb(229, 1, 1)");
+  await expect(page.getByLabel(en.auth_email!)).toBeVisible();
+});
+
 test("mobile width: no horizontal overflow (RN flex items must be allowed to shrink)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of ["/login", "/register"]) {

@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { useState } from "react";
-import { View } from "react-native";
-import { AppLink, Body, Button, Heading, Page, TextField } from "../components/ui";
+import { StyleSheet, View } from "react-native";
+import { Button, Heading, Link, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
 import { useI18n } from "../lib/i18n";
-import { space } from "../theme";
+import { layout } from "../theme";
 
 type Mode = "login" | "register";
 
@@ -31,14 +31,12 @@ export function AuthForm(props: { mode: Mode }) {
   };
 
   return (
-    <Page narrow>
+    <Screen>
       <Head>
         <title>{isRegister ? t.meta_register_title() : t.meta_login_title()}</title>
       </Head>
-      <View style={{ gap: space.l }}>
-        <Heading level={1} size="section">
-          {isRegister ? t.auth_register_title() : t.auth_login_title()}
-        </Heading>
+      <Heading level={1}>{isRegister ? t.auth_register_title() : t.auth_login_title()}</Heading>
+      <View style={styles.form}>
         {isRegister ? (
           <TextField label={t.auth_name()} value={name} onChangeText={setName} autoComplete="name" />
         ) : null}
@@ -58,23 +56,27 @@ export function AuthForm(props: { mode: Mode }) {
           autoComplete={isRegister ? "new-password" : "current-password"}
           onSubmitEditing={submit}
         />
-        {error ? (
-          <Body tone="error" role="alert">
-            {error}
-          </Body>
-        ) : null}
-        <Button
-          label={isRegister ? t.auth_submit_register() : t.auth_submit_login()}
-          onPress={submit}
-          disabled={pending}
-        />
-        <Body>
-          {isRegister ? t.auth_have_account() : t.auth_no_account()}{" "}
-          <AppLink href={isRegister ? "/login" : "/register"}>
-            {isRegister ? t.auth_goto_login() : t.auth_goto_register()}
-          </AppLink>
-        </Body>
       </View>
-    </Page>
+      {error ? (
+        <Text variant="bodyL" color="primaryPressed" role="alert">
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        label={isRegister ? t.auth_submit_register() : t.auth_submit_login()}
+        onPress={submit}
+        disabled={pending}
+      />
+      <Text variant="bodyL" color="textSecondary">
+        {isRegister ? t.auth_have_account() : t.auth_no_account()}{" "}
+        <Link href={isRegister ? "/login" : "/register"}>
+          {isRegister ? t.auth_goto_login() : t.auth_goto_register()}
+        </Link>
+      </Text>
+    </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: layout.sectionGap },
+});
