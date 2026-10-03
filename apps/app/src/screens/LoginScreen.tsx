@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { MapPin } from "lucide-react-native";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Keyboard, StyleSheet, View } from "react-native";
 import { Button, Heading, Icon, Link, MapDecoration, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
 import { t } from "../texts";
@@ -18,6 +18,8 @@ export default function LoginScreen() {
   const [pending, setPending] = useState(false);
 
   const submit = async () => {
+    // The error shows under the button, where an open keyboard would cover it.
+    Keyboard.dismiss();
     setPending(true);
     setError(null);
     const ok = await auth.signIn(email, password);
@@ -64,12 +66,13 @@ export default function LoginScreen() {
           autoComplete="current-password"
           onSubmitEditing={submit}
         />
+        <Button label={t.auth_submit_login} onPress={submit} disabled={pending} />
+        {/* Under the buttons, so nothing above it moves; the spacer below takes the extra height. */}
         {error ? (
           <Text variant="bodyL" color="primaryPressed" role="alert">
             {error}
           </Text>
         ) : null}
-        <Button label={t.auth_submit_login} onPress={submit} disabled={pending} />
       </View>
       <View style={styles.grow} />
       <Text variant="body" color="textSecondary" style={styles.center}>
