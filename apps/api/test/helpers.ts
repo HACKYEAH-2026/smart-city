@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
-import type { AIProviders } from "../src/ai/types";
 import { createApp } from "../src/app";
 import { createDb, type DbHandle, fromSqlite, migrate } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
+import type { AIProviders } from "../src/services/ai/types";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
 

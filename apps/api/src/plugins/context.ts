@@ -1,8 +1,8 @@
 import type { Context, Permission, PluginCommunity, PluginUser } from "@app/plugin-sdk";
-import type { AIService } from "../ai/service";
 import type { Db } from "../db";
-import type { FileService } from "../files/service";
-import { createPluginDb } from "./db";
+import type { AIService } from "../services/ai/service";
+import { createPluginDb } from "../services/db/service";
+import type { FileService } from "../services/files/service";
 import type { LoadedPlugin } from "./host";
 
 /** Service without a manifest permission: every use fails with a clear error. */

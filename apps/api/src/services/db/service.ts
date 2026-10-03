@@ -1,6 +1,6 @@
 import type { Database, Doc, Query } from "@app/plugin-sdk";
 import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
-import { type Db, schema } from "../db";
+import { type Db, schema } from "../../db";
 
 const { pluginDocs } = schema;
 const NAME = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/;
@@ -33,8 +33,8 @@ function whereClause(where: Record<string, unknown> = {}): SQL[] {
 }
 
 /**
- * Document store of a single installation. EVERY query filters by installationId — this is
- * the isolation boundary between communities and plugins.
+ * Document store of a single installation (`ctx.db`), kept in the app database (`src/db`, table plugin_docs).
+ * EVERY query filters by installationId — this is the isolation boundary between communities and plugins.
  */
 export function createPluginDb(db: Db, installationId: string, userId: string | null): Database {
   const scoped = (collection: string, id?: string) => {

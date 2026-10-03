@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { FILE_ID, type FileId, type Files } from "@app/plugin-sdk";
 import { and, eq, lt } from "drizzle-orm";
-import { type Db, schema } from "../db";
+import { type Db, schema } from "../../db";
 import type { FileStore } from "./store";
 
 const { pluginFiles } = schema;

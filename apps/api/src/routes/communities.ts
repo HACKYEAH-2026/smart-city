@@ -5,9 +5,9 @@ import { and, asc, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../context";
 import { type Db, schema } from "../db";
-import { FileInputError } from "../files/service";
 import { requireUser } from "../middleware";
 import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
+import { FileInputError } from "../services/files/service";
 
 /**
  * Communities and their plugins (for the app). A plugin's views, tools and uploads are available only

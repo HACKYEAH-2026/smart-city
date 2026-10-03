@@ -16,7 +16,7 @@ import {
 } from "@app/plugin-sdk";
 import { z } from "zod";
 import { schema } from "../db";
-import { FileInputError } from "../files/service";
+import { FileInputError } from "../services/files/service";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
 export { PluginError };

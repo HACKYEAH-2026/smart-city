@@ -1,20 +1,20 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { AIService } from "./ai/service";
-import { StrandsLanguageModel } from "./ai/strands";
-import type { AIProviders } from "./ai/types";
 import { createAuth } from "./auth";
 import type { AppEnv } from "./context";
 import type { Db } from "./db";
 import type { Env } from "./env";
-import { FileService } from "./files/service";
-import { DiskFileStore, defaultFilesDir } from "./files/store";
 import { builtinPlugins } from "./plugins/builtin";
 import { defaultPluginsDir, PluginHost } from "./plugins/host";
 import { createAdminRoutes } from "./routes/admin";
 import { communitiesRoutes } from "./routes/communities";
 import { filesRoutes } from "./routes/files";
+import { AIService } from "./services/ai/service";
+import { StrandsLanguageModel } from "./services/ai/strands";
+import type { AIProviders } from "./services/ai/types";
+import { FileService } from "./services/files/service";
+import { DiskFileStore, defaultFilesDir } from "./services/files/store";
 
 /** AI providers from env (Strands + OpenAI-compatible model); without AI_API_KEY and AI_MODEL — no model. */
 function aiFromEnv(env: Env): AIProviders {

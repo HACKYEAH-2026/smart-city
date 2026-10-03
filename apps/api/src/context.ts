@@ -1,7 +1,7 @@
 import type { Auth, SessionUser } from "./auth";
 import type { Db } from "./db";
-import type { FileService } from "./files/service";
 import type { PluginHost } from "./plugins/host";
+import type { FileService } from "./services/files/service";
 
 /** Hono context type shared by all routers. */
 export type AppEnv = {

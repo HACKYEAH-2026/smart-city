@@ -66,7 +66,8 @@ export default benches;
 ## Plugin API (`ctx`)
 
 One file per service in `packages/sdk/src/`: `db.ts`, `files.ts`, `ai.ts`; `plugin.ts` holds the manifest,
-`Context` and `definePlugin`, `ui.ts` the UI catalog.
+`Context` and `definePlugin`, `ui.ts` the UI catalog. Host implementations mirror them in
+`apps/api/src/services/{db,files,ai}/`.
 
 ```ts
 ctx.user        { id, name, role: "admin" | "user" }   // role in this community
