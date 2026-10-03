@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { MAX_CHECK_ISSUES, type PluginCheck } from "@app/plugin-sdk";
@@ -12,6 +12,9 @@ import { type Ctx, setup } from "./helpers";
  * reports it (stage, line, column, snippet), so that the author (a person or an AI agent) can fix the source.
  */
 let t: Ctx | undefined;
+// These tests run the TypeScript checker over whole plugins: ~1-2 s each on an idle machine, but well over Bun's
+// default 5 s when the machine is busy (parallel builds), which made verify fail on timeouts alone.
+setDefaultTimeout(30_000);
 afterEach(async () => {
   await t?.close();
   t = undefined;

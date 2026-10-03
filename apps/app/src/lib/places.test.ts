@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { MyPlace } from "@app/shared";
-import { currentPlace, placeAbbr } from "./places";
+import { currentPlace, initials } from "./places";
 
 const place = (slug: string, extra: Partial<MyPlace> = {}): MyPlace => ({
   id: slug,
@@ -31,10 +31,10 @@ describe("currentPlace", () => {
   });
 });
 
-describe("placeAbbr", () => {
+describe("initials", () => {
   test("first letters of up to two words, uppercase", () => {
-    expect(placeAbbr("Osiedle Słoneczne")).toBe("OS");
-    expect(placeAbbr("Kraków")).toBe("K");
-    expect(placeAbbr("  Biuro  Kwadrat  Północ ")).toBe("BK");
+    expect(initials("Osiedle Słoneczne")).toBe("OS");
+    expect(initials("Kraków")).toBe("K");
+    expect(initials("  Biuro  Kwadrat  Północ ")).toBe("BK");
   });
 });

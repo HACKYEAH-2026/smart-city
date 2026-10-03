@@ -129,7 +129,7 @@ Wariant prosty: `IconButton square` (wstecz). Wariant „krok": wstecz + `StepPr
 N segmentów (grid, gap 6), wysokość 4, radius 2; wypełnione `primary`, reszta `border`.
 
 ### BottomTabBar
-3 zakładki (Pulpit / Miejsca / Konto) w siatce, tło `surface`, górna krawędź 1 px `borderSubtle`, padding 8/12/(insets.bottom ≈ 28)/12. Zakładka: kolumna, gap 4, padding 8, ikona 22 + etykieta 12. Aktywna: kolor `primary`, `tabActive`, pod etykietą kropka 5 dp `primary`; nieaktywna: `textSecondary`, `tab`. Użyj React Navigation `createBottomTabNavigator` z własnym `tabBar`.
+3 zakładki (Pulpit / Miejsca / Konto) w siatce, tło `surface`, górna krawędź 1 px `borderSubtle`, padding 8/12/(insets.bottom ≈ 28)/12. Zakładka: kolumna, gap 4, padding 8, ikona 22 + etykieta 12. Aktywna: kolor `primary`, `tabActive`, pod etykietą kropka 5 dp `primary`; nieaktywna: `textSecondary`, `tab`. „Miejsca" nie jest osobnym ekranem: otwiera przełącznik miejsc (BottomSheet) nad pulpitem (`/app?places=1`). Ekran „Brak miejsc" nie ma paska (konto: okrągły awatar w nagłówku).
 
 ### BottomSheet
 Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: `headingS` + `IconButton roundSunken` (zamknij). Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
@@ -139,7 +139,6 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 - Tło nagłówka: dekoracyjna mapa (SVG: ulice `mapRoadMinor` 7 px, woda `mapWater`) — opcjonalne, `aria-hidden`.
 - Siatka widżetów: 2 kolumny, gap 12; widżet pełnej szerokości = span 2. Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
 - `EmptyStateCard`: Card radius 20, padding 20, `IconBox` 48 radius 14 + tytuł 16/600 + opis `caption` (lineHeight 20).
-- `PlaceholderTile`: wysokość 128 (lub 96 dla szerokiego), border 1.5 dashed `dashed`, radius 20, padding 14, numer `label` w kolorze `textMuted` przy dolnej krawędzi.
 - `CtaCard` (Zaproś mieszkańców): radius 20, padding 16, tło `primary`, `IconBox` w wariancie `onPrimary`, tytuł 16/600 biały, podtytuł `caption` biały z `opacity.onPrimarySubtitle`, `ChevronRight` po prawej.
 
 ### HeroBanner
@@ -170,7 +169,7 @@ Ekran: tło `scannerBg`, padding 56/24/40. Ramka 268×268, radius 32, tło `scan
 | E-DolaczKod | Kod lub link | SegmentedControl, OtpInput, TextField url + „Wklej", Button primary |
 | E-Zaproszenia | Zaproszenia | InviteCard ×N |
 | E-PodgladMiejsca | Podgląd miejsca | zdjęcie/mapa + IconButton floating, panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
-| E-Dashboard | Pulpit (członek) | DashboardHeader, EmptyStateCard, PlaceholderTile, BottomTabBar |
+| E-Dashboard | Pulpit (członek) | DashboardHeader, EmptyStateCard, BottomTabBar |
 | E-PrzelacznikMiejsc | Przełącznik miejsc | BottomSheet, PlaceRow ×N, Button secondary ×2 |
 | E-NoweMiejsceTyp | Nowe miejsce 1/3 | ScreenHeader (krok), SelectableCard ×6, Button primary |
 | E-NoweMiejsceDane | Nowe miejsce 2/3 | TextField, pole adresu z mapą, textarea |
@@ -188,7 +187,7 @@ Przepływy: Logowanie ⇄ Rejestracja → Brak miejsc → (QR / Kod·Link / Zapr
 ## Dostępność (wymagania z projektu)
 - Cel dotyku ≥ 44×44 dp; mniejsze elementy dostają `hitSlop`.
 - Każdy przycisk-ikona ma `accessibilityLabel`; pola mają powiązane etykiety (`accessibilityLabel` = tekst Label).
-- Kontrast: tekst `text`/`textSecondary` na `background`/`surface` oraz `onPrimary` na `primary` spełnia 4,5:1. `textMuted` i `placeholder` NIE używać do informacji istotnych (tylko dekoracja/placeholder).
+- Kontrast: tekst `text`/`textSecondary` na `background`/`surface` oraz `onPrimary` na `primary` spełnia 4,5:1. `placeholder` NIE używać do informacji istotnych (tylko placeholder pola).
 - Uwaga: `primary` (#E50101) na `background` daje ok. 4,4:1, a na `primaryTint` ok. 4,2:1 — poniżej 4,5:1 dla małego tekstu. Linki i małe napisy w kolorze `primary` pisz w wadze 600+ (lub ≥ 18 px); na `primaryTint` dla tekstu używaj `primaryPressed` (6,3:1), tak jak w badge'ach.
 - Stan zaznaczenia nie może zależeć wyłącznie od koloru — SelectableCard/RadioCard zmieniają też grubość ramki i wypełnienie kropki.
 - Role: `radio`/`radiogroup`, `switch`, `tab`/`tablist`, `button`, `link`.

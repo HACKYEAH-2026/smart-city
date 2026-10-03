@@ -1,25 +1,39 @@
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet } from "react-native";
+import { tapFeedback } from "../lib/haptics";
 import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
+import { Text } from "./Text";
 
-export interface IconButtonProps {
-  icon: LucideIcon;
+/** square: back button in screen headers · round: bell or account avatar · roundSunken: close in a bottom sheet. */
+export type IconButtonVariant = "square" | "round" | "roundSunken";
+
+export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
   label: string;
   onPress: () => void;
-}
+  variant?: IconButtonVariant;
+} & (
+  | { icon: LucideIcon; text?: undefined }
+  /** Initials instead of an icon (account avatar, `typography.buttonS`). */
+  | { text: string; icon?: undefined }
+);
 
-/** Square 44 × 44 icon button, e.g. the back button in a screen header (COMPONENTS.md → IconButton, square). */
-export function IconButton({ icon, label, onPress }: IconButtonProps) {
+/** 44 × 44 icon button (COMPONENTS.md → IconButton). A press gives a light haptic tick. */
+export function IconButton({ label, onPress, variant = "square", icon, text }: IconButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && { opacity: opacity.pressed }]}
+      onPressIn={tapFeedback}
+      style={({ pressed }) => [styles.button, styles[variant], pressed && { opacity: opacity.pressed }]}
     >
-      <Icon icon={icon} size={spacing[9]} />
+      {icon ? (
+        <Icon icon={icon} size={variant === "roundSunken" ? sizes.iconS : spacing[9]} />
+      ) : (
+        <Text variant="buttonS">{text}</Text>
+      )}
     </Pressable>
   );
 }
@@ -28,11 +42,20 @@ const styles = StyleSheet.create({
   button: {
     width: sizes.iconButton,
     height: sizes.iconButton,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  square: {
     borderRadius: radii.lg,
     borderWidth: borders.hairline,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
   },
+  round: {
+    borderRadius: radii.pill,
+    borderWidth: borders.hairline,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
 });

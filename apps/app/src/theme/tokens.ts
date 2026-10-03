@@ -16,7 +16,6 @@ export const colors = {
   text: "#1B1B1F", // main text, headings, "dark" button
   textBody: "#3E3E46", // longer descriptions
   textSecondary: "#5E5E66", // captions, labels, helper text
-  textMuted: "#8A8478", // placeholder tile numbering (decoration only)
   iconMuted: "#8A919C", // chevrons in list rows
   placeholder: "#8A8A92", // input placeholder
 
@@ -83,6 +82,8 @@ export const layout = {
   contentMaxWidth: 560,
   /** Login screen: the brand row starts this far from the top edge (design y = 200). */
   loginContentTop: 200,
+  /** Red hero banner: inner padding (design 22, off the spacing scale). */
+  heroPadding: 22,
   /** Outside the design: a focused field stays this far above the keyboard, so the form's button below it
    * (gap 14 + buttonLg 54) is visible too. */
   keyboardBottomOffset: 84,
@@ -118,15 +119,21 @@ export const sizes = {
   radioDot: 22,
   stepBarHeight: 4,
   tabIcon: 22,
+  /** Small icons: chevrons in list rows and icons inside buttons (18), the check in the active-place mark (14). */
+  iconS: 18,
+  iconXs: 14,
+  /** Red circle with a check on the active row of the place switcher. */
+  selectedMark: 24,
+  /** Red hero banner (no-places screen): minimum height, text sits at the bottom. */
+  heroBanner: 172,
   successMark: 64,
   scannerFrame: 268,
   /** Login screen: height of the map illustration at the top. */
   authMap: 300,
   /** Dashboard header: height of the map decoration. */
   dashboardMap: 230,
-  /** Dashboard placeholder tiles: 128 high (two per row), 96 high for the full-width one. */
-  placeholderTile: 128,
-  placeholderTileWide: 96,
+  /** Icon inside the dashboard's empty-state card (48 dp box). */
+  emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
   sheetHandleWidth: 40,
   sheetHandleHeight: 5,
@@ -163,6 +170,7 @@ export const typography = {
   body: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 22 },
   caption: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
   captionRelaxed: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20.3 }, // descriptions in cards (1.45)
+  cardTitle: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20 }, // titles in cards and list rows (16/600)
   small: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
   tab: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   tabActive: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
@@ -247,6 +255,9 @@ export const opacity = {
   onPrimarySubtitle: 0.9,
   /** Halo around the current-location pin on the login map illustration. */
   routeHalo: 0.18,
+  /** Hero banner decoration: white streets and the halo around the white pin. */
+  heroRoad: 0.09,
+  heroPinHalo: 0.25,
   /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
   scrim: 0.55,
 } as const;

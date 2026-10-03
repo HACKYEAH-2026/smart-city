@@ -2,7 +2,10 @@ import type { TypographyToken } from "../theme";
 import { Text, type TextProps } from "./Text";
 
 type HeadingLevel = 1 | 2 | 3;
-type HeadingVariant = Extract<TypographyToken, "titleXL" | "title" | "heading" | "headingS">;
+type HeadingVariant = Extract<
+  TypographyToken,
+  "titleXL" | "title" | "heading" | "headingM" | "headingS" | "cardTitle" | "label"
+>;
 
 export interface HeadingProps extends Omit<TextProps, "variant"> {
   /** Semantic level: h1–h3 on the web, aria-level for screen readers. */
