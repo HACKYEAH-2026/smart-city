@@ -6,6 +6,15 @@ Jakość i spójność wzorca są ważniejsze niż liczba funkcji.
 Stack: Bun + Hono + Drizzle (SQLite przez bun:sqlite; w pamięci w testach) + Better Auth + Expo (React Native,
 Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JSON (en domyślny).
 
+## Ustawienia lokalne
+Lokalne reguły (poza gitem): @AGENTS.local.md
+Jeśli plik `AGENTS.local.md` istnieje, przeczytaj go na starcie sesji i traktuj jako obowiązujące reguły.
+Ten plik tylko dodaje reguły, nie nadpisuje ich. Przy sprzeczności wygrywa AGENTS.md.
+
+## Język
+- Interfejs aplikacji (wszystko, co widzi użytkownik) musi być po polsku.
+- Kod po angielsku: nazwy zmiennych, funkcji, typów, plików, tras API, kolumn bazy i kluczy i18n.
+
 ## Definicja gotowości (jedyna)
 Zadanie jest skończone tylko wtedy, gdy `bun run verify` kończy się kodem 0, a w raporcie jest
 jego realny output (tabela podsumowania). "Powinno działać" nie jest dowodem.

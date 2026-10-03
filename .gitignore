@@ -5,6 +5,8 @@ dist-ssr/
 *.tsbuildinfo
 .env
 .env.*
+# Lokalne reguły agentów (każdy ma swoje)
+AGENTS.local.md
 !.env.example
 test-results/
 playwright-report/
