@@ -5,7 +5,7 @@ import { tapFeedback } from "../lib/haptics";
 import { placeKindLabel } from "../lib/placeKinds";
 import { initials } from "../lib/places";
 import { t } from "../texts";
-import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { Badge } from "./Badge";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
@@ -25,7 +25,7 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
       accessibilityState={{ selected: active }}
       onPress={onPress}
       onPressIn={tapFeedback}
-      style={[styles.row, active ? styles.active : styles.idle]}
+      style={({ pressed }) => [styles.row, active ? styles.active : styles.idle, pressed && styles.pressed]}
     >
       <View style={styles.avatar}>
         <Text variant="abbr" color="primary">
@@ -51,6 +51,7 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   row: {
     flexDirection: "row",
     alignItems: "center",

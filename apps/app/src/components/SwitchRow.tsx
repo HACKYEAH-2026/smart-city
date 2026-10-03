@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Switch, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { colors, radii, shadows, spacing } from "../theme";
+import { colors, opacity, radii, shadows, spacing } from "../theme";
 import { Text } from "./Text";
 
 export interface SwitchRowProps {
@@ -21,7 +21,7 @@ export function SwitchRow({ label, value, onChange }: SwitchRowProps) {
       aria-checked={value}
       onPressIn={tapFeedback}
       onPress={() => onChange(!value)}
-      style={styles.row}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <Text variant="buttonM" style={styles.label}>
         {label}
@@ -39,6 +39,7 @@ export function SwitchRow({ label, value, onChange }: SwitchRowProps) {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   row: {
     flexDirection: "row",
     alignItems: "center",

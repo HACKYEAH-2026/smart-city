@@ -35,7 +35,7 @@ Logo „Roofline M": dwa dachy rysują literę M (Miejsce), kropka między domam
 Rozmiary: `lg` 54 dp / `typography.button` (CTA na dole ekranu) · `md` 50 dp (Google/Apple, `buttonM`) · `sm` 46 dp radius 12 (Odrzuć/Akceptuj, w karcie) · `xs` 40 dp radius 12 (`buttonS`, „Wygeneruj nowy").
 Radius: lg/md → `radii.lg` (14), sm/xs → `radii.md` (12). Minimalny cel dotyku 44 dp (xs ma 40 — używać tylko z `hitSlop`).
 Przycisk CTA zawsze przy dolnej krawędzi ekranu (spacer `flex:1` nad nim). Dwa przyciski obok siebie: grid 2 kolumny, gap 10.
-Stany: pressed (primary → `primaryPressed`; inne `opacity.pressed`), disabled (`opacity.disabled`).
+Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `primaryPressed`, secondary/onDark/ghost → `surfaceSunken`, tint → `surfaceMuted`, dark → `textBody`, ghostOnDark → `onPrimaryOverlay`, destructiveGhost → `primaryTint`), disabled (`opacity.disabled`).
 
 ### IconButton
 44×44 dp, ikona 20 dp. Warianty:

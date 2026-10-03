@@ -2,7 +2,8 @@ import { Link as RouterLink } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, sizes, spacing } from "../theme";
+import { usePressed } from "../lib/pressed";
+import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -14,9 +15,15 @@ export interface CreateRowProps {
 
 /** Dashed row with a red plus that starts creating something (COMPONENTS.md → CreateRow). A link on the web. */
 export function CreateRow({ label, href }: CreateRowProps) {
+  const press = usePressed(tapFeedback);
   return (
     <RouterLink href={href as never} asChild>
-      <Pressable accessibilityRole="link" onPressIn={tapFeedback} style={styles.row}>
+      <Pressable
+        accessibilityRole="link"
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={StyleSheet.flatten([styles.row, press.pressed && styles.pressed])}
+      >
         <View style={styles.plus}>
           <Icon icon={Plus} color="onPrimary" strokeWidth={2.2} />
         </View>
@@ -27,6 +34,7 @@ export function CreateRow({ label, href }: CreateRowProps) {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   row: {
     flexDirection: "row",
     alignItems: "center",

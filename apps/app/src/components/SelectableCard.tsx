@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { IconBox } from "./IconBox";
 import { Text } from "./Text";
 
@@ -25,7 +25,7 @@ export function SelectableCard({ icon, title, hint, selected, onPress }: Selecta
       aria-checked={selected}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={[styles.card, selected ? styles.selected : styles.idle]}
+      style={({ pressed }) => [styles.card, selected ? styles.selected : styles.idle, pressed && styles.pressed]}
     >
       <IconBox icon={icon} size={sizes.avatarLg} selected={selected} />
       <View style={styles.text}>
@@ -39,6 +39,7 @@ export function SelectableCard({ icon, title, hint, selected, onPress }: Selecta
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   card: {
     flexBasis: "40%",
     flexGrow: 1,

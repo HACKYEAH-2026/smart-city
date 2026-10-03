@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { Badge } from "./Badge";
 import { Text } from "./Text";
 
@@ -26,7 +26,12 @@ export function RadioCard({ label, description, badge, selected, onPress }: Radi
       aria-checked={selected}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={[styles.card, description ? styles.top : null, selected ? styles.selected : styles.idle]}
+      style={({ pressed }) => [
+        styles.card,
+        description ? styles.top : null,
+        selected ? styles.selected : styles.idle,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={[styles.dot, selected && styles.dotSelected]}>
         {selected ? <View style={styles.dotFill} /> : null}
@@ -47,6 +52,7 @@ export function RadioCard({ label, description, badge, selected, onPress }: Radi
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   card: {
     minHeight: sizes.iconBox,
     flexDirection: "row",

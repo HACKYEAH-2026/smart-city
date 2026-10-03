@@ -1,10 +1,11 @@
 import { Link as RouterLink, usePathname } from "expo-router";
-import { LayoutDashboard, MapPin, User } from "lucide-react-native";
+import { LayoutDashboard, type LucideIcon, MapPin, User } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tapFeedback } from "../lib/haptics";
+import { usePressed } from "../lib/pressed";
 import { t } from "../texts";
-import { borders, colors, radii, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -22,32 +23,41 @@ export function BottomTabBar() {
   ] as const;
   return (
     <View role="navigation" aria-label={t.nav_main} style={[styles.bar, { paddingBottom: insets.bottom + spacing[4] }]}>
-      {tabs.map((tab) => {
-        const active = pathname === tab.href;
-        return (
-          // Tabs replace each other (no stack growth), so the new section fades in and back works as expected.
-          <RouterLink key={tab.href} href={tab.href as never} replace asChild>
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel={tab.label}
-              aria-current={active ? "page" : undefined}
-              onPressIn={tapFeedback}
-              style={styles.tab}
-            >
-              <Icon icon={tab.icon} size={sizes.tabIcon} color={active ? "primary" : "textSecondary"} />
-              <Text variant={active ? "tabActive" : "tab"} color={active ? "primary" : "textSecondary"}>
-                {tab.label}
-              </Text>
-              {active ? <View style={styles.dot} /> : null}
-            </Pressable>
-          </RouterLink>
-        );
-      })}
+      {tabs.map((tab) => (
+        <TabLink key={tab.href} href={tab.href} label={tab.label} icon={tab.icon} active={pathname === tab.href} />
+      ))}
     </View>
   );
 }
 
+/**
+ * One section of the bar: a link that replaces the current one (no stack growth), so the new section fades in and
+ * back works as expected. The pressed state is an object style, since Slot (asChild) drops style functions.
+ */
+function TabLink({ href, label, icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
+  const press = usePressed(tapFeedback);
+  return (
+    <RouterLink href={href as never} replace asChild>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={label}
+        aria-current={active ? "page" : undefined}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={StyleSheet.flatten([styles.tab, press.pressed && styles.pressed])}
+      >
+        <Icon icon={icon} size={sizes.tabIcon} color={active ? "primary" : "textSecondary"} />
+        <Text variant={active ? "tabActive" : "tab"} color={active ? "primary" : "textSecondary"}>
+          {label}
+        </Text>
+        {active ? <View style={styles.dot} /> : null}
+      </Pressable>
+    </RouterLink>
+  );
+}
+
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   bar: {
     flexDirection: "row",
     backgroundColor: colors.surface,

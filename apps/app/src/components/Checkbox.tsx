@@ -1,7 +1,7 @@
 import { Check } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, spacing } from "../theme";
+import { borders, colors, opacity, radii, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -21,7 +21,7 @@ export function Checkbox({ checked, onChange, label }: CheckboxProps) {
       accessibilityState={{ checked }}
       onPressIn={tapFeedback}
       onPress={() => onChange(!checked)}
-      style={styles.row}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={[styles.box, checked && styles.boxChecked]}>
         {checked ? <Icon icon={Check} size={spacing[7]} color="onPrimary" strokeWidth={2.6} /> : null}
@@ -34,6 +34,7 @@ export function Checkbox({ checked, onChange, label }: CheckboxProps) {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   row: { flexDirection: "row", alignItems: "flex-start", gap: spacing[6] },
   box: {
     width: spacing[9],

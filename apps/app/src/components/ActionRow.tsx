@@ -2,6 +2,7 @@ import { Link as RouterLink } from "expo-router";
 import { ChevronRight, type LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
+import { usePressed } from "../lib/pressed";
 import { colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { IconBox } from "./IconBox";
@@ -17,6 +18,7 @@ export interface ActionRowProps {
 
 /** Row that opens a screen (COMPONENTS.md → ActionRow): icon box, title over subtitle, chevron. A link on the web. */
 export function ActionRow({ icon, title, subtitle, href }: ActionRowProps) {
+  const press = usePressed(tapFeedback);
   const content = (
     <>
       <IconBox icon={icon} />
@@ -38,7 +40,12 @@ export function ActionRow({ icon, title, subtitle, href }: ActionRowProps) {
   }
   return (
     <RouterLink href={href as never} asChild>
-      <Pressable accessibilityRole="link" onPressIn={tapFeedback} style={styles.row}>
+      <Pressable
+        accessibilityRole="link"
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={StyleSheet.flatten([styles.row, press.pressed && styles.pressed])}
+      >
         {content}
       </Pressable>
     </RouterLink>
@@ -46,6 +53,7 @@ export function ActionRow({ icon, title, subtitle, href }: ActionRowProps) {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   disabled: { opacity: opacity.disabled },
   row: {
     flexDirection: "row",

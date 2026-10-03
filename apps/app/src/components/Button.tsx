@@ -39,15 +39,15 @@ const RADIUS: Record<ButtonSize, number> = {
   xs: radii.md,
 };
 
-const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; pressedBg?: string }> = {
+const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; pressedBg: string }> = {
   primary: { bg: colors.primary, fg: colors.onPrimary, pressedBg: colors.primaryPressed },
-  secondary: { bg: colors.surface, border: colors.border, fg: colors.text },
-  tint: { bg: colors.background, fg: colors.text },
-  dark: { bg: colors.text, fg: colors.surface },
-  onDark: { bg: colors.surface, fg: colors.text },
-  ghost: { bg: "transparent", fg: colors.text },
-  ghostOnDark: { bg: colors.onDarkOverlay, fg: colors.onPrimary },
-  destructiveGhost: { bg: "transparent", fg: colors.primaryPressed },
+  secondary: { bg: colors.surface, border: colors.border, fg: colors.text, pressedBg: colors.surfaceSunken },
+  tint: { bg: colors.background, fg: colors.text, pressedBg: colors.surfaceMuted },
+  dark: { bg: colors.text, fg: colors.surface, pressedBg: colors.textBody },
+  onDark: { bg: colors.surface, fg: colors.text, pressedBg: colors.surfaceSunken },
+  ghost: { bg: "transparent", fg: colors.text, pressedBg: colors.surfaceSunken },
+  ghostOnDark: { bg: colors.onDarkOverlay, fg: colors.onPrimary, pressedBg: colors.onPrimaryOverlay },
+  destructiveGhost: { bg: "transparent", fg: colors.primaryPressed, pressedBg: colors.primaryTint },
 };
 
 /**
@@ -81,12 +81,12 @@ export function Button({
         {
           height: HEIGHT[size],
           borderRadius: RADIUS[size],
-          backgroundColor: pressed && v.pressedBg ? v.pressedBg : v.bg,
+          backgroundColor: pressed ? v.pressedBg : v.bg,
           borderColor: v.border ?? "transparent",
           borderWidth: v.border ? 1 : 0,
           alignSelf: fullWidth ? "stretch" : "flex-start",
           paddingHorizontal: size === "xs" || !fullWidth ? spacing[6] : spacing[8],
-          opacity: disabled ? opacity.disabled : pressed && !v.pressedBg ? opacity.pressed : 1,
+          opacity: disabled ? opacity.disabled : 1,
         },
         style,
       ]}
