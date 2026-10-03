@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { testGoogleIdToken } from "../../api/src/test-google";
 import { t } from "../src/texts";
 import { expect, joinKrakow, test } from "./fixtures";
 
@@ -43,6 +44,57 @@ test("wrong password shows an error and does not let you in", async ({ page }) =
   await expect(page).toHaveURL(/\/login$/);
   await login(page, "wrong@example.test", "incorrect1");
   await expect(page.getByRole("alert")).toHaveText(t.auth_login_error);
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+/**
+ * Google sign-in runs only on the phones (native account picker); the web build used for E2E has none, so the test
+ * stands in for the picker: it returns this ID token (null = the user closed the picker). The API accepts test
+ * tokens (apps/api/src/test-google.ts); from there on it is the production path: account, session, screens.
+ */
+const pickGoogleAccount = (page: Page, email: string | null) =>
+  page.addInitScript(
+    (token) => {
+      (globalThis as unknown as { __GOOGLE_ID_TOKEN__: string | null }).__GOOGLE_ID_TOKEN__ = token;
+    },
+    email ? testGoogleIdToken({ email, name: "Jan Kowalski" }) : null,
+  );
+
+/** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
+const signOut = async (page: Page) => {
+  await page.goto("/app/account");
+  await page.getByRole("button", { name: t.sign_out }).click();
+  await expect(page).toHaveURL(/\/login$/);
+};
+
+test("Google: the first sign-in creates the account, the next one opens the same account", async ({ page, api }) => {
+  await pickGoogleAccount(page, "jan@gmail.test");
+  await page.goto("/login");
+  await expect(page.getByText(t.auth_google_consent)).toBeVisible();
+  await page.getByRole("button", { name: t.auth_google }).click();
+  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+
+  await signOut(page);
+  await joinKrakow(api.url, "jan@gmail.test");
+  await page.getByRole("button", { name: t.auth_google }).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+});
+
+test("Google: an email that already has a password gets a message, not a second way in", async ({ page }) => {
+  await pickGoogleAccount(page, "ola@gmail.test");
+  await register(page, "ola@gmail.test");
+  await signOut(page);
+  await page.getByRole("button", { name: t.auth_google }).click();
+  await expect(page.getByRole("alert")).toHaveText(t.auth_google_exists);
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("Google: closing the account picker leaves the login screen as it was", async ({ page }) => {
+  await pickGoogleAccount(page, null);
+  await page.goto("/login");
+  await page.getByRole("button", { name: t.auth_google }).click();
+  await expect(page.getByRole("button", { name: t.auth_google })).toBeEnabled();
+  await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page).toHaveURL(/\/login$/);
 });
 

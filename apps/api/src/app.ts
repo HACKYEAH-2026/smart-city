@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { createAuth } from "./auth";
+import { authProviders, createAuth, type GoogleIdTokenVerifier } from "./auth";
 import type { AppEnv } from "./context";
 import type { Db } from "./db";
 import type { Env } from "./env";
@@ -31,10 +31,23 @@ function aiFromEnv(env: Env): AIProviders {
 /**
  * Assembles the app. Receives a connected SurrealDB client (embedded or server — the app does not care).
  * The only place routers are mounted; AppType is exported for the frontend RPC client.
- * `push` defaults to the Expo Push Service (tests pass a fake).
+ * `push` defaults to the Expo Push Service (tests pass a fake); `verifyGoogleIdToken` is for tests only (Google's own
+ * check by default).
  */
-export function createApp({ db, env, ai, push }: { db: Db; env: Env; ai?: AIProviders; push?: PushSender }) {
-  const auth = createAuth(db, env);
+export function createApp({
+  db,
+  env,
+  ai,
+  push,
+  verifyGoogleIdToken,
+}: {
+  db: Db;
+  env: Env;
+  ai?: AIProviders;
+  push?: PushSender;
+  verifyGoogleIdToken?: GoogleIdTokenVerifier;
+}) {
+  const auth = createAuth(db, env, { verifyGoogleIdToken });
   const files = new FileService(
     db,
     new DiskFileStore(env.FILES_DIR ?? defaultFilesDir()),
@@ -76,6 +89,8 @@ export function createApp({ db, env, ai, push }: { db: Db; env: Env; ai?: AIProv
 
   const routes = app
     .get("/health", (c) => c.json({ ok: true }))
+    /** Public: which sign-in methods the login screen shows (outside /api/auth/*, which belongs to Better Auth). */
+    .get("/api/auth-providers", (c) => c.json(authProviders(env), 200))
     .route("/api/communities", communitiesRoutes)
     .route("/api/files", filesRoutes)
     .route("/api/me", meRoutes)

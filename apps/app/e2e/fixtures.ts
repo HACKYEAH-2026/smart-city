@@ -2,12 +2,13 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { type AddressInfo, createServer } from "node:net";
 import { resolve } from "node:path";
 import { test as base, expect } from "@playwright/test";
+import { TEST_GOOGLE_CLIENT_ID } from "../../api/src/test-google";
 
 /**
  * E2E fixtures:
  *  - worker-scoped `api`: a separate API process (bun apps/api/src/test-server.ts) per worker, on a port the
  *    OS picks (other E2E runs on this machine must never reach it, nor this run theirs),
- *    with its own embedded in-memory SurrealDB.
+ *    with its own embedded in-memory SurrealDB and Google sign-in on fake ID tokens (test-google.ts).
  *  - auto fixture: POST /__test/reset before EVERY test.
  *  - the frontend gets the worker's API URL via window.__API_URL__ (runtime config).
  */
@@ -57,6 +58,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           PORT: String(port),
           DATABASE_URL: "mem://",
           API_URL: url,
+          GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID,
           TRUSTED_ORIGINS: web,
         },
         stdio: ["ignore", "inherit", "inherit"],

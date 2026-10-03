@@ -1,17 +1,29 @@
+import type { GoogleClientIds } from "@app/shared";
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { MapPin } from "lucide-react-native";
 import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
-import { Button, Heading, Icon, Link, MapDecoration, Screen, Text, TextField } from "../components";
-import { useAuthActions } from "../data/session";
+import { Button, GoogleLogo, Heading, Icon, Link, MapDecoration, Screen, Text, TextField } from "../components";
+import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
 import { t } from "../texts";
 import { layout, spacing } from "../theme";
 
-/** Login (design E-Logowanie): map illustration, brand, welcome copy, email and password, sign-up link. */
+/** Google sign-in outcomes the screen explains (a closed account picker needs no message). */
+const GOOGLE_ERROR: Record<Exclude<GoogleSignInResult, "ok" | "cancelled">, string> = {
+  exists: t.auth_google_exists,
+  error: t.auth_google_error,
+};
+
+/**
+ * Login (design E-Logowanie): map illustration, brand, welcome copy, email and password, Google, sign-up link.
+ * Google signs in and signs up in one step (the account is created at the first sign-in); the button shows only
+ * where the native account picker exists (not in Expo Go) and the API has a Google client.
+ */
 export default function LoginScreen() {
   const router = useRouter();
   const auth = useAuthActions();
+  const googleIds = useGoogleClientIds().data;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +39,15 @@ export default function LoginScreen() {
     // Message from our translations, not from Better Auth (which is always in English).
     if (!ok) return setError(t.auth_login_error);
     router.replace("/app");
+  };
+
+  const continueWithGoogle = async (ids: GoogleClientIds) => {
+    setPending(true);
+    setError(null);
+    const result = await auth.signInWithGoogle(ids);
+    setPending(false);
+    if (result === "ok") return router.replace("/app");
+    if (result !== "cancelled") setError(GOOGLE_ERROR[result]);
   };
 
   return (
@@ -67,6 +88,21 @@ export default function LoginScreen() {
           onSubmitEditing={submit}
         />
         <Button label={t.auth_submit_login} onPress={submit} disabled={pending} />
+        {googleIds ? (
+          <View style={styles.social}>
+            <Button
+              variant="secondary"
+              size="md"
+              label={t.auth_google}
+              leftIcon={<GoogleLogo />}
+              onPress={() => continueWithGoogle(googleIds)}
+              disabled={pending}
+            />
+            <Text variant="small" color="textSecondary" style={styles.center}>
+              {t.auth_google_consent}
+            </Text>
+          </View>
+        ) : null}
         {/* Under the buttons, so nothing above it moves; the spacer below takes the extra height. */}
         {error ? (
           <Text variant="bodyL" color="primaryPressed" role="alert">
@@ -88,6 +124,8 @@ const styles = StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: spacing[4] },
   intro: { gap: spacing[4] },
   form: { gap: spacing[7] },
+  // Design: social sign-in buttons sit in a grid with gap 10 under the main button.
+  social: { gap: spacing[5] },
   grow: { flex: 1 },
   center: { textAlign: "center" },
 });
