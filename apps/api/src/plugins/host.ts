@@ -226,9 +226,12 @@ export class PluginHost {
     return parsed.data;
   }
 
-  /** Image nodes get a signed, short-lived URL (the app needn't know how files work). */
+  /** Image nodes (and a highlight's thumbnail) get a signed, short-lived URL (the app needn't know how files work). */
   private signImages(node: UINode): UINode {
     if (node.type === "Image") return { ...node, url: this.services.files.signedUrl(node.file) };
+    if (node.type === "Highlight" && node.image) {
+      return { ...node, image: { ...node.image, url: this.services.files.signedUrl(node.image.file) } };
+    }
     if ("children" in node && node.children) {
       return { ...node, children: node.children.map((c) => this.signImages(c)) } as UINode;
     }

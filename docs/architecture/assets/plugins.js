@@ -617,8 +617,8 @@ RETURN $result;
         ? `<span class="chip bad">rejects</span> <code>Error: Plugin did not declare the "${missing[0]}" permission</code>
            at the first undeclared call; inside a tool, <code>guard()</code> turns it into
            <code>500 plugin_error</code>. <span class="muted">The manifest would be <code>permissions: [${[...granted]
-          .map((p) => `"${p}"`)
-          .join(", ")}]</code>.</span>`
+             .map((p) => `"${p}"`)
+             .join(", ")}]</code>.</span>`
         : `<span class="chip ok">all four reach real services</span> each one scoped to this installation.`;
     };
     set.addEventListener("change", update);
@@ -997,7 +997,7 @@ RETURN $result;`,
           ...fresh.slice(0, 2).map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
           ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
         ],
-        ui.navigate("list"),
+        { onPress: ui.navigate("list") },
       );
     };
 
@@ -1035,10 +1035,11 @@ RETURN $result;`,
         case "Button":
           return `<button type="button" class="pv-btn is-${node.variant ?? "primary"}" data-action="${act(node.action)}">${esc(node.label)}</button>`;
         case "TextInput":
-          return `<label class="pv-field"><span>${esc(node.label)}</span>${node.multiline
+          return `<label class="pv-field"><span>${esc(node.label)}</span>${
+            node.multiline
               ? `<textarea name="${esc(node.name)}" rows="2"></textarea>`
               : `<input name="${esc(node.name)}" />`
-            }</label>`;
+          }</label>`;
         case "Form":
           return `<form class="pv-form" data-submit="${act(node.submit)}">${kids(node.children)}<button type="submit" class="pv-btn is-primary">${esc(node.submitLabel)}</button></form>`;
         default:
@@ -1073,8 +1074,9 @@ RETURN $result;`,
         setCode(json, JSON.stringify(response, null, 2));
         $("sdui-json-title").textContent = "Dashboard response (widget rendered for this user)";
         $("sdui-request").textContent = "GET /api/communities/krakow/dashboard";
-        phone.innerHTML = `<div class="pv-bar"><span>Pulpit</span><span>Kraków</span></div><div class="pv-messages" id="pv-messages"></div>${node ? render(node, actions, false) : `<p class="pv-empty">The widget returned null: it is left out.</p>`
-          }`;
+        phone.innerHTML = `<div class="pv-bar"><span>Pulpit</span><span>Kraków</span></div><div class="pv-messages" id="pv-messages"></div>${
+          node ? render(node, actions, false) : `<p class="pv-empty">The widget returned null: it is left out.</p>`
+        }`;
       }
       state2.actions = actions;
       showMessage();

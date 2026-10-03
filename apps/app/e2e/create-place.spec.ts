@@ -46,9 +46,9 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await page.getByRole("button", { name: t.created_go_dashboard }).click();
 
   await expect(page.getByRole("heading", { name: "Kamienica Lipowa 12", level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Zgłoszenia", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Ogłoszenia", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Ogłoszenia`, exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Kamienica Lipowa 12" }).click();
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
 });

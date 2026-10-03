@@ -1,17 +1,9 @@
-import { PluginRenderer } from '@app/app/src/plugins/Renderer';
-import { t } from '@app/app/src/texts';
-import { type UINode, ui } from '@app/plugin-sdk';
-import {
-  ChevronDown,
-  ChevronLeft,
-  Flashlight,
-  Puzzle,
-  Settings,
-  Sparkles,
-  X,
-} from 'lucide-react-native';
-import { Image, StyleSheet, View } from 'react-native';
-import { continueRender, delayRender } from 'remotion';
+import { PluginRenderer } from "@app/app/src/plugins/Renderer";
+import { t } from "@app/app/src/texts";
+import { type UINode, ui } from "@app/plugin-sdk";
+import { ChevronDown, ChevronLeft, Flashlight, Puzzle, Settings, Sparkles, X } from "lucide-react-native";
+import { Image, StyleSheet, View } from "react-native";
+import { continueRender, delayRender } from "remotion";
 import {
   ActionRow,
   Badge,
@@ -33,9 +25,9 @@ import {
   spacing,
   Text,
   TextField,
-} from '../app-ui';
-import { Spinner } from './kit';
-import { AppScreen } from './Phone';
+} from "../app-ui";
+import { Spinner } from "./kit";
+import { AppScreen } from "./Phone";
 
 /**
  * The app's screens as the ad shows them: the real design-system components, and plugin views drawn by the
@@ -44,16 +36,11 @@ import { AppScreen } from './Phone';
  */
 
 const nothing = () => {};
-const noUpload = () => Promise.reject(new Error('The ad uploads nothing'));
+const noUpload = () => Promise.reject(new Error("The ad uploads nothing"));
 
 /** A plugin view rendered by the app's renderer. */
 const Plugin = ({ node }: { node: UINode }) => (
-  <PluginRenderer
-    node={node}
-    onAction={nothing}
-    busy={false}
-    upload={noUpload}
-  />
+  <PluginRenderer node={node} onAction={nothing} busy={false} upload={noUpload} />
 );
 
 /** The photo in the sample report: a street at dusk under a lamp that does not shine. */
@@ -69,34 +56,29 @@ export const LAMP_PHOTO = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://
 </svg>`)}`;
 
 // The app's <Image> shows a photo only once it has loaded; loaded before rendering, it shows in the first frame.
-const photoReady = delayRender('Loading the sample photo');
+const photoReady = delayRender("Loading the sample photo");
 Image.prefetch(LAMP_PHOTO).then(() => continueRender(photoReady));
 
 const STATUS = {
-  open: { text: 'Nowe', tone: 'info' },
-  accepted: { text: 'Przyjęte', tone: 'warning' },
-  fixed: { text: 'Naprawione', tone: 'success' },
+  open: { text: "Nowe", tone: "info" },
+  accepted: { text: "Przyjęte", tone: "warning" },
+  fixed: { text: "Naprawione", tone: "success" },
 } as const;
 export type Status = keyof typeof STATUS;
 
 /** "1 osoba zgłasza", "3 osoby zgłaszają", "5 osób zgłasza" (the issues plugin's wording). */
 const supporters = (n: number) => {
   const few = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
-  return n === 1
-    ? '1 osoba zgłasza'
-    : few
-      ? `${n} osoby zgłaszają`
-      : `${n} osób zgłasza`;
+  return n === 1 ? "1 osoba zgłasza" : few ? `${n} osoby zgłaszają` : `${n} osób zgłasza`;
 };
 
 export const ISSUE = {
-  title: 'Nie świeci latarnia przy przystanku',
-  description:
-    'Latarnia przy przystanku nie świeci od tygodnia. Wieczorem jest tu zupełnie ciemno.',
-  category: 'Oświetlenie',
+  title: "Nie świeci latarnia przy przystanku",
+  description: "Latarnia przy przystanku nie świeci od tygodnia. Wieczorem jest tu zupełnie ciemno.",
+  category: "Oświetlenie",
 };
 const photo = (alt: string): UINode => ({
-  ...ui.image('lamp', alt),
+  ...ui.image("lamp", alt),
   url: LAMP_PHOTO,
 });
 
@@ -116,94 +98,77 @@ export const IssueCard = ({ support }: { support: number }) => (
 );
 
 /** Widget of the issues plugin: the most reported open issues and „Zgłoś problem”. */
-export const issuesWidget = (support: number, status: Status = 'open') =>
+export const issuesWidget = (support: number, status: Status = "open") =>
   ui.widget(
-    'Zgłoszenia',
+    "Zgłoszenia",
     [
-      ui.list('Najczęściej zgłaszane', [
+      ui.list("Najczęściej zgłaszane", [
         ui.card({
           title: ISSUE.title,
           subtitle: supporters(support),
           badge: STATUS[status],
         }),
         ui.card({
-          title: 'Dziura w chodniku przy szkole',
+          title: "Dziura w chodniku przy szkole",
           subtitle: supporters(2),
           badge: STATUS.open,
         }),
         ui.card({
-          title: 'Przepełniony kosz na skwerze',
+          title: "Przepełniony kosz na skwerze",
           subtitle: supporters(1),
           badge: STATUS.accepted,
         }),
       ]),
-      ui.button('Zgłoś problem', ui.navigate('new')),
+      ui.button("Zgłoś problem", ui.navigate("new")),
     ],
-    ui.navigate('list'),
+    { onPress: ui.navigate("list") },
   );
 
 /** Widget of the announcements plugin with one announcement since the last visit. */
 export const announcementsWidget = (title: string) =>
   ui.widget(
-    'Ogłoszenia',
+    "Ogłoszenia",
     [
-      ui.text('1 nowe ogłoszenie od Twojej ostatniej wizyty', 'soft'),
-      ui.card({ title, onPress: ui.navigate('item') }),
-      ui.button('Wszystkie ogłoszenia', ui.navigate('list'), 'quiet'),
+      ui.text("1 nowe ogłoszenie od Twojej ostatniej wizyty", "soft"),
+      ui.card({ title, onPress: ui.navigate("item") }),
+      ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
     ],
-    ui.navigate('list'),
+    { onPress: ui.navigate("list") },
   );
 
 /** „Czy to ten sam problem?” — the issues plugin's question before merging two reports. */
 export const mergeView = () =>
-  ui.screen('Czy to ten sam problem?', [
-    ui.text('Znaleźliśmy podobne zgłoszenie w okolicy.', 'soft'),
+  ui.screen("Czy to ten sam problem?", [
+    ui.text("Znaleźliśmy podobne zgłoszenie w okolicy.", "soft"),
     ui.card({
       title: ISSUE.title,
       subtitle: ISSUE.category,
       badge: STATUS.open,
       children: [ui.text(ISSUE.description), photo(`Zdjęcie: ${ISSUE.title}`)],
     }),
-    ui.button('Tak, dołącz moje zgłoszenie', ui.tool('merge')),
-    ui.button('Nie, to inny problem', ui.tool('report'), 'quiet'),
+    ui.button("Tak, dołącz moje zgłoszenie", ui.tool("merge")),
+    ui.button("Nie, to inny problem", ui.tool("report"), "quiet"),
   ]);
 
 /** The issue's page: status, support and, for the city's admin, the status buttons. */
-export const detailView = ({
-  support,
-  status,
-  admin,
-}: {
-  support: number;
-  status: Status;
-  admin: boolean;
-}) =>
+export const detailView = ({ support, status, admin }: { support: number; status: Status; admin: boolean }) =>
   ui.screen(ISSUE.title, [
-    ui.row([
-      ui.badge(STATUS[status].text, STATUS[status].tone),
-      ui.badge(ISSUE.category),
-    ]),
-    ui.stat('Poparcie', supporters(support)),
+    ui.row([ui.badge(STATUS[status].text, STATUS[status].tone), ui.badge(ISSUE.category)]),
+    ui.stat("Poparcie", supporters(support)),
     admin
       ? ui.row([
-          ui.button('Przyjmij', ui.tool('setStatus'), 'quiet'),
-          ui.button('Oznacz jako naprawione', ui.tool('setStatus'), 'quiet'),
+          ui.button("Przyjmij", ui.tool("setStatus"), "quiet"),
+          ui.button("Oznacz jako naprawione", ui.tool("setStatus"), "quiet"),
         ])
-      : ui.badge('Zgłaszasz ten problem', 'success'),
+      : ui.badge("Zgłaszasz ten problem", "success"),
     ui.text(ISSUE.description),
     photo(`Zdjęcie: ${ISSUE.title}`),
   ]);
 
 /** Plugin view as the app shows it: „Wróć” over the plugin's screen. */
-export const PluginScreen = ({
-  node,
-  scroll = 0,
-}: {
-  node: UINode;
-  scroll?: number;
-}) => (
+export const PluginScreen = ({ node, scroll = 0 }: { node: UINode; scroll?: number }) => (
   <AppScreen scroll={scroll}>
-    <Text variant='link' color='primary'>
+    <Text variant="link" color="primary">
       {t.back}
     </Text>
     <Plugin node={node} />
@@ -215,8 +180,8 @@ export const DashboardScreen = ({
   widgets,
   admin = false,
   scroll = 0,
-  place = 'Kraków',
-  name = 'Anna',
+  place = "Kraków",
+  name = "Anna",
   arrive = 1,
 }: {
   widgets: UINode[];
@@ -229,43 +194,31 @@ export const DashboardScreen = ({
 }) => (
   <AppScreen tabBar backdrop={<DashboardMap />} scroll={scroll}>
     <View style={styles.top}>
-      <Text variant='body' color='textSecondary'>
-        {`${t.dashboard_greeting}, ${admin ? 'Urząd Miasta' : name}`}
+      <Text variant="body" color="textSecondary">
+        {`${t.dashboard_greeting}, ${admin ? "Urząd Miasta" : name}`}
       </Text>
-      {admin ? (
-        <IconButton
-          icon={Settings}
-          label={t.manage_title}
-          variant='round'
-          onPress={nothing}
-        />
-      ) : null}
+      {admin ? <IconButton icon={Settings} label={t.manage_title} variant="round" onPress={nothing} /> : null}
     </View>
     <View style={styles.place}>
-      <Text variant='label' color='textSecondary'>
+      <Text variant="label" color="textSecondary">
         {t.place_current_label}
       </Text>
       <View style={styles.nameRow}>
-        <Heading level={1} variant='heading'>
+        <Heading level={1} variant="heading">
           {place}
         </Heading>
         <View style={styles.chevron}>
-          <Icon
-            icon={ChevronDown}
-            size={spacing[8]}
-            color='primary'
-            strokeWidth={2.6}
-          />
+          <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
         </View>
       </View>
     </View>
     <View style={styles.section}>
       <View style={styles.sectionHead}>
-        <Text variant='label' color='textSecondary'>
+        <Text variant="label" color="textSecondary">
           {t.community_dashboard_label}
         </Text>
-        <Text variant='small' color='textSecondary'>
-          {widgets.length === 1 ? '1 widżet' : `${widgets.length} widżety`}
+        <Text variant="small" color="textSecondary">
+          {widgets.length === 1 ? "1 widżet" : `${widgets.length} widżety`}
         </Text>
       </View>
       {widgets.map((node, i) => (
@@ -291,55 +244,25 @@ export const DashboardScreen = ({
 );
 
 /** The camera scanner with the place's QR code in front of it; `seen` 0 → 1 brings the code into the frame. */
-export const ScannerScreen = ({
-  seen,
-  line,
-}: {
-  seen: number;
-  line: number;
-}) => (
+export const ScannerScreen = ({ seen, line }: { seen: number; line: number }) => (
   <View style={styles.scanner}>
     <View style={styles.scanTop}>
-      <IconButton
-        variant='roundOnDark'
-        icon={X}
-        label={t.back}
-        onPress={nothing}
-      />
-      <Text variant='labelL' color='scannerText'>
+      <IconButton variant="roundOnDark" icon={X} label={t.back} onPress={nothing} />
+      <Text variant="labelL" color="scannerText">
         {t.scan_title}
       </Text>
-      <IconButton
-        variant='roundOnDark'
-        icon={Flashlight}
-        label={t.scan_torch}
-        onPress={nothing}
-      />
+      <IconButton variant="roundOnDark" icon={Flashlight} label={t.scan_torch} onPress={nothing} />
     </View>
     <View style={styles.scanMiddle}>
       <ScannerFrame>
-        <View
-          style={[
-            styles.paper,
-            { opacity: seen, transform: [{ scale: 0.82 + seen * 0.12 }] },
-          ]}
-        >
-          <QrCode
-            value='twojemiejsce://app/preview?code=KRKMST'
-            size={168}
-            label='Kod QR miejsca Kraków'
-          />
+        <View style={[styles.paper, { opacity: seen, transform: [{ scale: 0.82 + seen * 0.12 }] }]}>
+          <QrCode value="twojemiejsce://app/preview?code=KRKMST" size={168} label="Kod QR miejsca Kraków" />
         </View>
-        <View
-          style={[
-            styles.scanLine,
-            { top: 32 + line * (sizes.scannerFrame - 64) },
-          ]}
-        />
+        <View style={[styles.scanLine, { top: 32 + line * (sizes.scannerFrame - 64) }]} />
       </ScannerFrame>
     </View>
     <View style={styles.scanBottom}>
-      <Text variant='bodyL' color='scannerText' style={styles.hint}>
+      <Text variant="bodyL" color="scannerText" style={styles.hint}>
         {t.scan_hint}
       </Text>
     </View>
@@ -353,38 +276,28 @@ export const PreviewScreen = () => (
       <DashboardMap />
     </View>
     <View style={styles.details}>
-      <Heading level={1} variant='heading'>
+      <Heading level={1} variant="heading">
         Kraków
       </Heading>
-      <Text variant='body' color='textSecondary'>
+      <Text variant="body" color="textSecondary">
         pl. Wszystkich Świętych 3-4, 31-004 Kraków
       </Text>
     </View>
     <Card>
       <View style={styles.codeRow}>
-        <Text variant='body' color='textSecondary'>
+        <Text variant="body" color="textSecondary">
           {t.place_preview_code}
         </Text>
-        <Text variant='codeM'>KRK-MST</Text>
+        <Text variant="codeM">KRK-MST</Text>
       </View>
     </Card>
-    <Checkbox
-      checked={false}
-      onChange={nothing}
-      label={t.place_preview_default}
-    />
+    <Checkbox checked={false} onChange={nothing} label={t.place_preview_default} />
     <View style={styles.grow} />
     <Button label={t.place_preview_join} onPress={nothing} />
   </AppScreen>
 );
 
-const CATEGORIES = [
-  'Oświetlenie',
-  'Drogi i chodniki',
-  'Zieleń',
-  'Czystość',
-  'Inne',
-];
+const CATEGORIES = ["Oświetlenie", "Drogi i chodniki", "Zieleń", "Czystość", "Inne"];
 
 /**
  * „Nowe zgłoszenie”, laid out exactly as the renderer draws the issues plugin's form (Renderer.tsx: PluginForm),
@@ -402,56 +315,40 @@ export const IssueFormScreen = ({
   scroll: number;
 }) => (
   <AppScreen scroll={scroll}>
-    <Text variant='link' color='primary'>
+    <Text variant="link" color="primary">
       {t.back}
     </Text>
     <View style={styles.stack}>
       <Heading level={1}>Nowe zgłoszenie</Heading>
       <View style={styles.stack}>
-        <TextField label='Co się stało?' value={title} onChangeText={nothing} />
+        <TextField label="Co się stało?" value={title} onChangeText={nothing} />
         <View style={styles.stackTight}>
-          <Text variant='label' color='textSecondary'>
+          <Text variant="label" color="textSecondary">
             Kategoria
           </Text>
           <View style={styles.stackTight}>
             {CATEGORIES.map((c) => (
-              <RadioCard
-                key={c}
-                label={c}
-                selected={c === category}
-                onPress={nothing}
-              />
+              <RadioCard key={c} label={c} selected={c === category} onPress={nothing} />
             ))}
           </View>
         </View>
-        <TextField
-          label='Szczegóły i miejsce'
-          multiline
-          value=''
-          onChangeText={nothing}
-        />
+        <TextField label="Szczegóły i miejsce" multiline value="" onChangeText={nothing} />
         <View style={styles.stackTight}>
-          <Text variant='label' color='textSecondary'>
+          <Text variant="label" color="textSecondary">
             Zdjęcie (opcjonalnie)
           </Text>
-          {withPhoto ? (
-            <Image
-              source={{ uri: LAMP_PHOTO }}
-              style={styles.photo}
-              resizeMode='cover'
-            />
-          ) : null}
+          {withPhoto ? <Image source={{ uri: LAMP_PHOTO }} style={styles.photo} resizeMode="cover" /> : null}
           <View style={styles.row}>
             <Button
               label={withPhoto ? t.plugin_photo_remove : t.plugin_photo_gallery}
-              variant='secondary'
-              size='sm'
+              variant="secondary"
+              size="sm"
               fullWidth={false}
               onPress={nothing}
             />
           </View>
         </View>
-        <Button label='Wyślij zgłoszenie' onPress={nothing} />
+        <Button label="Wyślij zgłoszenie" onPress={nothing} />
       </View>
     </View>
   </AppScreen>
@@ -461,7 +358,7 @@ export const IssueFormScreen = ({
 export const FeaturesScreen = ({ on }: { on: number }) => (
   <AppScreen>
     <View style={styles.stack}>
-      <Text variant='stepNumber' color='textSecondary'>
+      <Text variant="stepNumber" color="textSecondary">
         Krok 3 z 4
       </Text>
       <View style={styles.progress}>
@@ -472,7 +369,7 @@ export const FeaturesScreen = ({ on }: { on: number }) => (
     </View>
     <View style={styles.stackTight}>
       <Heading level={1}>{t.create_features_title}</Heading>
-      <Text variant='bodyL' color='textSecondary'>
+      <Text variant="bodyL" color="textSecondary">
         {t.create_features_lead}
       </Text>
     </View>
@@ -486,22 +383,22 @@ export const FeaturesScreen = ({ on }: { on: number }) => (
 
 /** Zgłoszenia, the issues plugin's list view: what residents report, with status and support. */
 export const issuesListView = () =>
-  ui.screen('Zgłoszenia', [
-    ui.text('Usterki zgłoszone przez użytkowników: Kraków.', 'soft'),
-    ui.button('Nowe zgłoszenie', ui.navigate('new')),
-    ui.list('Lista zgłoszeń', [
+  ui.screen("Zgłoszenia", [
+    ui.text("Usterki zgłoszone przez użytkowników: Kraków.", "soft"),
+    ui.button("Nowe zgłoszenie", ui.navigate("new")),
+    ui.list("Lista zgłoszeń", [
       ui.card({
         title: ISSUE.title,
         subtitle: `${ISSUE.category} · ${supporters(4)}`,
         badge: STATUS.fixed,
       }),
       ui.card({
-        title: 'Dziura w chodniku przy szkole',
+        title: "Dziura w chodniku przy szkole",
         subtitle: `Drogi i chodniki · ${supporters(2)}`,
         badge: STATUS.accepted,
       }),
       ui.card({
-        title: 'Przepełniony kosz na skwerze',
+        title: "Przepełniony kosz na skwerze",
         subtitle: `Czystość · ${supporters(1)}`,
         badge: STATUS.open,
       }),
@@ -510,105 +407,103 @@ export const issuesListView = () =>
 
 /** Ogłoszenia, the announcements plugin's list view (a resident sees no publishing form). */
 export const announcementsListView = () =>
-  ui.screen('Ogłoszenia', [
-    ui.list('Lista ogłoszeń', [
+  ui.screen("Ogłoszenia", [
+    ui.list("Lista ogłoszeń", [
       ui.card({
-        title: 'Remont chodnika przy szkole od poniedziałku',
-        onPress: ui.navigate('item'),
+        title: "Remont chodnika przy szkole od poniedziałku",
+        onPress: ui.navigate("item"),
       }),
       ui.card({
-        title: 'Wymiana latarni przy przystanku zakończona',
-        onPress: ui.navigate('item'),
+        title: "Wymiana latarni przy przystanku zakończona",
+        onPress: ui.navigate("item"),
       }),
       ui.card({
-        title: 'Zbiórka elektrośmieci w sobotę 10:00–14:00',
-        onPress: ui.navigate('item'),
+        title: "Zbiórka elektrośmieci w sobotę 10:00–14:00",
+        onPress: ui.navigate("item"),
       }),
     ]),
   ]);
 
 /** Dyskusje, the discussions plugin's list view: threads and who started them. */
 export const discussionsView = () =>
-  ui.screen('Dyskusje', [
-    ui.list('Lista dyskusji', [
+  ui.screen("Dyskusje", [
+    ui.list("Lista dyskusji", [
       ui.card({
-        title: 'Gdzie postawić nowe ławki w parku?',
-        subtitle: 'Marek',
-        onPress: ui.navigate('thread'),
+        title: "Gdzie postawić nowe ławki w parku?",
+        subtitle: "Marek",
+        onPress: ui.navigate("thread"),
       }),
       ui.card({
-        title: 'Wspólne sprzątanie skweru w maju',
-        subtitle: 'Ola',
-        onPress: ui.navigate('thread'),
+        title: "Wspólne sprzątanie skweru w maju",
+        subtitle: "Ola",
+        onPress: ui.navigate("thread"),
       }),
       ui.card({
-        title: 'Parkowanie przy szkole rano',
-        subtitle: 'Piotr',
-        onPress: ui.navigate('thread'),
+        title: "Parkowanie przy szkole rano",
+        subtitle: "Piotr",
+        onPress: ui.navigate("thread"),
       }),
     ]),
   ]);
 
 /** The plugin the AI wrote in the ad, open: ideas for the city's budget and the vote. */
 export const budgetView = () =>
-  ui.screen('Budżet obywatelski', [
-    ui.text('Zagłosuj na pomysły dla Twojej okolicy.', 'soft'),
+  ui.screen("Budżet obywatelski", [
+    ui.text("Zagłosuj na pomysły dla Twojej okolicy.", "soft"),
     ui.progress({
-      label: 'Nowe latarnie przy przystankach',
+      label: "Nowe latarnie przy przystankach",
       value: 62,
       max: 100,
     }),
     ui.progress({
-      label: 'Zieleń na skwerze przy szkole',
+      label: "Zieleń na skwerze przy szkole",
       value: 38,
       max: 100,
     }),
     ui.progress({
-      label: 'Stojaki na rowery przy bibliotece',
+      label: "Stojaki na rowery przy bibliotece",
       value: 24,
       max: 100,
     }),
-    ui.button('Zagłosuj', ui.tool('vote')),
+    ui.button("Zagłosuj", ui.tool("vote")),
   ]);
 
 /** Widget of a plugin the AI wrote in the ad: residents vote on ideas for the city's budget. */
 export const budgetWidget = () =>
   ui.widget(
-    'Budżet obywatelski',
+    "Budżet obywatelski",
     [
-      ui.text('Zagłosuj na pomysły dla Twojej okolicy.', 'soft'),
+      ui.text("Zagłosuj na pomysły dla Twojej okolicy.", "soft"),
       ui.progress({
-        label: 'Nowe latarnie przy przystankach',
+        label: "Nowe latarnie przy przystankach",
         value: 62,
         max: 100,
       }),
       ui.progress({
-        label: 'Zieleń na skwerze przy szkole',
+        label: "Zieleń na skwerze przy szkole",
         value: 38,
         max: 100,
       }),
-      ui.button('Zagłosuj', ui.navigate('vote')),
+      ui.button("Zagłosuj", ui.navigate("vote")),
     ],
-    ui.navigate('list'),
+    { onPress: ui.navigate("list") },
   );
 
 const PLUGINS = [
   {
-    emoji: '🛠️',
-    label: 'Zgłoszenia',
-    description:
-      'Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.',
+    emoji: "🛠️",
+    label: "Zgłoszenia",
+    description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
   },
   {
-    emoji: '📢',
-    label: 'Ogłoszenia',
-    description:
-      'Ogłoszenia administratorów dla użytkowników, z podglądem nowości na pulpicie.',
+    emoji: "📢",
+    label: "Ogłoszenia",
+    description: "Ogłoszenia administratorów dla użytkowników, z podglądem nowości na pulpicie.",
   },
   {
-    emoji: '💬',
-    label: 'Dyskusje',
-    description: 'Forum społeczności: dyskusje, odpowiedzi i moderacja.',
+    emoji: "💬",
+    label: "Dyskusje",
+    description: "Forum społeczności: dyskusje, odpowiedzi i moderacja.",
   },
 ];
 
@@ -617,10 +512,10 @@ const AdminHeader = ({ title }: { title: string }) => (
   <View style={styles.adminHeader}>
     <IconButton icon={ChevronLeft} label={t.back} onPress={nothing} />
     <View style={styles.adminHeaderText}>
-      <Text variant='label' color='textSecondary'>
+      <Text variant="label" color="textSecondary">
         Kraków
       </Text>
-      <Heading level={1} variant='headingS'>
+      <Heading level={1} variant="headingS">
         {title}
       </Heading>
     </View>
@@ -631,14 +526,8 @@ const AdminHeader = ({ title }: { title: string }) => (
 export const ManageScreen = () => (
   <AppScreen>
     <AdminHeader title={t.manage_title} />
-    <DisclosureCard
-      icon={Puzzle}
-      title={t.manage_plugins_title}
-      summary='3 rozszerzenia'
-      open
-      onToggle={nothing}
-    >
-      <Text variant='bodyL' color='textSecondary'>
+    <DisclosureCard icon={Puzzle} title={t.manage_plugins_title} summary="3 rozszerzenia" open onToggle={nothing}>
+      <Text variant="bodyL" color="textSecondary">
         {t.manage_plugins_lead}
       </Text>
       <View style={styles.stackMid}>
@@ -650,7 +539,7 @@ export const ManageScreen = () => (
         icon={Sparkles}
         title={t.build_entry_title}
         subtitle={t.build_entry_subtitle}
-        href='/app/c/krakow/build'
+        href="/app/c/krakow/build"
       />
     </DisclosureCard>
   </AppScreen>
@@ -658,14 +547,13 @@ export const ManageScreen = () => (
 
 /** What the AI built, as the builder's outline card shows it. */
 export const BUILT = {
-  icon: '🗳️',
-  name: 'Budżet obywatelski',
-  holds: '2 widoki · 2 akcje · 2 tabele · 1 widżet',
-  description:
-    'Mieszkańcy głosują na pomysły dla okolicy, a wyniki widać na pulpicie miejsca.',
+  icon: "🗳️",
+  name: "Budżet obywatelski",
+  holds: "2 widoki · 2 akcje · 2 tabele · 1 widżet",
+  description: "Mieszkańcy głosują na pomysły dla okolicy, a wyniki widać na pulpicie miejsca.",
 };
 
-export type BuildStage = 'typing' | 'working' | 'ready' | 'published';
+export type BuildStage = "typing" | "working" | "ready" | "published";
 
 /**
  * Rozszerzenie z AI (screens/BuildPlugin.tsx): the admin's request, the AI writing and checking (`attempt`), the plugin it
@@ -682,9 +570,9 @@ export const BuildScreen = ({
 }) => (
   <AppScreen>
     <AdminHeader title={t.build_title} />
-    {stage === 'typing' ? (
+    {stage === "typing" ? (
       <>
-        <Text variant='bodyL' color='textSecondary'>
+        <Text variant="bodyL" color="textSecondary">
           {t.build_lead}
         </Text>
         <TextField
@@ -696,14 +584,7 @@ export const BuildScreen = ({
         />
         <Button
           label={t.build_create}
-          leftIcon={
-            <Icon
-              icon={Sparkles}
-              size={sizes.iconS}
-              color='onPrimary'
-              strokeWidth={2}
-            />
-          }
+          leftIcon={<Icon icon={Sparkles} size={sizes.iconS} color="onPrimary" strokeWidth={2} />}
           disabled={request.length < 10}
           onPress={nothing}
         />
@@ -711,57 +592,50 @@ export const BuildScreen = ({
     ) : (
       <>
         <View style={styles.request}>
-          <Text variant='label' color='textSecondary'>
+          <Text variant="label" color="textSecondary">
             {`${t.build_you} · ${t.build_version} 1`}
           </Text>
-          <Text variant='body'>{request}</Text>
+          <Text variant="body">{request}</Text>
         </View>
-        {stage === 'working' ? (
+        {stage === "working" ? (
           <Card style={styles.buildCard}>
             <View style={styles.buildRow}>
               <Spinner />
-              <Text variant='cardTitle'>
-                {attempt > 0
-                  ? `${t.build_working_attempt} ${attempt}`
-                  : t.build_working}
-              </Text>
+              <Text variant="cardTitle">{attempt > 0 ? `${t.build_working_attempt} ${attempt}` : t.build_working}</Text>
             </View>
-            <Text variant='caption' color='textSecondary'>
+            <Text variant="caption" color="textSecondary">
               {t.build_working_hint}
             </Text>
           </Card>
         ) : (
           <Card style={styles.buildCard}>
             <View style={styles.buildRow}>
-              <Text variant='heading'>{BUILT.icon}</Text>
+              <Text variant="heading">{BUILT.icon}</Text>
               <View style={styles.grow}>
-                <Heading level={3} variant='headingS'>
+                <Heading level={3} variant="headingS">
                   {BUILT.name}
                 </Heading>
-                <Text variant='small' color='textSecondary'>
+                <Text variant="small" color="textSecondary">
                   {BUILT.holds}
                 </Text>
               </View>
-              <Badge text={t.build_made_by_ai} tone='accent' />
+              <Badge text={t.build_made_by_ai} tone="accent" />
             </View>
-            <Text variant='body'>{BUILT.description}</Text>
+            <Text variant="body">{BUILT.description}</Text>
           </Card>
         )}
-        {stage === 'ready' ? (
+        {stage === "ready" ? (
           <>
-            <Text variant='bodyL' color='textSecondary'>
+            <Text variant="bodyL" color="textSecondary">
               {t.build_draft_note}
             </Text>
             <Button label={t.build_publish} onPress={nothing} />
           </>
         ) : null}
-        {stage === 'published' ? (
+        {stage === "published" ? (
           <View style={styles.buildRow}>
-            <Text
-              variant='bodyL'
-              style={styles.grow}
-            >{`${t.build_published} 1`}</Text>
-            <Text variant='link' color='primary'>
+            <Text variant="bodyL" style={styles.grow}>{`${t.build_published} 1`}</Text>
+            <Text variant="link" color="primary">
               {t.build_open}
             </Text>
           </View>
@@ -772,39 +646,39 @@ export const BuildScreen = ({
 );
 
 const styles = StyleSheet.create({
-  adminHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[7] },
+  adminHeader: { flexDirection: "row", alignItems: "center", gap: spacing[7] },
   adminHeaderText: { flex: 1, gap: spacing[1] },
   request: {
-    alignSelf: 'flex-end',
-    maxWidth: '90%',
+    alignSelf: "flex-end",
+    maxWidth: "90%",
     gap: spacing[2],
     padding: spacing[7],
     borderRadius: radii.xl,
     backgroundColor: colors.surfaceSunken,
   },
   buildCard: { gap: spacing[5] },
-  buildRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[6] },
+  buildRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing[6],
   },
   place: { gap: spacing[2] },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[6] },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   chevron: {
     width: spacing[8] * 2,
     height: spacing[8] * 2,
     borderRadius: radii.xl,
     backgroundColor: colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   section: { gap: spacing[6] },
   sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   tile: { height: TILE },
   scanner: {
@@ -815,26 +689,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   scanTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  scanMiddle: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scanBottom: { alignItems: 'center' },
-  hint: { maxWidth: sizes.scannerHint, textAlign: 'center' },
+  scanMiddle: { flex: 1, alignItems: "center", justifyContent: "center" },
+  scanBottom: { alignItems: "center" },
+  hint: { maxWidth: sizes.scannerHint, textAlign: "center" },
   paper: {
-    position: 'absolute',
+    position: "absolute",
     top: 34,
     left: 34,
     width: 200,
     height: 200,
     borderRadius: 18,
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   scanLine: {
-    position: 'absolute',
+    position: "absolute",
     left: 32,
     right: 32,
     height: 2,
@@ -842,32 +716,32 @@ const styles = StyleSheet.create({
   },
   map: {
     height: sizes.dashboardMap,
-    overflow: 'hidden',
-    borderRadius: radii['4xl'],
+    overflow: "hidden",
+    borderRadius: radii["4xl"],
   },
   details: { gap: spacing[2] },
   codeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   grow: { flex: 1 },
   stack: { gap: spacing[9] },
   stackMid: { gap: spacing[5] },
   stackTight: { gap: spacing[2] },
   row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
     gap: spacing[4],
   },
   photo: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 4 / 3,
-    borderRadius: radii['3xl'],
+    borderRadius: radii["3xl"],
     backgroundColor: colors.mapBase,
   },
-  progress: { flexDirection: 'row', gap: spacing[3] },
+  progress: { flexDirection: "row", gap: spacing[3] },
   segment: {
     flex: 1,
     height: 4,

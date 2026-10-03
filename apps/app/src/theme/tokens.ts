@@ -196,6 +196,7 @@ export const sizes = {
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
+  highlightThumb: 64,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */

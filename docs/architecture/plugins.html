@@ -228,7 +228,7 @@
           return ui.widget(
             "Notatki",
             [ui.stat("Wszystkie", String(count))],
-            ui.navigate("main"),
+            { onPress: ui.navigate("main") },
           );
         },
       },
@@ -987,7 +987,7 @@ RETURN $result;</code></pre>
               <tbody>
                 <tr>
                   <td>Roots</td>
-                  <td><code>ui.screen(title, children)</code> for views, <code>ui.widget(title, children, onPress?)</code> for dashboard widgets</td>
+                  <td><code>ui.screen(title, children)</code> for views, <code>ui.widget(title, children, options?)</code> for dashboard widgets</td>
                 </tr>
                 <tr>
                   <td>Layout</td>

@@ -96,10 +96,12 @@ export type MapRouteItem = z.infer<typeof mapRouteSchema>;
 export type MapAreaItem = z.infer<typeof mapAreaSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 
-/** Leaf nodes (no children). */
-/** Icons a Select card can show; the app draws them (apps/app/src/plugins/Renderer.tsx). */
-export const SELECT_ICONS = ["alert", "idea"] as const;
+/** Icons a node can show (a Select card, a Button, a widget header); the app draws them (apps/app/src/plugins/Renderer.tsx). */
+export const UI_ICONS = ["alert", "idea", "camera", "megaphone"] as const;
+export const uiIconSchema = z.enum(UI_ICONS);
+export type UIIcon = z.infer<typeof uiIconSchema>;
 
+/** Leaf nodes (no children). */
 const leafSchemas = [
   z.object({ type: z.literal("Heading"), text: z.string(), level: z.union([z.literal(2), z.literal(3)]).optional() }),
   z.object({ type: z.literal("Text"), text: z.string(), tone: z.enum(["ink", "soft"]).optional() }),
@@ -109,6 +111,7 @@ const leafSchemas = [
     label: z.string(),
     action: actionSchema,
     variant: z.enum(["primary", "quiet", "danger"]).optional(),
+    icon: uiIconSchema.optional(),
   }),
   z.object({
     type: z.literal("Progress"),
@@ -144,8 +147,8 @@ const leafSchemas = [
           value: z.string(),
           label: z.string(),
           hint: z.string().optional(),
-          /** A card's icon, from the set the app draws (SELECT_ICONS). */
-          icon: z.enum(SELECT_ICONS).optional(),
+          /** A card's icon. */
+          icon: uiIconSchema.optional(),
         }),
       )
       .min(1),
@@ -164,6 +167,18 @@ const leafSchemas = [
     type: z.literal("Hero"),
     title: z.string(),
     text: z.string().optional(),
+  }),
+  /**
+   * The highlighted item of a dashboard widget: a thumbnail (`image`, a photo from ctx.files), a small eyebrow line,
+   * the title and a vote count with an up arrow. Tapping it runs `onPress`.
+   */
+  z.object({
+    type: z.literal("Highlight"),
+    eyebrow: z.string(),
+    title: z.string(),
+    image: z.object({ file: z.string(), alt: z.string(), url: z.string().optional() }).optional(),
+    votes: z.number().int().min(0).optional(),
+    onPress: actionSchema.optional(),
   }),
   /**
    * A map (see MAP_LIMITS). The first view fits everything on it; `center` (and `zoom`, 1–19) set it instead, e.g.
@@ -195,14 +210,27 @@ const leafSchemas = [
 
 type Leaf = z.infer<(typeof leafSchemas)[number]>;
 
+/** A text link in a widget's header (e.g. "Wszystkie"): it only navigates. */
+const widgetLinkSchema = z.object({ label: z.string().min(1).max(40), action: navigateActionSchema });
+export type WidgetLink = z.infer<typeof widgetLinkSchema>;
+
 /** Nodes with children. Type written by hand because the schema is recursive (z.lazy). */
 export type UINode =
   | Leaf
   | { type: "Screen"; title: string; children: UINode[] }
-  /** `onPress`: tapping the dashboard tile opens this view of the plugin (e.g. the full list). */
-  | { type: "Widget"; title: string; children: UINode[]; onPress?: NavigateAction }
+  | {
+      type: "Widget";
+      title: string;
+      children: UINode[];
+      icon?: UIIcon;
+      subtitle?: string;
+      link?: WidgetLink;
+      /** Tapping the dashboard tile opens this view of the plugin (e.g. the full list). */
+      onPress?: NavigateAction;
+    }
   | { type: "Stack"; children: UINode[] }
-  | { type: "Row"; children: UINode[] }
+  /** `grow`: the children share the row's width equally (e.g. two buttons side by side). */
+  | { type: "Row"; grow?: boolean; children: UINode[] }
   | { type: "List"; label: string; children: UINode[] }
   | {
       type: "Card";
@@ -224,10 +252,13 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
       type: z.literal("Widget"),
       title: z.string(),
       children: z.array(uiNodeSchema),
+      icon: uiIconSchema.optional(),
+      subtitle: z.string().max(120).optional(),
+      link: widgetLinkSchema.optional(),
       onPress: navigateActionSchema.optional(),
     }),
     z.object({ type: z.literal("Stack"), children: z.array(uiNodeSchema) }),
-    z.object({ type: z.literal("Row"), children: z.array(uiNodeSchema) }),
+    z.object({ type: z.literal("Row"), grow: z.boolean().optional(), children: z.array(uiNodeSchema) }),
     z.object({ type: z.literal("List"), label: z.string(), children: z.array(uiNodeSchema) }),
     z.object({
       type: z.literal("Card"),
@@ -256,6 +287,7 @@ function isReadOnly(node: UINode): boolean {
   if (INPUT_NODES.includes(node.type)) return false;
   if (node.type === "Button" && node.action.type === "tool") return false;
   if (node.type === "Card" && node.onPress?.type === "tool") return false;
+  if (node.type === "Highlight" && node.onPress?.type === "tool") return false;
   if (node.type === "Map") {
     const items = node.layers.flatMap((layer): { onPress?: Action }[] => layer.items);
     if (items.some((item) => item.onPress?.type === "tool")) return false;
@@ -277,25 +309,31 @@ type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 /** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
   screen: (title: string, children: UINode[]): Of<"Screen"> => ({ type: "Screen", title, children }),
-  widget: (title: string, children: UINode[], onPress?: NavigateAction): Of<"Widget"> => ({
+  /** `options.onPress`: where tapping the tile leads; `icon`, `subtitle` and `link` make the header (see Widget). */
+  widget: (
+    title: string,
+    children: UINode[],
+    options: Omit<Props<"Widget">, "title" | "children"> = {},
+  ): Of<"Widget"> => ({
     type: "Widget",
     title,
     children,
-    ...(onPress ? { onPress } : {}),
+    ...options,
   }),
   stack: (children: UINode[]): Of<"Stack"> => ({ type: "Stack", children }),
-  row: (children: UINode[]): Of<"Row"> => ({ type: "Row", children }),
+  row: (children: UINode[], options: { grow?: boolean } = {}): Of<"Row"> => ({ type: "Row", children, ...options }),
   list: (label: string, children: UINode[]): Of<"List"> => ({ type: "List", label, children }),
   card: (props: Props<"Card">): Of<"Card"> => ({ type: "Card", ...props }),
   form: (props: Props<"Form">): Of<"Form"> => ({ type: "Form", ...props }),
   heading: (text: string, level: 2 | 3 = 2): Of<"Heading"> => ({ type: "Heading", text, level }),
   text: (text: string, tone?: "ink" | "soft"): Of<"Text"> => ({ type: "Text", text, ...(tone ? { tone } : {}) }),
   badge: (text: string, tone?: Tone): Of<"Badge"> => ({ type: "Badge", text, ...(tone ? { tone } : {}) }),
-  button: (label: string, action: Action, variant?: "primary" | "quiet" | "danger"): Of<"Button"> => ({
+  button: (label: string, action: Action, variant?: "primary" | "quiet" | "danger", icon?: UIIcon): Of<"Button"> => ({
     type: "Button",
     label,
     action,
     ...(variant ? { variant } : {}),
+    ...(icon ? { icon } : {}),
   }),
   progress: (props: Props<"Progress">): Of<"Progress"> => ({ type: "Progress", ...props }),
   stat: (label: string, value: string): Of<"Stat"> => ({ type: "Stat", label, value }),
@@ -306,6 +344,7 @@ export const ui = {
   select: (props: Props<"Select">): Of<"Select"> => ({ type: "Select", ...props }),
   switch: (props: Props<"Switch">): Of<"Switch"> => ({ type: "Switch", ...props }),
   hero: (props: Props<"Hero">): Of<"Hero"> => ({ type: "Hero", ...props }),
+  highlight: (props: Props<"Highlight">): Of<"Highlight"> => ({ type: "Highlight", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
   map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
     /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */

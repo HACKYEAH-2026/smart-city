@@ -45,9 +45,47 @@ describe("UI catalog", () => {
   });
 
   test("dashboard widget: tapping it may only navigate to a view of the plugin", () => {
-    const ok = ui.widget("Zgłoszenia", [ui.text("2 w toku")], ui.navigate("list"));
+    const ok = ui.widget("Zgłoszenia", [ui.text("2 w toku")], { onPress: ui.navigate("list") });
     expect(dashboardWidgetSchema.parse(ok)).toEqual(ok);
     expect(dashboardWidgetSchema.safeParse({ ...ok, onPress: ui.tool("remove") }).success).toBe(false);
+  });
+
+  test("dashboard widget header: an icon, a subtitle and a link that only navigates", () => {
+    const head = ui.widget("Zgłoszenia", [ui.text("2 w toku")], {
+      icon: "megaphone",
+      subtitle: "2 otwarte",
+      link: { label: "Wszystkie", action: ui.navigate("list") },
+    });
+    expect(dashboardWidgetSchema.parse(head)).toEqual(head);
+    expect(dashboardWidgetSchema.safeParse({ ...head, icon: "rocket" }).success).toBe(false);
+    expect(
+      dashboardWidgetSchema.safeParse({ ...head, link: { label: "Usuń", action: ui.tool("remove") } }).success,
+    ).toBe(false);
+  });
+
+  test("highlight: a read-only tile with an optional photo, a vote count and a tap", () => {
+    const tile = ui.highlight({
+      eyebrow: "Najczęściej podbijane",
+      title: "Dziura w jezdni",
+      votes: 24,
+      image: { file: "f1", alt: "Zdjęcie dziury" },
+      onPress: ui.navigate("detail", { id: "1" }),
+    });
+    expect(uiNodeSchema.parse(tile)).toEqual(tile);
+    expect(uiNodeSchema.safeParse({ ...tile, votes: -1 }).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [{ ...tile, onPress: ui.tool("remove") }])).success).toBe(
+      false,
+    );
+  });
+
+  test("buttons take an icon from the set; a row can share its width between children", () => {
+    const pair = ui.row(
+      [ui.button("Zgłoś", ui.navigate("new"), "primary", "camera"), ui.button("Sugestia", ui.navigate("new"), "quiet")],
+      { grow: true },
+    );
+    expect(uiNodeSchema.parse(pair)).toEqual(pair);
+    const badIcon = { type: "Button", label: "x", action: ui.navigate("new"), icon: "rocket" };
+    expect(uiNodeSchema.safeParse(badIcon).success).toBe(false);
   });
 });
 

@@ -56,6 +56,13 @@ const supporters = (n: number) => {
       : `${n} osób zgłasza`;
 };
 
+/** The Polish form of a noun for a count: 1 → `one`; 2–4 (but not 12–14) → `few`; the rest → `many`. */
+const plural = (n: number, one: string, few: string, many: string) => {
+  if (n === 1) return one;
+  const isFew = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
+  return isFew ? few : many;
+};
+
 type Draft = {
   title: string;
   description: string;
@@ -246,7 +253,7 @@ const issues: PluginModule = ({
     description:
       'Zgłaszanie usterek ze zdjęciem i miejscem na mapie; AI łączy zgłoszenia tego samego problemu.',
     permissions: ['db', 'files', 'ai'],
-    nav: [{ view: 'list', label: 'Zgłoszenia' }],
+    nav: [{ view: 'list', label: 'Zgłoszenia i sugestie' }],
     tables,
 
     views: {
@@ -258,7 +265,7 @@ const issues: PluginModule = ({
           ctx,
           items.map((i) => i.id),
         );
-        return ui.screen('Zgłoszenia', [
+        return ui.screen('Zgłoszenia i sugestie', [
           ui.text(
             `Usterki zgłoszone przez użytkowników: ${ctx.community.name}.`,
             'soft',
@@ -281,7 +288,8 @@ const issues: PluginModule = ({
         ]);
       },
 
-      new: () =>
+      /** "Sugestia" on the dashboard opens this form with the suggestion kind already picked. */
+      new: (_ctx, params) =>
         ui.screen('Nowe zgłoszenie', [
           ui.form({
             submitLabel: 'Wyślij zgłoszenie',
@@ -292,7 +300,7 @@ const issues: PluginModule = ({
                 name: 'kind',
                 label: 'Rodzaj',
                 options: KINDS,
-                value: 'problem',
+                value: params.kind === 'suggestion' ? 'suggestion' : 'problem',
               }),
               ui.select({
                 name: 'category',
@@ -456,7 +464,10 @@ const issues: PluginModule = ({
     },
 
     dashboardWidgets: {
-      /** The 3 open issues most residents report; tapping the tile opens the full list. */
+      /**
+       * The open issue most residents support, with its photo; the header counts open and accepted issues. Tapping the
+       * tile opens the full list, "Zgłoś problem" and "Sugestia" open the form.
+       */
       summary: {
         size: { w: 2, h: 3 },
         render: async (ctx) => {
@@ -469,28 +480,54 @@ const issues: PluginModule = ({
             open.map((i) => i.id),
           );
           // A stable sort: equal support keeps the default order, newest first.
-          const top = [...open]
-            .sort((a, b) => support(b.id) - support(a.id))
-            .slice(0, 3);
+          const [top] = [...open].sort((a, b) => support(b.id) - support(a.id));
+          const count = (status: keyof typeof STATUS) =>
+            open.filter((i) => i.status === status).length;
+          const reported = count('open');
+          const accepted = count('accepted');
           return ui.widget(
-            'Zgłoszenia',
+            'Zgłoszenia i sugestie',
             [
-              top.length
-                ? ui.list(
-                    'Najczęściej zgłaszane',
-                    top.map((i) =>
-                      ui.card({
-                        title: i.title,
-                        subtitle: supporters(support(i.id)),
-                        badge: STATUS[i.status],
-                        onPress: ui.navigate('detail', { id: i.id }),
-                      }),
-                    ),
-                  )
+              top
+                ? ui.highlight({
+                    eyebrow: 'Najczęściej podbijane',
+                    title: top.title,
+                    votes: support(top.id),
+                    ...(top.photo
+                      ? {
+                          image: {
+                            file: top.photo,
+                            alt: `Zdjęcie: ${top.title}`,
+                          },
+                        }
+                      : {}),
+                    onPress: ui.navigate('detail', { id: top.id }),
+                  })
                 : ui.empty('Nie ma otwartych zgłoszeń.'),
-              ui.button('Zgłoś problem', ui.navigate('new')),
+              ui.row(
+                [
+                  ui.button(
+                    'Zgłoś problem',
+                    ui.navigate('new'),
+                    'primary',
+                    'camera',
+                  ),
+                  ui.button(
+                    'Sugestia',
+                    ui.navigate('new', { kind: 'suggestion' }),
+                    'quiet',
+                    'idea',
+                  ),
+                ],
+                { grow: true },
+              ),
             ],
-            ui.navigate('list'),
+            {
+              icon: 'megaphone',
+              subtitle: `${reported} ${plural(reported, 'otwarte', 'otwarte', 'otwartych')} · ${accepted} w realizacji`,
+              link: { label: 'Wszystkie', action: ui.navigate('list') },
+              onPress: ui.navigate('list'),
+            },
           );
         },
       },

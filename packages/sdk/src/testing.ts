@@ -283,7 +283,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
 
 /** All texts in a UI tree (titles, labels, values) — for layout-independent assertions. */
 export function textsOf(node: UINode): string[] {
-  const own = (["title", "subtitle", "text", "label", "value", "alt"] as const).flatMap((k) => {
+  const own = (["eyebrow", "title", "subtitle", "text", "label", "value", "alt"] as const).flatMap((k) => {
     const v = (node as Record<string, unknown>)[k];
     return typeof v === "string" ? [v] : [];
   });

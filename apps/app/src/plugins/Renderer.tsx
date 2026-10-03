@@ -1,13 +1,15 @@
-import type { Action, GeoLocation, Tone, ToolAction, UINode } from "@app/plugin-sdk";
+import type { Action, GeoLocation, Tone, ToolAction, UIIcon, UINode, WidgetLink } from "@app/plugin-sdk";
 import { launchCameraAsync, launchImageLibraryAsync, type MediaType } from "expo-image-picker";
 import {
   AlertTriangle,
+  ArrowUp,
   Camera,
   ChevronRight,
   Image as GalleryIcon,
   Lightbulb,
   type LucideIcon,
   MapPin,
+  Megaphone,
   X,
 } from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
@@ -104,16 +106,33 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
           <Children nodes={node.children} />
         </View>
       );
-    // With `onPress` the dashboard makes the whole tile pressable (plugins/Dashboard.tsx); the chevron shows it.
+    // With `onPress` the dashboard makes the whole tile pressable (plugins/Dashboard.tsx); without a `link` the chevron
+    // shows it. The header: an icon, the title and a subtitle, and the link (e.g. "Wszystkie") on the right.
     case "Widget":
       return (
         <Card style={styles.widget}>
           <View role="region" aria-label={node.title} style={styles.widgetBody}>
             <View style={styles.widgetHead}>
-              <Heading level={2} style={styles.cardTitle}>
-                {node.title}
-              </Heading>
-              {node.onPress ? <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" /> : null}
+              {node.icon ? (
+                <View style={styles.widgetIcon}>
+                  <Icon icon={UI_ICON[node.icon]} size={sizes.iconM} color="primary" strokeWidth={1.9} />
+                </View>
+              ) : null}
+              <View style={styles.widgetHeadText}>
+                <Heading level={2} style={styles.cardTitle}>
+                  {node.title}
+                </Heading>
+                {node.subtitle ? (
+                  <Text variant="small" color="textSecondary">
+                    {node.subtitle}
+                  </Text>
+                ) : null}
+              </View>
+              {node.link ? (
+                <WidgetLinkButton link={node.link} />
+              ) : node.onPress ? (
+                <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" />
+              ) : null}
             </View>
             <InWidgetContext.Provider value={true}>
               <Children nodes={node.children} />
@@ -128,7 +147,9 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
         </View>
       );
     case "Row":
-      return (
+      return node.grow ? (
+        <GrowRow nodes={node.children} />
+      ) : (
         <View style={styles.row}>
           <Children nodes={node.children} />
         </View>
@@ -189,16 +210,24 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       );
     case "Badge":
       return <Badge text={node.text} tone={toBadgeTone(node.tone)} />;
-    case "Button":
+    case "Button": {
+      const variant = BUTTON_VARIANT[node.variant ?? "primary"];
+      // Inside a widget the buttons sit side by side: a smaller size with less padding, so the labels fit.
       return (
         <Button
           label={node.label}
-          variant={BUTTON_VARIANT[node.variant ?? "primary"]}
+          variant={variant}
+          size={inWidget ? "md" : "lg"}
+          leftIcon={
+            node.icon ? <Icon icon={UI_ICON[node.icon]} size={sizes.iconS} color={iconColor(variant)} /> : undefined
+          }
+          style={inWidget ? styles.widgetButton : undefined}
           disabled={busy && node.action.type === "tool"}
           onPress={() => onAction(node.action)}
           onLongPress={onLongPress}
         />
       );
+    }
     case "Progress": {
       const pct = Math.min(100, Math.round((node.value / node.max) * 100));
       return (
@@ -248,6 +277,8 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <FormSwitch node={node} />;
     case "Hero":
       return <Hero node={node} />;
+    case "Highlight":
+      return <HighlightTile node={node} />;
     case "Map":
       return <PluginMap node={node} still={inWidget} onAction={onAction} />;
     case "LocationInput":
@@ -295,6 +326,87 @@ function WidgetRow({ node }: { node: Extract<UINode, { type: "Card" }> }) {
     body
   );
 }
+
+/** The widget header's link ("Wszystkie"): a text button; the tile itself opens the same view. */
+function WidgetLinkButton({ link }: { link: WidgetLink }) {
+  const { onAction } = useContext(ActionsContext);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={link.label}
+      hitSlop={spacing[5]}
+      onPress={() => onAction(link.action)}
+      style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
+    >
+      <Text variant="buttonS" color="text">
+        {link.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** The widget's highlighted item: a thumbnail, an eyebrow, the title and the votes with an up arrow. Tapping opens it. */
+function HighlightTile({ node }: { node: Extract<UINode, { type: "Highlight" }> }) {
+  const { onAction, onLongPress } = useContext(ActionsContext);
+  const body = (
+    <View style={styles.highlight}>
+      <View style={styles.highlightThumb}>
+        {node.image?.url ? (
+          <View role="img" aria-label={node.image.alt} style={styles.highlightPhoto}>
+            <Image source={{ uri: node.image.url }} style={styles.highlightPhoto} resizeMode="cover" />
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.highlightText}>
+        <Text variant="label" color="textSecondary">
+          {node.eyebrow}
+        </Text>
+        <Text variant="cardTitle" numberOfLines={2}>
+          {node.title}
+        </Text>
+      </View>
+      {node.votes !== undefined ? (
+        <View style={styles.votes}>
+          <Icon icon={ArrowUp} size={sizes.iconS} color="primary" strokeWidth={2.2} />
+          <Text variant="cardTitle" color="primary">
+            {node.votes}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+  const onPress = node.onPress;
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={node.title}
+      onPress={() => onAction(onPress)}
+      onLongPress={onLongPress}
+      style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
+    >
+      {body}
+    </Pressable>
+  ) : (
+    body
+  );
+}
+
+/** Children share the row's width equally (`grow`), e.g. two buttons side by side in a widget. */
+function GrowRow({ nodes }: { nodes: UINode[] }) {
+  return (
+    <View style={styles.rowGrow}>
+      {nodes.map((n, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: as in Children, the order is the identity.
+        <View key={`${n.type}-${i}`} style={styles.growCell}>
+          <PluginNode node={n} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The icon's colour on a button: white on the red primary button, ink on the others. */
+const iconColor = (variant: ButtonVariant): "onPrimary" | "text" => (variant === "primary" ? "onPrimary" : "text");
 
 /** Initial form field values (from `value` on nodes), including nested ones. */
 function initialValues(nodes: UINode[]): Record<string, FormValue> {
@@ -560,7 +672,7 @@ function FormSelect({ node }: { node: Extract<UINode, { type: "Select" }> }) {
           {node.options.map((o) => (
             <ChoiceButton
               key={o.value}
-              icon={o.icon ? SELECT_ICON[o.icon] : undefined}
+              icon={o.icon ? UI_ICON[o.icon] : undefined}
               label={o.label}
               selected={o.value === current}
               onPress={() => choose(o.value)}
@@ -598,8 +710,13 @@ function Hero({ node }: { node: Extract<UINode, { type: "Hero" }> }) {
   );
 }
 
-/** The icons a Select card can show, keyed by the names in packages/sdk (SELECT_ICONS). */
-const SELECT_ICON: Record<"alert" | "idea", LucideIcon> = { alert: AlertTriangle, idea: Lightbulb };
+/** The icons a node can show, keyed by the names in packages/sdk (UI_ICONS). */
+const UI_ICON: Record<UIIcon, LucideIcon> = {
+  alert: AlertTriangle,
+  idea: Lightbulb,
+  camera: Camera,
+  megaphone: Megaphone,
+};
 
 const styles = StyleSheet.create({
   photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
@@ -642,6 +759,37 @@ const styles = StyleSheet.create({
   widget: { flex: 1, overflow: "hidden" },
   widgetBody: { gap: spacing[6] },
   widgetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[4] },
+  widgetIcon: {
+    width: sizes.avatarLg,
+    height: sizes.avatarLg,
+    borderRadius: radii.md,
+    backgroundColor: colors.primaryTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  widgetHeadText: { flex: 1, gap: spacing[1] },
+  widgetButton: { paddingHorizontal: spacing[4] },
+  rowGrow: { flexDirection: "row", gap: spacing[4] },
+  growCell: { flex: 1, minWidth: 0 },
+  highlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[6],
+    padding: spacing[5],
+    borderRadius: radii.xl,
+    backgroundColor: colors.background,
+  },
+  highlightThumb: {
+    width: sizes.highlightThumb,
+    height: sizes.highlightThumb,
+    borderRadius: radii.md,
+    overflow: "hidden",
+    backgroundColor: colors.mapBase,
+    flexShrink: 0,
+  },
+  highlightPhoto: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  highlightText: { flex: 1, minWidth: 0, gap: spacing[1] },
+  votes: { alignItems: "center", flexShrink: 0 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[4] },
   list: { gap: spacing[6] },
   divider: { borderTopWidth: borders.hairline, borderTopColor: colors.borderSubtle },
