@@ -1,8 +1,8 @@
-import type React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
-import { AppFrame, Button, Card, Cursor } from '../components/AppFrame';
-import { Stage } from '../components/Stage';
-import { C, fadeUp, useIn } from '../theme';
+import type React from "react";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AppFrame, Button, Card, Cursor } from "../components/AppFrame";
+import { Stage } from "../components/Stage";
+import { C, fadeUp, useIn } from "../theme";
 
 const CLICK = 55;
 const CONNECT = 70;
@@ -16,18 +16,14 @@ export const Verify: React.FC = () => {
   const done = useIn(DONE, 12);
   return (
     <Stage
-      caption='Dołączają tylko mieszkańcy. Platforma dostaje jeden fakt: „mieszka w gminie Kraków”.'
+      caption="Dołączają tylko mieszkańcy. Platforma dostaje jeden fakt: „mieszka w gminie Kraków”."
       captionAt={CONSENT}
     >
-      <AppFrame active='feed' verified={frame >= DONE}>
-        <div
-          style={{ display: 'flex', justifyContent: 'center', paddingTop: 70 }}
-        >
-          <Card style={{ width: 720, textAlign: 'center', padding: 50 }}>
+      <AppFrame active="feed" verified={frame >= DONE}>
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: 70 }}>
+          <Card style={{ width: 720, textAlign: "center", padding: 50 }}>
             <div style={{ fontSize: 60 }}>🏙️</div>
-            <div style={{ fontSize: 40, fontWeight: 800, marginTop: 10 }}>
-              Dołącz do społeczności Kraków
-            </div>
+            <div style={{ fontSize: 40, fontWeight: 800, marginTop: 10 }}>Dołącz do społeczności Kraków</div>
             <div
               style={{
                 fontSize: 23,
@@ -57,16 +53,16 @@ export const Verify: React.FC = () => {
           <AbsoluteFill
             style={{
               background: `rgba(15,23,42,${0.45 * modal})`,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Card style={{ width: 640, padding: 44, ...fadeUp(modal, 40) }}>
               {frame < CONSENT ? (
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
+                    display: "flex",
+                    alignItems: "center",
                     gap: 22,
                     fontSize: 26,
                     fontWeight: 600,
@@ -77,19 +73,11 @@ export const Verify: React.FC = () => {
                 </div>
               ) : frame < DONE ? (
                 <div style={fadeUp(consent)}>
-                  <div
-                    style={{ fontSize: 28, fontWeight: 800, marginBottom: 22 }}
-                  >
-                    Twoje Miejsce prosi o:
-                  </div>
-                  <Row
-                    ok
-                    text='Potwierdzenie: mieszkaniec gminy Kraków'
-                    delay={CONSENT + 8}
-                  />
-                  <Row text='PESEL' delay={CONSENT + 18} />
-                  <Row text='Adres zamieszkania' delay={CONSENT + 26} />
-                  <Row text='Data urodzenia' delay={CONSENT + 34} />
+                  <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 22 }}>Twoje Miejsce prosi o:</div>
+                  <Row ok text="Potwierdzenie: mieszkaniec gminy Kraków" delay={CONSENT + 8} />
+                  <Row text="PESEL" delay={CONSENT + 18} />
+                  <Row text="Adres zamieszkania" delay={CONSENT + 26} />
+                  <Row text="Data urodzenia" delay={CONSENT + 34} />
                   <div style={{ marginTop: 26 }}>
                     <Button pressAt={DONE - 10} color={C.green}>
                       Udostępnij
@@ -99,7 +87,7 @@ export const Verify: React.FC = () => {
               ) : (
                 <div
                   style={{
-                    textAlign: 'center',
+                    textAlign: "center",
                     transform: `scale(${0.8 + 0.2 * done})`,
                     opacity: done,
                   }}
@@ -113,16 +101,14 @@ export const Verify: React.FC = () => {
                       color: C.green,
                       fontSize: 64,
                       fontWeight: 800,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     ✓
                   </div>
-                  <div style={{ fontSize: 34, fontWeight: 800, marginTop: 20 }}>
-                    Witaj, sąsiadko!
-                  </div>
+                  <div style={{ fontSize: 34, fontWeight: 800, marginTop: 20 }}>Witaj, sąsiadko!</div>
                   <div
                     style={{
                       fontSize: 23,
@@ -143,20 +129,16 @@ export const Verify: React.FC = () => {
   );
 };
 
-const Row: React.FC<{ text: string; ok?: boolean; delay: number }> = ({
-  text,
-  ok,
-  delay,
-}) => {
+const Row: React.FC<{ text: string; ok?: boolean; delay: number }> = ({ text, ok, delay }) => {
   const p = useIn(delay);
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         gap: 16,
         fontSize: 23,
-        padding: '9px 0',
+        padding: "9px 0",
         ...fadeUp(p, 10),
       }}
     >
@@ -165,45 +147,38 @@ const Row: React.FC<{ text: string; ok?: boolean; delay: number }> = ({
           width: 34,
           height: 34,
           borderRadius: 17,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
           fontWeight: 800,
           background: ok ? C.greenSoft : C.redSoft,
           color: ok ? C.green : C.red,
         }}
       >
-        {ok ? '✓' : '✕'}
+        {ok ? "✓" : "✕"}
       </span>
       <span
         style={{
           color: ok ? C.text : C.muted,
-          textDecoration: ok ? undefined : 'line-through',
+          textDecoration: ok ? undefined : "line-through",
           fontWeight: ok ? 600 : 400,
         }}
       >
         {text}
       </span>
-      {!ok ? (
-        <span style={{ marginLeft: 'auto', fontSize: 17, color: C.muted }}>
-          nie udostępniamy
-        </span>
-      ) : null}
+      {!ok ? <span style={{ marginLeft: "auto", fontSize: 17, color: C.muted }}>nie udostępniamy</span> : null}
     </div>
   );
 };
 
-export const Spinner: React.FC<{ size?: number; color?: string }> = ({
-  size = 36,
-  color = C.accent,
-}) => {
+export const Spinner: React.FC<{ size?: number; color?: string }> = ({ size = 36, color = C.accent }) => {
   const frame = useCurrentFrame();
   return (
     <div
       style={{
         width: size,
         height: size,
-        borderRadius: '50%',
+        borderRadius: "50%",
         border: `4px solid ${C.line}`,
         borderTopColor: color,
         transform: `rotate(${interpolate(frame, [0, 30], [0, 360])}deg)`,

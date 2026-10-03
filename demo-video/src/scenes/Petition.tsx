@@ -1,8 +1,8 @@
-import type React from 'react';
-import { interpolate, useCurrentFrame } from 'remotion';
-import { AppFrame, Button, Card, Cursor } from '../components/AppFrame';
-import { Stage } from '../components/Stage';
-import { C, fadeUp, useIn } from '../theme';
+import type React from "react";
+import { interpolate, useCurrentFrame } from "remotion";
+import { AppFrame, Button, Card, Cursor } from "../components/AppFrame";
+import { Stage } from "../components/Stage";
+import { C, fadeUp, useIn } from "../theme";
 
 const CLICK = 70;
 const RUSH_END = 150;
@@ -13,8 +13,8 @@ export const Petition: React.FC = () => {
   const card = useIn(0);
   const signatures = Math.round(
     interpolate(frame, [0, CLICK, CLICK + 2, RUSH_END], [287, 287, 288, GOAL], {
-      extrapolateLeft: 'clamp',
-      extrapolateRight: 'clamp',
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
     }),
   );
   const done = signatures >= GOAL;
@@ -22,11 +22,11 @@ export const Petition: React.FC = () => {
   const signers = Math.max(0, signatures - 284);
   return (
     <Stage
-      caption='Podpisy pod inicjatywą uchwałodawczą: zweryfikowane i policzalne, bez PESEL-u na papierowej liście.'
+      caption="Podpisy pod inicjatywą uchwałodawczą: zweryfikowane i policzalne, bez PESEL-u na papierowej liście."
       captionAt={30}
     >
-      <AppFrame active='petitions'>
-        <div style={{ display: 'flex', gap: 30 }}>
+      <AppFrame active="petitions">
+        <div style={{ display: "flex", gap: 30 }}>
           <Card style={{ flex: 1, padding: 40, ...fadeUp(card) }}>
             <div
               style={{
@@ -34,7 +34,7 @@ export const Petition: React.FC = () => {
                 fontWeight: 700,
                 color: C.accent,
                 letterSpacing: 1,
-                textTransform: 'uppercase',
+                textTransform: "uppercase",
               }}
             >
               Obywatelska inicjatywa uchwałodawcza
@@ -57,15 +57,14 @@ export const Petition: React.FC = () => {
                 lineHeight: 1.45,
               }}
             >
-              Projekt uchwały o zamianie 6 betonowych podwórek w ogrody
-              społeczne. Potrzeba {GOAL} podpisów użytkowników, żeby trafił pod
-              obrady Rady Miasta.
+              Projekt uchwały o zamianie 6 betonowych podwórek w ogrody społeczne. Potrzeba {GOAL} podpisów
+              użytkowników, żeby trafił pod obrady Rady Miasta.
             </div>
             <div
               style={{
                 marginTop: 34,
-                display: 'flex',
-                alignItems: 'baseline',
+                display: "flex",
+                alignItems: "baseline",
                 gap: 12,
               }}
             >
@@ -78,9 +77,7 @@ export const Petition: React.FC = () => {
               >
                 {signatures}
               </span>
-              <span style={{ fontSize: 26, color: C.muted }}>
-                / {GOAL} podpisów
-              </span>
+              <span style={{ fontSize: 26, color: C.muted }}>/ {GOAL} podpisów</span>
             </div>
             <div
               style={{
@@ -88,12 +85,12 @@ export const Petition: React.FC = () => {
                 height: 22,
                 borderRadius: 11,
                 background: C.canvas,
-                overflow: 'hidden',
+                overflow: "hidden",
               }}
             >
               <div
                 style={{
-                  height: '100%',
+                  height: "100%",
                   width: `${(signatures / GOAL) * 100}%`,
                   borderRadius: 11,
                   background: done ? C.green : C.accent,
@@ -103,24 +100,22 @@ export const Petition: React.FC = () => {
             <div
               style={{
                 marginTop: 34,
-                display: 'flex',
-                alignItems: 'center',
+                display: "flex",
+                alignItems: "center",
                 gap: 20,
               }}
             >
               {frame < CLICK ? (
                 <Button pressAt={CLICK}>🪪 Podpisz przez mObywatel</Button>
               ) : (
-                <Button color={C.green}>
-                  ✓ Podpisano jako mieszkanka Krakowa
-                </Button>
+                <Button color={C.green}>✓ Podpisano jako mieszkanka Krakowa</Button>
               )}
             </div>
             {done ? (
               <div
                 style={{
                   marginTop: 26,
-                  padding: '18px 22px',
+                  padding: "18px 22px",
                   borderRadius: 14,
                   background: C.greenSoft,
                   color: C.green,
@@ -134,29 +129,23 @@ export const Petition: React.FC = () => {
             ) : null}
           </Card>
           <Card style={{ width: 440, ...fadeUp(useIn(10)) }}>
-            <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 14 }}>
-              Ostatnie podpisy
-            </div>
+            <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 14 }}>Ostatnie podpisy</div>
             {Array.from({ length: Math.min(signers, 9) }).map((_, i) => (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: newest-first rows keyed by signer number
                 key={signers - i}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 12,
-                  padding: '9px 0',
+                  padding: "9px 0",
                   borderBottom: `1px solid ${C.line}`,
                   fontSize: 18,
                 }}
               >
                 <span style={{ color: C.green, fontWeight: 800 }}>✓</span>
-                <span style={{ whiteSpace: 'nowrap' }}>
-                  Zweryfikowany mieszkaniec
-                </span>
-                <span style={{ marginLeft: 'auto', color: C.muted }}>
-                  {i === 0 ? 'teraz' : `${i * 2} min`}
-                </span>
+                <span style={{ whiteSpace: "nowrap" }}>Zweryfikowany mieszkaniec</span>
+                <span style={{ marginLeft: "auto", color: C.muted }}>{i === 0 ? "teraz" : `${i * 2} min`}</span>
               </div>
             ))}
             <div
