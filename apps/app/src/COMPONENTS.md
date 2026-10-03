@@ -11,7 +11,7 @@ Kolejność implementacji: **1)** Text, Button (są gotowe) → **2)** Icon, Ico
 ## Podstawy
 
 ### Text ✅ (`src/components/Text.tsx`)
-Props: `variant` (klucz `typography`), `color` (klucz `colors`). Warianty z Barlow Condensed (`label`, `labelL`, `labelHero`, `chip`, `stepNumber`, `abbr`) są automatycznie WIELKIMI LITERAMI.
+Props: `variant` (klucz `typography`), `color` (klucz `colors`). Warianty etykiet (`label`, `labelL`, `labelHero`, `chip`, `stepNumber`, `abbr`) są automatycznie WIELKIMI LITERAMI.
 
 ### Icon
 Biblioteka: **`lucide-react-native`** (ikony w projekcie mają styl Lucide) + `react-native-svg`.
@@ -45,7 +45,7 @@ Stany: pressed (primary → `primaryPressed`; inne `opacity.pressed`), disabled 
 Zawsze `accessibilityLabel` (np. „Wróć", „Powiadomienia").
 
 ### Label (eyebrow)
-Etykieta pola i nagłówek sekcji: `Text variant="label" color="textSecondary"` (Barlow Condensed 600, 14, UPPERCASE, letterSpacing 1.12). Odstęp do pola: `spacing[3]` (6). Nagłówek sekcji (h2) ma dodatkowo opcjonalny `CountBadge` po prawej treści (gap 8) lub link „Wszyscy" po prawej stronie (`typography.link`, kolor `primary`). Dopisek „(opcjonalnie)" to ta sama czcionka bez uppercase, letterSpacing 0, weight 500.
+Etykieta pola i nagłówek sekcji: `Text variant="label" color="textSecondary"` (Schibsted Grotesk 600, 12, UPPERCASE, letterSpacing 0.72). Odstęp do pola: `spacing[3]` (6). Nagłówek sekcji (h2) ma dodatkowo opcjonalny `CountBadge` po prawej treści (gap 8) lub link „Wszyscy" po prawej stronie (`typography.link`, kolor `primary`). Dopisek „(opcjonalnie)" to ta sama czcionka bez uppercase, letterSpacing 0, weight 500.
 
 ### Link
 `typography.link` (14/500) lub 15/600 w zdaniach („Zarejestruj się"), kolor `primary`, bez podkreślenia, wciśnięty `primaryPressed`.
@@ -90,7 +90,7 @@ Kwadrat z zaokrągleniem (`radii.md` 12 / `lg` 14 dla 48 dp), tło `primaryTint`
 
 ### Avatar
 - Inicjały osoby: koło (28/36/40 dp), tło `primaryTint` + tekst `primary` 600 (12–13 px) lub neutralny: tło `surfaceMuted`, tekst `text`.
-- Skrót miejsca (`PlaceAvatar`): kwadrat 44–48 dp, radius 12, tło `primaryTint`, tekst `typography.abbr` `primary` (Barlow 18 UPPERCASE), np. „OS", „KL".
+- Skrót miejsca (`PlaceAvatar`): kwadrat 44–48 dp, radius 12, tło `primaryTint`, tekst `typography.abbr` `primary` (Schibsted Grotesk 700, 16, UPPERCASE), np. „OS", „KL".
 
 ### Badge / Chip
 - `RoleBadge` / „Domyślne" / „Polecane": `typography.chip`, padding 2×8 (w tytule 1×7), radius 6. Admin/Domyślne/Polecane: tło `primaryTint`, tekst `primaryPressed`. Członek: tło `surfaceMuted`, tekst `textSecondary`.

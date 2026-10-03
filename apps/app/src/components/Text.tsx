@@ -1,7 +1,7 @@
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
 import { type ColorToken, colors, type TypographyToken, typography } from "../theme";
 
-/** Typography variants that are always rendered in UPPERCASE (Barlow Condensed labels). */
+/** Typography variants that are always rendered in UPPERCASE (labels). */
 const UPPERCASE: ReadonlySet<TypographyToken> = new Set<TypographyToken>([
   "label",
   "labelL",

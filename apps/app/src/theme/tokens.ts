@@ -121,17 +121,13 @@ export const sizes = {
   authMap: 300,
 } as const;
 
-/** Font families (names from the @expo-google-fonts packages — see fonts.ts). */
+/** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */
 export const fontFamily = {
-  // Schibsted Grotesk — text, headings, buttons
+  // Schibsted Grotesk — text, headings, buttons, labels, codes
   regular: "SchibstedGrotesk_400Regular",
   medium: "SchibstedGrotesk_500Medium",
   semibold: "SchibstedGrotesk_600SemiBold",
   bold: "SchibstedGrotesk_700Bold",
-  // Barlow Condensed — labels (UPPERCASE), codes, numbering
-  labelMedium: "BarlowCondensed_500Medium",
-  label: "BarlowCondensed_600SemiBold",
-  labelBold: "BarlowCondensed_700Bold",
 } as const;
 
 /**
@@ -163,14 +159,14 @@ export const typography = {
   input: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 22 },
   link: { fontFamily: fontFamily.medium, fontSize: 14, lineHeight: 20 },
 
-  // Barlow Condensed labels — always UPPERCASE (textTransform: 'uppercase')
-  label: { fontFamily: fontFamily.label, fontSize: 14, lineHeight: 16, letterSpacing: 1.12 }, // 0.08em
-  labelL: { fontFamily: fontFamily.label, fontSize: 15, lineHeight: 17, letterSpacing: 1.2 },
-  labelHero: { fontFamily: fontFamily.label, fontSize: 14, lineHeight: 16, letterSpacing: 1.4 }, // 0.10em on the red banner
-  chip: { fontFamily: fontFamily.label, fontSize: 13, lineHeight: 15, letterSpacing: 0.78 }, // 0.06em
-  stepNumber: { fontFamily: fontFamily.label, fontSize: 14, lineHeight: 16, letterSpacing: 1.12 },
-  abbr: { fontFamily: fontFamily.label, fontSize: 18, lineHeight: 20, letterSpacing: 0.36 }, // place abbreviation (e.g. "OS")
-  codeInline: { fontFamily: fontFamily.label, fontSize: 18, lineHeight: 20, letterSpacing: 1.8 }, // K7M-4QX in a row
+  // Labels — always UPPERCASE (textTransform: 'uppercase'), tracked out
+  label: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 }, // 0.06em
+  labelL: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 17, letterSpacing: 0.78 },
+  labelHero: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96 }, // 0.08em on the red banner
+  chip: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 15, letterSpacing: 0.55 }, // 0.05em
+  stepNumber: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 },
+  abbr: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 20, letterSpacing: 0 }, // place abbreviation (e.g. "OS")
+  codeInline: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20, letterSpacing: 1.28 }, // K7M-4QX in a row
 
   // Codes
   codeXL: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 32, letterSpacing: 1.68 }, // "place created" screen
