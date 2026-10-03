@@ -10,6 +10,8 @@ import {
   type LucideIcon,
   MapPin,
   Megaphone,
+  MessagesSquare,
+  Plus,
   X,
 } from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
@@ -34,6 +36,8 @@ import {
 } from "../components";
 import { tapFeedback } from "../lib/haptics";
 import { STREET_ZOOM } from "../lib/map/spec";
+import { initials } from "../lib/places";
+import { relativeTime } from "../lib/relativeTime";
 import LocationPicker from "../screens/LocationPicker";
 import { t } from "../texts";
 import { borders, colors, layout, opacity, radii, shadows, sizes, spacing } from "../theme";
@@ -300,6 +304,8 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <PluginTabs node={node} />;
     case "Fab":
       return <FloatingAction node={node} />;
+    case "Activity":
+      return <ActivityRow node={node} />;
     case "Map":
       return <PluginMap node={node} still={inWidget} onAction={onAction} />;
     case "LocationInput":
@@ -537,6 +543,70 @@ function HighlightTile({ node }: { node: Extract<UINode, { type: "Highlight" }> 
     </Pressable>
   ) : (
     body
+  );
+}
+
+/**
+ * Someone's activity: their initials, the title with the time ("5 min temu") and a line of text. New for the user
+ * (`unread`): a red avatar, time and dot. In a widget one compact row between the list's dividers; on a screen a card
+ * with the text in full (e.g. a message in a thread).
+ */
+function ActivityRow({ node }: { node: Extract<UINode, { type: "Activity" }> }) {
+  const { onAction, onLongPress } = useContext(ActionsContext);
+  const inWidget = useContext(InWidgetContext);
+  const time = node.at ? relativeTime(node.at, new Date(), inWidget ? "short" : "long") : null;
+  const body = (
+    <View style={inWidget ? styles.activity : undefined}>
+      <View style={styles.activityRow}>
+        {node.person ? (
+          <View style={[styles.avatar, node.unread && styles.avatarNew]}>
+            <Text variant="buttonS" color={node.unread ? "primary" : "text"}>
+              {initials(node.person)}
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.activityText}>
+          <View style={[styles.activityLine, styles.activityHead]}>
+            <Text variant="cardTitle" numberOfLines={inWidget ? 1 : undefined} style={styles.activityGrow}>
+              {node.title}
+            </Text>
+            {time ? (
+              <Text variant="small" color={node.unread ? "primary" : "textSecondary"}>
+                {time}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.activityLine}>
+            {node.text ? (
+              <Text
+                variant={inWidget ? "caption" : "body"}
+                color={inWidget ? "textSecondary" : "text"}
+                numberOfLines={inWidget ? 1 : undefined}
+                style={styles.activityGrow}
+              >
+                {node.text}
+              </Text>
+            ) : null}
+            {node.unread ? <View aria-label={t.plugin_activity_new} role="img" style={styles.newDot} /> : null}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+  const content = inWidget ? body : <Card>{body}</Card>;
+  const onPress = node.onPress;
+  if (!onPress) return content;
+  const label = [node.title, node.unread ? t.plugin_activity_new : null, node.text, time].filter(Boolean).join(", ");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => onAction(onPress)}
+      onLongPress={onLongPress}
+      style={({ pressed }) => (pressed ? { opacity: opacity.pressed } : undefined)}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -865,6 +935,8 @@ const UI_ICON: Record<UIIcon, LucideIcon> = {
   idea: Lightbulb,
   camera: Camera,
   megaphone: Megaphone,
+  chat: MessagesSquare,
+  plus: Plus,
 };
 
 const styles = StyleSheet.create({
@@ -975,6 +1047,23 @@ const styles = StyleSheet.create({
   highlightPhoto: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   highlightText: { flex: 1, minWidth: 0, gap: spacing[1] },
   votes: { alignItems: "center", flexShrink: 0 },
+  activity: { paddingVertical: spacing[5] },
+  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing[6] },
+  avatar: {
+    width: sizes.avatarMd,
+    height: sizes.avatarMd,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  avatarNew: { backgroundColor: colors.primaryTint },
+  activityText: { flex: 1, minWidth: 0, gap: spacing[1] },
+  activityLine: { flexDirection: "row", alignItems: "center", gap: spacing[4] },
+  activityHead: { alignItems: "flex-start" },
+  activityGrow: { flex: 1, minWidth: 0 },
+  newDot: { width: spacing[4], height: spacing[4], borderRadius: radii.pill, backgroundColor: colors.primary },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[4] },
   list: { gap: spacing[6] },
   divider: { borderTopWidth: borders.hairline, borderTopColor: colors.borderSubtle },

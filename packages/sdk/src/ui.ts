@@ -99,7 +99,7 @@ export type MapAreaItem = z.infer<typeof mapAreaSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 
 /** Icons a node can show (a Select card, a Button, a widget header); the app draws them (apps/app/src/plugins/Renderer.tsx). */
-export const UI_ICONS = ["alert", "idea", "camera", "megaphone"] as const;
+export const UI_ICONS = ["alert", "idea", "camera", "megaphone", "chat", "plus"] as const;
 export const uiIconSchema = z.enum(UI_ICONS);
 export type UIIcon = z.infer<typeof uiIconSchema>;
 
@@ -204,6 +204,20 @@ const leafSchemas = [
     label: z.string().min(1).max(40),
     icon: uiIconSchema.optional(),
     action: navigateActionSchema,
+  }),
+  /**
+   * Something a person did, and when: their avatar (initials of `person`), the title, a line of text (e.g. the last
+   * message of a discussion) and `at` (an ISO date; the app shows "5 min temu"). `unread` marks it as new for this
+   * user. In a widget it is one compact row; on a screen the text is shown in full (e.g. a message in a thread).
+   */
+  z.object({
+    type: z.literal("Activity"),
+    title: z.string(),
+    text: z.string().optional(),
+    person: z.string().optional(),
+    at: z.iso.datetime({ offset: true }).optional(),
+    unread: z.boolean().optional(),
+    onPress: actionSchema.optional(),
   }),
   /**
    * A map (see MAP_LIMITS). The first view fits everything on it; `center` (and `zoom`, 1–19) set it instead, e.g.
@@ -343,7 +357,7 @@ function isReadOnly(node: UINode): boolean {
   if (node.type === "Button" && node.action.type === "tool") return false;
   if (node.type === "Card" && node.onPress?.type === "tool") return false;
   if (node.type === "Card" && node.counter?.action) return false;
-  if (node.type === "Highlight" && node.onPress?.type === "tool") return false;
+  if ((node.type === "Highlight" || node.type === "Activity") && node.onPress?.type === "tool") return false;
   if (node.type === "Map") {
     const items = node.layers.flatMap((layer): { onPress?: Action }[] => layer.items);
     if (items.some((item) => item.onPress?.type === "tool")) return false;
@@ -409,6 +423,7 @@ export const ui = {
   tabs: (props: Props<"Tabs">): Of<"Tabs"> => ({ type: "Tabs", ...props }),
   fab: (props: Props<"Fab">): Of<"Fab"> => ({ type: "Fab", ...props }),
   highlight: (props: Props<"Highlight">): Of<"Highlight"> => ({ type: "Highlight", ...props }),
+  activity: (props: Props<"Activity">): Of<"Activity"> => ({ type: "Activity", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
   map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
     /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */

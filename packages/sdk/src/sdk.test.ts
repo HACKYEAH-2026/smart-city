@@ -87,6 +87,24 @@ describe("UI catalog", () => {
     const badIcon = { type: "Button", label: "x", action: ui.navigate("new"), icon: "rocket" };
     expect(uiNodeSchema.safeParse(badIcon).success).toBe(false);
   });
+
+  test("activity: a person, a line of text and an ISO time; read-only in a widget", () => {
+    const row = ui.activity({
+      title: "Zieleń przy Rondzie Mogilskim",
+      text: "Anna: Proponuję lipy",
+      person: "Anna Nowak",
+      at: "2026-10-04T08:30:00.000Z",
+      unread: true,
+      onPress: ui.navigate("thread", { id: "1" }),
+    });
+    expect(uiNodeSchema.parse(row)).toEqual(row);
+    expect(uiNodeSchema.parse(ui.activity({ title: "Anna" }))).toEqual({ type: "Activity", title: "Anna" });
+    expect(uiNodeSchema.safeParse({ ...row, at: "wczoraj" }).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [row])).success).toBe(true);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [{ ...row, onPress: ui.tool("remove") }])).success).toBe(
+      false,
+    );
+  });
 });
 
 describe("plugin maps", () => {

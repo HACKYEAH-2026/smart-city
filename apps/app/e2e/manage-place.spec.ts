@@ -51,8 +51,7 @@ test("only admins manage a place; the screen shows its sections, closed", async 
 
 test("plugins: switching one off takes it out of the place, switching it on brings it back", async ({ page }) => {
   await loginAdmin(page);
-  // Discussions have no dashboard tile: they are among the place's other features.
-  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
   const discussions = page.getByRole("checkbox", { name: "Dyskusje" });
@@ -63,13 +62,13 @@ test("plugins: switching one off takes it out of the place, switching it on brin
   await expect(
     page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
 
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
   await page.getByRole("checkbox", { name: "Dyskusje" }).click();
   await page.getByRole("button", { name: t.back }).click();
-  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
 });
 
 test("settings: renaming the place and changing who may join", async ({ page }) => {
@@ -134,9 +133,9 @@ test("dashboard layout: the widgets in order; moving one changes the dashboard",
   await openManage(page);
   await openSection(page, t.manage_layout_title);
   const widgets = page.getByRole("list", { name: t.manage_layout_title }).getByRole("listitem");
-  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
+  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
   await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
-  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/]);
+  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/, /Dyskusje/]);
   await page.getByRole("button", { name: t.back }).click();
   const regions = page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");

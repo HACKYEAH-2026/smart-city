@@ -405,7 +405,7 @@ describe("dashboard", () => {
     const u = await t.signUp();
     expect((await t.request("/api/communities/nie-ma/dashboard", { headers: u.headers })).status).toBe(404);
     const d = await dashboard(u.headers);
-    expect(d.keys).toEqual(["issues/summary"]);
+    expect(d.keys).toEqual(["issues/summary", "discussions/recent"]);
     expect(d.canEdit).toBe(false);
     expect((await dashboard(cityAdmin.headers)).canEdit).toBe(true);
   });
@@ -419,6 +419,7 @@ describe("dashboard", () => {
     expect(before.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
       { key: "issues/summary", size: { w: 2, h: 3 } },
       { key: "announcements/latest", size: { w: 2, h: 3 } },
+      { key: "discussions/recent", size: { w: 2, h: 3 } },
     ]);
     // Tapping a tile opens the plugin view its widget names.
     expect(nodeOf(before, "issues/summary")).toMatchObject({ onPress: { type: "navigate", view: "list" } });
@@ -440,13 +441,18 @@ describe("dashboard", () => {
     expect((await setOrder(u.headers, ["announcements/latest", "issues/summary"])).status).toBe(403);
     expect((await setOrder(cityAdmin.headers, "nie-lista")).status).toBe(400);
     expect((await setOrder(cityAdmin.headers, ["announcements/latest", "issues/summary"])).status).toBe(200);
-    expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary"]);
+    expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary", "discussions/recent"]);
 
     await uploadAndInstall(
       withWidget("tiles", "{ size: { w: 1, h: 1 }, render: () => ui.widget('Notatki', []) }"),
       "tiles",
     );
-    expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary", "tiles/w"]);
+    expect((await dashboard(u.headers)).keys).toEqual([
+      "announcements/latest",
+      "issues/summary",
+      "discussions/recent",
+      "tiles/w",
+    ]);
     const res = await t.request("/api/communities/nie-ma/dashboard", {
       method: "PATCH",
       headers: cityAdmin.headers,
@@ -471,7 +477,7 @@ describe("dashboard", () => {
     );
     const d = await dashboard(u.headers);
     expect(d.res.status).toBe(200);
-    expect(d.keys).toEqual(["issues/summary"]);
+    expect(d.keys).toEqual(["issues/summary", "discussions/recent"]);
   });
 
   test("a widget without a valid size is rejected on upload", async () => {

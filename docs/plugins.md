@@ -42,7 +42,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
  host ── ctx { user, community, now, lastVisit, db, files, ai, notify } ──► view / dashboard widget / tool / stream handler
 ```
 
-Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
+Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams, a widget
+of the latest activity),
 `plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
 `plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key). All three are built in; the smallest
 plugin is the upload-test fixture `apps/api/test/fixtures/notes-plugin.ts`.
@@ -595,8 +596,9 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Node | Builder |
 |---|---|
 | Screen | `ui.screen(title, children, { eyebrow? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name) |
-| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
+| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`, `chat`, `plus`; Buttons and Select cards take the same set), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
 | Highlight | `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item: a thumbnail (`image`, a photo from `ctx.files`), a vote count with an up arrow |
+| Activity | `ui.activity({ title, text?, person?, at?, unread?, onPress? })` — something a person did and when: their initials (`person`), the title, a line of text and `at` (an ISO date, shown as "5 min temu"); `unread` marks it new. In a widget a compact row (e.g. a discussion's last message), on a screen a card with the text in full (e.g. a message) |
 | Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally) |
 | List | `ui.list(label, items)` |
 | Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, tags?, counter?, onPress?, children? })` — `tags`: `{ text, tone?, icon?, dot? }` (up to 4); `counter`: `{ label, value, pressed, action? }`, a button at the left (votes): pressed, or without `action`, it cannot be pressed |
