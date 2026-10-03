@@ -11,6 +11,7 @@ import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin"
 import type { AI, AICall, SimilarMatch } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
+import { type Notification, type Notify, parseNotification } from "./services/notify";
 import {
   dashboardWidgetSchema,
   screenSchema,
@@ -32,6 +33,7 @@ import {
  *   await t.tool("report", { title: "Latarnia", photo });
  *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
  *   await t.dashboardWidget("latest"); // `view()` records a visit like the host (ctx.lastVisit)
+ *   t.notifications(); // what ctx.notify sent (recipients are resolved by the host, not here)
  */
 export class ForbiddenError extends Error {}
 
@@ -172,6 +174,13 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     return id;
   };
   const can = (permission: Permission) => manifest.permissions.includes(permission);
+  /** ctx.notify calls, validated like in the host, with the sender. */
+  const sent: (Notification & { from: string })[] = [];
+  const notifyAs =
+    (user: PluginUser): Notify =>
+    async (input) => {
+      sent.push({ from: user.id, ...parseNotification(definition.views, input) });
+    };
   /** Last view render per user, like the host's visit tracking (`ctx.lastVisit`). */
   const visits = new Map<string, Date>();
   const ctxFor = async (user: PluginUser): Promise<Context> => {
@@ -184,6 +193,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       db: can("db") ? dbFor(user) : deniedService("db"),
       files: can("files") ? filesApi : deniedService("files"),
       ai: can("ai") ? ai.api : deniedService("ai"),
+      notify: can("notify") ? notifyAs(user) : deniedService("notify"),
     };
   };
   const assertRole = (name: string, requires: string | undefined, user: PluginUser) => {
@@ -248,6 +258,8 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       isKept: async (id: FileId) => (await fileRow(id))?.status === "kept",
     },
     ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar },
+    /** Notifications sent with ctx.notify, oldest first (`from` = the acting user's id). */
+    notifications: () => [...sent],
     setNow: (date: Date) => {
       clock.now = date;
     },

@@ -19,7 +19,7 @@ import {
 import { DbError, SchemaError } from "@app/plugin-sdk/engine";
 import type { RecordId } from "surrealdb";
 import { z } from "zod";
-import { first, keyOf, ref, rows, visitRef } from "../db";
+import { first, keyOf, ref, rows, toDate, visitRef } from "../db";
 import { syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
@@ -229,9 +229,6 @@ export class PluginHost {
     return loadPlugin(mod.default);
   }
 }
-
-/** SurrealDB returns its own DateTime type; plugins get a plain Date. */
-const toDate = (at: Date | { toDate(): Date }) => (at instanceof Date ? at : at.toDate());
 
 async function guard<T>(plugin: LoadedPlugin, what: string, fn: () => T | Promise<T>): Promise<T> {
   try {

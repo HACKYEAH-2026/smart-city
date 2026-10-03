@@ -59,7 +59,7 @@ A feature for residents (issue reports, bookings, announcements…) is NOT a new
 | Contract and UI catalog | `packages/sdk/src/` (new UI node = schema + builder + `apps/app/src/plugins/Renderer.tsx`) |
 | Host test (API) | `apps/api/test/plugins.test.ts` (routing, admin, isolation via `app.request()`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
-A plugin gets no access to the app database and no disk: only `ctx` (user with role, community, now, db, files, ai;
+A plugin gets no access to the app database and no disk: only `ctx` (user with role, community, now, db, files, ai, notify;
 docs/plugins.md). Do not add platform tables for a single plugin — it declares its own `tables` (`ctx.db`, isolated per installation).
 
 ## Single source of truth (no parallel code paths)

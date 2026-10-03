@@ -17,6 +17,9 @@ export const ref = (table: keyof typeof TABLES, key: string) => new RecordId(TAB
 /** The string key of a record id (`community:abc` → `abc`). */
 export const keyOf = (id: RecordId) => String(id.id);
 
+/** SurrealDB returns its own DateTime type; the app and plugins get a plain Date. */
+export const toDate = (at: Date | { toDate(): Date }) => (at instanceof Date ? at : at.toDate());
+
 /** Membership record id: one per (community, user), so joining and granting roles are single UPSERTs. */
 export const membershipRef = (communityId: string, userId: string) =>
   new RecordId(TABLES.membership, [ref("community", communityId), ref("user", userId)]);

@@ -14,7 +14,7 @@ communities, users and installations; plugins bring everything else: their own t
 
 Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-package) ·
 [Manifest](#manifest-permissions-roles) · [Tables](#tables) · [Schema evolution](#schema-evolution-no-migrations) ·
-[`ctx.db`](#ctxdb) · [Files](#ctxfiles) · [AI](#ctxai) · [Tools & streams](#tools-streams-oninstall) ·
+[`ctx.db`](#ctxdb) · [Files](#ctxfiles) · [AI](#ctxai) · [Notifications](#ctxnotify) · [Tools & streams](#tools-streams-oninstall) ·
 [Views](#views-ui) · [Dashboard widgets](#dashboard-widgets) · [Testing](#testing) · [Host](#host)
 
 ## Mental model
@@ -24,8 +24,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
   `(sdk) => definePlugin({...})`; the host passes the SDK: `{ definePlugin, ui, z, fileRef, t }`
   (`t` = table builders, `z` = Zod 4, `fileRef` = Zod schema for an uploaded file id).
   This lets the same file run built-in, uploaded at runtime, or later in a sandbox.
-- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`.
-  No app database, no disk, no network.
+- A plugin sees only `ctx`: `user` (with role in this community), `community`, `now()`, `lastVisit`, `db`, `files`, `ai`,
+  `notify`. No app database, no disk, no network, no residents' locations.
 - All data is **isolated per installation** (plugin × community): every query, reference and live
   stream is scoped to it.
 - Code, identifiers and comments are in English; everything a resident sees (view titles, labels, toasts,
@@ -34,7 +34,7 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
 ```
  plugin factory(sdk) ──► definePlugin({ tables, views, dashboardWidgets, tools, streams })
                                 │
- host ── ctx { user, community, now, lastVisit, db, files, ai } ──► view / dashboard widget / tool / stream handler
+ host ── ctx { user, community, now, lastVisit, db, files, ai, notify } ──► view / dashboard widget / tool / stream handler
 ```
 
 Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
@@ -120,12 +120,12 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 | `version` | semver `x.y.z` |
 | `icon` | ≤ 8 chars (emoji), default `🧩` |
 | `description` | ≤ 280 chars, default `""` |
-| `permissions` | subset of `"db"`, `"files"`, `"ai"`, default `[]` |
+| `permissions` | subset of `"db"`, `"files"`, `"ai"`, `"notify"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
 | `tables` | optional, see [Tables](#tables) |
 | `views`, `dashboardWidgets`, `tools`, `streams`, `onInstall` | see below |
 
-**Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` without the matching permission rejects
+**Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` / `ctx.notify` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
 (The test harness enforces them like the host: an undeclared service rejects on use.)
 
@@ -438,6 +438,42 @@ if (match) match.item.id; match?.score; match?.reason;   // item is your row typ
 Without a configured model, `findSimilar` works lexically (shared words) and so does the demo; with a
 model, the model decides (using the query image) and writes the `reason`.
 
+## `ctx.notify`
+
+Notifications go to residents' inboxes in the app (`"notify"` permission). Recipients are always members of
+this community and never the user who triggered the call (the reporter does not get their own alert).
+
+```ts
+// "Uwaga, dzik!": residents with a saved place, or a position shared in the last 30 min, within 500 m
+await ctx.notify({
+  to: { near: { lat: input.lat, lng: input.lng, radius: 500 } },
+  title: "Dzik z młodymi przy placu zabaw",
+  body: "Ok. 150 m od Lasu Borkowskiego. Nie podchodź, zabierz psa na smycz.",
+  tone: "danger",
+  open: ui.navigate("sighting", { id: sighting.id }),   // the view the app opens on tap
+});
+await ctx.notify({ to: { users: [issue.reporter] }, title: "Twoje zgłoszenie naprawione", tone: "success" });
+await ctx.notify({ to: { everyone: true }, title: "Alarm: skażenie wody w sieci" });  // all members
+```
+
+| Field | Rule |
+|---|---|
+| `to` | exactly one of `{ users: string[] }` (1–1000 user ids; non-members are skipped), `{ near: { lat, lng, radius } }` (WGS 84, radius in metres, ≤ 50 000), `{ everyone: true }` |
+| `title` | 1–120 chars, Polish |
+| `body` | ≤ 500 chars, default `""` |
+| `tone` | `"info"` (default), `"success"`, `"warning"`, `"danger"` |
+| `open` | optional `ui.navigate(view, params?)`; the view must exist |
+
+- **Privacy:** `near` is matched by the host against residents' saved places ("Moje miejsca", `/api/me/places`)
+  and positions shared from the open app (`/api/me/location`, fresh for 30 minutes). The plugin never sees
+  them, and `ctx.notify` returns nothing about the recipients (not even a count), so it cannot be used to
+  locate anyone. Store the reported point in your own tables if the plugin needs it (e.g. a map of sightings).
+- Who may trigger what is the plugin's decision: guard broadcast tools with `requires: "admin"` and limit how
+  often a resident can trigger `near` alerts (e.g. one sighting per user per 10 minutes, checked in `ctx.db`).
+- An invalid call (unknown view, bad audience, radius too big) throws: a plugin bug, the tool fails with
+  `500 plugin_error` and nothing is sent.
+- Delivery today: the in-app inbox (`GET /api/me/notifications`). Push to phones is not wired yet.
+
 ## Tools, streams, onInstall
 
 ### Tools
@@ -581,6 +617,7 @@ No API, no AI model; connections close after each test.
 | `.files.isKept(id)` | `true` once a `t.ref("file")` column referenced it |
 | `.ai.mockSimilar((query, candidates) => matches)` | `findSimilar` result (default `[]`) |
 | `.ai.mockCall((req) => value)` | `call` result, parsed with `req.schema` if given (default: throws) |
+| `.notifications()` | what `ctx.notify` sent, validated like in the host, oldest first, each with `from` (sender id); recipients are resolved by the host only |
 | `.db` | the plugin database as the system user (assertions); untyped tables → `plugin.db.items!` |
 | `.install()` | runs `onInstall` |
 | `.setNow(date)` | controls `ctx.now()` and timestamps (default `2026-01-01T00:00:00Z`) |
@@ -761,6 +798,10 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | tool call |
 | `POST /api/communities/:slug/plugins/:id/files` (multipart `file`) | upload → `{ fileId }` (pending) |
 | `GET /api/files/:fileId?exp&sig` | file download via a signed URL |
+| `GET /api/me/notifications` | the user's inbox across communities: `{ items: [{ id, community, pluginId, title, body, tone, open, createdAt, read }], unread }` (newest 50) |
+| `POST /api/me/notifications/read` `{ ids? }` | mark as read (the given ids, or all) → `{ unread }` |
+| `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
+| `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
 | `POST /api/admin/plugins` `{ source }` | upload / replace a plugin (`PLUGIN_ADMIN_TOKEN`) |
 | `POST /api/admin/communities/:slug/plugins` `{ pluginId }` | enable a plugin in a community (runs `onInstall` once) |
 

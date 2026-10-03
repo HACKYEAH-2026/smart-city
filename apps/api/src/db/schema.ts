@@ -15,6 +15,9 @@ export const TABLES = {
   source: "plugin_source",
   visit: "plugin_visit",
   dashboard: "dashboard",
+  notification: "notification",
+  place: "place",
+  location: "user_location",
 } as const;
 
 export const SCHEMA = `
@@ -58,4 +61,33 @@ DEFINE FIELD IF NOT EXISTS at ON plugin_visit TYPE datetime;
 DEFINE TABLE IF NOT EXISTS dashboard SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS order ON dashboard TYPE array<string>;
 DEFINE FIELD IF NOT EXISTS updated_at ON dashboard TYPE datetime DEFAULT time::now();
+
+-- A notification in a resident's inbox (ctx.notify), one row per recipient. \`open\` = view of the plugin to open.
+DEFINE TABLE IF NOT EXISTS notification SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user ON notification TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS community ON notification TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS installation ON notification TYPE record<plugin_installation> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS plugin ON notification TYPE string;
+DEFINE FIELD IF NOT EXISTS title ON notification TYPE string;
+DEFINE FIELD IF NOT EXISTS body ON notification TYPE string DEFAULT "";
+DEFINE FIELD IF NOT EXISTS tone ON notification TYPE "info" | "success" | "warning" | "danger" DEFAULT "info";
+DEFINE FIELD IF NOT EXISTS open ON notification TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS created_at ON notification TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS read_at ON notification TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS notification_user_created ON notification FIELDS user, created_at;
+
+-- A resident's saved place ("Moje miejsca": home, work, a child's school), private to them. Plugins never read
+-- it: ctx.notify({ to: { near } }) is matched against it by the host.
+DEFINE TABLE IF NOT EXISTS place SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user ON place TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS label ON place TYPE string;
+DEFINE FIELD IF NOT EXISTS point ON place TYPE geometry<point>;
+DEFINE FIELD IF NOT EXISTS created_at ON place TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS place_user ON place FIELDS user;
+
+-- The position a resident shares while the app is open (one per user, id = user key); "near" ignores stale ones.
+DEFINE TABLE IF NOT EXISTS user_location SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user ON user_location TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS point ON user_location TYPE geometry<point>;
+DEFINE FIELD IF NOT EXISTS at ON user_location TYPE datetime;
 `;

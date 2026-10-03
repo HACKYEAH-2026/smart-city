@@ -93,6 +93,7 @@
     "packages/shared": {
       "name": "@app/shared",
       "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
         "zod": "^4.6.5",
       },
     },

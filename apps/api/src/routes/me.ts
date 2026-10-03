@@ -1,0 +1,69 @@
+import { locationSchema, notificationsReadSchema, PLACES_MAX, type Place, placeCreateSchema } from "@app/shared";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import type { GeometryPoint, RecordId } from "surrealdb";
+import type { AppEnv } from "../context";
+import { first, keyOf, ref, rows } from "../db";
+import { requireUser } from "../middleware";
+import { geoPoint } from "../services/notifications/service";
+
+type PlaceRow = { id: RecordId; label: string; point: GeometryPoint };
+
+const toPlace = (row: PlaceRow): Place => {
+  const [lng, lat] = row.point.coordinates;
+  return { id: keyOf(row.id), label: row.label, lat, lng };
+};
+
+/**
+ * The signed-in user's own data: the notification inbox (ctx.notify), saved places and the shared current
+ * position. Places and the position are private: nothing here is visible to plugins or to other users;
+ * the host only matches them against "near" notifications.
+ */
+export const meRoutes = new Hono<AppEnv>()
+  .use(requireUser)
+  .get("/notifications", async (c) => c.json(await c.var.notifications.inbox(c.var.user.id), 200))
+  .post("/notifications/read", zValidator("json", notificationsReadSchema), async (c) => {
+    const unread = await c.var.notifications.markRead(c.var.user.id, c.req.valid("json").ids);
+    return c.json({ unread }, 200);
+  })
+  .get("/places", async (c) => {
+    const places = await rows<PlaceRow>(
+      c.var.db,
+      "SELECT id, label, point, created_at FROM place WHERE user = $user ORDER BY created_at;",
+      { user: ref("user", c.var.user.id) },
+    );
+    return c.json(places.map(toPlace), 200);
+  })
+  .post("/places", zValidator("json", placeCreateSchema), async (c) => {
+    const { label, ...point } = c.req.valid("json");
+    const user = ref("user", c.var.user.id);
+    const count = await first<{ count: number }>(c.var.db, "SELECT count() FROM place WHERE user = $user GROUP ALL;", {
+      user,
+    });
+    if ((count?.count ?? 0) >= PLACES_MAX) return c.json({ error: "too_many_places" }, 400);
+    const row = await first<PlaceRow>(c.var.db, "CREATE place CONTENT $data RETURN id, label, point;", {
+      data: { user, label, point: geoPoint(point) },
+    });
+    if (!row) throw new Error("place not created");
+    return c.json(toPlace(row), 201);
+  })
+  .delete("/places/:id", async (c) => {
+    const deleted = await rows<PlaceRow>(c.var.db, "DELETE $place WHERE user = $user RETURN BEFORE;", {
+      place: ref("place", c.req.param("id")),
+      user: ref("user", c.var.user.id),
+    });
+    return deleted.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
+  })
+  /** The position while the app is open (one per user); "near" uses it for LOCATION_FRESH_MINUTES. */
+  .put("/location", zValidator("json", locationSchema), async (c) => {
+    await c.var.db.query("UPSERT $location SET user = $user, point = $point, at = time::now() RETURN NONE;", {
+      location: ref("location", c.var.user.id),
+      user: ref("user", c.var.user.id),
+      point: geoPoint(c.req.valid("json")),
+    });
+    return c.body(null, 204);
+  })
+  .delete("/location", async (c) => {
+    await c.var.db.query("DELETE $location RETURN NONE;", { location: ref("location", c.var.user.id) });
+    return c.body(null, 204);
+  });

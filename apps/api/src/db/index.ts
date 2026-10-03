@@ -9,6 +9,7 @@ export {
   ref,
   rows,
   toCommunity,
+  toDate,
   visitRef,
 } from "./query";
 export { SCHEMA, TABLES } from "./schema";

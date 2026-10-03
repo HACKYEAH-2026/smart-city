@@ -3,9 +3,10 @@ import type { Db } from "../db";
 import type { AIService } from "../services/ai/service";
 import { createPluginDb } from "../services/db/service";
 import type { FileService } from "../services/files/service";
+import type { NotificationService } from "../services/notifications/service";
 import type { LoadedPlugin } from "./host";
 
-export type PluginServices = { db: Db; files: FileService; ai: AIService };
+export type PluginServices = { db: Db; files: FileService; ai: AIService; notifications: NotificationService };
 
 /** System user for onInstall (seed data): admin, with no account in the database. */
 export const SYSTEM_USER: PluginUser = { id: "system", name: "System", role: "admin" };
@@ -32,5 +33,14 @@ export function createPluginContext(
     db: can("db") ? createPluginDb(services.db, plugin, installationId, userId) : deniedService("db"),
     files: can("files") ? services.files.forPlugin(installationId) : deniedService("files"),
     ai: can("ai") ? services.ai.forPlugin(installationId) : deniedService("ai"),
+    notify: can("notify")
+      ? services.notifications.forPlugin({
+          views: plugin.definition.views,
+          pluginId: plugin.manifest.id,
+          installationId,
+          communityId: community.id,
+          from: userId,
+        })
+      : deniedService("notify"),
   };
 }

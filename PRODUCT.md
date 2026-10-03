@@ -35,7 +35,7 @@ Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii.
 ## Ograniczenia
 - Wygląd w tokenach: `apps/app/src/theme.ts`.
 - Dostępność: kontrast AA, pełna obsługa klawiaturą, semantyczne nagłówki (E2E wybiera po rolach).
-- Bezpieczna rozszerzalność: wtyczka nie ma dostępu do bazy ani plików, tylko do `ctx` (user z rolą, community, db, files, ai).
+- Bezpieczna rozszerzalność: wtyczka nie ma dostępu do bazy ani plików, tylko do `ctx` (user z rolą, community, db, files, ai, notify). Lokalizacje mieszkańców zna tylko host.
 
 ## Platform
 Natywne iOS i Android (React Native przez Expo) + web (react-native-web, statyczny HTML) z jednego kodu.

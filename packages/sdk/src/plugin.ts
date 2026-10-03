@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AI } from "./services/ai";
 import type { Database, TableBuilders, Tables } from "./services/db";
 import type { Files, fileRef } from "./services/files";
+import type { Notify } from "./services/notify";
 import type { ToolResult, UI, UINode, ViewParams } from "./ui";
 
 /**
@@ -11,7 +12,7 @@ import type { ToolResult, UI, UINode, ViewParams } from "./ui";
  * and can later run in isolation (Worker/WASM) without changes to the plugin code.
  */
 
-export const PLUGIN_PERMISSIONS = ["db", "files", "ai"] as const;
+export const PLUGIN_PERMISSIONS = ["db", "files", "ai", "notify"] as const;
 export type Permission = (typeof PLUGIN_PERMISSIONS)[number];
 
 export const ROLES = ["admin", "user"] as const;
@@ -55,6 +56,8 @@ export type Context<TT extends Tables = Tables> = {
   files: Files;
   /** "ai" permission. */
   ai: AI;
+  /** "notify" permission: notifications to residents of this community (inbox in the app). */
+  notify: Notify;
 };
 
 // ──────────────────────────────── Plugin ────────────────────────────────

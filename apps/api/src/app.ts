@@ -10,11 +10,13 @@ import { defaultPluginsDir, PluginHost } from "./plugins/host";
 import { createAdminRoutes } from "./routes/admin";
 import { communitiesRoutes } from "./routes/communities";
 import { filesRoutes } from "./routes/files";
+import { meRoutes } from "./routes/me";
 import { AIService } from "./services/ai/service";
 import { StrandsLanguageModel } from "./services/ai/strands";
 import type { AIProviders } from "./services/ai/types";
 import { FileService } from "./services/files/service";
 import { DiskFileStore, defaultFilesDir } from "./services/files/store";
+import { NotificationService } from "./services/notifications/service";
 
 /** AI providers from env (Strands + OpenAI-compatible model); without AI_API_KEY and AI_MODEL — no model. */
 function aiFromEnv(env: Env): AIProviders {
@@ -36,8 +38,9 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
     env.BETTER_AUTH_SECRET,
     env.API_URL,
   );
+  const notifications = new NotificationService(db);
   const plugins = new PluginHost(
-    { db, files, ai: new AIService(ai ?? aiFromEnv(env), files) },
+    { db, files, ai: new AIService(ai ?? aiFromEnv(env), files), notifications },
     env.PLUGINS_DIR ?? defaultPluginsDir(),
     builtinPlugins,
   );
@@ -50,7 +53,7 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
       origin: env.TRUSTED_ORIGINS,
       credentials: true,
       allowHeaders: ["Content-Type", "Authorization"],
-      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       exposeHeaders: ["set-auth-token"],
     }),
   );
@@ -59,6 +62,7 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
     c.set("auth", auth);
     c.set("plugins", plugins);
     c.set("files", files);
+    c.set("notifications", notifications);
     await next();
   });
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
@@ -71,6 +75,7 @@ export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders 
     .get("/health", (c) => c.json({ ok: true }))
     .route("/api/communities", communitiesRoutes)
     .route("/api/files", filesRoutes)
+    .route("/api/me", meRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
   return { app: routes, auth, plugins };
