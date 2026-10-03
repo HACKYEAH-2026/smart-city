@@ -198,9 +198,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "TextInput":
       return <FormTextInput node={node} />;
     case "Image":
-      return node.url ? (
-        <Image role="img" aria-label={node.alt} source={{ uri: node.url }} style={styles.image} resizeMode="cover" />
-      ) : null;
+      return node.url ? <LabeledImage uri={node.url} label={node.alt} /> : null;
     case "ImagePicker":
       return <FormImagePicker node={node} />;
     case "Select":
@@ -290,9 +288,7 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
       <Text variant="label" color="textSecondary">
         {node.label}
       </Text>
-      {preview ? (
-        <Image role="img" aria-label={t.plugin_photo_preview} source={{ uri: preview }} style={styles.image} />
-      ) : null}
+      {preview ? <LabeledImage uri={preview} label={t.plugin_photo_preview} /> : null}
       <View style={styles.row}>
         <Button
           label={preview ? t.plugin_photo_change : t.plugin_photo_pick}
@@ -322,6 +318,18 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
           {t.plugin_photo_error}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * A photo announced once: the label is on the wrapper. On the web, react-native-web adds a hidden <img> with the
+ * Image's own label once the photo loads, which would be a second image with the same name.
+ */
+function LabeledImage({ uri, label }: { uri: string; label: string }) {
+  return (
+    <View role="img" aria-label={label}>
+      <Image source={{ uri }} style={styles.image} resizeMode="cover" />
     </View>
   );
 }
