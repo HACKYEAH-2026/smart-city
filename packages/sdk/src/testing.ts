@@ -46,8 +46,9 @@ afterEach(async () => {
 
 /**
  * The one embedded in-memory SurrealDB engine of this test process, shared by all test files (hence
- * `globalThis`). Never closed: with @surrealdb/node 3.0.3, Bun 1.4 crashes on exit (SIGSEGV) once a process
- * has opened a second embedded engine, so tests get a fresh database on this one instead (`testDatabase()`).
+ * `globalThis`) and closed after the run by `closeTestEngine()` (preload). With @surrealdb/node 3.0.3, Bun 1.4
+ * crashes on exit (SIGSEGV) once a process has opened a second embedded engine, so tests get a fresh database
+ * on this one instead (`testDatabase()`).
  */
 export function testEngine(): Promise<Surreal> {
   const global = globalThis as { [ENGINE]?: Promise<Surreal> };
@@ -57,6 +58,14 @@ export function testEngine(): Promise<Surreal> {
     return surreal;
   })();
   return global[ENGINE];
+}
+
+/** Closes the shared engine at the end of a test run (preload `afterAll`); an open engine crashes Bun on exit. */
+export async function closeTestEngine(): Promise<void> {
+  const global = globalThis as { [ENGINE]?: Promise<Surreal> };
+  const engine = global[ENGINE];
+  delete global[ENGINE];
+  await (await engine)?.close();
 }
 
 /**
