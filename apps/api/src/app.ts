@@ -22,6 +22,7 @@ import { StrandsPluginAuthor } from "./services/ai/author/strands";
 import type { PluginAuthor } from "./services/ai/author/types";
 import { OpenAIEmbeddingModel } from "./services/ai/embedding";
 import { StrandsLanguageModel } from "./services/ai/language";
+import { EMBEDDING_MODEL } from "./services/ai/model";
 import { AIService } from "./services/ai/service";
 import type { AIProviders } from "./services/ai/types";
 import { FileService } from "./services/files/service";
@@ -36,10 +37,10 @@ import type { PushSender } from "./services/push/types";
 const modelFromEnv = (env: Env) =>
   env.AI_API_KEY && env.AI_MODEL ? { apiKey: env.AI_API_KEY, model: env.AI_MODEL, baseUrl: env.AI_BASE_URL } : null;
 
-/** The embedding model from env (same key and endpoint); without AI_API_KEY and AI_EMBEDDING_MODEL — none. */
+/** The embedding model (EMBEDDING_MODEL) on the env's key and endpoint; without AI_API_KEY — none. */
 const embeddingFromEnv = (env: Env) =>
-  env.AI_API_KEY && env.AI_EMBEDDING_MODEL
-    ? new OpenAIEmbeddingModel({ apiKey: env.AI_API_KEY, model: env.AI_EMBEDDING_MODEL, baseUrl: env.AI_BASE_URL })
+  env.AI_API_KEY
+    ? new OpenAIEmbeddingModel({ apiKey: env.AI_API_KEY, model: EMBEDDING_MODEL, baseUrl: env.AI_BASE_URL })
     : null;
 
 /** AI providers for ctx.ai; each one only when configured. */

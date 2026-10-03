@@ -14,8 +14,8 @@ describe("ctx.ai.embed", () => {
     },
   };
 
-  test("without an embedding model: names the missing settings", async () => {
-    await expect(ai({}).embed("Latarnia")).rejects.toThrow("(AI_API_KEY, AI_EMBEDDING_MODEL)");
+  test("without an embedding model (no AI_API_KEY): names the missing key", async () => {
+    await expect(ai({}).embed("Latarnia")).rejects.toThrow("(AI_API_KEY)");
   });
 
   test("sends the trimmed text and returns the model's vector", async () => {

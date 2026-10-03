@@ -418,7 +418,8 @@ handler: async (ctx, input) => {
 ## `ctx.ai`
 
 The model is host configuration (Strands + an OpenAI-compatible endpoint: `AI_API_KEY`, `AI_MODEL`,
-optional `AI_BASE_URL`; embeddings: `AI_EMBEDDING_MODEL`). Tests never call a model — use the harness mocks.
+optional `AI_BASE_URL`; embeddings: OpenAI's `text-embedding-3-small` on the same key). Tests never call a model —
+use the harness mocks.
 
 ```ts
 // Text
@@ -446,7 +447,8 @@ model, the model decides (using the query image) and writes the `reason`.
 
 ### Embeddings: `ctx.ai.embed`
 
-`embed(text)` returns the meaning of a text as a vector (`number[]`) from the host's embedding model. The plugin
+`embed(text)` returns the meaning of a text as a vector (`number[]`, 1536 numbers) from the host's embedding model
+(OpenAI's `text-embedding-3-small`). The plugin
 stores the vectors in its own table and compares them itself, e.g. to look for a duplicate among all open reports
 (`findSimilar` sees at most 30 candidates).
 
@@ -475,7 +477,7 @@ if (!match) await ctx.db.issues.insert({ title: input.title, status: "open", vec
 
 - Vectors of different models are not comparable. When the host switches models, the length usually changes:
   compare only vectors of the same length and embed older rows again when needed.
-- Without an embedding model (`AI_EMBEDDING_MODEL` unset) `embed` throws, like `call` without a model. A plugin
+- Without an AI key (`AI_API_KEY` unset) `embed` throws, like `call` without a model. A plugin
   that must work in a keyless demo catches it and falls back (e.g. to `findSimilar` alone).
 - The text is trimmed; empty or longer than 8000 characters → error. At most 600 embeddings per minute per
   installation, counted apart from the 60 model calls (`call`, `findSimilar`).
