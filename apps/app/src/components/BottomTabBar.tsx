@@ -25,7 +25,8 @@ export function BottomTabBar() {
       {tabs.map((tab) => {
         const active = pathname === tab.href;
         return (
-          <RouterLink key={tab.href} href={tab.href as never} asChild>
+          // Tabs replace each other (no stack growth), so the new section fades in and back works as expected.
+          <RouterLink key={tab.href} href={tab.href as never} replace asChild>
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={tab.label}

@@ -28,7 +28,14 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <FlashProvider>
               <StatusBar style="dark" />
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background },
+                  // iOS only (Android keeps the system duration): a quicker slide than the 500 ms default.
+                  animationDuration: 250,
+                }}
+              />
             </FlashProvider>
           </QueryClientProvider>
         </KeyboardProvider>

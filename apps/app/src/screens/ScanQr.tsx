@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Button, IconButton, ScannerFrame, Text } from "../components";
 import { inviteCodeFromScan } from "../lib/inviteScan";
+import { goBack } from "../lib/navigation";
 import { scanWindowPath } from "../lib/scanWindow";
 import { hasAppSettings, openAppSettings } from "../lib/settings";
 import { t } from "../texts";
@@ -91,7 +92,7 @@ export default function ScanQr() {
             variant="roundOnDark"
             icon={X}
             label={t.close}
-            onPress={() => router.replace("/app/join-place")}
+            onPress={() => goBack(router, "/app/join-place")}
           />
           <Text variant="labelL" color="scannerText">
             {t.scan_title}

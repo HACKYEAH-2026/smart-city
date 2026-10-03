@@ -93,7 +93,8 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await page.getByRole("button", { name: "Tak, dołącz moje zgłoszenie" }).click();
   await expect(page.getByRole("status")).toContainText("Dołączyliśmy");
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
-  await expect(page.getByText("2 osób zgłasza")).toBeVisible();
+  // The list screen stays mounted under the detail screen in the stack, so the newest match is the one on top.
+  await expect(page.getByText("2 osób zgłasza").last()).toBeVisible();
   await expect(
     page.getByRole("list", { name: "Zgłoszenia mieszkańców" }).getByText("Ciemno od tygodnia"),
   ).toBeVisible();

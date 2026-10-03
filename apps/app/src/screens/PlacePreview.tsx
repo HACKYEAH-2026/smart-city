@@ -6,6 +6,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Card, Checkbox, DashboardMap, Heading, IconButton, Screen, Text } from "../components";
 import { useJoinPlace, usePlacePreview } from "../data/communities";
+import { goBack } from "../lib/navigation";
 import { t } from "../texts";
 import { radii, sizes, spacing } from "../theme";
 
@@ -17,7 +18,7 @@ export default function PlacePreview() {
   const router = useRouter();
   const { code = "" } = useLocalSearchParams<{ code?: string }>();
   const invite = parseInviteCode(code);
-  const back = () => router.replace("/app");
+  const back = () => goBack(router, "/app");
 
   return (
     <Screen chrome={false}>

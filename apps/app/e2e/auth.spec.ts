@@ -154,8 +154,10 @@ test("mobile width: no horizontal overflow (RN flex items must be allowed to shr
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of ["/login", "/register"]) {
     await page.goto(path);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, path).toBeLessThanOrEqual(0);
+    // The screen slides in on load, so the layout is measured once the entry animation has finished.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), { message: path })
+      .toBeLessThanOrEqual(0);
   }
 });
 

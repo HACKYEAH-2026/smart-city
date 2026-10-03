@@ -19,6 +19,7 @@ import {
 } from "../components";
 import { useCreatePlace, useVisitPlace } from "../data/communities";
 import { usePluginCatalog } from "../data/plugins";
+import { goBack } from "../lib/navigation";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { t } from "../texts";
 import { fontFamily, sizes, spacing } from "../theme";
@@ -89,7 +90,7 @@ export default function CreatePlaceForm() {
         label={STEP_LABELS[step]}
         backIcon={step === 1 ? X : ChevronLeft}
         backLabel={step === 1 ? t.create_cancel : t.back}
-        onBack={() => (step === 1 ? router.replace("/app") : setStep(PREVIOUS_STEP[step]))}
+        onBack={() => (step === 1 ? goBack(router, "/app") : setStep(PREVIOUS_STEP[step]))}
       />
       {step === 1 ? (
         <Step

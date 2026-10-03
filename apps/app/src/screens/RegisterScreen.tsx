@@ -5,6 +5,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Checkbox, Heading, IconButton, Link, PasswordStrength, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
+import { goBack } from "../lib/navigation";
 import { MIN_PASSWORD_LENGTH } from "../lib/passwordStrength";
 import { t } from "../texts";
 import { spacing } from "../theme";
@@ -39,7 +40,7 @@ export default function RegisterScreen() {
         <title>{t.meta_register_title}</title>
       </Head>
       <View style={styles.topRow}>
-        <IconButton icon={ChevronLeft} label={t.auth_back} onPress={() => router.replace("/login")} />
+        <IconButton icon={ChevronLeft} label={t.auth_back} onPress={() => goBack(router, "/login")} />
         <Text variant="label" color="textSecondary">
           {t.auth_step}
         </Text>

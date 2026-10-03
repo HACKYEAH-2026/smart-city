@@ -52,7 +52,7 @@ test("on the no-places screen the avatar opens the account", async ({ page }) =>
 test("the QR option opens the scanner with a way back and manual code entry", async ({ page }) => {
   await register(page, "scan@example.test");
   await page.getByRole("link", { name: t.join_qr }).click();
-  await expect(page.getByText(t.scan_title)).toBeVisible();
+  await expect(page.getByText(t.scan_title, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: t.close })).toBeVisible();
   await expect(page.getByRole("button", { name: t.scan_enter_code })).toBeVisible();
 });

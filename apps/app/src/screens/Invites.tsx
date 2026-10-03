@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { Button, Card, Heading, IconButton, Screen, Text } from "../components";
 import { useAcceptInvitation, useDeclineInvitation, useInvitations } from "../data/communities";
+import { goBack } from "../lib/navigation";
 import { placeKindLabel } from "../lib/placeKinds";
 import { initials } from "../lib/places";
 import { relativeTime } from "../lib/relativeTime";
@@ -28,7 +29,7 @@ export default function Invites() {
       <Head>
         <title>{t.invites_title}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={() => router.replace("/app/join-place")} />
+      <IconButton icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
       <View style={styles.intro}>
         <Heading level={1} variant="titleXL">
           {t.invites_title}
