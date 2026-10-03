@@ -1,32 +1,30 @@
 {
   "name": "@app/api",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "typecheck": "tsc -p .",
-    "dev": "NODE_ENV=test bun --watch \"$PWD/src/test-server.ts\"",
-    "build": "bun scripts/build.ts",
-    "start": "bun dist/server.js",
-    "db:generate": "drizzle-kit generate",
-    "db:check": "bun scripts/db-check.ts",
-    "migrate": "bun src/db/migrate-cli.ts"
-  },
   "dependencies": {
     "@app/plugin-sdk": "workspace:*",
     "@app/shared": "workspace:*",
     "@hono/zod-validator": "^0.9.1",
     "@plugins/issues": "workspace:*",
     "@strands-agents/sdk": "^1.19.0",
+    "@surrealdb/node": "3.0.3",
     "better-auth": "^1.7.5",
-    "drizzle-orm": "^0.45.3",
     "hono": "^4.13.8",
     "openai": "^6.45.0",
+    "surreal-better-auth": "2.0.0",
+    "surrealdb": "2.0.10",
     "zod": "^4.6.5"
   },
-  "devDependencies": {
-    "drizzle-kit": "^0.31.11"
-  }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "dev": "NODE_ENV=test bun --watch \"$PWD/src/test-server.ts\"",
+    "build": "bun scripts/build.ts",
+    "start": "bun dist/server.js",
+    "db:check": "bun scripts/db-check.ts",
+    "migrate": "bun src/db/migrate-cli.ts"
+  },
+  "type": "module"
 }

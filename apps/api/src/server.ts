@@ -1,6 +1,6 @@
 /**
  * PRODUCTION entry point. Imports nothing from test-*.ts (checked by scripts/build.ts).
- * Migrations are run by a separate process (dist/migrate.js) before startup, not by the server.
+ * The schema is applied by a separate process (dist/migrate-cli.js) before startup, not by the server.
  */
 
 import { createApp } from "./app";

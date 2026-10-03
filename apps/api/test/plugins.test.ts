@@ -218,7 +218,7 @@ describe("isolation and plugins uploaded on the fly", () => {
     const u = await t.signUp();
     const seeded = BENCHES.replace('id: "benches"', 'id: "seeded"').replace(
       "    views: {",
-      '    onInstall: async (ctx) => {\n      await ctx.db.create("benches", { park: "Planty", problem: "z instalacji" });\n    },\n    views: {',
+      '    onInstall: async (ctx) => {\n      await ctx.db.benches.insert({ park: "Planty", problem: "z instalacji" });\n    },\n    views: {',
     );
     expect((await uploadPlugin(seeded)).status).toBe(201);
     await install("seeded");

@@ -29,8 +29,8 @@ export function createPluginContext(
     user,
     community,
     now: () => new Date(),
-    db: can("db") ? createPluginDb(services.db, installationId, userId) : denied("db"),
-    files: can("files") ? services.files.forPlugin(installationId, userId) : denied("files"),
+    db: can("db") ? createPluginDb(services.db, plugin, installationId, userId) : denied("db"),
+    files: can("files") ? services.files.forPlugin(installationId) : denied("files"),
     ai: can("ai") ? services.ai.forPlugin(installationId) : denied("ai"),
   };
 }

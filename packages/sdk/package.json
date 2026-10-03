@@ -4,12 +4,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./engine": "./src/engine/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@surrealdb/node": "3.0.3",
+    "surrealdb": "2.0.10",
     "zod": "^4.6.5"
   }
 }

@@ -1,10 +1,20 @@
 import { type Role, viewParamsSchema } from "@app/plugin-sdk";
-import { type Community, type CommunityNavItem, toolCallSchema } from "@app/shared";
+import { type CommunityNavItem, toolCallSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
+import type { RecordId } from "surrealdb";
 import type { AppEnv } from "../context";
-import { type Db, schema } from "../db";
+import {
+  type CommunityRow,
+  communityBySlug,
+  type Db,
+  first,
+  keyOf,
+  membershipRef,
+  ref,
+  rows,
+  toCommunity,
+} from "../db";
 import { requireUser } from "../middleware";
 import { ForbiddenError, PluginError, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
@@ -14,21 +24,13 @@ import { FileInputError } from "../services/files/service";
  * when the plugin is installed and enabled in the given community; otherwise 404.
  * Communities are open for now: the first visit creates a membership with the "user" role.
  */
-const { communities, memberships, pluginInstallations } = schema;
-
-const toCommunity = (row: typeof communities.$inferSelect): Community => ({
-  id: row.id,
-  slug: row.slug,
-  name: row.name,
-});
-
-/** User's role in a community; no membership = join as "user". */
+/** User's role in a community; no membership = join as "user" (the role default). */
 async function roleIn(db: Db, communityId: string, userId: string): Promise<Role> {
-  await db.insert(memberships).values({ communityId, userId }).onConflictDoNothing();
-  const [row] = await db
-    .select({ role: memberships.role })
-    .from(memberships)
-    .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId)));
+  const row = await first<{ role: Role }>(db, "UPSERT $m MERGE { community: $c, user: $u } RETURN role;", {
+    m: membershipRef(communityId, userId),
+    c: ref("community", communityId),
+    u: ref("user", userId),
+  });
   return row?.role ?? "user";
 }
 
@@ -39,26 +41,22 @@ export const communitiesRoutes = new Hono<AppEnv>()
     await next();
   })
   .get("/", async (c) => {
-    const rows = await c.var.db.select().from(communities).orderBy(asc(communities.name));
-    return c.json(rows.map(toCommunity));
+    const all = await rows<CommunityRow>(c.var.db, "SELECT id, slug, name FROM community ORDER BY name;");
+    return c.json(all.map(toCommunity));
   })
   .get("/:slug", async (c) => {
-    const [row] = await c.var.db
-      .select()
-      .from(communities)
-      .where(eq(communities.slug, c.req.param("slug")));
+    const row = await communityBySlug(c.var.db, c.req.param("slug"));
     if (!row) return c.json({ error: "not_found" }, 404);
-    const role = await roleIn(c.var.db, row.id, c.var.user.id);
+    const role = await roleIn(c.var.db, keyOf(row.id), c.var.user.id);
     return c.json({ ...toCommunity(row), role }, 200);
   })
   .get("/:slug/nav", async (c) => {
-    const rows = await c.var.db
-      .select({ pluginId: pluginInstallations.pluginId })
-      .from(pluginInstallations)
-      .innerJoin(communities, eq(communities.id, pluginInstallations.communityId))
-      .where(and(eq(communities.slug, c.req.param("slug")), eq(pluginInstallations.enabled, true)))
-      .orderBy(asc(pluginInstallations.createdAt));
-    const nav: CommunityNavItem[] = rows.flatMap(({ pluginId }) => {
+    const installed = await rows<{ plugin: string }>(
+      c.var.db,
+      "SELECT plugin, created_at FROM plugin_installation WHERE community.slug = $slug AND enabled ORDER BY created_at;",
+      { slug: c.req.param("slug") },
+    );
+    const nav: CommunityNavItem[] = installed.flatMap(({ plugin: pluginId }) => {
       const plugin = c.var.plugins.get(pluginId);
       if (!plugin) return [];
       return plugin.manifest.nav.map((n) => ({ pluginId, icon: plugin.manifest.icon, view: n.view, label: n.label }));
@@ -112,26 +110,23 @@ export const communitiesRoutes = new Hono<AppEnv>()
 
 /** Community + enabled installation + loaded plugin + context with the user's role, or null (→ 404). */
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
-  const [row] = await c.var.db
-    .select({ community: communities, installationId: pluginInstallations.id })
-    .from(pluginInstallations)
-    .innerJoin(communities, eq(communities.id, pluginInstallations.communityId))
-    .where(
-      and(
-        eq(communities.slug, slug),
-        eq(pluginInstallations.pluginId, pluginId),
-        eq(pluginInstallations.enabled, true),
-      ),
-    );
+  const row = await first<{ id: RecordId; community: CommunityRow }>(
+    c.var.db,
+    `SELECT id, community FROM plugin_installation
+       WHERE community.slug = $slug AND plugin = $plugin AND enabled FETCH community;`,
+    { slug, plugin: pluginId },
+  );
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
-  const role = await roleIn(c.var.db, row.community.id, c.var.user.id);
+  const community = toCommunity(row.community);
+  const installationId = keyOf(row.id);
+  const role = await roleIn(c.var.db, community.id, c.var.user.id);
   const ctx = c.var.plugins.context(plugin, {
-    installationId: row.installationId,
-    community: toCommunity(row.community),
+    installationId,
+    community,
     user: { id: c.var.user.id, name: c.var.user.name, role },
   });
-  return { plugin, ctx, installationId: row.installationId };
+  return { plugin, ctx, installationId };
 }
 
 function pluginFailure(c: Context<AppEnv>, err: unknown) {

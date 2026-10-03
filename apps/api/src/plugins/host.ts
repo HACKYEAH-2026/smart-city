@@ -14,8 +14,11 @@ import {
   type UINode,
   type ViewParams,
 } from "@app/plugin-sdk";
+import { DbError, SchemaError } from "@app/plugin-sdk/engine";
+import type { RecordId } from "surrealdb";
 import { z } from "zod";
-import { schema } from "../db";
+import { keyOf, ref, rows } from "../db";
+import { syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
@@ -35,7 +38,7 @@ export type LoadedPlugin = ReturnType<typeof loadPlugin> & { origin: "builtin" |
 
 /**
  * Plugin registry. Built-ins are registered at startup; plugins uploaded via the API are stored
- * in the database (plugin_sources), written to a file in `dir` and imported by Bun on the fly.
+ * in the database (plugin_source), written to a file in `dir` and imported by Bun on the fly.
  * Only an administrator uploads plugins (the code runs in the API process — see docs/plugins.md).
  */
 export class PluginHost {
@@ -56,16 +59,21 @@ export class PluginHost {
     }
   }
 
-  /** Loads plugins stored in the database (once per process). Called before handling plugin requests. */
+  /**
+   * Once per process, before handling plugin requests: syncs the tables of built-in plugins and loads
+   * (and syncs) plugins stored in the database. A stored plugin that fails to load is skipped and logged.
+   */
   ready(): Promise<void> {
     this.stored ??= (async () => {
-      const rows = await this.db.select().from(schema.pluginSources);
-      for (const row of rows) {
+      for (const plugin of this.plugins.values()) await syncPluginTables(this.db, plugin);
+      const stored = await rows<{ id: RecordId; source: string }>(this.db, "SELECT id, source FROM plugin_source;");
+      for (const row of stored) {
         try {
           const loaded = await this.compile(row.source);
+          await syncPluginTables(this.db, loaded);
           this.plugins.set(loaded.manifest.id, { ...loaded, origin: "uploaded" });
         } catch (err) {
-          console.error(`plugin ${row.pluginId}: failed to load stored code`, err);
+          console.error(`plugin ${keyOf(row.id)}: failed to load stored code`, err);
         }
       }
     })();
@@ -80,16 +88,23 @@ export class PluginHost {
     return [...this.plugins.values()];
   }
 
-  /** Uploads (or replaces) a plugin from source code. Returns the manifest. */
+  /**
+   * Uploads (or replaces) a plugin from source code. Returns the manifest. Its tables are synced first:
+   * a breaking schema change rejects the upload and leaves the previous version running.
+   */
   async upload(source: string): Promise<PluginManifest> {
     await this.ready();
     const loaded = await this.compile(source);
     const { id, version } = loaded.manifest;
     if (this.plugins.get(id)?.origin === "builtin") throw new PluginError(`"${id}" is a built-in plugin`);
-    await this.db
-      .insert(schema.pluginSources)
-      .values({ pluginId: id, version, source })
-      .onConflictDoUpdate({ target: schema.pluginSources.pluginId, set: { version, source, updatedAt: new Date() } });
+    await syncPluginTables(this.db, loaded).catch((err) => {
+      throw err instanceof SchemaError ? new PluginError(err.message) : err;
+    });
+    await this.db.query("UPSERT $r SET version = $version, source = $source, updated_at = time::now();", {
+      r: ref("source", id),
+      version,
+      source,
+    });
     this.plugins.set(id, { ...loaded, origin: "uploaded" });
     return loaded.manifest;
   }
@@ -98,11 +113,22 @@ export class PluginHost {
     return createPluginContext(this.services, { plugin, ...args });
   }
 
-  /** After enabling a plugin in a community: seed data (onInstall) as the system user. */
-  async install(plugin: LoadedPlugin, installationId: string, community: PluginCommunity): Promise<void> {
+  /**
+   * Enables the plugin in a community. The first installation runs its onInstall (seed data) as the
+   * system user; re-enabling keeps the existing data.
+   */
+  async enable(plugin: LoadedPlugin, community: PluginCommunity): Promise<void> {
+    await this.ready();
+    const vars = { c: ref("community", community.id), plugin: plugin.manifest.id };
+    const [created] = await rows<{ id: RecordId }>(
+      this.db,
+      `UPDATE plugin_installation SET enabled = true WHERE community = $c AND plugin = $plugin;
+       INSERT IGNORE INTO plugin_installation { community: $c, plugin: $plugin } RETURN id;`,
+      vars,
+    );
     const onInstall = plugin.definition.onInstall;
-    if (!onInstall) return;
-    const ctx = this.context(plugin, { installationId, community, user: SYSTEM_USER });
+    if (!created || !onInstall) return;
+    const ctx = this.context(plugin, { installationId: keyOf(created.id), community, user: SYSTEM_USER });
     await guard(plugin, "onInstall", () => onInstall(ctx));
   }
 
@@ -166,7 +192,9 @@ async function guard<T>(plugin: LoadedPlugin, what: string, fn: () => T | Promis
     return await fn();
   } catch (err) {
     if (err instanceof PluginError || err instanceof PluginInputError || err instanceof ForbiddenError) throw err;
-    if (err instanceof FileInputError) throw new PluginInputError([{ path: [], message: err.message }]);
+    if (err instanceof FileInputError || err instanceof DbError) {
+      throw new PluginInputError([{ path: [], message: err.message }]);
+    }
     throw new PluginError(`${plugin.manifest.id}: ${what} threw: ${(err as Error).message}`);
   }
 }

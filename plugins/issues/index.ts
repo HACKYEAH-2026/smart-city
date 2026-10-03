@@ -1,19 +1,16 @@
-import type { Context, Doc, FileId, PluginModule } from "@app/plugin-sdk";
+import type { Context, FileId, PluginModule } from "@app/plugin-sdk";
 
 /**
  * REFERENCE PLUGIN: issue reports.
  * Flow: form (optional photo) → ctx.ai.findSimilar checks open issues →
  * if one is similar, we ask "is this the same problem?" → merging attaches the resident's report
  * (description + photo) to the earlier issue. Only the community admin changes the status.
+ * Data lives in declared tables (`issues`, `reports`) with foreign keys to platform users and files.
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
-type Status = "open" | "accepted" | "fixed";
-type Issue = { title: string; description: string; category: string; photo?: FileId; status: Status };
-/** A resident's report under an issue; key `${issueId}:${userId}` = one per person. */
-type Report = { issueId: string; author: string; description: string; photo?: FileId };
-type Draft = { title: string; description: string; category: string; photo?: FileId };
-
-const CATEGORIES = [
+const CATEGORY_VALUES = ["lighting", "roads", "greenery", "cleanliness", "other"] as const;
+type Category = (typeof CATEGORY_VALUES)[number];
+const CATEGORIES: { value: Category; label: string }[] = [
   { value: "lighting", label: "Oświetlenie" },
   { value: "roads", label: "Drogi i chodniki" },
   { value: "greenery", label: "Zieleń" },
@@ -28,61 +25,92 @@ const STATUS = {
 
 const categoryLabel = (v: string) => CATEGORIES.find((c) => c.value === v)?.label ?? v;
 const supporters = (n: number) => (n === 1 ? "1 osoba zgłasza" : `${n} osób zgłasza`);
-const issueText = (d: Doc<Issue>) => `${d.data.title}. ${d.data.description}`;
 
-async function addReport(ctx: Context, issueId: string, draft: Draft) {
-  if (draft.photo) await ctx.files.keep(draft.photo);
-  await ctx.db.upsert<Report>("reports", `${issueId}:${ctx.user.id}`, {
-    issueId,
-    author: ctx.user.name,
-    description: draft.description,
-    ...(draft.photo ? { photo: draft.photo } : {}),
-  });
-}
+type Draft = { title: string; description: string; category: Category; photo?: FileId };
 
-const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
+const issues: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
+  const tables = {
+    issues: t.table(
+      {
+        title: t.text(),
+        description: t.text().default(""),
+        category: t.enum(CATEGORY_VALUES).default("other"),
+        status: t.enum(["open", "accepted", "fixed"]).default("open"),
+        photo: t.ref("file").optional(),
+        reporter: t.ref("user"),
+      },
+      { indexes: [["status"]] },
+    ),
+    /** A resident's report under an issue (including the first reporter's); one per person per issue. */
+    reports: t.table(
+      {
+        issue: t.ref("issues"),
+        author: t.ref("user"),
+        description: t.text().default(""),
+        photo: t.ref("file").optional(),
+      },
+      { unique: [["issue", "author"]] },
+    ),
+  };
+  type Ctx = Context<typeof tables>;
+
   const draftSchema = z.object({
     title: z.string().trim().min(3, "Opisz problem w kilku słowach").max(120),
-    category: z.enum(CATEGORIES.map((c) => c.value) as [string, ...string[]]).default("other"),
+    category: z.enum(CATEGORY_VALUES).default("other"),
     description: z.string().trim().max(2000).default(""),
     photo: fileRef().optional(),
   });
+  const jsonSchema = z.string().transform((s, ctx) => {
+    try {
+      return JSON.parse(s);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Invalid JSON" });
+      return z.NEVER;
+    }
+  });
   /** Form draft passed as a JSON param/argument; invalid = null. */
   const parseDraft = (json: string | undefined): Draft | null => {
-    try {
-      const r = draftSchema.safeParse(JSON.parse(json ?? "null"));
-      return r.success ? r.data : null;
-    } catch {
-      return null;
-    }
+    const parsed = jsonSchema.pipe(draftSchema).safeParse(json ?? "");
+    return parsed.success ? parsed.data : null;
   };
+
+  /** Attaches the user's report to an issue (updates it if they already reported this issue). */
+  const addReport = (ctx: Ctx, issue: string, draft: Pick<Draft, "description" | "photo">) =>
+    ctx.db.reports.upsert(
+      { issue, author: ctx.user.id, description: draft.description, photo: draft.photo ?? null },
+      { on: ["issue", "author"] },
+    );
 
   return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "2.0.0",
+    version: "3.0.0",
     icon: "🛠️",
     description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
     permissions: ["db", "files", "ai"],
     nav: [{ view: "list", label: "Zgłoszenia" }],
+    tables,
 
     views: {
       list: async (ctx) => {
-        const items = await ctx.db.list<Issue>("issues");
-        const reports = await ctx.db.list<Report>("reports", { limit: 500 });
-        const count = (id: string) => reports.filter((r) => r.data.issueId === id).length;
+        const items = await ctx.db.issues.findMany({ orderBy: { createdAt: "desc" } });
+        const reports = await ctx.db.reports.findMany({
+          where: { issue: { in: items.map((i) => i.id) } },
+          limit: 1000,
+        });
+        const count = (id: string) => reports.filter((r) => r.issue === id).length;
         return ui.screen("Zgłoszenia", [
           ui.text(`Usterki zgłoszone przez mieszkańców: ${ctx.community.name}.`, "soft"),
           ui.button("Nowe zgłoszenie", ui.navigate("new")),
           ui.list(
             "Lista zgłoszeń",
             items.length
-              ? items.map((d) =>
+              ? items.map((i) =>
                   ui.card({
-                    title: d.data.title,
-                    subtitle: `${categoryLabel(d.data.category)} · ${supporters(count(d.id))}`,
-                    badge: STATUS[d.data.status],
-                    onPress: ui.navigate("detail", { id: d.id }),
+                    title: i.title,
+                    subtitle: `${categoryLabel(i.category)} · ${supporters(count(i.id))}`,
+                    badge: STATUS[i.status],
+                    onPress: ui.navigate("detail", { id: i.id }),
                   }),
                 )
               : [ui.empty("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.")],
@@ -105,20 +133,20 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
           ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
         ]),
 
-      /** Confirmation before merging: form data arrives in the `draft` param. */
+      /** Question before merging: the form data comes in the `draft` param. */
       merge: async (ctx, params) => {
-        const target = params.target ? await ctx.db.get<Issue>("issues", params.target) : null;
+        const target = params.target ? await ctx.db.issues.get(params.target) : null;
         const draft = parseDraft(params.draft);
         if (!target || !draft) return ui.screen("Nie znaleziono", [ui.button("Wróć", ui.navigate("list"))]);
         return ui.screen("Czy to ten sam problem?", [
           ui.text(params.reason || "Znaleźliśmy podobne zgłoszenie w okolicy.", "soft"),
           ui.card({
-            title: target.data.title,
-            subtitle: categoryLabel(target.data.category),
-            badge: STATUS[target.data.status],
+            title: target.title,
+            subtitle: categoryLabel(target.category),
+            badge: STATUS[target.status],
             children: [
-              ui.text(target.data.description || "Brak opisu."),
-              ...(target.data.photo ? [ui.image(target.data.photo, `Zdjęcie: ${target.data.title}`)] : []),
+              ui.text(target.description || "Brak opisu."),
+              ...(target.photo ? [ui.image(target.photo, `Zdjęcie: ${target.title}`)] : []),
             ],
           }),
           ui.button("Tak, dołącz moje zgłoszenie", ui.tool("merge", { target: target.id, draft: params.draft })),
@@ -127,24 +155,28 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
       },
 
       detail: async (ctx, params) => {
-        const doc = params.id ? await ctx.db.get<Issue>("issues", params.id) : null;
-        if (!doc) return ui.screen("Nie znaleziono", [ui.empty("To zgłoszenie nie istnieje.")]);
-        const reports = await ctx.db.list<Report>("reports", { where: { issueId: doc.id }, order: "oldest" });
-        const mine = reports.some((r) => r.id === `${doc.id}:${ctx.user.id}`);
-        const status = STATUS[doc.data.status];
-        return ui.screen(doc.data.title, [
-          ui.row([ui.badge(status.text, status.tone), ui.badge(categoryLabel(doc.data.category))]),
-          ui.text(doc.data.description || "Brak opisu."),
-          ...(doc.data.photo ? [ui.image(doc.data.photo, `Zdjęcie: ${doc.data.title}`)] : []),
+        const issue = params.id ? await ctx.db.issues.get(params.id) : null;
+        if (!issue) return ui.screen("Nie znaleziono", [ui.empty("To zgłoszenie nie istnieje.")]);
+        const reports = await ctx.db.reports.findMany({
+          where: { issue: issue.id },
+          orderBy: { createdAt: "asc" },
+          with: { author: true },
+        });
+        const mine = reports.some((r) => r.author.id === ctx.user.id);
+        const status = STATUS[issue.status];
+        return ui.screen(issue.title, [
+          ui.row([ui.badge(status.text, status.tone), ui.badge(categoryLabel(issue.category))]),
+          ui.text(issue.description || "Brak opisu."),
+          ...(issue.photo ? [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] : []),
           ui.stat("Poparcie", supporters(reports.length)),
           mine
             ? ui.badge("Zgłaszasz ten problem", "success")
-            : ui.button("Ja też to widzę", ui.tool("support", { id: doc.id })),
+            : ui.button("Ja też to widzę", ui.tool("support", { id: issue.id })),
           ...(ctx.user.role === "admin"
             ? [
                 ui.row([
-                  ui.button("Przyjmij", ui.tool("setStatus", { id: doc.id, status: "accepted" }), "quiet"),
-                  ui.button("Oznacz jako naprawione", ui.tool("setStatus", { id: doc.id, status: "fixed" }), "quiet"),
+                  ui.button("Przyjmij", ui.tool("setStatus", { id: issue.id, status: "accepted" }), "quiet"),
+                  ui.button("Oznacz jako naprawione", ui.tool("setStatus", { id: issue.id, status: "fixed" }), "quiet"),
                 ]),
               ]
             : []),
@@ -153,9 +185,9 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
             "Zgłoszenia mieszkańców",
             reports.map((r) =>
               ui.card({
-                title: r.data.author,
-                ...(r.data.description ? { subtitle: r.data.description } : {}),
-                ...(r.data.photo ? { children: [ui.image(r.data.photo, `Zdjęcie od: ${r.data.author}`)] } : {}),
+                title: r.author.name,
+                ...(r.description ? { subtitle: r.description } : {}),
+                ...(r.photo ? { children: [ui.image(r.photo, `Zdjęcie od: ${r.author.name}`)] } : {}),
               }),
             ),
           ),
@@ -170,32 +202,28 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
           "Zgłoś usterkę w społeczności (opcjonalnie ze zdjęciem). Jeśli AI znajdzie ten sam problem, pyta o połączenie.",
         input: draftSchema.extend({ force: z.boolean().default(false) }),
         handler: async (ctx, { force, ...draft }) => {
-          if (!force) {
-            const open = await ctx.db.list<Issue>("issues", { limit: 50 });
-            const candidates = open.filter((d) => d.data.status !== "fixed");
-            const [match] = await ctx.ai.findSimilar(
-              { text: `${draft.title}. ${draft.description}`, ...(draft.photo ? { image: draft.photo } : {}) },
-              candidates,
-              { text: issueText, image: (d) => d.data.photo, limit: 1 },
-            );
-            if (match) {
-              return {
-                navigate: ui.navigate("merge", {
-                  target: match.doc.id,
-                  draft: JSON.stringify(draft),
-                  reason: match.reason,
-                }),
-                data: { similar: match.doc.id, reason: match.reason },
-              };
-            }
+          const open = force ? [] : await ctx.db.issues.findMany({ where: { status: { ne: "fixed" } }, limit: 50 });
+          const [match] = await ctx.ai.findSimilar(
+            { text: `${draft.title}. ${draft.description}`, image: draft.photo ?? null },
+            open,
+            { text: (i) => `${i.title}. ${i.description}`, image: (i) => i.photo, limit: 1 },
+          );
+          if (match) {
+            return {
+              navigate: ui.navigate("merge", {
+                target: match.item.id,
+                draft: JSON.stringify(draft),
+                reason: match.reason,
+              }),
+              data: { similar: match.item.id, reason: match.reason },
+            };
           }
-          if (draft.photo) await ctx.files.keep(draft.photo);
-          const issue = await ctx.db.create<Issue>("issues", {
+          const issue = await ctx.db.issues.insert({
             title: draft.title,
             description: draft.description,
             category: draft.category,
-            status: "open",
-            ...(draft.photo ? { photo: draft.photo } : {}),
+            photo: draft.photo ?? null,
+            reporter: ctx.user.id,
           });
           await addReport(ctx, issue.id, draft);
           return {
@@ -211,7 +239,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({ target: z.string().min(1), draft: z.string() }),
         handler: async (ctx, { target, draft }) => {
           const parsed = parseDraft(draft);
-          const issue = await ctx.db.get<Issue>("issues", target);
+          const issue = await ctx.db.issues.get(target);
           if (!issue || !parsed) return { error: "To zgłoszenie już nie istnieje." };
           await addReport(ctx, target, parsed);
           return {
@@ -226,8 +254,9 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         description: "Potwierdź, że widzisz ten sam problem (bez opisu i zdjęcia).",
         input: z.object({ id: z.string().min(1) }),
         handler: async (ctx, { id }) => {
-          if (!(await ctx.db.get<Issue>("issues", id))) return { error: "To zgłoszenie już nie istnieje." };
-          await addReport(ctx, id, { title: "", description: "", category: "other" });
+          if (!(await ctx.db.issues.get(id))) return { error: "To zgłoszenie już nie istnieje." };
+          const already = await ctx.db.reports.count({ where: { issue: id, author: ctx.user.id } });
+          if (!already) await ctx.db.reports.insert({ issue: id, author: ctx.user.id });
           return { toast: "Dzięki za potwierdzenie!", refresh: true };
         },
       },
@@ -237,7 +266,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({ id: z.string().min(1), status: z.enum(["open", "accepted", "fixed"]) }),
         requires: "admin",
         handler: async (ctx, { id, status }) => {
-          const updated = await ctx.db.update<Issue>("issues", id, { status });
+          const updated = await ctx.db.issues.update(id, { status });
           if (!updated) return { error: "To zgłoszenie już nie istnieje." };
           return { toast: `Status: ${STATUS[status].text}`, refresh: true };
         },
@@ -248,12 +277,8 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({}),
         readOnly: true,
         handler: async (ctx) => {
-          const items = await ctx.db.list<Issue>("issues");
-          return {
-            data: items
-              .filter((d) => d.data.status !== "fixed")
-              .map((d) => ({ id: d.id, title: d.data.title, category: d.data.category, status: d.data.status })),
-          };
+          const open = await ctx.db.issues.findMany({ where: { status: { ne: "fixed" } } });
+          return { data: open.map((i) => ({ id: i.id, title: i.title, category: i.category, status: i.status })) };
         },
       },
     },

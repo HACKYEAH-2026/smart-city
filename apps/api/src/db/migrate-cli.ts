@@ -7,6 +7,8 @@ if (!url) {
   process.exit(1);
 }
 const handle = await createDb(url);
-await migrate(handle);
+await migrate(handle.db);
 await handle.close();
-console.log("migrations: OK");
+console.log("schema: OK");
+// The embedded SurrealDB engine keeps the event loop alive after close().
+process.exit(0);

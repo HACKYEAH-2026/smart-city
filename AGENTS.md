@@ -2,7 +2,7 @@
 
 Product: `README.md` and `PRODUCT.md`. New code is written by copying existing patterns (tables below).
 
-Stack: Bun + Hono + Drizzle (SQLite via bun:sqlite; in-memory in tests) + Better Auth + Expo (React Native,
+Stack: Bun + Hono + SurrealDB (embedded in-memory in dev/tests, a server in production) + Better Auth + Expo (React Native,
 Expo Router; web via react-native-web with static HTML). The app has one language: Polish (no i18n).
 
 ## HackYeah 2026 (SMART CITY challenge)
@@ -36,13 +36,13 @@ in `nix develop .#android`.
 
 ## Order of work
 1. E2E tests from the acceptance criteria first (`apps/app/e2e/*.spec.ts`); they must fail.
-2. Then implement bottom-up: schema → migration → contract → API + integration test → screen.
+2. Then implement bottom-up: schema → contract → API + integration test → screen.
 3. `bun run verify` → commit → push.
 
 ## New platform resource = copy the "communities" pattern
 | Layer | Pattern file |
 |---|---|
-| Table | `apps/api/src/db/schema.ts` (`communities`) → `bun run db:generate` |
+| Table | `apps/api/src/db/schema.ts` (`community`, SurrealQL `DEFINE … IF NOT EXISTS`) |
 | Contract (Zod + type) | `packages/shared/src/communities.ts` |
 | API router | `apps/api/src/routes/communities.ts`, mounted in `apps/api/src/app.ts` |
 | Integration test | `apps/api/test/plugins.test.ts` (communities/navigation: 401 without a session, 404) |
@@ -65,8 +65,10 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 ## Single source of truth (no parallel code paths)
 - Types and validation: only `packages/shared` (app contracts) and `packages/sdk` (plugin contract).
   The frontend imports API types via Hono RPC (`AppType`) and never writes them by hand.
-- Database schema: only `apps/api/src/db/schema.ts`. Migrations are generated only (`bun run db:generate`).
-- Database client: only `createDb()` from `apps/api/src/db`. Application code receives `Db` (Drizzle on SQLite).
+- Database schema: only `apps/api/src/db/schema.ts` (idempotent SurrealQL, applied on start; no migration files).
+  Only additive changes; plugin tables come from the plugins' `tables` (engine in `packages/sdk/src/engine`).
+- Database client: only `createDb()` from `apps/api/src/db`. Application code receives `Db` (SurrealDB client)
+  and queries with the helpers in `apps/api/src/db/query.ts` (`rows`, `first`, `ref`, `keyOf`).
 - App configuration: only `apps/app/app.config.ts`. `android/` and `ios/` are GENERATED (`expo prebuild`) —
   do not edit or commit them. A native change = a config plugin or a field in `app.config.ts`.
 - Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.
@@ -86,7 +88,7 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 
 ## Tests
 - Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`).
-- Integration: `apps/api/test`, always through `setup()` (a fresh in-memory SQLite DB from a snapshot +
+- Integration: `apps/api/test`, always through `setup()` (a fresh database on the shared in-memory engine +
   `app.request()`), `close()` in `afterEach`.
 - E2E: web (production static export), import `test`/`expect` from `e2e/fixtures.ts`
   (the DB is reset automatically before every test). Select by roles and labels — that is why UI components

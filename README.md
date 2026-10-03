@@ -28,12 +28,12 @@ Lokalne grupy na Facebooku są pełne botów, anonimów i chaosu, a oficjalne sy
 
 ## Stack
 
-Bun · TypeScript · SQLite · Expo (React Native) · MCP
+Bun · TypeScript · SurrealDB · Expo (React Native) · MCP
 
 ## Struktura repo
 
 ```
-apps/api        API (Bun + Hono): host wtyczek, REST, admin; baza SQLite w src/db, migracje w migrations/
+apps/api        API (Bun + Hono): host wtyczek, REST, admin; SurrealDB, schemat w src/db (bez migracji)
 apps/app        aplikacja Expo (iOS, Android, web): renderer Server-Driven UI + ekrany
 packages/sdk    @app/plugin-sdk: kontrakt wtyczek (definePlugin, katalog UI, akcje) + test harness
 packages/shared kontrakty aplikacji (społeczności, admin)
@@ -43,11 +43,11 @@ plugins/        wtyczki: każda to pakiet zależny tylko od SDK (issues = wbudow
 ## Uruchomienie
 
 ```bash
-nix develop            # bun, node, sqlite (albo: direnv allow); z Android SDK: nix develop .#android
+nix develop            # bun, node (albo: direnv allow); z Android SDK: nix develop .#android
 bun install
-bun run dev            # API (SQLite w pamięci, demo: społeczność „Kraków”) + aplikacja Expo
+bun run dev            # API (SurrealDB w pamięci, demo: społeczność „Kraków”) + aplikacja Expo
 bun run plugin:upload plugins/benches   # wgraj wtyczkę w locie
-bun run verify         # lint, typy, testy, migracje, E2E, build, Android (w nix develop .#android)
+bun run verify         # lint, typy, testy, schemat bazy, E2E, build, Android (w nix develop .#android)
 ```
 
 Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md).

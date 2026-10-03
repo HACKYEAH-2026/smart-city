@@ -7,19 +7,19 @@ const bob = { id: "bob", name: "Bob", role: "user" } as const;
 const admin = { id: "urzad", name: "Urząd", role: "admin" } as const;
 
 /** The AI "sees" the same problem when the text contains the word "latarnia". */
-const lampsAreTheSame = (t: ReturnType<typeof testPlugin>) =>
+const lampsAreTheSame = (t: Awaited<ReturnType<typeof testPlugin>>) =>
   t.ai.mockSimilar((query, candidates) =>
     query.text.toLowerCase().includes("latarnia")
-      ? candidates.slice(0, 1).map((doc) => ({ doc, score: 0.9, reason: "Ta sama latarnia przy przystanku" }))
+      ? candidates.slice(0, 1).map((item) => ({ item, score: 0.9, reason: "Ta sama latarnia przy przystanku" }))
       : [],
   );
 
 describe("issues: reporting", () => {
   test("empty list → report with photo → details", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     expect(textsOf(await t.view("list"))).toContain("Nie ma jeszcze zgłoszeń. Zgłoś pierwszą usterkę.");
 
-    const photo = t.files.fake();
+    const photo = await t.files.fake();
     const res = await t.tool("report", {
       title: "Nie świeci lampa",
       category: "lighting",
@@ -27,7 +27,7 @@ describe("issues: reporting", () => {
       photo,
     });
     expect(res.toast).toContain("Dziękujemy");
-    expect(t.files.isKept(photo)).toBe(true);
+    expect(await t.files.isKept(photo)).toBe(true);
 
     const detail = await t.view("detail", res.navigate!.params);
     expect(textsOf(detail)).toEqual(
@@ -36,8 +36,8 @@ describe("issues: reporting", () => {
     expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
   });
 
-  test("input validation", () => {
-    const t = testPlugin(issues);
+  test("input validation", async () => {
+    const t = await testPlugin(issues);
     expect(t.invalidInput("report", { title: "x", category: "nie-ma" })?.map((i) => i.path[0])).toEqual([
       "title",
       "category",
@@ -48,16 +48,16 @@ describe("issues: reporting", () => {
 
 describe("issues: similar reports", () => {
   test("AI finds the same problem → asks to merge, nothing saved", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
 
-    const photo = t.as(bob).files.fake();
+    const photo = await t.as(bob).files.fake();
     const ask = await t.as(bob).tool("report", { title: "Nie działa latarnia", category: "lighting", photo });
     expect(ask.navigate?.view).toBe("merge");
     expect(ask.navigate?.params?.target).toBe(first.navigate!.params!.id!);
-    expect(t.files.isKept(photo)).toBe(false);
-    expect(await t.db.list("issues")).toHaveLength(1);
+    expect(await t.files.isKept(photo)).toBe(false);
+    expect(await t.db.issues!.count()).toBe(1);
 
     const question = await t.as(bob).view("merge", ask.navigate!.params);
     expect(textsOf(question)).toEqual(
@@ -66,17 +66,17 @@ describe("issues: similar reports", () => {
   });
 
   test("merge: Bob's report with photo lands under the earlier one", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     const first = await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
     const id = first.navigate!.params!.id!;
-    const photo = t.as(bob).files.fake();
+    const photo = await t.as(bob).files.fake();
     const ask = await t.as(bob).tool("report", { title: "Latarnia nie świeci", description: "Od tygodnia", photo });
 
     const merged = await t.as(bob).tool("merge", { target: id, draft: ask.navigate!.params!.draft! });
     expect(merged.navigate?.params?.id).toBe(id);
-    expect(t.files.isKept(photo)).toBe(true);
-    expect(await t.db.list("issues")).toHaveLength(1);
+    expect(await t.files.isKept(photo)).toBe(true);
+    expect(await t.db.issues!.count()).toBe(1);
 
     const detail = await t.as(bob).view("detail", { id });
     expect(textsOf(detail)).toEqual(
@@ -85,16 +85,16 @@ describe("issues: similar reports", () => {
   });
 
   test('"different problem" (force) creates a new issue despite similarity', async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     lampsAreTheSame(t);
     await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
     const res = await t.as(bob).tool("report", { title: "Latarnia na Krótkiej", force: true });
     expect(res.toast).toContain("Dziękujemy");
-    expect(await t.db.list("issues")).toHaveLength(2);
+    expect(await t.db.issues!.count()).toBe(2);
   });
 
   test("repeated merge by the same person doesn't duplicate the resident's report", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const id = navigate!.params!.id!;
     await t.as(bob).tool("support", { id });
@@ -103,9 +103,30 @@ describe("issues: similar reports", () => {
   });
 });
 
+describe("issues: data integrity", () => {
+  test("deleting an issue removes its residents' reports (foreign key cascade)", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
+    const id = navigate!.params!.id!;
+    await t.as(bob).tool("support", { id });
+    expect(await t.db.reports!.count()).toBe(2);
+    await t.db.issues!.delete(id);
+    expect(await t.db.reports!.count()).toBe(0);
+  });
+
+  test("a photo uploaded by someone else cannot be attached", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const bobsPhoto = await t.as(bob).files.fake();
+    await expect(t.tool("report", { title: "Cudze zdjęcie", photo: bobsPhoto })).rejects.toThrow(
+      "uploaded by another user",
+    );
+    expect(await t.db.issues!.count()).toBe(0);
+  });
+});
+
 describe("issues: role", () => {
   test("only admin changes status; admin sees the buttons", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     const { navigate } = await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const id = navigate!.params!.id!;
 
@@ -118,7 +139,7 @@ describe("issues: role", () => {
   });
 
   test("readOnly list tool returns data for the AI assistant", async () => {
-    const t = testPlugin(issues, { user: alice });
+    const t = await testPlugin(issues, { user: alice });
     await t.tool("report", { title: "Dziura w chodniku", category: "roads" });
     const { data } = await t.tool("list");
     expect(data).toEqual([expect.objectContaining({ title: "Dziura w chodniku", status: "open" })]);

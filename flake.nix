@@ -47,7 +47,6 @@
           base = with pkgs; [
             bun
             nodejs_24 # Expo CLI / Metro / Gradle autolinking run on Node
-            sqlite
             gh
           ];
 

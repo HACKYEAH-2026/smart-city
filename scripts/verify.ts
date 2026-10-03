@@ -9,8 +9,8 @@ const stages: Stage[] = [
   { name: "lint + format", cmd: ["bun", "run", "lint"] },
   { name: "typecheck", cmd: ["bun", "run", "typecheck"] },
   { name: "unit", cmd: ["bun", "run", "test:unit"] },
-  { name: "integration (SQLite)", cmd: ["bun", "run", "test:int"] },
-  { name: "migrations (clean database + drift)", cmd: ["bun", "run", "db:check"] },
+  { name: "integration (SurrealDB in memory)", cmd: ["bun", "run", "test:int"] },
+  { name: "schema (clean database, idempotent)", cmd: ["bun", "run", "db:check"] },
   { name: "e2e (Playwright)", cmd: ["bun", "run", "e2e"] },
   { name: "build (api + web: expo export static)", cmd: ["bun", "run", "build"] },
   {

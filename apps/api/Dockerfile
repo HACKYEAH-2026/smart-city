@@ -8,16 +8,12 @@ RUN bun install --frozen-lockfile --filter '@app/api' \
 FROM oven/bun:1.4.2-slim
 WORKDIR /app
 ENV NODE_ENV=production \
-    MIGRATIONS_DIR=/app/migrations \
     PORT=3000
+# The database is a separate SurrealDB server (DATABASE_URL=ws://user:pass@host:8000); the image keeps no state.
 COPY --from=build /src/apps/api/dist/ ./
-COPY --from=build /src/apps/api/migrations ./migrations
-# The SQLite database file lives on the /data volume; a new volume inherits ownership from the image.
-RUN mkdir -p /data && chown bun:bun /data
-VOLUME /data
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
   CMD bun -e "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# Migrations: bun migrate-cli.js (in a container with the same /data volume)
+# Schema (idempotent, before the server starts): bun migrate-cli.js
 CMD ["bun", "server.js"]

@@ -1,182 +1,218 @@
+import { afterEach } from "bun:test";
+import { createNodeEngines } from "@surrealdb/node";
+import { RecordId, Surreal, type SurrealSession } from "surrealdb";
 import type { z } from "zod";
-import type { AI, AICall, SimilarMatch } from "./ai";
-import type { Database, Doc, Query } from "./db";
-import type { FileId, Files } from "./files";
+import { createDatabase } from "./engine/client";
+import { PLATFORM_SCHEMA } from "./engine/platform";
+import { HOST, syncSchema } from "./engine/schema";
 import { loadPlugin } from "./load";
 import type { Context, PluginCommunity, PluginUser } from "./plugin";
+import type { AI, AICall, SimilarMatch } from "./services/ai";
+import type { Database, Tables } from "./services/db";
+import type { FileId, Files } from "./services/files";
 import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams } from "./ui";
 
 /**
- * Test harness for plugin authors: test a plugin like a plain function, without API, database or AI model.
- * Behaves like the host: input validation (Zod), `requires`, UI and result schemas, update merging,
- * keyed upsert, `where` filtering.
+ * Test harness for plugin authors: test a plugin like a plain function, without the API or an AI model.
+ * The database is the real engine on embedded, in-memory SurrealDB (with the platform tables), so tables,
+ * references, unique indexes, defaults and live `watch()` behave exactly as in the host. Also like the host:
+ * input validation (Zod), `requires`, UI and result schemas. Each harness gets a fresh database.
  *
- *   const t = testPlugin(issues, { user: alice });
+ *   const t = await testPlugin(issues, { user: alice });
  *   t.ai.mockSimilar(() => []);
- *   const photo = t.files.fake();
+ *   const photo = await t.files.fake();
  *   await t.tool("report", { title: "Latarnia", photo });
- *   await t.as(admin).tool("setStatus", { id, status: "fixed" });
+ *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
  */
 export class ForbiddenError extends Error {}
 
-export function memoryDb(userId: () => string, now: () => Date): Database {
-  const docs = new Map<string, { collection: string; seq: number; doc: Doc }>();
-  let seq = 0;
-  const keyOf = (collection: string, id: string) => `${collection}\u0000${id}`;
-  const clone = <T>(d: Doc) => structuredClone(d) as Doc<T>;
-  const matches = (data: Record<string, unknown>, where: Record<string, unknown> = {}) =>
-    Object.entries(where).every(([k, v]) => data[k] === v);
+const INSTALLATION = "installation_test";
+const SYSTEM: PluginUser = { id: "system", name: "System", role: "admin" };
+const ENGINE = Symbol.for("@app/plugin-sdk/testing/engine");
+const cleanups: (() => Promise<void>)[] = [];
 
-  const write = (collection: string, id: string, data: Record<string, unknown>) => {
-    const existing = docs.get(keyOf(collection, id));
-    seq += 1;
-    const at = now().toISOString();
-    const doc: Doc = existing
-      ? { ...existing.doc, updatedAt: at, data: structuredClone(data) }
-      : { id, createdBy: userId(), createdAt: at, updatedAt: at, data: structuredClone(data) };
-    docs.set(keyOf(collection, id), { collection, seq: existing?.seq ?? seq, doc });
-    return doc;
-  };
+afterEach(async () => {
+  await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
+});
 
-  return {
-    async get<T>(collection: string, id: string) {
-      const row = docs.get(keyOf(collection, id));
-      return row ? clone<T>(row.doc) : null;
-    },
-    async list<T>(collection: string, query: Query<T> = {}) {
-      const rows = [...docs.values()]
-        .filter((r) => r.collection === collection && matches(r.doc.data, query.where as Record<string, unknown>))
-        .sort((a, b) => a.seq - b.seq);
-      if (query.order !== "oldest") rows.reverse();
-      return rows.slice(0, query.limit ?? 100).map((r) => clone<T>(r.doc));
-    },
-    async create<T extends Record<string, unknown>>(collection: string, data: T) {
-      return clone<T>(write(collection, crypto.randomUUID(), data));
-    },
-    async upsert<T extends Record<string, unknown>>(collection: string, key: string, data: T) {
-      return clone<T>(write(collection, key, data));
-    },
-    async update<T>(collection: string, id: string, patch: Partial<T>) {
-      const row = docs.get(keyOf(collection, id));
-      if (!row) return null;
-      return clone<T>(write(collection, id, { ...row.doc.data, ...(patch as Record<string, unknown>) }));
-    },
-    async remove(collection: string, id: string) {
-      return docs.delete(keyOf(collection, id));
-    },
-  };
+/**
+ * The one embedded in-memory SurrealDB engine of this test process, shared by all test files (hence
+ * `globalThis`). Never closed: with @surrealdb/node 3.0.3, Bun 1.4 crashes on exit (SIGSEGV) once a process
+ * has opened a second embedded engine, so tests get a fresh database on this one instead (`testDatabase()`).
+ */
+export function testEngine(): Promise<Surreal> {
+  const global = globalThis as { [ENGINE]?: Promise<Surreal> };
+  global[ENGINE] ??= (async () => {
+    const surreal = new Surreal({ engines: createNodeEngines() });
+    await surreal.connect("mem://");
+    return surreal;
+  })();
+  return global[ENGINE];
 }
 
-/** In-memory files: fake() simulates an app upload; keep() checks the owner like the host. */
-function memoryFiles(userId: () => string) {
-  const files = new Map<string, { owner: string; kept: boolean; mime: string }>();
-  const api: Files = {
-    async keep(id) {
-      const f = files.get(id);
-      if (!f || f.owner !== userId()) throw new Error(`Unknown file ${id}`);
-      f.kept = true;
-    },
-    async info(id) {
-      const f = files.get(id);
-      if (!f) throw new Error(`Unknown file ${id}`);
-      return { mime: f.mime, size: 1024 };
-    },
-    async remove(id) {
-      files.delete(id);
-    },
-  };
-  return {
-    api,
-    /** File uploaded by `owner` (defaults to the current user), not yet confirmed. */
-    fake(mime = "image/jpeg", owner = userId()): FileId {
-      const id = `file_${crypto.randomUUID()}` as FileId;
-      files.set(id, { owner, kept: false, mime });
-      return id;
-    },
-    isKept: (id: FileId) => files.get(id)?.kept === true,
-  };
+/**
+ * A session on a fresh, empty database of the shared engine, closed after the current test. The database is
+ * not removed (small, in memory): `REMOVE DATABASE` also makes Bun 1.4 crash on exit.
+ */
+export async function testDatabase(): Promise<SurrealSession> {
+  const session = await (await testEngine()).newSession();
+  await session.use({ namespace: "test", database: `t_${crypto.randomUUID().replaceAll("-", "")}` });
+  cleanups.push(() => session.closeSession());
+  return session;
+}
+
+async function platform(): Promise<SurrealSession> {
+  const surreal = await testDatabase();
+  await surreal.query(PLATFORM_SCHEMA);
+  await surreal.query("CREATE $i;", { i: new RecordId(HOST.installation, INSTALLATION) });
+  return surreal;
 }
 
 type CallMock = (req: AICall<z.ZodType | undefined>) => unknown;
-type SimilarMock = (query: { text: string; image?: FileId }, candidates: Doc<unknown>[]) => SimilarMatch<unknown>[];
+type SimilarMock = (query: { text: string; image?: FileId | null }, candidates: unknown[]) => SimilarMatch<unknown>[];
 
 function mockAI() {
-  let call: CallMock = () => {
-    throw new Error("ctx.ai.call: no mock — use t.ai.mockCall(...)");
+  const mocks: { call: CallMock; similar: SimilarMock } = {
+    call: () => {
+      throw new Error("ctx.ai.call: no mock — use t.ai.mockCall(...)");
+    },
+    similar: () => [],
   };
-  let similar: SimilarMock = () => [];
   const api: AI = {
     async call(req) {
-      const out = call(req as AICall<z.ZodType | undefined>);
+      const out = mocks.call(req as AICall<z.ZodType | undefined>);
       return (req.schema ? req.schema.parse(out) : String(out)) as never;
     },
     async findSimilar(query, candidates) {
-      return similar(query, candidates as Doc<unknown>[]) as never;
+      return mocks.similar(query, candidates) as never;
     },
   };
   return {
     api,
     mockCall: (fn: CallMock) => {
-      call = fn;
+      mocks.call = fn;
     },
     mockSimilar: (fn: SimilarMock) => {
-      similar = fn;
+      mocks.similar = fn;
     },
   };
 }
 
-export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: PluginCommunity } = {}) {
-  const { definition } = loadPlugin(mod);
+export async function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: PluginCommunity } = {}) {
+  const { manifest, definition } = loadPlugin(mod);
+  const tables: Tables = definition.tables ?? {};
   const community = opts.community ?? { id: "c-test", slug: "test", name: "Test Community" };
-  let current: PluginUser = opts.user ?? { id: "u-test", name: "Test User", role: "user" };
-  let clock = new Date(Date.UTC(2026, 0, 1));
-  const now = () => new Date(clock);
-  const db = memoryDb(() => current.id, now);
-  const files = memoryFiles(() => current.id);
+  const clock = { now: new Date(Date.UTC(2026, 0, 1)) };
+  const now = () => new Date(clock.now);
+  const surreal = await platform();
+  await syncSchema(surreal, manifest.id, tables);
   const ai = mockAI();
 
-  const harness = (user: PluginUser) => {
-    const ctx = (): Context => {
-      current = user;
-      return { user, community, now, db, files: files.api, ai: ai.api };
-    };
-    return {
-      ctx,
-      async view(name: string, params: ViewParams = {}): Promise<UINode> {
-        const fn = definition.views[name];
-        if (!fn) throw new Error(`no view ${name}`);
-        return screenSchema.parse(await fn(ctx(), params));
+  const ensureUser = async (user: PluginUser) => {
+    if (user.id === SYSTEM.id) return;
+    await surreal.query("UPSERT $u SET name = $name;", { u: new RecordId(HOST.user, user.id), name: user.name });
+  };
+  const dbFor = (user: PluginUser): Database =>
+    createDatabase({
+      surreal,
+      pluginId: manifest.id,
+      tables,
+      installationId: INSTALLATION,
+      userId: user.id === SYSTEM.id ? null : user.id,
+      now,
+    });
+  const fileRow = async (id: string) => {
+    const [rows] = await surreal.query<[{ mime: string; size: number; status: string }[]]>(
+      "SELECT mime, size, status FROM $f;",
+      { f: new RecordId(HOST.file, id) },
+    );
+    return rows[0];
+  };
+  const filesApi: Files = {
+    async info(id) {
+      const row = await fileRow(id);
+      if (!row) throw new Error(`Unknown file ${id}`);
+      return { mime: row.mime, size: row.size };
+    },
+    async remove(id) {
+      await surreal.query("DELETE $f;", { f: new RecordId(HOST.file, id) });
+    },
+  };
+  /** A pending upload by `user`, like POST …/files in the app. */
+  const fakeFile = async (user: PluginUser, mime = "image/jpeg"): Promise<FileId> => {
+    await ensureUser(user);
+    const id = `file_${crypto.randomUUID()}` as FileId;
+    await surreal.query("CREATE $f CONTENT $data;", {
+      f: new RecordId(HOST.file, id),
+      data: {
+        installation: new RecordId(HOST.installation, INSTALLATION),
+        uploaded_by: new RecordId(HOST.user, user.id),
+        mime,
+        size: 1024,
       },
-      async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
-        const tool = definition.tools?.[name];
-        if (!tool) throw new Error(`no tool ${name}`);
-        if (tool.requires === "admin" && user.role !== "admin") throw new ForbiddenError(`${name} requires admin`);
-        const input = tool.input.parse(args);
-        return toolResultSchema.parse((await tool.handler(ctx(), input)) ?? {});
-      },
-      /** Photo upload by this user (FileId for tool arguments). */
-      files: { fake: (mime?: string) => files.fake(mime, user.id) },
-      /** Zod issues for tool input the host would reject with 400, or null. */
-      invalidInput(name: string, args: Record<string, unknown>): z.core.$ZodIssue[] | null {
-        const r = definition.tools?.[name]?.input.safeParse(args);
-        return r && !r.success ? r.error.issues : null;
-      },
-    };
+    });
+    return id;
+  };
+  const ctxFor = async (user: PluginUser): Promise<Context> => {
+    await ensureUser(user);
+    return { user, community, now, db: dbFor(user), files: filesApi, ai: ai.api };
+  };
+  const assertRole = (name: string, requires: string | undefined, user: PluginUser) => {
+    if (requires === "admin" && user.role !== "admin") throw new ForbiddenError(`${name} requires admin`);
   };
 
+  const harness = (user: PluginUser) => ({
+    ctx: () => ctxFor(user),
+    async view(name: string, params: ViewParams = {}): Promise<UINode> {
+      const fn = definition.views[name];
+      if (!fn) throw new Error(`no view ${name}`);
+      return screenSchema.parse(await fn(await ctxFor(user), params));
+    },
+    async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
+      const tool = definition.tools?.[name];
+      if (!tool) throw new Error(`no tool ${name}`);
+      assertRole(name, tool.requires, user);
+      const input = tool.input.parse(args);
+      return toolResultSchema.parse((await tool.handler(await ctxFor(user), input)) ?? {});
+    },
+    /** Opens a plugin stream; iterate it with `next()` and finish with `return()`. */
+    async stream(name: string, args: Record<string, unknown> = {}): Promise<AsyncIterator<unknown>> {
+      const stream = definition.streams?.[name];
+      if (!stream) throw new Error(`no stream ${name}`);
+      assertRole(name, stream.requires, user);
+      const input = stream.input.parse(args);
+      return stream.handler(await ctxFor(user), input)[Symbol.asyncIterator]();
+    },
+    /** Photo upload by this user (FileId for tool arguments). */
+    files: { fake: (mime?: string) => fakeFile(user, mime) },
+    /** Zod issues for tool input the host would reject with 400, or null. */
+    invalidInput(name: string, args: Record<string, unknown>): z.core.$ZodIssue[] | null {
+      const r = definition.tools?.[name]?.input.safeParse(args);
+      return r && !r.success ? r.error.issues : null;
+    },
+  });
+
+  const main = opts.user ?? { id: "u_test", name: "Test User", role: "user" };
   return {
-    ...harness(current),
+    ...harness(main),
     as: (user: PluginUser) => harness(user),
     /** Runs onInstall (like the host after enabling the plugin in a community). */
     install: async () => {
-      current = { id: "system", name: "System", role: "admin" };
-      await definition.onInstall?.({ user: current, community, now, db, files: files.api, ai: ai.api });
+      await definition.onInstall?.(await ctxFor(SYSTEM));
     },
-    db,
-    files: { fake: (mime?: string) => files.fake(mime, current.id), isKept: files.isKept },
+    /** The plugin database (for assertions), acting as the system user. */
+    db: dbFor(SYSTEM),
+    /** Deletes a platform user (e.g. to check reference cascades). */
+    deleteUser: async (id: string) => {
+      await surreal.query("DELETE $u;", { u: new RecordId(HOST.user, id) });
+    },
+    files: {
+      fake: (mime?: string) => fakeFile(main, mime),
+      isKept: async (id: FileId) => (await fileRow(id))?.status === "kept",
+    },
     ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar },
     setNow: (date: Date) => {
-      clock = date;
+      clock.now = date;
     },
   };
 }

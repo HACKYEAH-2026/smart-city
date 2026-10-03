@@ -1,33 +1,37 @@
-import { Database } from "bun:sqlite";
-import { type BunSQLiteDatabase, drizzle } from "drizzle-orm/bun-sqlite";
-import * as schema from "./schema";
+import { createRemoteEngines, Surreal } from "surrealdb";
 
 /** Client type as seen by the app. */
-export type Db = BunSQLiteDatabase<typeof schema>;
-export type DbHandle = { db: Db; sqlite: Database; close: () => Promise<void> };
+export type Db = Surreal;
+export type DbHandle = { db: Db; close: () => Promise<void> };
+
+export const NAMESPACE = "app";
+export const DATABASE = "main";
 
 /**
- * The only database client factory (SQLite via bun:sqlite). File chosen by DATABASE_URL:
- *   :memory:              -> in-memory database (tests, E2E)
- *   file:/abs/path.db     -> file on disk (production: /data volume)
- *   file:./rel/path.db    -> file relative to the working directory (dev)
+ * The only database client factory (SurrealDB). Chosen by DATABASE_URL:
+ *   mem://                  -> embedded, in-memory (tests, E2E, dev)
+ *   surrealkv:///abs/path   -> embedded, on disk (dev with persistence)
+ *   ws://host:8000          -> SurrealDB server (production: separate container); credentials in the URL
+ *                              as ws://user:pass@host:8000
+ * The embedded engine (@surrealdb/node, a native addon) is loaded only for embedded URLs; the production
+ * image does not ship it.
  */
 export async function createDb(url: string): Promise<DbHandle> {
-  if (url === ":memory:") return fromSqlite(new Database(":memory:"));
-  if (url.startsWith("file:")) return fromSqlite(new Database(url.slice("file:".length), { create: true }));
-  throw new Error(`Unsupported DATABASE_URL: ${url.split(":")[0]}: (expected :memory: or file:<path>)`);
-}
-
-/** Wraps an existing connection (used by the snapshot-based test helpers). */
-export function fromSqlite(sqlite: Database): DbHandle {
-  // SQLite does NOT enforce foreign keys by default (onDelete: cascade) — enable per connection.
-  sqlite.run("PRAGMA foreign_keys = ON");
-  sqlite.run("PRAGMA journal_mode = WAL");
-  sqlite.run("PRAGMA busy_timeout = 5000");
-  const db = drizzle(sqlite, { schema });
+  const parsed = /^wss?:\/\//.test(url) ? new URL(url) : null;
+  const embedded = parsed ? {} : (await import("@surrealdb/node")).createNodeEngines();
+  const db = new Surreal({ engines: { ...createRemoteEngines(), ...embedded } });
+  if (parsed) {
+    await db.connect(`${parsed.protocol}//${parsed.host}/rpc`, {
+      authentication: { username: decodeURIComponent(parsed.username), password: decodeURIComponent(parsed.password) },
+    });
+  } else {
+    await db.connect(url);
+  }
+  await db.use({ namespace: NAMESPACE, database: DATABASE });
   return {
     db,
-    sqlite,
-    close: async () => sqlite.close(),
+    close: async () => {
+      await db.close();
+    },
   };
 }

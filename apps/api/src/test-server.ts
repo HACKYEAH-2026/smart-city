@@ -1,5 +1,5 @@
 /**
- * Server for E2E and local dev: migrates the SQLite database (DATABASE_URL, in-memory by default)
+ * Server for E2E and local dev: applies the schema to the database (DATABASE_URL, in-memory by default)
  * and adds /__test/reset. Refuses to start outside NODE_ENV=test.
  */
 import { createApp } from "./app";
@@ -22,7 +22,7 @@ if (env.NODE_ENV !== "test") {
 }
 
 const handle = await createDb(env.DATABASE_URL);
-await migrate(handle);
+await migrate(handle.db);
 const { app, auth, plugins } = createApp({ db: handle.db, env });
 const deps = { db: handle.db, auth, plugins };
 await seedDemo(deps);

@@ -1,190 +1,47 @@
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { PLATFORM_SCHEMA } from "@app/plugin-sdk/engine";
 
 /**
- * The only database schema (SQLite). The user/session/account/verification tables are the Better Auth core
- * (field names must match Better Auth). Domain resources below.
- * Dates: integer milliseconds (mode "timestamp_ms"), always Date objects in code.
+ * The only database schema (SurrealQL). Idempotent (`IF NOT EXISTS`): applied on every start and in tests,
+ * no migration files. Better Auth tables (user, session, account, verification) are schemaless and managed
+ * by its SurrealDB adapter; plugin tables (`p_<plugin>__<table>`) are defined by the plugin engine.
+ * PLATFORM_SCHEMA holds the tables the plugin engine references (user, plugin_installation, plugin_file).
  */
-const timestamp = (name: string) => integer(name, { mode: "timestamp_ms" });
+export const TABLES = {
+  user: "user",
+  community: "community",
+  membership: "membership",
+  installation: "plugin_installation",
+  file: "plugin_file",
+  source: "plugin_source",
+} as const;
 
-const timestamps = {
-  createdAt: timestamp("created_at")
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: timestamp("updated_at")
-    .notNull()
-    .$defaultFn(() => new Date())
-    .$onUpdate(() => new Date()),
-};
+export const SCHEMA = `
+${PLATFORM_SCHEMA}
+DEFINE INDEX IF NOT EXISTS user_email ON user FIELDS email UNIQUE;
 
-const uuid = (name: string) =>
-  text(name)
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID());
+DEFINE TABLE IF NOT EXISTS community SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS slug ON community TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON community TYPE string;
+DEFINE FIELD IF NOT EXISTS created_at ON community TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS community_slug ON community FIELDS slug UNIQUE;
 
-export const user = sqliteTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
-  image: text("image"),
-  ...timestamps,
-});
+-- Membership with a role: "admin" moderates plugin content, "user" is a member.
+DEFINE TABLE IF NOT EXISTS membership SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS community ON membership TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS user ON membership TYPE record<user> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS role ON membership TYPE "admin" | "user" DEFAULT "user";
+DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS community, user UNIQUE;
 
-export const session = sqliteTable(
-  "session",
-  {
-    id: text("id").primaryKey(),
-    expiresAt: timestamp("expires_at").notNull(),
-    token: text("token").notNull().unique(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    ...timestamps,
-  },
-  (t) => [index("session_user_id_idx").on(t.userId)],
-);
+-- A plugin enabled in a community; plugin tables and files cascade on it.
+DEFINE FIELD IF NOT EXISTS community ON plugin_installation TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS plugin ON plugin_installation TYPE string;
+DEFINE FIELD IF NOT EXISTS enabled ON plugin_installation TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS created_at ON plugin_installation TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS plugin_installation_community_plugin ON plugin_installation FIELDS community, plugin UNIQUE;
 
-export const account = sqliteTable(
-  "account",
-  {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    ...timestamps,
-  },
-  (t) => [index("account_user_id_idx").on(t.userId)],
-);
-
-export const verification = sqliteTable(
-  "verification",
-  {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    ...timestamps,
-  },
-  (t) => [index("verification_identifier_idx").on(t.identifier)],
-);
-
-// --- Communities and plugins ---
-
-export const communities = sqliteTable("communities", {
-  id: uuid("id"),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  ...timestamps,
-});
-
-/** Community membership: role "admin" (manages plugin content) or "user". */
-export const memberships = sqliteTable(
-  "memberships",
-  {
-    id: uuid("id"),
-    communityId: text("community_id")
-      .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["admin", "user"] })
-      .notNull()
-      .default("user"),
-    ...timestamps,
-  },
-  (t) => [uniqueIndex("memberships_community_user_idx").on(t.communityId, t.userId)],
-);
-
-/** A plugin enabled in a community. Each installation has its own isolated data store. */
-export const pluginInstallations = sqliteTable(
-  "plugin_installations",
-  {
-    id: uuid("id"),
-    communityId: text("community_id")
-      .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
-    pluginId: text("plugin_id").notNull(),
-    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-    ...timestamps,
-  },
-  (t) => [uniqueIndex("plugin_installations_community_plugin_idx").on(t.communityId, t.pluginId)],
-);
-
-/**
- * Plugin document store (ctx.db). Always filtered by installation_id.
- * Primary key (installation, collection, id): id is generated by the host (create) or given by the plugin (upsert).
- */
-export const pluginDocs = sqliteTable(
-  "plugin_docs",
-  {
-    id: text("id").notNull(),
-    installationId: text("installation_id")
-      .notNull()
-      .references(() => pluginInstallations.id, { onDelete: "cascade" }),
-    collection: text("collection").notNull(),
-    data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
-    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
-    ...timestamps,
-  },
-  (t) => [
-    primaryKey({ columns: [t.installationId, t.collection, t.id] }),
-    index("plugin_docs_installation_collection_idx").on(t.installationId, t.collection, t.createdAt),
-  ],
-);
-
-/**
- * Plugin files (ctx.files). An upload creates a "pending" file tied to the user and installation;
- * the plugin confirms it via ctx.files.keep(). Unconfirmed files are deleted after 24 h.
- */
-export const pluginFiles = sqliteTable(
-  "plugin_files",
-  {
-    id: text("id").primaryKey(),
-    installationId: text("installation_id")
-      .notNull()
-      .references(() => pluginInstallations.id, { onDelete: "cascade" }),
-    uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
-    status: text("status", { enum: ["pending", "kept"] })
-      .notNull()
-      .default("pending"),
-    mime: text("mime").notNull(),
-    size: integer("size").notNull(),
-    ...timestamps,
-  },
-  (t) => [index("plugin_files_status_created_idx").on(t.status, t.createdAt)],
-);
-
-/** Code of plugins uploaded on the fly (POST /api/admin/plugins); reloaded after a restart. */
-export const pluginSources = sqliteTable("plugin_sources", {
-  pluginId: text("plugin_id").primaryKey(),
-  version: text("version").notNull(),
-  source: text("source").notNull(),
-  ...timestamps,
-});
-
-/** All tables (test reset: DELETE FROM each). Add new tables here. */
-export const allTables = {
-  user,
-  session,
-  account,
-  verification,
-  communities,
-  memberships,
-  pluginInstallations,
-  pluginDocs,
-  pluginFiles,
-  pluginSources,
-};
+-- Source of plugins uploaded at runtime (POST /api/admin/plugins); reloaded after a restart. id = plugin id.
+DEFINE TABLE IF NOT EXISTS plugin_source SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS version ON plugin_source TYPE string;
+DEFINE FIELD IF NOT EXISTS source ON plugin_source TYPE string;
+DEFINE FIELD IF NOT EXISTS updated_at ON plugin_source TYPE datetime DEFAULT time::now();
+`;

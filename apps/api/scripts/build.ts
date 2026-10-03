@@ -1,6 +1,7 @@
 /**
  * Production API build: bundles the server and the migrator. Fails if test code (/__test)
- * ended up in the bundle.
+ * ended up in the bundle. The embedded engine (@surrealdb/node, a native addon) stays external and is
+ * not in the image: production connects to a SurrealDB server (ws://), see src/db/client.ts.
  */
 import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ const result = await Bun.build({
   target: "bun",
   minify: true,
   naming: "[name].js",
+  external: ["@surrealdb/node"],
 });
 if (!result.success) {
   for (const log of result.logs) console.error(log);

@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { fileRef } from "./files";
+import { SchemaError, validateTables } from "./engine/schema";
 import { definePlugin, type PluginDefinition, type PluginManifest, pluginManifestSchema } from "./plugin";
+import { t } from "./services/db";
+import { fileRef } from "./services/files";
 import { ui } from "./ui";
 
 /** Plugin error (bad manifest, exception, invalid result). The message is safe to show the author/admin. */
 export class PluginError extends Error {}
 
 /** SDK passed to the plugin module — the only thing a plugin uses at runtime. */
-export const sdk = { definePlugin, ui, z, fileRef };
+export const sdk = { definePlugin, ui, z, fileRef, t };
 
 export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDefinition };
 
@@ -19,7 +21,9 @@ export function loadPlugin(mod: unknown): LoadedDefinition {
   const definition = callFactory(mod);
   const manifest = parseManifest(definition);
   assertViews(definition, manifest);
+  assertTables(definition);
   assertTools(definition);
+  assertStreams(definition);
   return { manifest, definition };
 }
 
@@ -52,9 +56,25 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
 }
 
+function assertTables(definition: PluginDefinition): void {
+  try {
+    validateTables(definition.tables ?? {});
+  } catch (err) {
+    if (err instanceof SchemaError) throw new PluginError(`Invalid tables: ${err.message}`);
+    throw err;
+  }
+}
+
 function assertTools(definition: PluginDefinition): void {
   const invalid = Object.entries(definition.tools ?? {}).find(
     ([, tool]) => typeof tool?.handler !== "function" || !(tool.input instanceof z.ZodType),
   );
   if (invalid) throw new PluginError(`Tool "${invalid[0]}" must have an input schema (z.object) and a handler`);
+}
+
+function assertStreams(definition: PluginDefinition): void {
+  const invalid = Object.entries(definition.streams ?? {}).find(
+    ([, stream]) => typeof stream?.handler !== "function" || !(stream.input instanceof z.ZodType),
+  );
+  if (invalid) throw new PluginError(`Stream "${invalid[0]}" must have an input schema (z.object) and a handler`);
 }

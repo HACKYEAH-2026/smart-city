@@ -16,7 +16,6 @@
     "typecheck": "bun run --filter '*' typecheck",
     "test:unit": "bun test ./packages ./plugins ./apps/app/src",
     "test:int": "bun test ./apps/api/test",
-    "db:generate": "bun run --cwd apps/api db:generate",
     "db:check": "bun run --cwd apps/api db:check",
     "e2e": "bun run --cwd apps/app e2e",
     "build": "bun run --cwd apps/api build && bun run --cwd apps/app build",

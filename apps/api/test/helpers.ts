@@ -1,28 +1,23 @@
-import { Database } from "bun:sqlite";
+import { testEngine } from "@app/plugin-sdk/testing";
 import { createApp } from "../src/app";
-import { createDb, type DbHandle, fromSqlite, migrate } from "../src/db";
+import { type DbHandle, migrate } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
 import type { AIProviders } from "../src/services/ai/types";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADMIN, seedDemo } from "../src/test-routes";
 
 /**
- * SQLite snapshot: migrations run ONCE per test process, then each test gets a fresh
- * in-memory database restored from the snapshot (Database.deserialize) — no re-migration.
+ * Each test gets a fresh database with the schema applied, on the one embedded engine of the test process
+ * (`testEngine()` explains why there is only one). The Better Auth adapter needs the full client, so the
+ * database is selected on it; tests in a process run one at a time. Databases are not removed: they are
+ * small, in memory, and `REMOVE DATABASE` makes Bun 1.4 crash on exit with @surrealdb/node 3.0.3.
  */
-let snapshot: Promise<Uint8Array> | undefined;
-
-async function buildSnapshot(): Promise<Uint8Array> {
-  const template = await createDb(":memory:");
-  await migrate(template);
-  const dump = template.sqlite.serialize();
-  await template.close();
-  return dump;
-}
-
 async function freshTestDb(): Promise<DbHandle> {
-  snapshot ??= buildSnapshot();
-  return fromSqlite(Database.deserialize(await snapshot));
+  const db = await testEngine();
+  const database = `api_${crypto.randomUUID().replaceAll("-", "")}`;
+  await db.use({ namespace: "api", database });
+  await migrate(db);
+  return { db, close: async () => {} };
 }
 
 export type TestUser = { id: string; email: string; headers: Record<string, string> };

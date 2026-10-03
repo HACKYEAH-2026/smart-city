@@ -3,12 +3,14 @@
 | Level | Runner | Where | Database |
 |---|---|---|---|
 | unit | bun test | `packages/*`, `plugins/*` (plugins via `testPlugin`), `apps/app/src` | — |
-| integration | bun test | `apps/api/test` | in-memory SQLite from a snapshot, a fresh DB per test |
-| E2E | Playwright (web) | `apps/app/e2e` | in-memory SQLite, a separate API process per worker |
+| integration | bun test | `apps/api/test` | embedded in-memory SurrealDB, a fresh database per test |
+| E2E | Playwright (web) | `apps/app/e2e` | embedded in-memory SurrealDB, a separate API process per worker |
 
-## Integration: SQLite snapshot
-`apps/api/test/helpers.ts`: migrations run once per process → `Database.serialize()`; every test gets
-`Database.deserialize(snapshot)` (in-memory DB, no re-running migrations). The API is called through
+## Integration: one engine, a database per test
+`apps/api/test/helpers.ts`: every test gets a fresh database (schema applied) on the one embedded engine of the
+process (`testEngine()` from `@app/plugin-sdk/testing`). One engine per process on purpose: with
+@surrealdb/node 3.0.3, Bun 1.4 crashes on exit (SIGSEGV) after a second embedded engine or `REMOVE DATABASE`,
+even when every test passed. Never open another `mem://` connection in tests. The API is called through
 `app.request()` (no ports), `close()` after each test. `t.seed()` adds the demo community, the built-in plugins
 and a signed-in community admin. Inject a fake AI model with `setup({}, { ai: { language } })`.
 

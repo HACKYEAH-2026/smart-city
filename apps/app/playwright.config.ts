@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Web E2E: frontend = production static Expo export (dist/) served by scripts/serve.ts.
- * API = a separate process per worker (fixture e2e/fixtures.ts), in-memory SQLite.
+ * API = a separate process per worker (fixture e2e/fixtures.ts), in-memory SurrealDB.
  */
 const CI = Boolean(process.env.CI);
 

@@ -25,7 +25,7 @@ function aiFromEnv(env: Env): AIProviders {
 }
 
 /**
- * Assembles the app. Receives a ready Drizzle client (unaware of the underlying database).
+ * Assembles the app. Receives a connected SurrealDB client (embedded or server — the app does not care).
  * The only place routers are mounted; AppType is exported for the frontend RPC client.
  */
 export function createApp({ db, env, ai }: { db: Db; env: Env; ai?: AIProviders }) {

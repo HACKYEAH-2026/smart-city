@@ -6,7 +6,7 @@ export const TEST_ADMIN_TOKEN = "test-admin-token-0000000000";
 
 export const TEST_ENV = {
   NODE_ENV: "test",
-  DATABASE_URL: ":memory:",
+  DATABASE_URL: "mem://",
   API_URL: "http://localhost:4000",
   BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret-000",
   // static web export (E2E) + Expo dev server (web)

@@ -5,7 +5,7 @@ import { test as base, expect } from "@playwright/test";
 /**
  * E2E fixtures:
  *  - worker-scoped `api`: a separate API process (bun apps/api/src/test-server.ts) per worker,
- *    with its own in-memory SQLite database.
+ *    with its own embedded in-memory SurrealDB.
  *  - auto fixture: POST /__test/reset before EVERY test.
  *  - the frontend gets the worker's API URL via window.__API_URL__ (runtime config).
  */
@@ -40,7 +40,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           ...process.env,
           NODE_ENV: "test",
           PORT: String(port),
-          DATABASE_URL: ":memory:",
+          DATABASE_URL: "mem://",
           API_URL: url,
         },
         stdio: ["ignore", "inherit", "inherit"],

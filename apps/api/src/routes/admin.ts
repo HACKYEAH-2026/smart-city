@@ -1,11 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { adminGrantSchema, communityCreateSchema, pluginInstallSchema, pluginUploadSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
+import type { RecordId } from "surrealdb";
 import type { AppEnv } from "../context";
-import { schema } from "../db";
+import { type CommunityRow, communityBySlug, first, keyOf, membershipRef, ref, toCommunity } from "../db";
 import { PluginError } from "../plugins/host";
 
 /**
@@ -13,8 +13,6 @@ import { PluginError } from "../plugins/host";
  * token (Authorization: Bearer ... header). Without the token in env — everything returns 404.
  * An uploaded plugin runs in the API process, so token = full trust (docs/plugins.md).
  */
-const { communities, memberships, pluginInstallations, user } = schema;
-
 const sameToken = (a: string, b: string) => {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -46,60 +44,35 @@ export function createAdminRoutes(token: string | undefined) {
         }
       })
       .post("/communities", zValidator("json", communityCreateSchema), async (c) => {
-        const [row] = await c.var.db.insert(communities).values(c.req.valid("json")).onConflictDoNothing().returning();
+        const row = await first<CommunityRow>(c.var.db, "INSERT IGNORE INTO community $data RETURN id, slug, name;", {
+          data: c.req.valid("json"),
+        });
         if (!row) return c.json({ error: "slug_taken" }, 409);
-        return c.json({ id: row.id, slug: row.slug, name: row.name }, 201);
+        return c.json(toCommunity(row), 201);
       })
       .post("/communities/:slug/plugins", zValidator("json", pluginInstallSchema), async (c) => {
         await c.var.plugins.ready();
-        const { pluginId } = c.req.valid("json");
-        if (!c.var.plugins.get(pluginId)) return c.json({ error: "unknown_plugin" }, 400);
-        const [community] = await c.var.db
-          .select()
-          .from(communities)
-          .where(eq(communities.slug, c.req.param("slug")));
+        const plugin = c.var.plugins.get(c.req.valid("json").pluginId);
+        if (!plugin) return c.json({ error: "unknown_plugin" }, 400);
+        const community = await communityBySlug(c.var.db, c.req.param("slug"));
         if (!community) return c.json({ error: "not_found" }, 404);
-        const [created] = await c.var.db
-          .insert(pluginInstallations)
-          .values({ communityId: community.id, pluginId })
-          .onConflictDoNothing()
-          .returning();
-        if (created) {
-          const plugin = c.var.plugins.get(pluginId);
-          if (plugin) {
-            await c.var.plugins.install(plugin, created.id, {
-              id: community.id,
-              slug: community.slug,
-              name: community.name,
-            });
-          }
-        } else {
-          await c.var.db
-            .update(pluginInstallations)
-            .set({ enabled: true })
-            .where(and(eq(pluginInstallations.communityId, community.id), eq(pluginInstallations.pluginId, pluginId)));
-        }
+        await c.var.plugins.enable(plugin, toCommunity(community));
         return c.json({ ok: true }, 201);
       })
       /** Grants the community admin role to the user with the given email (must have an account). */
       .post("/communities/:slug/admins", zValidator("json", adminGrantSchema), async (c) => {
-        const [community] = await c.var.db
-          .select()
-          .from(communities)
-          .where(eq(communities.slug, c.req.param("slug")));
+        const community = await communityBySlug(c.var.db, c.req.param("slug"));
         if (!community) return c.json({ error: "not_found" }, 404);
-        const [account] = await c.var.db
-          .select({ id: user.id })
-          .from(user)
-          .where(eq(user.email, c.req.valid("json").email));
+        const account = await first<{ id: RecordId }>(c.var.db, "SELECT id FROM user WHERE email = $email;", {
+          email: c.req.valid("json").email,
+        });
         if (!account) return c.json({ error: "unknown_user" }, 400);
-        await c.var.db
-          .insert(memberships)
-          .values({ communityId: community.id, userId: account.id, role: "admin" })
-          .onConflictDoUpdate({
-            target: [memberships.communityId, memberships.userId],
-            set: { role: "admin", updatedAt: new Date() },
-          });
+        const [communityId, userId] = [keyOf(community.id), keyOf(account.id)];
+        await c.var.db.query('UPSERT $m MERGE { community: $c, user: $u, role: "admin" };', {
+          m: membershipRef(communityId, userId),
+          c: ref("community", communityId),
+          u: ref("user", userId),
+        });
         return c.json({ ok: true }, 201);
       })
   );

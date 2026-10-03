@@ -1,10 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { FILE_ID, type FileId, type Files } from "@app/plugin-sdk";
-import { and, eq, lt } from "drizzle-orm";
-import { type Db, schema } from "../../db";
+import { RecordId } from "surrealdb";
+import { type Db, TABLES } from "../../db";
 import type { FileStore } from "./store";
 
-const { pluginFiles } = schema;
+type FileRow = { mime: string; size: number; installation: RecordId };
+const fileRecord = (id: string) => new RecordId(TABLES.file, id);
+const installationRecord = (id: string) => new RecordId(TABLES.installation, id);
 
 export const FILE_MAX_BYTES = 10 * 1024 * 1024;
 export const FILE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -15,8 +17,9 @@ const URL_TTL_S = 60 * 60;
 export class FileInputError extends Error {}
 
 /**
- * Plugin files: upload (pending) → ctx.files.keep() (kept) → display via a signed URL.
- * Bytes in FileStore, metadata and owner in the plugin_files table.
+ * Plugin files: upload (pending) → a plugin row references it via t.ref("file"), which confirms it (kept;
+ * done by the db engine) → display via a signed URL. Unreferenced uploads are swept after 24 h.
+ * Bytes in FileStore, metadata and owner in the plugin_file table.
  */
 export class FileService {
   constructor(
@@ -32,41 +35,34 @@ export class FileService {
     await this.sweep();
     const id = `file_${crypto.randomUUID()}` as FileId;
     await this.store.put(id, args.data);
-    await this.db.insert(pluginFiles).values({
-      id,
-      installationId: args.installationId,
-      uploadedBy: args.userId,
-      mime: args.mime,
-      size: args.data.byteLength,
+    await this.db.query("CREATE $f CONTENT $data;", {
+      f: fileRecord(id),
+      data: {
+        installation: installationRecord(args.installationId),
+        uploaded_by: new RecordId(TABLES.user, args.userId),
+        mime: args.mime,
+        size: args.data.byteLength,
+      },
     });
     return id;
   }
 
   /** ctx.files for a single installation and user. */
-  forPlugin(installationId: string, userId: string | null): Files {
+  forPlugin(installationId: string): Files {
     const own = async (id: FileId) => {
       if (!FILE_ID.test(id)) throw new FileInputError(`invalid file id ${id}`);
-      const [row] = await this.db
-        .select()
-        .from(pluginFiles)
-        .where(and(eq(pluginFiles.id, id), eq(pluginFiles.installationId, installationId)));
-      if (!row) throw new FileInputError(`unknown file ${id}`);
+      const row = await this.row(id);
+      if (!row || String(row.installation.id) !== installationId) throw new FileInputError(`unknown file ${id}`);
       return row;
     };
     return {
-      keep: async (id) => {
-        const row = await own(id);
-        if (row.status === "kept") return;
-        if (row.uploadedBy !== userId) throw new FileInputError(`file ${id} belongs to another user`);
-        await this.db.update(pluginFiles).set({ status: "kept" }).where(eq(pluginFiles.id, id));
-      },
       info: async (id) => {
         const row = await own(id);
         return { mime: row.mime, size: row.size };
       },
       remove: async (id) => {
         await own(id);
-        await this.db.delete(pluginFiles).where(eq(pluginFiles.id, id));
+        await this.db.query("DELETE $f;", { f: fileRecord(id) });
         await this.store.delete(id);
       },
     };
@@ -74,11 +70,8 @@ export class FileService {
 
   /** File bytes and type for the AI model (only this installation's files). */
   async read(installationId: string, id: string): Promise<{ mime: string; data: Uint8Array } | null> {
-    const [row] = await this.db
-      .select()
-      .from(pluginFiles)
-      .where(and(eq(pluginFiles.id, id), eq(pluginFiles.installationId, installationId)));
-    if (!row) return null;
+    const row = await this.row(id);
+    if (!row || String(row.installation.id) !== installationId) return null;
     const data = await this.store.get(id);
     return data ? { mime: row.mime, data } : null;
   }
@@ -95,7 +88,7 @@ export class FileService {
     const expected = Buffer.from(this.sign(id, expNum));
     const given = Buffer.from(sig);
     if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
-    const [row] = await this.db.select().from(pluginFiles).where(eq(pluginFiles.id, id));
+    const row = await this.row(id);
     if (!row) return null;
     const data = await this.store.get(id);
     return data ? { mime: row.mime, data } : null;
@@ -103,11 +96,16 @@ export class FileService {
 
   /** Deletes unconfirmed uploads older than 24 h (called on every upload). */
   async sweep(now = Date.now()) {
-    const stale = await this.db
-      .delete(pluginFiles)
-      .where(and(eq(pluginFiles.status, "pending"), lt(pluginFiles.createdAt, new Date(now - PENDING_TTL_MS))))
-      .returning({ id: pluginFiles.id });
-    await Promise.all(stale.map((f) => this.store.delete(f.id)));
+    const [stale] = await this.db.query<[{ id: RecordId }[]]>(
+      `DELETE ${TABLES.file} WHERE status = "pending" AND created_at < $cutoff RETURN BEFORE;`,
+      { cutoff: new Date(now - PENDING_TTL_MS) },
+    );
+    await Promise.all(stale.map((f) => this.store.delete(String(f.id.id))));
+  }
+
+  private async row(id: string): Promise<FileRow | undefined> {
+    const [rows] = await this.db.query<[FileRow[]]>("SELECT mime, size, installation FROM $f;", { f: fileRecord(id) });
+    return rows[0];
   }
 
   private sign(id: string, exp: number) {

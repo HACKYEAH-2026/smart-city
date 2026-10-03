@@ -11,9 +11,11 @@ export const fileRef = () =>
 
 export type FileInfo = { mime: string; size: number };
 
+/**
+ * Files uploaded by the app for this plugin. Store a FileId in a `t.ref("file")` column: writing the reference
+ * confirms the upload; unreferenced uploads are deleted after 24 h.
+ */
 export interface Files {
-  /** Confirms this user's upload in this plugin. Unconfirmed files disappear after 24 h. */
-  keep(id: FileId): Promise<void>;
   info(id: FileId): Promise<FileInfo>;
   remove(id: FileId): Promise<void>;
 }
