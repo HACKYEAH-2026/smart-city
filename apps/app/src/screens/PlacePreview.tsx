@@ -25,7 +25,7 @@ export default function PlacePreview() {
       <Head>
         <title>{t.place_preview_title}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={back} />
+      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={back} />
       <View style={styles.map}>
         <DashboardMap />
       </View>

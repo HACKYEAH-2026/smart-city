@@ -101,7 +101,7 @@ function Manage({ header, place, onDeleted }: { header: ReactNode; place: PlaceD
 function Header({ eyebrow, onBack }: { eyebrow: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={onBack} />
+      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={onBack} />
       <View style={styles.headerText}>
         <Text variant="label" color="textSecondary" numberOfLines={1}>
           {eyebrow}

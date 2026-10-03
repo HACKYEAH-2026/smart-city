@@ -59,7 +59,9 @@ test("plugins: switching one off takes it out of the place, switching it on brin
   await discussions.click();
   await expect(discussions).not.toBeChecked();
   await page.getByRole("button", { name: t.back }).click();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
 
   await openManage(page);

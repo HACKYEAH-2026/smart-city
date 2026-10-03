@@ -29,7 +29,7 @@ export default function Invites() {
       <Head>
         <title>{t.invites_title}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
+      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
       <View style={styles.intro}>
         <Heading level={1} variant="titleXL">
           {t.invites_title}

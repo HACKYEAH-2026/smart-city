@@ -26,7 +26,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await register(page, "issues@example.test", api.url);
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 
-  await page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true }).click();
+  await page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }).click();
   await expect(page.getByRole("heading", { name: "Zgłoszenia" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze zgłoszeń")).toBeVisible();
 
@@ -167,7 +167,9 @@ const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/no
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test", api.url);
   await page.goto("/app");
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
 
   const headers = {
@@ -324,7 +326,7 @@ test("issues widget: the most reported open issues; tapping the tile opens the l
 
   await page.goto("/app");
   await page
-    .getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia` })
+    .getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie` })
     .getByRole("heading", { level: 2 })
     .click();
   await expect(page).toHaveURL(/\/app\/c\/krakow\/issues\/list$/);

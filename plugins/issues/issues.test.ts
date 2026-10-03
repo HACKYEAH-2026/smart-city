@@ -323,7 +323,7 @@ describe("issues: dashboard", () => {
     const t = await testPlugin(issues, { user: alice });
     const empty = (await t.dashboardWidget("summary"))!;
     expect(textsOf(empty)).toEqual([
-      "Zgłoszenia",
+      "Zgłoszenia i sugestie",
       "0 otwartych · 0 w realizacji",
       "Nie ma otwartych zgłoszeń.",
       "Zgłoś problem",
@@ -351,7 +351,7 @@ describe("issues: dashboard", () => {
 
     const widget = (await t.dashboardWidget("summary"))!;
     expect(textsOf(widget)).toEqual([
-      "Zgłoszenia",
+      "Zgłoszenia i sugestie",
       "4 otwarte · 0 w realizacji",
       "Najczęściej podbijane",
       "Dziura w chodniku",
