@@ -14,8 +14,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Several sessions push to master: only the newest push needs a full run.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/master' }}
+  # master: a running CI is never cancelled (pushes come faster than a run takes, so it would never finish);
+  # GitHub keeps only the newest push waiting behind it and drops the older pending ones.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CI: "true"
