@@ -1,6 +1,5 @@
 /**
- * Lokalny podgląd dist/ zachowujący się jak Cloudflare Workers Static Assets
- * (html_handling: auto-trailing-slash, not_found_handling: 404-page). Używany przez E2E.
+ * Lokalny podgląd dist/: /x -> x.html | x/index.html, nieznana ścieżka -> 404.html. Używany przez E2E.
  */
 import { join, normalize } from "node:path";
 

@@ -18,7 +18,7 @@
     "db:generate": "bun run --cwd apps/api db:generate",
     "db:check": "bun run --cwd apps/api db:check",
     "e2e": "bun run --cwd apps/app e2e",
-    "build": "bun run --cwd apps/api build && bun run --cwd apps/app build && bun run --cwd apps/app check:worker",
+    "build": "bun run --cwd apps/api build && bun run --cwd apps/app build",
     "android": "bun run --cwd apps/app android:debug",
     "dev": "bun run --filter '@app/api' --filter '@app/app' dev",
     "plugin:upload": "bun scripts/plugin-upload.ts"

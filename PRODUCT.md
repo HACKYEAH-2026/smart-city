@@ -1,34 +1,39 @@
 # PRODUCT
 
-> Prawda produktowa szablonu. Nowa aplikacja z szablonu NADPISUJE ten plik (razem z SPEC.md).
+> Prawda produktowa. Opis dla ludzi: `README.md`. Tu: to, czego trzyma się kod i teksty UI.
 
 ## Produkt
-Demonstracyjna aplikacja notatek zbudowana z szablonu "dark-expo": jedna baza kodu
-działa w przeglądarce, na Androidzie i iOS. Notatki należą do użytkownika (konto email + hasło).
+Twoje Miejsce: cyfrowe społeczności dla prawdziwych miejsc (miasto, uczelnia, osiedle). Każda społeczność
+włącza tylko potrzebne funkcje, a każda funkcja to wtyczka z własnym, odizolowanym stanem.
+Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 
 ## Odbiorcy
-- Użytkownik końcowy: osoba, która chce szybko zapisywać i edytować krótkie notatki na telefonie i w przeglądarce.
-- Właściciel szablonu: zespół/agent, który podmienia treść i tokeny, żeby wystartować nowy produkt.
+- Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
+- Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie
 | Powierzchnia | Tryb | Cel |
 |---|---|---|
-| `/` landing (prerender) | Persuade | Odwiedzający rozumie, co to jest, i zakłada konto |
-| `/about` (prerender) | Read | Krótko o projekcie |
-| `/login`, `/register` | Operate | Wejście do aplikacji |
-| `/app` notatki | Operate | Dodaj / edytuj / usuń notatkę |
+| `/login`, `/register` | Operate | Wejście do aplikacji (`/` przekierowuje do `/app`) |
+| `/app` | Operate | Lista społeczności użytkownika, wylogowanie |
+| `/app/c/<slug>` | Operate | Funkcje (wtyczki) włączone w społeczności |
+| `/app/c/<slug>/<wtyczka>/<widok>` | Operate | Widok wtyczki (Server-Driven UI z API) |
+
+## Status demo
+Weryfikacja tożsamości działa na mocku dostawcy; mObywatel jest planowanym adapterem. Społeczność demo: „Kraków”.
 
 ## Języki
-Angielski (domyślny) i polski. Na webie strony marketingowe mają język w URL (`/pl/...`), ekrany aplikacji — z preferencji/urządzenia. Teksty wyłącznie w `apps/app/messages`.
+Angielski (domyślny) i polski: zapisana preferencja → język urządzenia → en. Teksty UI wyłącznie w
+`apps/app/messages`. Treści wtyczek (po polsku) przychodzą z serwera.
 
 ## Ton
-Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii klientów.
-Żadnych fałszywych dowodów społecznych: sekcje z liczbami/opiniami tylko z prawdziwymi danymi.
+Spokojny, rzeczowy. Bez obietnic liczbowych i bez wymyślonych opinii.
+Żadnych fałszywych dowodów społecznych: liczby/opinie tylko z prawdziwymi danymi.
 
 ## Ograniczenia
-- Teksty w `apps/app/messages/<locale>.json`, układ landingu w `apps/app/src/screens/Landing.tsx`. Wygląd w tokenach: `apps/app/src/theme.ts`.
-- Strony marketingowe muszą renderować się bez JS (statyczny eksport Expo), działać bez stanu przeglądarki.
+- Wygląd w tokenach: `apps/app/src/theme.ts`.
 - Dostępność: kontrast AA, pełna obsługa klawiaturą, semantyczne nagłówki (E2E wybiera po rolach).
+- Bezpieczna rozszerzalność: wtyczka nie ma dostępu do bazy ani plików, tylko do `ctx` (user, community, storage).
 
 ## Platform
-natywne iOS i Android (React Native przez Expo) + web (react-native-web, statyczny HTML) z jednego kodu.
+Natywne iOS i Android (React Native przez Expo) + web (react-native-web, statyczny HTML) z jednego kodu.

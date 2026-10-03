@@ -80,22 +80,6 @@ export const verification = sqliteTable(
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
 
-// --- Zasoby domenowe (wzorzec do kopiowania) ---
-
-export const notes = sqliteTable(
-  "notes",
-  {
-    id: uuid("id"),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    body: text("body").notNull().default(""),
-    ...timestamps,
-  },
-  (t) => [index("notes_user_id_created_at_idx").on(t.userId, t.createdAt)],
-);
-
 // --- Społeczności i wtyczki ---
 
 export const communities = sqliteTable("communities", {
@@ -150,7 +134,6 @@ export const allTables = {
   session,
   account,
   verification,
-  notes,
   communities,
   pluginInstallations,
   pluginDocs,

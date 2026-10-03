@@ -43,29 +43,29 @@
           androidSdk = android.androidsdk;
           sdkRoot = "${androidSdk}/libexec/android-sdk";
 
-          # Biome, Playwright, Expo CLI, wrangler są w bun.lock — nie dublujemy ich tutaj.
+          # Biome, Playwright, Expo CLI są w bun.lock — nie dublujemy ich tutaj.
           base = with pkgs; [
             bun
             nodejs_24 # Expo CLI / Metro / Gradle autolinking działają na Node
             sqlite
             gh
-            jq
           ];
 
           # mkShellNoCC: nie nadpisujemy DEVELOPER_DIR/SDKROOT na macOS (xcodebuild, CocoaPods).
           mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // extra);
         in
         {
-          devShells.default = mkShell (base ++ [ pkgs.jdk17 androidSdk ]) {
+          # Domyślny: wszystko do dev, testów i weba (szybki, bez Android SDK).
+          devShells.default = mkShell base { };
+
+          # Pełny `bun run verify` (z buildem Androida): nix develop .#android
+          devShells.android = mkShell (base ++ [ pkgs.jdk17 androidSdk ]) {
             JAVA_HOME = pkgs.jdk17.home;
             ANDROID_HOME = sdkRoot;
             ANDROID_SDK_ROOT = sdkRoot;
             ANDROID_NDK_HOME = "${sdkRoot}/ndk/27.1.12297006";
             GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${sdkRoot}/build-tools/36.0.0/aapt2";
           };
-
-          # Bez Androida (job iOS na macOS, job backupu w CI).
-          devShells.light = mkShell base { };
 
           formatter = pkgs.nixfmt;
         };

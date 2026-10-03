@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * E2E na webie: front = produkcyjny statyczny eksport Expo (dist/) serwowany jak na Workers.
+ * E2E na webie: front = produkcyjny statyczny eksport Expo (dist/) serwowany przez scripts/serve.ts.
  * API = osobny proces per worker (fixture e2e/fixtures.ts), SQLite w pamięci.
  */
 const CI = Boolean(process.env.CI);

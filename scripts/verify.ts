@@ -3,7 +3,7 @@
  * przebieg z kodem != 0. Pomijanie etapu tylko jawnie: VERIFY_SKIP=android,e2e
  * (pominięcie jest widoczne w podsumowaniu i nie jest "zielonym" verify dla zadania).
  */
-type Stage = { name: string; cmd: string[]; needs?: string[] };
+type Stage = { name: string; cmd: string[]; needs?: string[]; shell?: string };
 
 const stages: Stage[] = [
   { name: "lint + format", cmd: ["bun", "run", "lint"] },
@@ -17,6 +17,7 @@ const stages: Stage[] = [
     name: "android (expo prebuild + assembleDebug)",
     cmd: ["bun", "run", "android"],
     needs: ["JAVA_HOME", "ANDROID_HOME", "ANDROID_NDK_HOME"],
+    shell: ".#android",
   },
 ];
 
@@ -54,7 +55,7 @@ for (const stage of stages) {
       name: stage.name,
       status: "FAIL",
       ms: 0,
-      note: `brak: ${lacking.join(", ")} — uruchom w 'nix develop'`,
+      note: `brak: ${lacking.join(", ")} — uruchom w 'nix develop${stage.shell ? ` ${stage.shell}` : ""}'`,
     });
     summary();
     process.exit(1);

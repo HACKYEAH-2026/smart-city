@@ -14,13 +14,11 @@ const register = async (page: Page, email: string) => {
   await page.getByLabel(en.auth_email!).fill(email);
   await page.getByLabel(en.auth_password!).fill("password123");
   await page.getByRole("button", { name: en.auth_submit_register }).click();
-  await expect(page.getByRole("heading", { name: en.notes_title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
 };
 
 test("community -> issues plugin: report an issue and find it on the list", async ({ page }) => {
   await register(page, "issues@example.test");
-  await page.getByRole("link", { name: en.nav_communities }).click();
-  await expect(page.getByRole("heading", { name: en.communities_title })).toBeVisible();
   await page.getByRole("link", { name: "Kraków" }).click();
   await expect(page.getByRole("heading", { name: "Kraków" })).toBeVisible();
 

@@ -1,7 +1,6 @@
-# AGENTS.md — reguły dla agentów-fabryk (dark-expo)
+# AGENTS.md — reguły dla agentów (Twoje Miejsce)
 
-To repo jest szablonem. Każda nowa aplikacja powstaje przez KOPIOWANIE wzorców stąd.
-Jakość i spójność wzorca są ważniejsze niż liczba funkcji.
+Produkt: `README.md` i `PRODUCT.md`. Nowy kod powstaje przez kopiowanie istniejących wzorców (tabele niżej).
 
 Stack: Bun + Hono + Drizzle (SQLite przez bun:sqlite; w pamięci w testach) + Better Auth + Expo (React Native,
 Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JSON (en domyślny).
@@ -10,25 +9,25 @@ Expo Router; web przez react-native-web ze statycznym HTML) + i18n na plikach JS
 Zadanie jest skończone tylko wtedy, gdy `bun run verify` kończy się kodem 0, a w raporcie jest
 jego realny output (tabela podsumowania). "Powinno działać" nie jest dowodem.
 `VERIFY_SKIP` nie jest zielonym verify — każde pominięcie musisz zgłosić z powodem.
-Wszystkie komendy uruchamiaj w `nix develop` (albo przez direnv: `.envrc`).
+Komendy uruchamiaj w `nix develop` (albo przez direnv: `.envrc`); pełny `verify` (z buildem Androida)
+w `nix develop .#android`.
 
 ## Kolejność pracy
-1. Przeczytaj/uzupełnij `SPEC.md` (wzór: `SPEC.template.md`) i `PLAN.md` (wzór: `PLAN.template.md`).
-   PLAN.md to pamięć między rundami: aktualizuj checklistę po każdym kamieniu milowym.
-2. Najpierw testy E2E z kryteriów akceptacji (`apps/app/e2e/*.spec.ts`), mają failować.
-3. Potem implementacja od dołu: schemat → migracja → kontrakt → API + test integracyjny → ekran.
-4. `bun run verify` → commit → push.
+1. Najpierw testy E2E z kryteriów akceptacji (`apps/app/e2e/*.spec.ts`), mają failować.
+2. Potem implementacja od dołu: schemat → migracja → kontrakt → API + test integracyjny → ekran.
+3. `bun run verify` → commit → push.
 
-## Nowy zasób = skopiuj wzorzec "notes"
+## Nowy zasób platformy = skopiuj wzorzec "communities"
 | Warstwa | Plik wzorcowy |
 |---|---|
-| Tabela | `apps/api/src/db/schema.ts` (`notes`) → `bun run db:generate` |
-| Kontrakt (Zod + typ) | `packages/shared/src/notes.ts` (+ `notes.test.ts`) |
-| Router API | `apps/api/src/routes/notes.ts`, montaż w `apps/api/src/app.ts` |
-| Test integracyjny | `apps/api/test/notes.test.ts` (w tym autoryzacja: cudzy rekord = 404) |
-| Dane frontu | `apps/app/src/data/notes.ts` (TanStack Query: useQuery + useMutation) |
-| Ekran | `apps/app/src/screens/Notes.tsx`, trasa (cienki plik) w `apps/app/app/` |
-| E2E | `apps/app/e2e/notes.spec.ts` |
+| Tabela | `apps/api/src/db/schema.ts` (`communities`) → `bun run db:generate` |
+| Kontrakt (Zod + typ) | `packages/shared/src/communities.ts` |
+| Router API | `apps/api/src/routes/communities.ts`, montaż w `apps/api/src/app.ts` |
+| Test integracyjny | `apps/api/test/plugins.test.ts` (`describe("społeczności i nawigacja")`: 401 bez sesji, 404) |
+| Dane frontu | `apps/app/src/data/communities.ts` (TanStack Query: useQuery + useMutation) |
+| Ekran | `apps/app/src/screens/Communities.tsx`, trasa (cienki plik) w `apps/app/app/` |
+| E2E | `apps/app/e2e/plugins.spec.ts` |
+Funkcja dla mieszkańców (zgłoszenia, rezerwacje, ogłoszenia…) to NIE nowy zasób, tylko wtyczka (niżej).
 
 ## Nowa funkcja społeczności = wtyczka (docs/plugins.md)
 | Warstwa | Plik wzorcowy |
@@ -49,7 +48,7 @@ dane trzyma `ctx.storage` (odizolowany per instalacja).
   nie edytuj ich i nie commituj. Zmiana natywna = config plugin albo pole w `app.config.ts`.
 - Trasy: tylko `apps/app/app/` (Expo Router, cienkie pliki). Logika ekranów: `apps/app/src/screens/`.
 - Adres API: tylko `apps/app/src/lib/config.ts`. Trwałe dane urządzenia: tylko `src/lib/storage.ts`.
-- Rozgałęzienia `Platform.OS` tylko w `src/lib/` i w trasach (`app/index.tsx`), nigdy w ekranach.
+- Rozgałęzienia `Platform.OS` tylko w `src/lib/` i w trasach, nigdy w ekranach.
 - Teksty UI: WYŁĄCZNIE `apps/app/messages/<locale>.json` przez `const { t } = useI18n(); t.klucz()`.
   Angielski (`en`) jest bazowy; każdy klucz musi istnieć we wszystkich językach (test `src/lib/i18n.test.ts`).
 - Wygląd: tylko tokeny z `apps/app/src/theme.ts`; ekrany składaj z prymitywów `src/components/ui.tsx`.

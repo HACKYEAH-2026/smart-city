@@ -9,7 +9,6 @@ import { builtinPlugins } from "./plugins/builtin";
 import { defaultPluginsDir, PluginHost } from "./plugins/host";
 import { createAdminRoutes } from "./routes/admin";
 import { communitiesRoutes } from "./routes/communities";
-import { notesRoutes } from "./routes/notes";
 
 /**
  * Składa aplikację. Dostaje gotowego klienta Drizzle (nie wie, jaka baza jest pod spodem).
@@ -45,7 +44,6 @@ export function createApp({ db, env }: { db: Db; env: Env }) {
 
   const routes = app
     .get("/health", (c) => c.json({ ok: true }))
-    .route("/api/notes", notesRoutes)
     .route("/api/communities", communitiesRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
