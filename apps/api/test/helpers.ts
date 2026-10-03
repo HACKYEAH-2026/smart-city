@@ -5,6 +5,7 @@ import { type Env, loadEnv } from "../src/env";
 import type { AIProviders } from "../src/services/ai/types";
 import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
+import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "../src/test-google";
 import { DEMO_ADMIN, DEMO_COMMUNITY, seedDemo } from "../src/test-routes";
 
 /**
@@ -41,15 +42,17 @@ export class RecordingPushSender implements PushSender {
 
 /**
  * Integration test context: fresh database + app called via app.request() (no ports).
- * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV.
+ * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV. Google sign-in is on, with
+ * fake ID tokens (src/test-google.ts).
  */
 export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
   const { app, auth, plugins, notifications } = createApp({
     db: handle.db,
-    env: loadEnv({ ...TEST_ENV, ...env }),
+    env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
+    verifyGoogleIdToken: verifyTestGoogleIdToken,
     ...(opts.ai ? { ai: opts.ai } : {}),
   });
   let seq = 0;

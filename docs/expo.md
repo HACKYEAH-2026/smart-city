@@ -68,6 +68,18 @@ export const useCommunities = () =>
   service-account key (Android) and the APNs key (iOS) are uploaded to the Expo project, never to the repo.
   Expo Go on Android has no pushes and `expo-notifications` throws on import there, so `src/lib/push.ts` loads it
   lazily and skips it in Expo Go (the app runs, without pushes). Pushes on Android: the dev build (`android:debug`).
+- Google sign-in (`src/lib/google.ts`, `useGoogleClientIds`/`signInWithGoogle` in `src/data/session.ts`; web:
+  `google.web.ts`, none): the native account picker (`@react-native-google-signin/google-signin`) returns an ID token
+  issued to the web client ID, `authClient.signIn.social({ idToken })` turns it into our bearer session, and the first
+  sign-in creates the account. The client IDs come from the API (`GET /api/auth-providers`, from `GOOGLE_CLIENT_ID`
+  and `GOOGLE_IOS_CLIENT_ID` in its env; locally `apps/api/.env`, read by `just dev`). Expo Go does not ship the
+  native module, so the button is hidden there: use the dev build (`android:debug`). Google Cloud project, three
+  OAuth clients: "Web application" (its ID is `GOOGLE_CLIENT_ID`; no secret, origins or redirect URIs needed),
+  "Android" (package `pl.twojemiejsce.app` + SHA-1 of the signing key; dev builds use the `debug.keystore` that
+  prebuild generates, SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`; release builds need
+  their key's SHA-1) and "iOS" (bundle ID `pl.twojemiejsce.app`; `GOOGLE_IOS_CLIENT_ID` is also needed when
+  building the app, for the URL scheme in `app.config.ts`). `DEVELOPER_ERROR` on Android = this package/SHA-1 pair
+  is not registered in the project.
 
 ## Forbidden (common hallucinations)
 - React DOM: `<div>`, `<span>`, `<p>`, `<button>`, `<input>`, `className`, `onClick`, `onChange` on inputs

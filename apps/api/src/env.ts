@@ -30,6 +30,14 @@ export const envSchema = z.object({
   AI_MODEL: z.string().min(1).optional(),
   /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */
   AI_BASE_URL: z.url().optional(),
+  /**
+   * Google sign-in: client ID of the "Web application" OAuth client in the Google Cloud project. The phones ask Google
+   * for ID tokens issued to it (webClientId), the API checks they are. Unset = no Google sign-in. No client secret:
+   * the API only verifies ID tokens, it never exchanges codes with Google.
+   */
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  /** Client ID of the "iOS" OAuth client (same project); iOS tokens may carry it as the audience. */
+  GOOGLE_IOS_CLIENT_ID: z.string().min(1).optional(),
   /** Expo access token, only if the Expo project enables enhanced push security. Unset = plain Expo push. */
   EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
 });

@@ -1,11 +1,14 @@
 /**
  * Server for E2E and local dev: applies the schema to the database (DATABASE_URL, in-memory by default)
  * and adds /__test/reset. Refuses to start outside NODE_ENV=test.
+ * Google sign-in: with the test client ID (E2E) it accepts fake ID tokens (test-google.ts); with a real
+ * GOOGLE_CLIENT_ID (local dev with a phone, apps/api/.env) it checks real tokens like production.
  */
 import { createApp } from "./app";
 import { createDb, migrate } from "./db";
 import { loadEnv } from "./env";
 import { TEST_ENV } from "./test-env";
+import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "./test-google";
 import { createTestRoutes, seedDemo } from "./test-routes";
 
 // Dev/E2E: :4000 by default (3000 is often taken by other tools). Production: PORT from env (3000).
@@ -23,7 +26,11 @@ if (env.NODE_ENV !== "test") {
 
 const handle = await createDb(env.DATABASE_URL);
 await migrate(handle.db);
-const { app, auth, plugins } = createApp({ db: handle.db, env });
+const { app, auth, plugins } = createApp({
+  db: handle.db,
+  env,
+  ...(env.GOOGLE_CLIENT_ID === TEST_GOOGLE_CLIENT_ID ? { verifyGoogleIdToken: verifyTestGoogleIdToken } : {}),
+});
 const deps = { db: handle.db, auth, plugins };
 await seedDemo(deps);
 app.route("/", createTestRoutes(deps));

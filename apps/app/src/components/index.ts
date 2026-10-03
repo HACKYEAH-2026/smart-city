@@ -15,6 +15,7 @@ export { Checkbox } from "./Checkbox";
 export type { CreateRowProps } from "./CreateRow";
 export { CreateRow } from "./CreateRow";
 export { DashboardMap } from "./DashboardMap";
+export { GoogleLogo } from "./GoogleLogo";
 export type { HeadingProps } from "./Heading";
 export { Heading } from "./Heading";
 export type { HeroBannerProps } from "./HeroBanner";

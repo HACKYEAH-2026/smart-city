@@ -12,6 +12,23 @@ const googleServicesFile =
   process.env.GOOGLE_SERVICES_JSON ?? (existsSync("./google-services.json") ? "./google-services.json" : undefined);
 
 /**
+ * Google sign-in (@react-native-google-signin/google-signin): the app gets the client IDs from the API at runtime
+ * (GET /api/auth-providers). Android needs nothing here: Google recognizes the app by its package name and the
+ * signing key's SHA-1, registered in the project's "Android" OAuth client. iOS needs the "iOS" client's reversed
+ * ID as a URL scheme at build time: GOOGLE_IOS_CLIENT_ID (the same value the API has). Without it the iOS build
+ * works, but has no Google sign-in.
+ */
+const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID;
+const googleSignIn: NonNullable<ExpoConfig["plugins"]> = googleIosClientId
+  ? [
+      [
+        "@react-native-google-signin/google-signin",
+        { iosUrlScheme: `com.googleusercontent.apps.${googleIosClientId.replace(".apps.googleusercontent.com", "")}` },
+      ],
+    ]
+  : [];
+
+/**
  * Single source of app configuration. The android/ and ios/ projects are GENERATED from this file
  * (`expo prebuild`) and are not committed.
  */
@@ -37,6 +54,7 @@ const config: ExpoConfig = {
       },
     ],
     "expo-notifications",
+    ...googleSignIn,
   ],
   experiments: { typedRoutes: true },
   ...(projectId ? { extra: { eas: { projectId } } } : {}),

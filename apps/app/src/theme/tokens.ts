@@ -53,6 +53,12 @@ export const colors = {
   mapWater: "#E4EAF3",
   mapRoad: "#E6E2D8",
   mapRoadMinor: "#ECE8DF",
+
+  // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
+  googleBlue: "#4285F4",
+  googleGreen: "#34A853",
+  googleYellow: "#FBBC05",
+  googleRed: "#EA4335",
 } as const;
 
 export const spacing = {
