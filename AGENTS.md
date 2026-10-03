@@ -12,6 +12,9 @@ Context and timeline: the "HackYeah 2026" section in `README.md`.
 - Judging criteria: idea 30%, relation to category 20%, usability 20%, design 20%, completeness 10%.
   New features must solve a concrete problem of the city or its residents and work in the demo ("Kraków").
 - New external library, API or dataset: add it to the HackYeah section of `README.md` (disclosure requirement).
+- Pace: for now we move fast. A merge conflict, a red test or a bug is yours to fix as soon as you hit it, whoever
+  caused it (another session, a teammate's push, upstream): fix it, say so in the commit message and carry on.
+  Do not hand it back to its author or wait for them.
 
 ## Local settings
 Local rules (outside git): @AGENTS.local.md
