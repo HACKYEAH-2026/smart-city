@@ -4,7 +4,7 @@ import type { AiPlugin, CommunityNavItem, PlacePlugin, PluginCatalogItem } from 
 import { type RecordId, surql } from "surrealdb";
 import { first } from "../src/db";
 import { REQUESTS_PER_DAY } from "../src/plugins/builder";
-import type { AuthorTask, PluginAuthor } from "../src/services/ai/author";
+import type { AuthorTask, PluginAuthor } from "../src/services/ai/author/types";
 import { TestPluginAuthor } from "../src/test-author";
 import { DEMO_COMMUNITY } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";

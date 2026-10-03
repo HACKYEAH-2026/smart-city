@@ -1,5 +1,5 @@
 import type { PluginCheck } from "@app/plugin-sdk";
-import { AuthorError, type AuthorResult, type AuthorTask, type PluginAuthor } from "./services/ai/author";
+import { AuthorError, type AuthorResult, type AuthorTask, type PluginAuthor } from "./services/ai/author/types";
 
 /**
  * The plugin builder's AI for tests and E2E (test-server.ts with PLUGIN_AUTHOR=test): no model, a fixed small plugin

@@ -865,8 +865,8 @@ through the async `ctx` — so moving plugins to a Worker/WASM sandbox changes t
 The AI writes plugins for a place at its admin's request (Zarządzaj miejscem → Pluginy → "Stwórz plugin z AI";
 `apps/api/src/plugins/builder.ts`). The admin's description makes a plugin; every later request changes it:
 
-- **Author** (`PluginAuthor`, `apps/api/src/services/ai/author.ts`): in the host a Strands Agents agent on the env's
-  model (`StrandsPluginAuthor` in `strands.ts`; `AI_API_KEY` + `AI_MODEL`, see `.env.example`) with one tool,
+- **Author** (`PluginAuthor`, `apps/api/src/services/ai/author/`): in the host a Strands Agents agent on the env's
+  model (`StrandsPluginAuthor` in `author/strands.ts`; `AI_API_KEY` + `AI_MODEL`, see `.env.example`) with one tool,
   `check_plugin` = the checks above. Its instructions are the host's rules plus this whole guide. It writes, checks,
   fixes (at most 8 checks, 5 minutes) and answers with a Polish summary for the admin. Without a model the builder
   answers `503 ai_unavailable`; tests and E2E use `TestPluginAuthor` (`PLUGIN_AUTHOR=test` in test-server). A place

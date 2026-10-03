@@ -2,7 +2,7 @@ import type { PluginCheck } from "@app/plugin-sdk";
 import type { AiPlugin, PluginOutline, PluginVersion, VersionError, VersionStatus } from "@app/shared";
 import { type RecordId, surql } from "surrealdb";
 import { type CommunityRow, type Db, first, keyOf, ref, rows, toCommunity, toDate } from "../db";
-import { AuthorError, type AuthorTask, type PluginAuthor } from "../services/ai/author";
+import { AuthorError, type AuthorTask, type PluginAuthor } from "../services/ai/author/types";
 import type { PluginHost } from "./host";
 
 /** A version still "working" this long after it started died with its process (a restart): it reads as failed. */
