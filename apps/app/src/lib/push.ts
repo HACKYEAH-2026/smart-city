@@ -1,5 +1,7 @@
+import { isRunningInExpoGo } from "expo";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
+import type { NotificationResponse } from "expo-notifications";
+import { Platform } from "react-native";
 import { t } from "../texts";
 
 /**
@@ -7,12 +9,23 @@ import { t } from "../texts";
  * pushes to it through the Expo Push Service. The web build uses push.web.ts (no pushes).
  */
 
+type Notifications = typeof import("expo-notifications");
+
+/**
+ * expo-notifications, or null in Expo Go on Android: there it throws on import (no remote pushes since SDK 53), so it
+ * is loaded lazily and the app still runs in Expo Go, without pushes. Pushes on Android: the dev build (android:debug).
+ */
+const notifications = (): Promise<Notifications | null> =>
+  Platform.OS === "android" && isRunningInExpoGo() ? Promise.resolve(null) : import("expo-notifications");
+
 /** The Expo project pushes belong to (EXPO_PROJECT_ID → app.config.ts `extra.eas.projectId`). */
 const projectId = (): string | undefined => Constants.expoConfig?.extra?.eas?.projectId;
 
 /** Pushes show while the app is open too; Android channels: "alerts" (warnings, alarms) and "default". */
 export async function setupPush(): Promise<void> {
-  Notifications.setNotificationHandler({
+  const n = await notifications();
+  if (!n) return;
+  n.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
       shouldShowList: true,
@@ -21,41 +34,49 @@ export async function setupPush(): Promise<void> {
     }),
   });
   // No-ops on iOS.
-  await Notifications.setNotificationChannelAsync("alerts", {
+  await n.setNotificationChannelAsync("alerts", {
     name: t.push_channel_alerts,
-    importance: Notifications.AndroidImportance.MAX,
+    importance: n.AndroidImportance.MAX,
     vibrationPattern: [0, 400, 200, 400],
   });
-  await Notifications.setNotificationChannelAsync("default", {
+  await n.setNotificationChannelAsync("default", {
     name: t.push_channel_default,
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: n.AndroidImportance.DEFAULT,
   });
 }
 
-async function permitted(ask: boolean): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
+async function permitted(n: Notifications, ask: boolean): Promise<boolean> {
+  const current = await n.getPermissionsAsync();
   if (current.granted || !ask || !current.canAskAgain) return current.granted;
-  return (await Notifications.requestPermissionsAsync()).granted;
+  return (await n.requestPermissionsAsync()).granted;
 }
 
 /**
- * This device's Expo push token; `ask` shows the system permission prompt if needed. null = no permission or
- * no Expo project configured. Throws when the platform cannot issue a token (e.g. Android without Firebase).
+ * This device's Expo push token; `ask` shows the system permission prompt if needed. null = no permission, no Expo
+ * project configured or Expo Go on Android. Throws when the platform cannot issue a token (e.g. Android without
+ * Firebase).
  */
 export async function pushToken({ ask }: { ask: boolean }): Promise<string | null> {
   const id = projectId();
-  if (!id || !(await permitted(ask))) return null;
-  return (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
+  const n = await notifications();
+  if (!n || !id || !(await permitted(n, ask))) return null;
+  return (await n.getExpoPushTokenAsync({ projectId: id })).data;
+}
+
+function listenForTaps(n: Notifications, open: (data: unknown) => void): { remove(): void } {
+  const handle = (response: NotificationResponse) => {
+    n.clearLastNotificationResponse();
+    open(response.notification.request.content.data);
+  };
+  const launched = n.getLastNotificationResponse();
+  if (launched) handle(launched);
+  return n.addNotificationResponseReceivedListener(handle);
 }
 
 /** Calls `open` with the `data` of each tapped push, including the one that launched the app. Returns unsubscribe. */
 export function onPushTap(open: (data: unknown) => void): () => void {
-  const handle = (response: Notifications.NotificationResponse) => {
-    Notifications.clearLastNotificationResponse();
-    open(response.notification.request.content.data);
+  const subscription = notifications().then((n) => n && listenForTaps(n, open));
+  return () => {
+    subscription.then((s) => s?.remove());
   };
-  const launched = Notifications.getLastNotificationResponse();
-  if (launched) handle(launched);
-  const subscription = Notifications.addNotificationResponseReceivedListener(handle);
-  return () => subscription.remove();
 }

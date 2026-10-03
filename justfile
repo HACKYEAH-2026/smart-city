@@ -8,7 +8,7 @@ default:
 install:
     bun install
 
-# API + Expo (+ on-demand benches upload) in one terminal (mprocs.yaml)
+# API + Expo + USB port forwarding (+ on-demand benches upload) in one terminal (mprocs.yaml)
 dev: install
     mprocs
 
@@ -16,9 +16,13 @@ dev: install
 api:
     bun run --cwd apps/api dev
 
-# Expo dev server only, :8081
+# Expo dev server only, localhost:8081
 app:
     bun run --cwd apps/app dev
+
+# Android phone over USB / emulator: adb reverse of the API and Metro ports (keeps running)
+usb:
+    bun scripts/adb-reverse.ts
 
 # Upload a plugin into a running API, e.g. `just plugin plugins/benches krakow`
 plugin path community="krakow":
