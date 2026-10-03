@@ -96,7 +96,7 @@ test("create in the place switcher opens the create form", async ({ page, api })
   await page.goto("/app");
   await page.getByRole("button", { name: `${t.place_switch}: Kraków` }).click();
   await page.getByRole("dialog").getByRole("button", { name: t.place_create, exact: true }).click();
-  await expect(page.getByLabel(t.create_name)).toBeVisible();
+  await expect(page.getByText(t.create_step_1)).toBeVisible();
 });
 
 test("the Places tab opens the place switcher over the dashboard", async ({ page, api }) => {
