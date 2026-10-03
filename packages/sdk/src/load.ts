@@ -16,29 +16,45 @@ export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDef
  * tools have a schema and handler). Used by the API host and by the test harness.
  */
 export function loadPlugin(mod: unknown): LoadedDefinition {
+  const definition = callFactory(mod);
+  const manifest = parseManifest(definition);
+  assertViews(definition, manifest);
+  assertTools(definition);
+  return { manifest, definition };
+}
+
+function callFactory(mod: unknown): PluginDefinition {
   if (typeof mod !== "function") throw new PluginError("Plugin module must export a default function (sdk) => plugin");
-  let definition: PluginDefinition;
-  try {
-    definition = (mod as (s: typeof sdk) => PluginDefinition)(sdk);
-  } catch (err) {
-    throw new PluginError(`Plugin factory threw: ${(err as Error).message}`);
-  }
+  const definition = invokeFactory(mod as (s: typeof sdk) => PluginDefinition);
   if (!definition || typeof definition !== "object") {
     throw new PluginError("Plugin factory must return definePlugin({...})");
   }
+  return definition;
+}
+
+function invokeFactory(factory: (s: typeof sdk) => PluginDefinition): PluginDefinition {
+  try {
+    return factory(sdk);
+  } catch (err) {
+    throw new PluginError(`Plugin factory threw: ${(err as Error).message}`);
+  }
+}
+
+function parseManifest(definition: PluginDefinition): PluginManifest {
   const parsed = pluginManifestSchema.safeParse(definition);
   if (!parsed.success) throw new PluginError(`Invalid manifest: ${z.prettifyError(parsed.error)}`);
-  const manifest = parsed.data;
+  return parsed.data;
+}
+
+function assertViews(definition: PluginDefinition, manifest: PluginManifest): void {
   if (!definition.views || typeof definition.views !== "object") throw new PluginError("Plugin must define views");
-  for (const entry of manifest.nav) {
-    if (typeof definition.views[entry.view] !== "function") {
-      throw new PluginError(`Nav entry "${entry.label}" points to missing view "${entry.view}"`);
-    }
-  }
-  for (const [name, tool] of Object.entries(definition.tools ?? {})) {
-    if (typeof tool?.handler !== "function" || !(tool.input instanceof z.ZodType)) {
-      throw new PluginError(`Tool "${name}" must have an input schema (z.object) and a handler`);
-    }
-  }
-  return { manifest, definition };
+  const missing = manifest.nav.find((entry) => typeof definition.views[entry.view] !== "function");
+  if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
+}
+
+function assertTools(definition: PluginDefinition): void {
+  const invalid = Object.entries(definition.tools ?? {}).find(
+    ([, tool]) => typeof tool?.handler !== "function" || !(tool.input instanceof z.ZodType),
+  );
+  if (invalid) throw new PluginError(`Tool "${invalid[0]}" must have an input schema (z.object) and a handler`);
 }

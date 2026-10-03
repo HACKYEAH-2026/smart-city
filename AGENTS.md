@@ -80,6 +80,11 @@ docs/plugins.md). Do not add tables for a single plugin — its data lives in `c
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only
   as compatible with the SDK (`bunx expo install --check` in `apps/app`).
 
+## Code style
+- Declarative code: a function reads as a sequence of `const x = step()` calls. No `let x; try { x = … } catch`
+  and no imperative blocks inside a larger function — extract them into small named functions that return a value
+  or throw (pattern: `loadPlugin` in `packages/sdk/src/load.ts`). Prefer `find`/`map`/`filter` over `for` + mutation.
+
 ## Tests
 - Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`).
 - Integration: `apps/api/test`, always through `setup()` (a fresh in-memory SQLite DB from a snapshot +
