@@ -1,0 +1,46 @@
+# Zmiany infrastruktury WYŁĄCZNIE stąd (ręcznie uruchamiany workflow). Nigdy lokalny tofu apply.
+# Środowisko GitHub "production" powinno mieć wymaganych recenzentów.
+name: infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        type: choice
+        options: [staging, prod]
+        required: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env == 'prod' && 'production' || 'staging' }}
+    concurrency: infra-${{ inputs.env }}
+    env:
+      TF_VAR_state_passphrase: ${{ secrets.TOFU_STATE_PASSPHRASE }}
+      TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_api_hostname: ${{ inputs.env == 'prod' && vars.PROD_API_HOSTNAME || vars.STAGING_API_HOSTNAME }}
+      TF_VAR_ssh_public_keys: ${{ vars.SSH_PUBLIC_KEYS }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_STATE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_STATE_SECRET_ACCESS_KEY }}
+    steps:
+      - name: wymagane sekrety
+        run: |
+          [ -n "$TF_VAR_state_passphrase" ] && [ -n "$TF_VAR_hcloud_token" ] && [ -n "$AWS_ACCESS_KEY_ID" ] \
+            || { echo "::error::Brak sekretów infrastruktury (patrz README: Sekrety)"; exit 1; }
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
+          gc-max-store-size-linux: 8G
+      - name: init + plan + apply
+        working-directory: infra/envs/${{ inputs.env }}
+        run: |
+          nix develop ../../..#light -c tofu init -input=false \
+            -backend-config="bucket=${{ secrets.TOFU_STATE_BUCKET }}" \
+            -backend-config="endpoints={s3=\"https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com\"}"
+          nix develop ../../..#light -c tofu plan -input=false -out=tfplan
+          nix develop ../../..#light -c tofu apply -input=false tfplan

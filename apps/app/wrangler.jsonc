@@ -1,0 +1,18 @@
+// Web na Cloudflare Workers Static Assets: statyczny HTML per trasa (expo export) + 404.html.
+// Deploy wyłącznie z CI: wrangler deploy --env <staging|production> --domain <WEB_DOMAIN>
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "notebook-web",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    // /about -> about.html, /pl -> pl.html | pl/index.html
+    "html_handling": "auto-trailing-slash",
+    // Nieznana ścieżka -> 404.html (Expo Router: +not-found). Wszystkie trasy aplikacji mają własny HTML.
+    "not_found_handling": "404-page"
+  },
+  "env": {
+    "staging": { "name": "notebook-web-staging" },
+    "production": { "name": "notebook-web-prod" }
+  }
+}

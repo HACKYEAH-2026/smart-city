@@ -1,0 +1,14 @@
+name: Zwolnij miejsce na dysku
+description: >
+  Usuwa preinstalowane na ubuntu-latest narzędzia, których nie używamy (Android SDK runnera, .NET, GHC, CodeQL).
+  Build React Native (NDK z nixa + kompilacja C++) nie mieści się bez tego na domyślnym dysku runnera.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        df -h / | tail -1
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+          /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+        sudo docker image prune --all --force >/dev/null 2>&1 || true
+        df -h / | tail -1

@@ -1,0 +1,32 @@
+{
+  "name": "twoje-miejsce",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "verify": "bun scripts/verify.ts",
+    "lint": "biome ci .",
+    "format": "biome check --write .",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test:unit": "bun test ./packages/shared ./apps/app/src",
+    "test:int": "bun test ./apps/api/test",
+    "db:generate": "bun run --cwd packages/db generate",
+    "db:check": "bun run --cwd packages/db check",
+    "e2e": "bun run --cwd apps/app e2e",
+    "build": "bun run --cwd apps/api build && bun run --cwd apps/app build && bun run --cwd apps/app check:worker",
+    "android": "bun run --cwd apps/app android:debug",
+    "infra:check": "bash infra/check.sh",
+    "backup:test": "bash deploy/backup/test-restore.sh",
+    "dev": "bun run --filter '@app/api' --filter '@app/app' dev",
+    "plugin:upload": "bun scripts/plugin-upload.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/bun": "latest",
+    "typescript": "~6.0.3"
+  }
+}

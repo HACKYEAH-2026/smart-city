@@ -1,0 +1,85 @@
+# Wspólny deploy dla staging i prod (wywoływany z ci.yml). Sekrety wybierane prefiksem
+# (STAGING_* / PROD_*). Kolejność: pliki compose -> .env -> pull -> migracje -> up -> smoke -> front.
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      prefix: { type: string, required: true }
+      api_image: { type: string, required: true }
+      backup_image: { type: string, required: true }
+      tag: { type: string, required: true }
+
+jobs:
+  api:
+    name: api -> VPS (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency: deploy-api-${{ inputs.environment }}
+    env:
+      HOST: ${{ secrets[format('{0}_SSH_HOST', inputs.prefix)] }}
+      API_URL: ${{ vars[format('{0}_API_URL', inputs.prefix)] }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: klucz SSH
+        env:
+          KEY: ${{ secrets[format('{0}_SSH_KEY', inputs.prefix)] }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+      - name: pliki + .env
+        env:
+          ENV_FILE: ${{ secrets[format('{0}_ENV_FILE', inputs.prefix)] }}
+        run: |
+          {
+            echo "$ENV_FILE"
+            echo "API_IMAGE=${{ inputs.api_image }}"
+            echo "BACKUP_IMAGE=${{ inputs.backup_image }}"
+            echo "API_TAG=${{ inputs.tag }}"
+          } > .env.deploy
+          scp -i ~/.ssh/id_deploy deploy/docker-compose.yml deploy/Caddyfile "deploy@$HOST:/opt/app/"
+          scp -i ~/.ssh/id_deploy .env.deploy "deploy@$HOST:/opt/app/.env"
+          rm .env.deploy
+      - name: pull -> migracje -> up
+        run: |
+          ssh -i ~/.ssh/id_deploy "deploy@$HOST" '
+            set -e; cd /opt/app
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker compose pull
+            docker compose run --rm migrate
+            docker compose up -d --remove-orphans
+            docker image prune -f
+          '
+      - name: smoke test HTTP
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "$API_URL/health"; then echo; echo "smoke: OK $API_URL/health"; exit 0; fi
+            sleep 5
+          done
+          echo "smoke: BŁĄD — $API_URL/health nie odpowiada" >&2; exit 1
+
+  web:
+    name: front -> Workers (${{ inputs.environment }})
+    needs: [api]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
+          gc-max-store-size-linux: 8G
+      - run: nix develop .#light -c bun install --frozen-lockfile
+      - name: build + wrangler deploy
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars[format('{0}_API_URL', inputs.prefix)] }}
+          WEB_DOMAIN: ${{ vars[format('{0}_WEB_DOMAIN', inputs.prefix)] }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          nix develop .#light -c bash -c 'cd apps/app && bun run build && bunx wrangler deploy --env ${{ inputs.environment }} --domain "$WEB_DOMAIN"'
+          curl -fsS -o /dev/null -w "front smoke: %{http_code}\n" "https://$WEB_DOMAIN/"

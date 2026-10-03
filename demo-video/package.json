@@ -1,0 +1,21 @@
+{
+  "name": "twoje-miejsce-demo-video",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "remotion render TwojeMiejsceDemo out/demo.mp4",
+    "still": "remotion still TwojeMiejsceDemo out/still.png"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "@remotion/google-fonts": "4.0.532",
+    "@remotion/transitions": "4.0.532",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.8",
+    "typescript": "5.8.3"
+  }
+}

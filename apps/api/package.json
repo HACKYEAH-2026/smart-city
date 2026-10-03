@@ -1,0 +1,26 @@
+{
+  "name": "@app/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "dev": "NODE_ENV=test bun --watch src/test-server.ts",
+    "build": "bun scripts/build.ts",
+    "start": "bun dist/server.js"
+  },
+  "dependencies": {
+    "@app/db": "workspace:*",
+    "@app/shared": "workspace:*",
+    "hono": "^4.13.8",
+    "@hono/zod-validator": "^0.9.1",
+    "better-auth": "^1.7.5",
+    "zod": "^4.6.5",
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "@app/testing": "workspace:*"
+  }
+}

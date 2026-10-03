@@ -1,0 +1,81 @@
+/**
+ * bun run verify — JEDYNA definicja gotowości. Etapy po kolei; pierwszy błąd kończy
+ * przebieg z kodem != 0. Pomijanie etapu tylko jawnie: VERIFY_SKIP=android,infra
+ * (pominięcie jest widoczne w podsumowaniu i nie jest "zielonym" verify dla zadania).
+ */
+type Stage = { name: string; cmd: string[]; needs?: string[] };
+
+const stages: Stage[] = [
+  { name: "lint + format", cmd: ["bun", "run", "lint"] },
+  { name: "typecheck", cmd: ["bun", "run", "typecheck"] },
+  { name: "unit", cmd: ["bun", "run", "test:unit"] },
+  { name: "integracja (SQLite)", cmd: ["bun", "run", "test:int"] },
+  { name: "migracje (czysta baza + dryf)", cmd: ["bun", "run", "db:check"] },
+  { name: "e2e (Playwright)", cmd: ["bun", "run", "e2e"] },
+  { name: "build (api + web: expo export static)", cmd: ["bun", "run", "build"] },
+  {
+    name: "android (expo prebuild + assembleDebug)",
+    cmd: ["bun", "run", "android"],
+    needs: ["JAVA_HOME", "ANDROID_HOME", "ANDROID_NDK_HOME"],
+  },
+  { name: "infra (tofu fmt + validate)", cmd: ["bun", "run", "infra:check"], needs: ["tofu"] },
+];
+
+const skip = new Set(
+  (process.env.VERIFY_SKIP ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+const key = (s: Stage) => s.name.split(" ")[0]!;
+const results: { name: string; status: "OK" | "FAIL" | "SKIP"; ms: number; note?: string }[] = [];
+
+function missing(needs: string[] = []): string[] {
+  return needs.filter((n) => (n === n.toUpperCase() ? !process.env[n] : !Bun.which(n)));
+}
+
+function summary() {
+  console.log("\n================ verify: podsumowanie ================");
+  for (const r of results) {
+    const t = `${(r.ms / 1000).toFixed(1)}s`.padStart(7);
+    console.log(`${r.status.padEnd(4)} ${t}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
+  }
+  const total = results.reduce((a, r) => a + r.ms, 0);
+  console.log(`------------------------------------------------------\nrazem ${(total / 1000).toFixed(1)}s`);
+}
+
+for (const stage of stages) {
+  if (skip.has(key(stage))) {
+    results.push({ name: stage.name, status: "SKIP", ms: 0, note: "VERIFY_SKIP" });
+    continue;
+  }
+  const lacking = missing(stage.needs);
+  if (lacking.length) {
+    results.push({
+      name: stage.name,
+      status: "FAIL",
+      ms: 0,
+      note: `brak: ${lacking.join(", ")} — uruchom w 'nix develop'`,
+    });
+    summary();
+    process.exit(1);
+  }
+  console.log(`\n▶ ${stage.name}: ${stage.cmd.join(" ")}`);
+  const start = performance.now();
+  const proc = Bun.spawn(stage.cmd, { stdout: "inherit", stderr: "inherit", env: process.env });
+  const code = await proc.exited;
+  const ms = performance.now() - start;
+  results.push({
+    name: stage.name,
+    status: code === 0 ? "OK" : "FAIL",
+    ms,
+    note: code === 0 ? undefined : `exit ${code}`,
+  });
+  if (code !== 0) {
+    summary();
+    process.exit(code);
+  }
+}
+summary();
+const skipped = results.filter((r) => r.status === "SKIP").length;
+console.log(skipped ? `verify: OK z pominięciami (${skipped})` : "verify: OK");

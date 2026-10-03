@@ -1,0 +1,21 @@
+{
+  "name": "@app/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "generate": "drizzle-kit generate",
+    "check": "bun scripts/check.ts",
+    "migrate": "bun src/migrate-cli.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
+  }
+}
