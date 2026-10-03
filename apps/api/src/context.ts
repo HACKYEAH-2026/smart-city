@@ -1,6 +1,6 @@
 import type { Auth, SessionUser } from "./auth";
 import type { Db } from "./db";
-import type { DraftService } from "./plugins/drafts";
+import type { PluginBuilder } from "./plugins/builder";
 import type { PluginHost } from "./plugins/host";
 import type { FileService } from "./services/files/service";
 import type { Geocoder } from "./services/geo/types";
@@ -13,7 +13,7 @@ export type AppEnv = {
     auth: Auth;
     user: SessionUser;
     plugins: PluginHost;
-    drafts: DraftService;
+    builder: PluginBuilder;
     files: FileService;
     notifications: NotificationService;
     geocoder: Geocoder;

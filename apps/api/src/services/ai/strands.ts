@@ -60,7 +60,7 @@ export class StrandsLanguageModel implements LanguageModel {
 }
 
 /**
- * The plugin builder's author on Strands Agents: one agent per revision with a single tool, `check_plugin` (the
+ * The plugin builder's author on Strands Agents: one agent per version with a single tool, `check_plugin` (the
  * upload's checks). The agent loops — write, check, fix — until a source passes; the last passing source is the
  * result and the agent's final answer is the summary for the admin.
  */
@@ -90,7 +90,7 @@ export class StrandsPluginAuthor implements PluginAuthor {
   }
 }
 
-/** The check tool of one revision, remembering the last source that passed and the last result. */
+/** The check tool of one version, remembering the last source that passed and the last result. */
 function checkRun(check: (source: string) => Promise<PluginCheck>) {
   const state: { passed: string | null; last: PluginCheck | null; calls: number } = {
     passed: null,

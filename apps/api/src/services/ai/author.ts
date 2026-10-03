@@ -3,7 +3,7 @@ import type { PluginCheck } from "@app/plugin-sdk";
 import pluginDocs from "../../../../../docs/plugins.md" with { type: "text" };
 
 /**
- * An AI that writes plugins (the plugin builder, routes/drafts.ts). Swappable: Strands Agents with the host's model
+ * An AI that writes plugins (the plugin builder, plugins/builder.ts). Swappable: Strands Agents with the host's model
  * in production and dev (strands.ts), a fake in tests. It gets a `check` that runs the upload's checks on a source and
  * keeps going until a source passes them; the host checks the result again before it stores anything.
  */
@@ -18,7 +18,7 @@ export type AuthorTask = {
   /** The place the plugin is for (name, kind), so examples and texts fit it. */
   place: { name: string; kind: string };
   request: string;
-  /** For feedback: the current source and the earlier requests, oldest first. */
+  /** For a change: the current source and the earlier requests, oldest first. */
   previous: { source: string; requests: string[] } | null;
 };
 
@@ -32,7 +32,7 @@ export class AuthorError extends Error {
   }
 }
 
-/** Checks one author may run per revision; after that the check tool tells it to stop. */
+/** Checks one author may run per version; after that the check tool tells it to stop. */
 export const MAX_CHECKS = 8;
 
 /** Instructions for the author: the rules of this host, then the whole plugin guide (docs/plugins.md). */
@@ -63,7 +63,7 @@ The plugin guide (the API you write against):
 
 ${pluginDocs}`;
 
-/** The message for one revision: the plugin to write, or the current source and the change to make. */
+/** The message for one version: the plugin to write, or the current source and the change to make. */
 export function authorPrompt(task: AuthorTask): string {
   const header = [
     `Plugin id: ${task.pluginId}`,

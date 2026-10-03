@@ -5,12 +5,13 @@ import { authProviders, createAuth, type GoogleIdTokenVerifier } from "./auth";
 import type { AppEnv } from "./context";
 import type { Db } from "./db";
 import type { Env } from "./env";
+import { PluginBuilder } from "./plugins/builder";
 import { builtinPlugins } from "./plugins/builtin";
-import { DraftService } from "./plugins/drafts";
 import { defaultPluginsDir, PluginHost } from "./plugins/host";
+import { warmTypeChecker } from "./plugins/typecheck";
 import { createAdminRoutes } from "./routes/admin";
+import { builderRoutes } from "./routes/builder";
 import { communitiesRoutes } from "./routes/communities";
-import { draftsRoutes } from "./routes/drafts";
 import { filesRoutes } from "./routes/files";
 import { geoRoutes } from "./routes/geo";
 import { invitationsRoutes } from "./routes/invitations";
@@ -39,10 +40,15 @@ function aiFromEnv(env: Env): AIProviders {
   return model ? { language: new StrandsLanguageModel(model) } : {};
 }
 
-/** The plugin builder's author (Strands agent); without a model, none (the builder answers ai_unavailable). */
+/**
+ * The plugin builder's author (Strands agent); without a model, none (the builder answers ai_unavailable). With one,
+ * the plugin type checker warms up in the background, so the first version does not wait for it.
+ */
 function authorFromEnv(env: Env): PluginAuthor | undefined {
   const model = modelFromEnv(env);
-  return model ? new StrandsPluginAuthor(model) : undefined;
+  if (!model) return undefined;
+  setTimeout(() => void warmTypeChecker().catch((err: unknown) => console.error("plugin type checker", err)), 0);
+  return new StrandsPluginAuthor(model);
 }
 
 /**
@@ -82,7 +88,7 @@ export function createApp({
     env.PLUGINS_DIR ?? defaultPluginsDir(),
     builtinPlugins,
   );
-  const drafts = new DraftService(db, plugins, author === undefined ? authorFromEnv(env) : (author ?? undefined));
+  const builder = new PluginBuilder(db, plugins, author === undefined ? authorFromEnv(env) : (author ?? undefined));
 
   const app = new Hono<AppEnv>();
   if (env.NODE_ENV !== "test") app.use(logger());
@@ -100,7 +106,7 @@ export function createApp({
     c.set("db", db);
     c.set("auth", auth);
     c.set("plugins", plugins);
-    c.set("drafts", drafts);
+    c.set("builder", builder);
     c.set("files", files);
     c.set("notifications", notifications);
     c.set("geocoder", geocoder);
@@ -118,7 +124,7 @@ export function createApp({
     .get("/api/auth-providers", (c) => c.json(authProviders(env), 200))
     .route("/api/communities", communitiesRoutes)
     .route("/api/communities", placeAdminRoutes)
-    .route("/api/communities", draftsRoutes)
+    .route("/api/communities", builderRoutes)
     .route("/api/invitations", invitationsRoutes)
     .route("/api/files", filesRoutes)
     .route("/api/geo", geoRoutes)
@@ -126,7 +132,7 @@ export function createApp({
     .route("/api/plugins", pluginsRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
-  return { app: routes, auth, plugins, notifications, drafts };
+  return { app: routes, auth, plugins, notifications, builder };
 }
 
 export type AppType = ReturnType<typeof createApp>["app"];

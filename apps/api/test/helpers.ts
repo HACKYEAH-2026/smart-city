@@ -54,7 +54,7 @@ export async function setup(
 ) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
-  const { app, auth, plugins, notifications, drafts } = createApp({
+  const { app, auth, plugins, notifications, builder } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
@@ -115,6 +115,18 @@ export async function setup(
     return { admin: { headers: { authorization: `Bearer ${token}` } } };
   };
 
-  return { app, db: handle.db, plugins, notifications, drafts, push, request, signUp, seed, join, close: handle.close };
+  return {
+    app,
+    db: handle.db,
+    plugins,
+    notifications,
+    builder,
+    push,
+    request,
+    signUp,
+    seed,
+    join,
+    close: handle.close,
+  };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

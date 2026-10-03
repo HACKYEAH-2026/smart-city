@@ -21,8 +21,8 @@ export const TABLES = {
   place: "place",
   location: "user_location",
   pushToken: "push_token",
-  draft: "plugin_draft",
-  revision: "plugin_draft_revision",
+  placePlugin: "place_plugin",
+  version: "plugin_version",
 } as const;
 
 export const SCHEMA = surql`
@@ -124,29 +124,27 @@ DEFINE FIELD IF NOT EXISTS user ON push_token TYPE record<user> REFERENCE ON DEL
 DEFINE FIELD IF NOT EXISTS updated_at ON push_token TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS push_token_user ON push_token FIELDS user;
 
--- A plugin the AI writes for a place, at its admin's request (routes/drafts.ts). plugin = the generated plugin id
--- (its plugin_source row once published); published = the revision running in the place.
-DEFINE TABLE IF NOT EXISTS plugin_draft SCHEMAFULL;
-DEFINE FIELD IF NOT EXISTS community ON plugin_draft TYPE record<community> REFERENCE ON DELETE CASCADE;
-DEFINE FIELD IF NOT EXISTS author ON plugin_draft TYPE option<record<user>> REFERENCE ON DELETE UNSET;
-DEFINE FIELD IF NOT EXISTS plugin ON plugin_draft TYPE string;
-DEFINE FIELD IF NOT EXISTS published ON plugin_draft TYPE option<int>;
-DEFINE FIELD IF NOT EXISTS created_at ON plugin_draft TYPE datetime DEFAULT time::now();
-DEFINE INDEX IF NOT EXISTS plugin_draft_plugin ON plugin_draft FIELDS plugin UNIQUE;
-DEFINE INDEX IF NOT EXISTS plugin_draft_community ON plugin_draft FIELDS community;
+-- A plugin the AI writes for a place, at its admin's request (plugins/builder.ts). id = the generated plugin id (its
+-- plugin_source row once published); published = the version running in the place (NONE: a draft).
+DEFINE TABLE IF NOT EXISTS place_plugin SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS community ON place_plugin TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS author ON place_plugin TYPE option<record<user>> REFERENCE ON DELETE UNSET;
+DEFINE FIELD IF NOT EXISTS published ON place_plugin TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS created_at ON place_plugin TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS place_plugin_community ON place_plugin FIELDS community;
 
--- One request of the admin (the description, then each piece of feedback) and the plugin source the AI wrote for
--- it, checked like an upload.
-DEFINE TABLE IF NOT EXISTS plugin_draft_revision SCHEMAFULL;
-DEFINE FIELD IF NOT EXISTS draft ON plugin_draft_revision TYPE record<plugin_draft> REFERENCE ON DELETE CASCADE;
-DEFINE FIELD IF NOT EXISTS n ON plugin_draft_revision TYPE int;
-DEFINE FIELD IF NOT EXISTS request ON plugin_draft_revision TYPE string;
-DEFINE FIELD IF NOT EXISTS status ON plugin_draft_revision TYPE "working" | "ready" | "failed" DEFAULT "working";
-DEFINE FIELD IF NOT EXISTS attempts ON plugin_draft_revision TYPE int DEFAULT 0;
-DEFINE FIELD IF NOT EXISTS summary ON plugin_draft_revision TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS source ON plugin_draft_revision TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS plugin ON plugin_draft_revision TYPE option<object> FLEXIBLE;
-DEFINE FIELD IF NOT EXISTS error ON plugin_draft_revision TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS created_at ON plugin_draft_revision TYPE datetime DEFAULT time::now();
-DEFINE INDEX IF NOT EXISTS plugin_draft_revision_draft ON plugin_draft_revision FIELDS draft, n UNIQUE;
+-- One request of the admin (the description, then each change) and the plugin source the AI wrote for it, checked
+-- like an upload; outline = what the source declares (name, icon, views…).
+DEFINE TABLE IF NOT EXISTS plugin_version SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS plugin ON plugin_version TYPE record<place_plugin> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS n ON plugin_version TYPE int;
+DEFINE FIELD IF NOT EXISTS request ON plugin_version TYPE string;
+DEFINE FIELD IF NOT EXISTS status ON plugin_version TYPE "working" | "ready" | "failed" DEFAULT "working";
+DEFINE FIELD IF NOT EXISTS attempts ON plugin_version TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS summary ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS source ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS outline ON plugin_version TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS error ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_at ON plugin_version TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS plugin_version_plugin ON plugin_version FIELDS plugin, n UNIQUE;
 `;

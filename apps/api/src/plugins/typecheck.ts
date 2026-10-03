@@ -97,6 +97,12 @@ async function analysis(source: string): Promise<Analysis> {
   return last.analysis;
 }
 
+/**
+ * Loads the compiler and the SDK types ahead of the first check (a cold first check takes seconds and blocks the
+ * process). For hosts that will check plugins soon, e.g. with the plugin builder on.
+ */
+export const warmTypeChecker = (): Promise<void> => analysis(PROBE).then(() => undefined);
+
 /** Type errors in plugin source, checked against the plugin SDK; empty = none. */
 export const typeIssues = async (source: string): Promise<CheckIssue[]> => (await analysis(source)).types;
 

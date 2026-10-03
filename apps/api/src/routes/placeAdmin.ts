@@ -48,8 +48,8 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     return c.json(members, 200);
   })
   /**
-   * The plugins an admin can switch in this place, with whether each is on: the built-in ones (as in GET /api/plugins),
-   * then the ones the AI wrote for this place and its admins published (routes/drafts.ts).
+   * The plugins of this place, with whether each is on: the built-in ones (as in GET /api/plugins), then the ones the
+   * AI wrote for this place (routes/builder.ts) — published ones as they run, drafts as their latest ready version.
    */
   .get("/:slug/plugins", requireUser, admin, async (c) => {
     const { place } = c.var;
@@ -61,29 +61,42 @@ export const placeAdminRoutes = new Hono<AppEnv>()
         )
       ).map((installation) => installation.plugin),
     );
-    const own = await c.var.drafts.publishedPluginIds(place);
-    const plugins: PlacePlugin[] = c.var.plugins
+    const builtin: PlacePlugin[] = c.var.plugins
       .list()
-      .filter((plugin) => plugin.origin === "builtin" || own.has(plugin.manifest.id))
-      .map(({ origin, manifest: { id, name, icon, description } }) => ({
+      .filter((plugin) => plugin.origin === "builtin")
+      .map(({ manifest: { id, name, icon, description } }) => ({
         id,
         name,
         icon,
         description,
         enabled: enabled.has(id),
-        madeByAi: origin !== "builtin",
+        madeByAi: false,
+        draft: false,
+        working: false,
       }));
-    return c.json(plugins, 200);
+    const ai: PlacePlugin[] = (await c.var.builder.owned(place)).map(
+      ({ id, published, outline, request, working }) => ({
+        id,
+        name: outline?.name ?? request,
+        icon: outline?.icon ?? "🧩",
+        description: outline?.description ?? "",
+        enabled: enabled.has(id),
+        madeByAi: true,
+        draft: published === null,
+        working,
+      }),
+    );
+    return c.json([...builtin, ...ai], 200);
   })
   /**
-   * Switches a plugin of the list above on (its data from before comes back) or off (the data stays, hidden). Another
-   * place's AI plugin is not found here.
+   * Switches a plugin of the list above on (its data from before comes back) or off (the data stays, hidden). A draft
+   * is switched on by publishing it (routes/builder.ts); another place's AI plugin is not found here.
    */
   .put("/:slug/plugins/:pluginId", requireUser, admin, zValidator("json", pluginSwitchSchema), async (c) => {
     const { place } = c.var;
     const plugin = c.var.plugins.get(c.req.param("pluginId"));
     const own =
-      plugin?.origin === "builtin" || (await c.var.drafts.publishedPluginIds(place)).has(plugin?.manifest.id ?? "");
+      plugin?.origin === "builtin" || (await c.var.builder.publishedIds(place)).has(plugin?.manifest.id ?? "");
     if (!plugin || !own) {
       return c.json({ error: "not_found", message: "not a plugin of this place" }, 404);
     }
