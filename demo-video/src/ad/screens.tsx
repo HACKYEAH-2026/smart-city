@@ -362,6 +362,52 @@ export const FeaturesScreen = ({ on }: { on: number }) => (
   </AppScreen>
 );
 
+/** Zgłoszenia, the issues plugin's list view: what residents report, with status and support. */
+export const issuesListView = () =>
+  ui.screen("Zgłoszenia", [
+    ui.text("Usterki zgłoszone przez mieszkańców: Kraków.", "soft"),
+    ui.button("Nowe zgłoszenie", ui.navigate("new")),
+    ui.list("Lista zgłoszeń", [
+      ui.card({ title: ISSUE.title, subtitle: `${ISSUE.category} · ${supporters(4)}`, badge: STATUS.fixed }),
+      ui.card({
+        title: "Dziura w chodniku przy szkole",
+        subtitle: `Drogi i chodniki · ${supporters(2)}`,
+        badge: STATUS.accepted,
+      }),
+      ui.card({ title: "Przepełniony kosz na skwerze", subtitle: `Czystość · ${supporters(1)}`, badge: STATUS.open }),
+    ]),
+  ]);
+
+/** Ogłoszenia, the announcements plugin's list view (a resident sees no publishing form). */
+export const announcementsListView = () =>
+  ui.screen("Ogłoszenia", [
+    ui.list("Lista ogłoszeń", [
+      ui.card({ title: "Remont chodnika przy szkole od poniedziałku", onPress: ui.navigate("item") }),
+      ui.card({ title: "Wymiana latarni przy przystanku zakończona", onPress: ui.navigate("item") }),
+      ui.card({ title: "Zbiórka elektrośmieci w sobotę 10:00–14:00", onPress: ui.navigate("item") }),
+    ]),
+  ]);
+
+/** Dyskusje, the discussions plugin's list view: threads and who started them. */
+export const discussionsView = () =>
+  ui.screen("Dyskusje", [
+    ui.list("Lista dyskusji", [
+      ui.card({ title: "Gdzie postawić nowe ławki w parku?", subtitle: "Marek", onPress: ui.navigate("thread") }),
+      ui.card({ title: "Wspólne sprzątanie skweru w maju", subtitle: "Ola", onPress: ui.navigate("thread") }),
+      ui.card({ title: "Parkowanie przy szkole rano", subtitle: "Piotr", onPress: ui.navigate("thread") }),
+    ]),
+  ]);
+
+/** The plugin the AI wrote in the ad, open: ideas for the city's budget and the vote. */
+export const budgetView = () =>
+  ui.screen("Budżet obywatelski", [
+    ui.text("Zagłosuj na pomysły dla Twojej okolicy.", "soft"),
+    ui.progress({ label: "Nowe latarnie przy przystankach", value: 62, max: 100 }),
+    ui.progress({ label: "Zieleń na skwerze przy szkole", value: 38, max: 100 }),
+    ui.progress({ label: "Stojaki na rowery przy bibliotece", value: 24, max: 100 }),
+    ui.button("Zagłosuj", ui.tool("vote")),
+  ]);
+
 /** Widget of a plugin the AI wrote in the ad: residents vote on ideas for the city's budget. */
 export const budgetWidget = () =>
   ui.widget(

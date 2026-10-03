@@ -2,20 +2,25 @@ import { t } from "@app/app/src/texts";
 import { Check, GraduationCap, Home, Landmark, Sparkles } from "lucide-react-native";
 import type { CSSProperties, ReactNode } from "react";
 import { View } from "react-native";
-import { AbsoluteFill, getStaticFiles, OffthreadVideo, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame } from "remotion";
 import { BrandMark, colors, Icon } from "../app-ui";
 import { MONO } from "../theme";
 import { Eyebrow, FONT, Headline, keys, ramp, rise, shake, Tap, typed, useCue, useScene, useSpring, Wipe } from "./kit";
+import { mediaUrl } from "./media";
 import { Phone, SCREEN } from "./Phone";
 import {
+  announcementsListView,
   announcementsWidget,
   BuildScreen,
   type BuildStage,
+  budgetView,
   budgetWidget,
   DashboardScreen,
   detailView,
+  discussionsView,
   IssueCard,
   IssueFormScreen,
+  issuesListView,
   issuesWidget,
   ManageScreen,
   mergeView,
@@ -231,6 +236,42 @@ const Notice = ({ buried }: { buried: number }) => (
   </div>
 );
 
+/** A generated still filling the frame, with a camera move and an optional blur and dimming. */
+const Photo = ({
+  src,
+  scale = 1,
+  blur = 0,
+  dim = 0,
+  opacity = 1,
+}: {
+  src: string;
+  scale?: number;
+  blur?: number;
+  dim?: number;
+  opacity?: number;
+}) => (
+  <Img
+    src={src}
+    style={{
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      opacity,
+      transform: `scale(${scale})`,
+      filter: blur || dim ? `blur(${blur}px) brightness(${1 - dim})` : undefined,
+    }}
+  />
+);
+
+/** Darkens the left of the frame, where the opening's lines stand. */
+const LeftShade = () => (
+  <AbsoluteFill
+    style={{ background: "linear-gradient(to right, rgba(8,8,10,0.78) 0%, rgba(8,8,10,0.45) 45%, rgba(8,8,10,0) 75%)" }}
+  />
+);
+
 export const OpenScene = () => {
   const frame = useCurrentFrame();
   const fading = useCue("nie");
@@ -247,20 +288,39 @@ export const OpenScene = () => {
     ]);
   const jolt = shake(frame, hole, 14, 22);
   const crack = ramp(frame, hole, hole + 16);
+  const lit = mediaUrl("latarnia-on");
+  const unlit = mediaUrl("latarnia");
+  const pavement = mediaUrl("chodnik");
+  const board = mediaUrl("ogloszenie");
+  const lost = ramp(frame, nobody - 4, nobody + 16);
   return (
     <AbsoluteFill style={{ background: NIGHT, overflow: "hidden" }}>
       {frame < hole - 1 ? (
-        <AbsoluteFill
-          style={{
-            transform: `scale(${keys(frame, [
-              [0, 1.08],
-              [hole, 1],
-            ])})`,
-          }}
-        >
-          <div style={{ position: "absolute", left: 120, top: 150, opacity: ramp(frame, 0, 14) }}>
-            <Lamp glow={flicker} />
-          </div>
+        <AbsoluteFill>
+          {lit && unlit ? (
+            <>
+              <Photo
+                src={unlit}
+                scale={keys(frame, [
+                  [0, 1],
+                  [hole, 1.07],
+                ])}
+              />
+              <Photo
+                src={lit}
+                scale={keys(frame, [
+                  [0, 1],
+                  [hole, 1.07],
+                ])}
+                opacity={flicker}
+              />
+              <LeftShade />
+            </>
+          ) : (
+            <div style={{ position: "absolute", left: 120, top: 150, opacity: ramp(frame, 0, 14) }}>
+              <Lamp glow={flicker} />
+            </div>
+          )}
           <Headline
             text={"Latarnia,\nktóra nie świeci."}
             at={0}
@@ -268,37 +328,50 @@ export const OpenScene = () => {
             variant="slam"
             size={124}
             accent={["nie", "świeci."]}
-            style={{ position: "absolute", left: 760, top: 330, color: "#FFFFFF" }}
+            style={{ position: "absolute", left: lit ? 120 : 760, top: 330, color: "#FFFFFF" }}
           />
         </AbsoluteFill>
       ) : frame < notice - 1 ? (
         <AbsoluteFill
           style={{ transform: `translate(${jolt.x}px, ${jolt.y}px) scale(${punch(hole)})`, background: "#202127" }}
         >
-          <svg width="1920" height="1080" viewBox="0 0 1920 1080" style={{ position: "absolute" }} aria-hidden>
-            <g stroke="#2E2F36" strokeWidth="6">
-              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                <path key={`h${i}`} d={`M0 ${i * 180 + 40} H1920`} />
-              ))}
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                <path key={`v${i}`} d={`M${i * 190 + (i % 2) * 40} 0 V1080`} />
-              ))}
-            </g>
-            <g
-              stroke="#08080A"
-              strokeWidth="9"
-              fill="none"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              strokeDasharray="1800"
-              strokeDashoffset={1800 * (1 - crack)}
-            >
-              <path d="M1180 560 L1240 610 L1228 668 L1300 720 L1290 790 L1352 846 L1340 930 L1400 1000 L1420 1090" />
-              <path d="M1240 610 L1320 600 L1372 640 L1460 626" strokeWidth="6" />
-              <path d="M1300 720 L1230 770 L1180 760" strokeWidth="5" />
-              <path d="M1180 560 L1130 520 L1140 470 L1100 420" strokeWidth="6" />
-            </g>
-          </svg>
+          {pavement ? (
+            <>
+              <Photo
+                src={pavement}
+                scale={keys(frame, [
+                  [hole, 1.02],
+                  [notice, 1.1],
+                ])}
+              />
+              <LeftShade />
+            </>
+          ) : (
+            <svg width="1920" height="1080" viewBox="0 0 1920 1080" style={{ position: "absolute" }} aria-hidden>
+              <g stroke="#2E2F36" strokeWidth="6">
+                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                  <path key={`h${i}`} d={`M0 ${i * 180 + 40} H1920`} />
+                ))}
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                  <path key={`v${i}`} d={`M${i * 190 + (i % 2) * 40} 0 V1080`} />
+                ))}
+              </g>
+              <g
+                stroke="#08080A"
+                strokeWidth="9"
+                fill="none"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray="1800"
+                strokeDashoffset={1800 * (1 - crack)}
+              >
+                <path d="M1180 560 L1240 610 L1228 668 L1300 720 L1290 790 L1352 846 L1340 930 L1400 1000 L1420 1090" />
+                <path d="M1240 610 L1320 600 L1372 640 L1460 626" strokeWidth="6" />
+                <path d="M1300 720 L1230 770 L1180 760" strokeWidth="5" />
+                <path d="M1180 560 L1130 520 L1140 470 L1100 420" strokeWidth="6" />
+              </g>
+            </svg>
+          )}
           <Headline
             text={"Dziura\nw chodniku."}
             at={hole}
@@ -310,9 +383,24 @@ export const OpenScene = () => {
         </AbsoluteFill>
       ) : (
         <AbsoluteFill style={{ transform: `scale(${punch(notice)})` }}>
-          <div style={{ position: "absolute", left: 1220, top: 300 }}>
-            <Notice buried={ramp(frame, nobody - 4, nobody + 16)} />
-          </div>
+          {board ? (
+            <>
+              <Photo
+                src={board}
+                scale={keys(frame, [
+                  [notice, 1],
+                  [notice + 120, 1.12],
+                ])}
+                blur={lost * 10}
+                dim={lost * 0.35}
+              />
+              <LeftShade />
+            </>
+          ) : (
+            <div style={{ position: "absolute", left: 1220, top: 300 }}>
+              <Notice buried={lost} />
+            </div>
+          )}
           <Headline
             text={"Ogłoszenie,\nktórego nikt\nnie zobaczył."}
             at={notice}
@@ -910,7 +998,17 @@ const Checks = ({ from, to }: { from: number; to: number }) => {
   );
 };
 
-const RESIDENTS = ["Marek", "Ola", "Anna", "Piotr", "Zofia"];
+/**
+ * Residents around the new plugin, each somewhere else in the app (the app covers much more than one feature):
+ * discussions, issues, the dashboard the new widget lands on, the new plugin itself, announcements.
+ */
+const RESIDENTS = [
+  { name: "Marek", screen: <PluginScreen node={discussionsView()} /> },
+  { name: "Ola", screen: <PluginScreen node={issuesListView()} /> },
+  { name: "Anna", screen: null },
+  { name: "Piotr", screen: <PluginScreen node={budgetView()} /> },
+  { name: "Zofia", screen: <PluginScreen node={announcementsListView()} /> },
+];
 
 /** The burst of the publish tap: a red ring growing from the button. */
 const Ring = ({ at, x, y }: { at: number; x: number; y: number }) => {
@@ -1022,19 +1120,20 @@ export const BuilderScene = () => {
             accent={["wszystkich"]}
             style={{ position: "absolute", left: 0, right: 0, top: 56 }}
           />
-          {RESIDENTS.map((name, i) =>
-            i === 2 ? null : (
+          {RESIDENTS.map((resident, i) =>
+            resident.screen ? (
               <PhoneAt
-                key={name}
-                pose={{ x: 960 + (i - 2) * 330, y: 600 + (1 - toGrid) * 800, scale: 0.5, rotY: (2 - i) * 6 }}
+                key={resident.name}
+                pose={{
+                  x: 960 + (i - 2) * 330,
+                  y: 600 + (1 - ramp(frame, grid + Math.abs(i - 2) * 3, grid + Math.abs(i - 2) * 3 + 18)) * 800,
+                  scale: 0.5,
+                  rotY: (2 - i) * 6,
+                }}
               >
-                <DashboardScreen
-                  name={name}
-                  widgets={residents}
-                  arrive={ramp(frame, works + Math.abs(i - 2) * 5, works + Math.abs(i - 2) * 5 + 14)}
-                />
+                {resident.screen}
               </PhoneAt>
-            ),
+            ) : null,
           )}
         </>
       ) : null}
@@ -1072,35 +1171,14 @@ export const BuilderScene = () => {
 
 /* ── 8 · outro: your home, your estate, your city — Twoje Miejsce ──────────────────────────────────────── */
 
-/**
- * B-roll of the finale, in public/ad/clips: generated video (16:9, 1080p, 4–5 s, no audio). The prompts stay here so
- * a clip can be generated again and the README can disclose how it was made. A missing clip shows a stand-in frame.
- */
-const CLIPS = {
-  dom: {
-    file: "ad/clips/dom.mp4",
-    title: "Twój dom.",
-    standIn: "kobieta na kanapie wieczorem, telefon w dłoni",
-    prompt:
-      "Cinematic 16:9 shot, evening in a cozy Polish apartment, warm lamp light. A woman in her 30s sits on a sofa looking at her smartphone with a slight smile. Slow push-in from over her shoulder; the phone screen is out of focus, only its soft glow is visible. Shallow depth of field, realistic, natural warm colors, no text, no logos.",
-  },
-  osiedle: {
-    file: "ad/clips/osiedle.mp4",
-    title: "Twoje osiedle.",
-    standIn: "mężczyzna na zielonym osiedlu o zachodzie słońca sprawdza telefon",
-    prompt:
-      "Cinematic 16:9 shot, golden hour on a green Polish housing estate: modern blocks of flats, trees, a playground. A young man walks along a path, stops and checks his smartphone. Side tracking shot, phone screen not visible. Realistic, warm light, no text, no logos.",
-  },
-  miasto: {
-    file: "ad/clips/miasto.mp4",
-    title: "Twoje miasto.",
-    standIn: "miasto z lotu ptaka o zmierzchu",
-    prompt:
-      "Cinematic aerial drone shot at dusk, slowly flying over a European city with an old town, red roofs, a river and bridges, city lights turning on. Smooth forward motion, realistic, warm light, no text, no logos.",
-  },
+/** The finale's shots (clips in media.ts): the second the shot starts at, and what a stand-in says meanwhile. */
+const SHOTS = {
+  dom: { title: "Twój dom.", standIn: "kobieta na kanapie wieczorem, telefon w dłoni", from: 1 },
+  osiedle: { title: "Twoje osiedle.", standIn: "mężczyzna na zielonym osiedlu sprawdza telefon", from: 4 },
+  miasto: { title: "Twoje miasto.", standIn: "miasto z lotu ptaka o zmierzchu", from: 1 },
 } as const;
 
-type ClipId = keyof typeof CLIPS;
+type ClipId = keyof typeof SHOTS;
 
 const STAND_IN: Record<"dom" | "osiedle", string> = {
   dom: "radial-gradient(circle at 70% 35%, #F4B36A 0%, #B5633A 38%, #3A1E17 80%)",
@@ -1141,10 +1219,10 @@ const Pin = ({ x, y, at }: { x: number; y: number; at: number }) => {
 };
 
 /** One shot of the finale: the clip (or its stand-in) with a slow push, a dark corner and the big line. */
-const Shot = ({ id, at, until, files }: { id: ClipId; at: number; until: number; files: Set<string> }) => {
+const Shot = ({ id, at, until }: { id: ClipId; at: number; until: number }) => {
   const frame = useCurrentFrame();
-  const clip = CLIPS[id];
-  const found = files.has(clip.file);
+  const shot = SHOTS[id];
+  const clip = mediaUrl(id);
   const scale =
     keys(frame, [
       [at, 1.14],
@@ -1158,9 +1236,10 @@ const Shot = ({ id, at, until, files }: { id: ClipId; at: number; until: number;
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `scale(${scale})` }}>
-        {found ? (
+        {clip ? (
           <OffthreadVideo
-            src={staticFile(clip.file)}
+            src={clip}
+            trimBefore={shot.from * 30}
             muted
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
@@ -1194,25 +1273,25 @@ const Shot = ({ id, at, until, files }: { id: ClipId; at: number; until: number;
                 fontSize: 22,
               }}
             >
-              {`ujęcie: ${clip.standIn}`}
+              {`ujęcie: ${shot.standIn}`}
             </div>
           </AbsoluteFill>
         )}
       </AbsoluteFill>
       <AbsoluteFill
-        style={{
-          background:
-            "linear-gradient(to top right, rgba(10,10,12,0.72) 0%, rgba(10,10,12,0.25) 45%, rgba(10,10,12,0) 70%)",
-        }}
+        style={{ background: "radial-gradient(ellipse at center, rgba(10,10,12,0.55) 0%, rgba(10,10,12,0.15) 60%)" }}
       />
-      <Headline
-        text={clip.title}
-        at={at}
-        spoken
-        variant="slam"
-        size={160}
-        style={{ position: "absolute", left: 120, bottom: 120, color: "#FFFFFF" }}
-      />
+      <Center>
+        <Headline
+          text={shot.title}
+          at={at}
+          spoken
+          variant="slam"
+          size={170}
+          align="center"
+          style={{ color: "#FFFFFF", textShadow: "0 6px 40px rgba(0,0,0,0.45)" }}
+        />
+      </Center>
     </AbsoluteFill>
   );
 };
@@ -1225,12 +1304,11 @@ export const OutroScene = () => {
   const place = useCue("twoje", 2);
   const name = useCue("miejsce");
   const logo = useSpring(place, 12);
-  const files = new Set(getStaticFiles().map((f) => f.name));
   return (
     <AbsoluteFill style={{ background: NIGHT }}>
-      <Shot id="dom" at={home} until={estate} files={files} />
-      <Shot id="osiedle" at={estate} until={city} files={files} />
-      <Shot id="miasto" at={city} until={place + 14} files={files} />
+      <Shot id="dom" at={home} until={estate} />
+      <Shot id="osiedle" at={estate} until={city} />
+      <Shot id="miasto" at={city} until={place + 14} />
       <Wipe at={place} frames={14} color={colors.primary}>
         <Center style={{ gap: 40 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
