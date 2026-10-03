@@ -19,6 +19,8 @@ coverage/
 # Expo: native projects are GENERATED from app.config.ts (expo prebuild) — not committed
 apps/app/android/
 apps/app/ios/
+# xcodebuild derived data and exports (CI: build/ios, build/ios-export)
+/build/
 .expo/
 expo-env.d.ts
 *.apk
