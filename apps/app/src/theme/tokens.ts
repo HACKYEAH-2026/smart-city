@@ -81,6 +81,8 @@ export const layout = {
   minTouchTarget: 44,
   /** Outside the design (390 px mobile): content width on wide web screens. */
   contentMaxWidth: 560,
+  /** Login screen: the brand row starts this far from the top edge (design y = 200). */
+  loginContentTop: 200,
 } as const;
 
 export const radii = {
@@ -115,6 +117,8 @@ export const sizes = {
   tabIcon: 22,
   successMark: 64,
   scannerFrame: 268,
+  /** Login screen: height of the map illustration at the top. */
+  authMap: 300,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). */
@@ -230,6 +234,8 @@ export const opacity = {
   pressed: 0.85,
   disabled: 0.45,
   onPrimarySubtitle: 0.9,
+  /** Halo around the current-location pin on the login map illustration. */
+  routeHalo: 0.18,
 } as const;
 
 export const motion = {

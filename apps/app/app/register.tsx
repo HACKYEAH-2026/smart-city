@@ -1,5 +1,3 @@
-import { AuthForm } from "../src/screens/AuthForm";
+import RegisterScreen from "../src/screens/RegisterScreen";
 
-export default function Register() {
-  return <AuthForm mode="register" />;
-}
+export default RegisterScreen;

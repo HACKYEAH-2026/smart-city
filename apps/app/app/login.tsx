@@ -1,5 +1,3 @@
-import { AuthForm } from "../src/screens/AuthForm";
+import LoginScreen from "../src/screens/LoginScreen";
 
-export default function Login() {
-  return <AuthForm mode="login" />;
-}
+export default LoginScreen;

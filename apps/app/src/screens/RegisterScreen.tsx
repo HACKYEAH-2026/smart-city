@@ -7,9 +7,8 @@ import { useAuthActions } from "../data/session";
 import { useI18n } from "../lib/i18n";
 import { layout } from "../theme";
 
-type Mode = "login" | "register";
-
-export function AuthForm(props: { mode: Mode }) {
+/** Sign-up form. */
+export default function RegisterScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const auth = useAuthActions();
@@ -18,28 +17,25 @@ export function AuthForm(props: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const isRegister = props.mode === "register";
 
   const submit = async () => {
     setPending(true);
     setError(null);
-    const ok = isRegister ? await auth.signUp(email, password, name) : await auth.signIn(email, password);
+    const ok = await auth.signUp(email, password, name);
     setPending(false);
     // Message from our translations, not from Better Auth (which is always in English).
-    if (!ok) return setError(isRegister ? t.auth_register_error() : t.auth_login_error());
+    if (!ok) return setError(t.auth_register_error());
     router.replace("/app");
   };
 
   return (
     <Screen>
       <Head>
-        <title>{isRegister ? t.meta_register_title() : t.meta_login_title()}</title>
+        <title>{t.meta_register_title()}</title>
       </Head>
-      <Heading level={1}>{isRegister ? t.auth_register_title() : t.auth_login_title()}</Heading>
+      <Heading level={1}>{t.auth_register_title()}</Heading>
       <View style={styles.form}>
-        {isRegister ? (
-          <TextField label={t.auth_name()} value={name} onChangeText={setName} autoComplete="name" />
-        ) : null}
+        <TextField label={t.auth_name()} value={name} onChangeText={setName} autoComplete="name" />
         <TextField
           label={t.auth_email()}
           value={email}
@@ -53,7 +49,7 @@ export function AuthForm(props: { mode: Mode }) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          autoComplete={isRegister ? "new-password" : "current-password"}
+          autoComplete="new-password"
           onSubmitEditing={submit}
         />
       </View>
@@ -62,16 +58,9 @@ export function AuthForm(props: { mode: Mode }) {
           {error}
         </Text>
       ) : null}
-      <Button
-        label={isRegister ? t.auth_submit_register() : t.auth_submit_login()}
-        onPress={submit}
-        disabled={pending}
-      />
+      <Button label={t.auth_submit_register()} onPress={submit} disabled={pending} />
       <Text variant="bodyL" color="textSecondary">
-        {isRegister ? t.auth_have_account() : t.auth_no_account()}{" "}
-        <Link href={isRegister ? "/login" : "/register"}>
-          {isRegister ? t.auth_goto_login() : t.auth_goto_register()}
-        </Link>
+        {t.auth_have_account()} <Link href="/login">{t.auth_goto_login()}</Link>
       </Text>
     </Screen>
   );

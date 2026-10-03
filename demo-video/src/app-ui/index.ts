@@ -1,13 +1,13 @@
-import { loadFont as loadNewsreader } from "@remotion/google-fonts/Newsreader";
-import { loadFont as loadPublicSans } from "@remotion/google-fonts/PublicSans";
+import { loadFont as loadBarlowCondensed } from "@remotion/google-fonts/BarlowCondensed";
+import { loadFont as loadSchibstedGrotesk } from "@remotion/google-fonts/SchibstedGrotesk";
 
 /**
- * The app's real UI primitives and design tokens (apps/app) for marketing material.
- * Change the look in apps/app/src/theme.ts — the video follows.
+ * The app's real design-system components and tokens (apps/app/src) for marketing material.
+ * Change the look in apps/app/src/theme/tokens.ts — the video follows.
  */
-export * from "@app/app/src/components/ui";
+export * from "@app/app/src/components";
 export * from "@app/app/src/theme";
 
-// The typefaces named first in theme.ts `font`, so frames match the intended design rather than the fallback.
-loadNewsreader("normal", { weights: ["400", "500", "600"], subsets: ["latin", "latin-ext"] });
-loadPublicSans("normal", { weights: ["400", "600", "700"], subsets: ["latin", "latin-ext"] });
+// The typefaces of the design system (apps/app/src/theme/fonts.ts), so frames match the intended design.
+loadSchibstedGrotesk("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin", "latin-ext"] });
+loadBarlowCondensed("normal", { weights: ["500", "600", "700"], subsets: ["latin", "latin-ext"] });

@@ -4,14 +4,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, layout } from "../theme";
 import { AppFooter, AppHeader } from "./AppHeader";
 
+export interface ScreenProps {
+  children: ReactNode;
+  /** Show the app header and footer (default). Off for screens with their own chrome, e.g. login. */
+  chrome?: boolean;
+  /** Decoration drawn behind the content, from the top edge (e.g. the map on login). Not interactive. */
+  backdrop?: ReactNode;
+}
+
 /**
  * Screen shell (COMPONENTS.md → Screen): background, safe-area insets, scrolling content,
- * app header and footer. Every screen renders inside it; dedicated CTA buttons go last in `children`.
+ * optional app header and footer. Dedicated CTA buttons go last in `children`.
  */
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({ children, chrome = true, backdrop }: ScreenProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
+      {backdrop ? (
+        <View pointerEvents="none" style={styles.backdrop}>
+          {backdrop}
+        </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -22,9 +35,9 @@ export function Screen({ children }: { children: ReactNode }) {
         ]}
       >
         <View role="main" style={styles.frame}>
-          <AppHeader />
+          {chrome ? <AppHeader /> : null}
           {children}
-          <AppFooter />
+          {chrome ? <AppFooter /> : null}
         </View>
       </ScrollView>
     </View>
@@ -33,6 +46,7 @@ export function Screen({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  backdrop: { position: "absolute", top: 0, left: 0, right: 0 },
   content: { flexGrow: 1, paddingHorizontal: layout.screenPaddingX },
   frame: {
     width: "100%",

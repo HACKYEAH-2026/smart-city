@@ -60,6 +60,14 @@ test("auth screen uses the design system: primary button is brand red, field lab
   await expect(page.getByLabel(en.auth_email!)).toBeVisible();
 });
 
+test("login screen follows the design: welcome copy, sign-up link, no app chrome", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Welcome back", level: 1 })).toBeVisible();
+  await expect(page.getByText("Log in to see your places.")).toBeVisible();
+  await expect(page.getByRole("link", { name: en.auth_goto_register })).toHaveAttribute("href", "/register");
+  await expect(page.getByRole("navigation", { name: en.nav_label })).toHaveCount(0);
+});
+
 test("mobile width: no horizontal overflow (RN flex items must be allowed to shrink)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of ["/login", "/register"]) {
