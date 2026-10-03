@@ -1,3 +1,6 @@
 [install]
 # React Native / Metro need a flat node_modules (Bun's isolated linker breaks Expo CLI module resolution).
 linker = "hoisted"
+
+[test]
+preload = ["./packages/sdk/src/test-preload.ts"]

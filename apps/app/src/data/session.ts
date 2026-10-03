@@ -32,21 +32,24 @@ export function useSession() {
 }
 
 /**
- * Sign-in/sign-up/sign-out; error = false. After a session change we fetch it EXPLICITLY
+ * Sign-in/sign-up/sign-out; error = false (also when the API is unreachable: the screen shows its message
+ * instead of an uncaught "Failed to fetch"). After a session change we fetch it EXPLICITLY
  * (fetchQuery) before the screen moves on — invalidateQueries alone does not refresh an inactive
  * query, so the /app guard would see the stale "no session" result.
  */
+const networkError = (error: unknown) => ({ error });
+
 export function useAuthActions() {
   const qc = useQueryClient();
   const refresh = () => qc.fetchQuery({ queryKey: sessionKey, queryFn: fetchSession, staleTime: 0 });
   return {
     signIn: async (email: string, password: string) => {
-      const { error } = await authClient.signIn.email({ email, password });
+      const { error } = await authClient.signIn.email({ email, password }).catch(networkError);
       if (!error) await refresh();
       return !error;
     },
     signUp: async (email: string, password: string, name: string) => {
-      const { error } = await authClient.signUp.email({ email, password, name: name || email });
+      const { error } = await authClient.signUp.email({ email, password, name: name || email }).catch(networkError);
       if (!error) await refresh();
       return !error;
     },

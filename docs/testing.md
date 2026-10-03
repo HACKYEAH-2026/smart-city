@@ -10,7 +10,8 @@
 `apps/api/test/helpers.ts`: every test gets a fresh database (schema applied) on the one embedded engine of the
 process (`testEngine()` from `@app/plugin-sdk/testing`). One engine per process on purpose: with
 @surrealdb/node 3.0.3, Bun 1.4 crashes on exit (SIGSEGV) after a second embedded engine or `REMOVE DATABASE`,
-even when every test passed. Never open another `mem://` connection in tests. The API is called through
+even when every test passed, and also when the engine is still open at exit (the root `bunfig.toml` preloads
+`packages/sdk/src/test-preload.ts`, which closes it after the run). Never open another `mem://` connection in tests. The API is called through
 `app.request()` (no ports), `close()` after each test. `t.seed()` adds the demo community, the built-in plugins
 and a signed-in community admin. Inject a fake AI model with `setup({}, { ai: { language } })`.
 
