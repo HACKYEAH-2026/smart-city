@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { testGoogleIdToken } from "../../api/src/test-google";
 import { t } from "../src/texts";
-import { expect, joinKrakow, PASSWORD, register, signOut, test } from "./fixtures";
+import { DEMO_ADMIN, expect, joinKrakow, PASSWORD, register, signOut, test } from "./fixtures";
 
 /** Auth acceptance criteria: sign-up, sign-out, /app protection, sign-in, wrong password. */
 const login = async (page: Page, email: string, password: string) => {
@@ -23,6 +23,21 @@ test("sign out closes /app, logging back in opens the dashboard of the place", a
   await expect(page).toHaveURL(/\/login$/);
 
   await login(page, "cycle@example.test", PASSWORD);
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+});
+
+/** Dev login: EXPO_PUBLIC_DEV_LOGIN=true in the repo's .env; E2E turns it on with `__DEV_LOGIN__` (like `__API_URL__`). */
+test("dev login: hidden by default; with the flag one tap signs in as the demo admin", async ({ page }) => {
+  const devLogin = page.getByRole("button", { name: `${t.auth_dev_login} ${DEMO_ADMIN.email}` });
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: t.auth_submit_login })).toBeVisible();
+  await expect(devLogin).toHaveCount(0);
+
+  await page.addInitScript(() => {
+    (globalThis as unknown as { __DEV_LOGIN__: boolean }).__DEV_LOGIN__ = true;
+  });
+  await page.reload();
+  await devLogin.click();
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 });
 

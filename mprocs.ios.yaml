@@ -7,5 +7,5 @@ procs:
     shell: API_URL="http://$LAN_IP:4000" DATABASE_URL="surrealkv://$PWD/.data/db" FILES_DIR="$PWD/.data/files" bun run dev
     cwd: apps/api
   app:
-    shell: REACT_NATIVE_PACKAGER_HOSTNAME="$LAN_IP" EXPO_PUBLIC_API_URL="http://$LAN_IP:4000" bunx expo start --lan --clear
+    shell: REACT_NATIVE_PACKAGER_HOSTNAME="$LAN_IP" EXPO_PUBLIC_API_URL="http://$LAN_IP:4000" bun --env-file=../../.env run expo start --lan --clear
     cwd: apps/app

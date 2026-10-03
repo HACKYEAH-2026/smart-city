@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
 import { Brand, Button, GoogleLogo, Heading, Link, MapDecoration, Screen, Text, TextField } from "../components";
 import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
+import { devLoginAccount } from "../lib/config";
 import { t } from "../texts";
 import { layout, spacing } from "../theme";
 
@@ -18,27 +19,30 @@ const GOOGLE_ERROR: Record<Exclude<GoogleSignInResult, "ok" | "cancelled">, stri
  * Login (design E-Logowanie): map illustration, brand, welcome copy, email and password, Google, sign-up link.
  * Google signs in and signs up in one step (the account is created at the first sign-in); the button shows only
  * where the native account picker exists (not in Expo Go) and the API has a Google client.
+ * With the dev login flag (src/lib/config.ts), a button at the very bottom signs in as the demo admin.
  */
 export default function LoginScreen() {
   const router = useRouter();
   const auth = useAuthActions();
   const googleIds = useGoogleClientIds().data;
+  const devAccount = devLoginAccount();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async () => {
+  const signIn = async (account: { email: string; password: string }) => {
     // The error shows under the button, where an open keyboard would cover it.
     Keyboard.dismiss();
     setPending(true);
     setError(null);
-    const ok = await auth.signIn(email, password);
+    const ok = await auth.signIn(account.email, account.password);
     setPending(false);
     // Message from our translations, not from Better Auth (which is always in English).
     if (!ok) return setError(t.auth_login_error);
     router.replace("/app");
   };
+  const submit = () => signIn({ email, password });
 
   const continueWithGoogle = async (ids: GoogleClientIds) => {
     setPending(true);
@@ -108,6 +112,15 @@ export default function LoginScreen() {
       <Text variant="body" color="textSecondary" style={styles.center}>
         {t.auth_no_account} <Link href="/register">{t.auth_goto_register}</Link>
       </Text>
+      {devAccount ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          label={`${t.auth_dev_login} ${devAccount.email}`}
+          onPress={() => signIn(devAccount)}
+          disabled={pending}
+        />
+      ) : null}
     </Screen>
   );
 }
