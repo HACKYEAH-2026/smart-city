@@ -240,7 +240,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await publishAnnouncement(page, "Zebranie użytkowników");
   await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
-  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
 
   await holdTile(page, "Ogłoszenia");
   await expect(page).toHaveURL(/\/app$/);
@@ -256,7 +256,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await signOut(page);
   await register(page, "sasiad@example.test", api.url);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
-  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
   await holdTile(page, "Zgłoszenia");
   await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: t.dashboard_done })).toHaveCount(0);

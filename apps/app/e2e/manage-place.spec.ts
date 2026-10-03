@@ -51,7 +51,8 @@ test("only admins manage a place; the screen shows its sections, closed", async 
 
 test("plugins: switching one off takes it out of the place, switching it on brings it back", async ({ page }) => {
   await loginAdmin(page);
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
+  // Discussions have no dashboard tile: they are among the place's other features.
+  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toBeVisible();
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
   const discussions = page.getByRole("checkbox", { name: "Dyskusje" });
@@ -62,13 +63,13 @@ test("plugins: switching one off takes it out of the place, switching it on brin
   await expect(
     page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toHaveCount(0);
 
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
   await page.getByRole("checkbox", { name: "Dyskusje" }).click();
   await page.getByRole("button", { name: t.back }).click();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Dyskusje", exact: true })).toBeVisible();
 });
 
 test("settings: renaming the place and changing who may join", async ({ page }) => {
