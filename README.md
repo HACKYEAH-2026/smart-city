@@ -44,7 +44,7 @@ plugins/        wtyczki: każda to pakiet zależny tylko od SDK (issues, announc
 
 ```bash
 nix develop            # bun, node, just, mprocs (albo: direnv allow); z Android SDK: nix develop .#android
-just dev               # bun install + mprocs: API (SurrealDB w pamięci, demo „Kraków”) i Expo w jednym terminalu
+just dev               # bun install + mprocs: API (SurrealDB na dysku w apps/api/.data, demo „Kraków”) i Expo w jednym terminalu
                        # Android przez USB (debugowanie USB włączone): w panelu app wciśnij „a” (Expo Go, bez pushy)
 just                   # lista skrótów (api, app, usb, plugin, verify, test, e2e…)
 bun install
