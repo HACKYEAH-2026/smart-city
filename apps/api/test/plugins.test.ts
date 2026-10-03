@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { CommunityNavItem, ToolResult, UINode } from "@app/shared";
-import { setupApi, TEST_ENV } from "@app/testing/api";
+import type { ToolResult, UINode } from "@app/plugin-sdk";
+import { textsOf } from "@app/plugin-sdk/testing";
+import type { CommunityNavItem } from "@app/shared";
 import { createApp } from "../src/app";
 import { loadEnv } from "../src/env";
+import { TEST_ENV } from "../src/test-env";
 import { DEMO_COMMUNITY, seedDemo } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
 
@@ -29,15 +31,9 @@ const tool = async (headers: Record<string, string>, path: string, args: Record<
   return { res, result: res.status === 200 ? ((await res.json()) as ToolResult) : undefined };
 };
 
-/** Wszystkie węzły drzewa i ich teksty (do asercji bez zależności od układu). */
+/** Wszystkie węzły drzewa (do asercji bez zależności od układu). */
 const flat = (n: UINode): UINode[] => [n, ...("children" in n && n.children ? n.children.flatMap(flat) : [])];
-const texts = (n: UINode) =>
-  flat(n).flatMap((x) =>
-    (["title", "subtitle", "text", "label", "value"] as const).flatMap((k) => {
-      const v = (x as Record<string, unknown>)[k];
-      return typeof v === "string" ? [v] : [];
-    }),
-  );
+const texts = textsOf;
 
 describe("społeczności i nawigacja", () => {
   test("bez sesji: 401", async () => {
@@ -147,7 +143,7 @@ describe("wtyczka issues", () => {
   });
 });
 
-const BENCHES = readFileSync(join(import.meta.dir, "../src/plugins/examples/benches.ts"), "utf8");
+const BENCHES = readFileSync(join(import.meta.dir, "../../../plugins/benches/index.ts"), "utf8");
 
 describe("wtyczki wgrywane w locie (admin)", () => {
   const upload = (source: string, headers: Record<string, string> = admin) =>
@@ -223,9 +219,7 @@ describe("wtyczki wgrywane w locie (admin)", () => {
   });
 
   test("bez PLUGIN_ADMIN_TOKEN w env API administracyjne nie istnieje (404)", async () => {
-    const noAdmin = await setupApi(
-      (db) => createApp({ db, env: loadEnv({ ...TEST_ENV, PLUGIN_ADMIN_TOKEN: undefined }) }).app,
-    );
+    const noAdmin = await setup({ PLUGIN_ADMIN_TOKEN: undefined });
     try {
       const res = await noAdmin.request("/api/admin/plugins", {
         method: "POST",

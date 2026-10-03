@@ -1,4 +1,4 @@
-import type { ViewParams } from "@app/shared";
+import type { ViewParams } from "@app/plugin-sdk";
 
 /** Ścieżka ekranu widoku wtyczki: /app/c/<slug>/<plugin>/<view>?<params>. */
 export function pluginHref(slug: string, pluginId: string, view: string, params: ViewParams = {}): string {

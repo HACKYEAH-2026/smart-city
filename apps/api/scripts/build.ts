@@ -9,10 +9,7 @@ const outdir = join(import.meta.dir, "..", "dist");
 rmSync(outdir, { recursive: true, force: true });
 
 const result = await Bun.build({
-  entrypoints: [
-    join(import.meta.dir, "../src/server.ts"),
-    join(import.meta.dir, "../../../packages/db/src/migrate-cli.ts"),
-  ],
+  entrypoints: [join(import.meta.dir, "../src/server.ts"), join(import.meta.dir, "../src/db/migrate-cli.ts")],
   outdir,
   target: "bun",
   minify: true,

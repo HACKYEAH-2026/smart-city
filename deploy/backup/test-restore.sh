@@ -9,7 +9,7 @@ trap 'rm -rf "$tmp"' EXIT
 SRC="$tmp/src.db"
 DST="$tmp/dst.db"
 
-DATABASE_URL="file:$SRC" bun "$root/packages/db/src/migrate-cli.ts"
+DATABASE_URL="file:$SRC" bun "$root/apps/api/src/db/migrate-cli.ts"
 sqlite3 "$SRC" <<'SQL'
 insert into "user"(id, name, email, email_verified, created_at, updated_at) values ('u1', 'Backup Test', 'backup@example.test', 0, 0, 0);
 insert into notes(id, user_id, title, body, created_at, updated_at) values ('n1', 'u1', 'Notatka z backupu', 'zażółć gęślą jaźń', 0, 0);

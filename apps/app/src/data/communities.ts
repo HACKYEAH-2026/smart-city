@@ -1,4 +1,4 @@
-import type { ToolResult, ViewParams } from "@app/shared";
+import type { ToolResult, ViewParams } from "@app/plugin-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";

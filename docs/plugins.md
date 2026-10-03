@@ -12,7 +12,7 @@ społeczności, użytkowników i instalacje; resztę dostarczają wtyczki.
 ```
 
 - **Server-Driven UI.** Widok wtyczki zwraca drzewo węzłów z zamkniętego katalogu
-  (`packages/shared/src/plugins/ui.ts`). Aplikacja nigdy nie wykonuje kodu wtyczki, więc nowa
+  (`packages/sdk/src/ui.ts`, pakiet `@app/plugin-sdk`). Aplikacja nigdy nie wykonuje kodu wtyczki, więc nowa
   wtyczka nie wymaga nowego wydania aplikacji, a każda wygląda spójnie i jest dostępna (WCAG).
 - **Akcje to dane:** `navigate` (inny widok tej wtyczki) albo `tool` (wywołanie narzędzia
   z danymi formularza). Wynik narzędzia: `{ toast?, navigate?, refresh? }`.
@@ -55,8 +55,20 @@ const benches: PluginModule = ({ definePlugin, ui, z }) =>
 export default benches;
 ```
 
-Wzorce: `apps/api/src/plugins/builtin/issues.ts` (wbudowana, z testami w `apps/api/test/plugins.test.ts`)
-i `apps/api/src/plugins/examples/benches.ts` (wgrywana w locie).
+Każda wtyczka to pakiet w `plugins/<id>/` zależny **tylko** od `@app/plugin-sdk` — import czegokolwiek
+z `apps/api` nie przejdzie typechecku. Wzorce: `plugins/issues` (wbudowana) i `plugins/benches` (wgrywana w locie).
+
+### Testy wtyczki (bez API i bazy)
+
+```ts
+import { testPlugin, textsOf } from "@app/plugin-sdk/testing";
+import issues from "./index";
+
+const t = testPlugin(issues, { user: { id: "alice", name: "Alice" } });
+const res = await t.tool("report", { title: "Latarnia", category: "lighting" }); // walidacja Zod jak w hoście
+expect(textsOf(await t.view("detail", res.navigate!.params))).toContain("Latarnia");
+await t.as({ id: "bob", name: "Bob" }).tool("upvote", { id: res.navigate!.params!.id! }); // ten sam magazyn
+```
 
 ### Katalog komponentów
 
@@ -79,14 +91,14 @@ Starsza aplikacja pokaże w miejscu nieznanego węzła komunikat zamiast się wy
 
 ## Instalowanie
 
-**Wbudowana:** plik w `apps/api/src/plugins/builtin/` + wpis w `builtin/index.ts`.
+**Wbudowana:** pakiet w `plugins/` + zależność w `apps/api/package.json` + wpis w `apps/api/src/plugins/builtin/index.ts`.
 
 **W locie (bez restartu):** API administracyjne, chronione `PLUGIN_ADMIN_TOKEN`
 (bez tej zmiennej w env całe `/api/admin/*` zwraca 404).
 
 ```bash
 bun run dev                                                             # API :4000 + aplikacja
-bun run plugin:upload apps/api/src/plugins/examples/benches.ts krakow   # wgraj i włącz w społeczności
+bun run plugin:upload plugins/benches krakow   # wgraj i włącz w społeczności
 ```
 
 Otwarta aplikacja odpytuje nawigację co 5 s, więc nowa funkcja pojawia się bez przeładowania.

@@ -1,8 +1,8 @@
-import type { PluginModule } from "@app/shared";
+import type { PluginModule } from "@app/plugin-sdk";
 
 /**
- * PRZYKŁAD wtyczki wgrywanej w locie (nie jest wbudowana). Demo:
- *   bun run plugin:upload apps/api/src/plugins/examples/benches.ts
+ * Wtyczka wgrywana w locie (nie jest wbudowana w API). Demo:
+ *   bun run plugin:upload plugins/benches
  * Używana też przez testy integracyjne i E2E wgrywania wtyczek.
  */
 type Bench = { park: string; problem: string };

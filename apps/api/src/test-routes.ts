@@ -1,9 +1,8 @@
-import type { Db } from "@app/db";
-import { schema } from "@app/db";
+import { loadPlugin } from "@app/plugin-sdk";
 import { eq, getTableName, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { type Db, schema } from "./db";
 import { builtinPlugins } from "./plugins/builtin";
-import { instantiate } from "./plugins/host";
 
 /**
  * Endpointy wyłącznie dla testów i lokalnego dev. Montowane tylko przez test-server.ts przy NODE_ENV=test.
@@ -17,7 +16,7 @@ export function seedDemo(db: Db) {
   const community = db.select().from(schema.communities).where(eq(schema.communities.slug, DEMO_COMMUNITY.slug)).get();
   if (!community) throw new Error("seed: brak społeczności");
   for (const mod of builtinPlugins) {
-    const pluginId = instantiate(mod).manifest.id;
+    const pluginId = loadPlugin(mod).manifest.id;
     db.insert(schema.pluginInstallations).values({ communityId: community.id, pluginId }).onConflictDoNothing().run();
   }
 }

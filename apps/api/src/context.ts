@@ -1,5 +1,5 @@
-import type { Db } from "@app/db";
 import type { Auth, SessionUser } from "./auth";
+import type { Db } from "./db";
 import type { PluginHost } from "./plugins/host";
 
 /** Typ kontekstu Hono współdzielony przez wszystkie routery. */

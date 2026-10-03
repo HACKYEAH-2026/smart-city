@@ -93,7 +93,3 @@ export type PluginSdk = { definePlugin: typeof definePlugin; ui: UI; z: typeof z
 
 /** Kształt modułu wtyczki: `export default (({ definePlugin, ui, z }) => definePlugin({...})) satisfies PluginModule`. */
 export type PluginModule = (sdk: PluginSdk) => PluginDefinition;
-
-/** Wpis nawigacji społeczności (odpowiedź API). */
-export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };
-export type Community = { id: string; slug: string; name: string };

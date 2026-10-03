@@ -22,7 +22,7 @@ Wszystkie komendy uruchamiaj w `nix develop` (albo przez direnv: `.envrc`).
 ## Nowy zasób = skopiuj wzorzec "notes"
 | Warstwa | Plik wzorcowy |
 |---|---|
-| Tabela | `packages/db/src/schema.ts` (`notes`) → `bun run db:generate` |
+| Tabela | `apps/api/src/db/schema.ts` (`notes`) → `bun run db:generate` |
 | Kontrakt (Zod + typ) | `packages/shared/src/notes.ts` (+ `notes.test.ts`) |
 | Router API | `apps/api/src/routes/notes.ts`, montaż w `apps/api/src/app.ts` |
 | Test integracyjny | `apps/api/test/notes.test.ts` (w tym autoryzacja: cudzy rekord = 404) |
@@ -33,17 +33,18 @@ Wszystkie komendy uruchamiaj w `nix develop` (albo przez direnv: `.envrc`).
 ## Nowa funkcja społeczności = wtyczka (docs/plugins.md)
 | Warstwa | Plik wzorcowy |
 |---|---|
-| Wtyczka (widoki, narzędzia) | `apps/api/src/plugins/builtin/issues.ts` + wpis w `builtin/index.ts` |
-| Kontrakt i katalog UI | `packages/shared/src/plugins/` (nowy węzeł UI = schemat + builder + `apps/app/src/plugins/Renderer.tsx`) |
-| Test integracyjny | `apps/api/test/plugins.test.ts` (widoki/narzędzia przez `app.request()`) |
+| Wtyczka (widoki, narzędzia) | `plugins/issues/` (pakiet zależny TYLKO od `@app/plugin-sdk`); wbudowana = wpis w `apps/api/src/plugins/builtin/index.ts` |
+| Test wtyczki (bez API) | `plugins/issues/issues.test.ts` (`testPlugin` z `@app/plugin-sdk/testing`) |
+| Kontrakt i katalog UI | `packages/sdk/src/` (nowy węzeł UI = schemat + builder + `apps/app/src/plugins/Renderer.tsx`) |
+| Test hosta (API) | `apps/api/test/plugins.test.ts` (routing, admin, izolacja przez `app.request()`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
 Wtyczka nie dostaje bazy: tylko `ctx` (user, community, storage). Nie dopisuj tabel dla pojedynczej wtyczki —
 dane trzyma `ctx.storage` (odizolowany per instalacja).
 
 ## Jedno źródło prawdy (zakaz równoległych ścieżek kodu)
 - Typy i walidacja: tylko `packages/shared`. Front importuje typy API przez Hono RPC (`AppType`), nie pisze ich ręcznie.
-- Schemat bazy: tylko `packages/db/src/schema.ts`. Migracje wyłącznie generowane (`bun run db:generate`).
-- Klient bazy: tylko `createDb()` z `@app/db`. Kod aplikacji dostaje `Db` (Drizzle na SQLite).
+- Schemat bazy: tylko `apps/api/src/db/schema.ts`. Migracje wyłącznie generowane (`bun run db:generate`).
+- Klient bazy: tylko `createDb()` z `apps/api/src/db`. Kod aplikacji dostaje `Db` (Drizzle na SQLite).
 - Konfiguracja aplikacji: tylko `apps/app/app.config.ts`. `android/` i `ios/` są GENEROWANE (`expo prebuild`) —
   nie edytuj ich i nie commituj. Zmiana natywna = config plugin albo pole w `app.config.ts`.
 - Trasy: tylko `apps/app/app/` (Expo Router, cienkie pliki). Logika ekranów: `apps/app/src/screens/`.
@@ -60,7 +61,7 @@ dane trzyma `ctx.storage` (odizolowany per instalacja).
 ## Testy
 - Unit: czysta logika, obok kodu (`*.test.ts` w `packages/shared`, `apps/app/src`).
 - Integracja: `apps/api/test`, zawsze przez `setup()` (świeża baza SQLite w pamięci ze zrzutu + `app.request()`), `close()` w `afterEach`.
-- E2E: web (produkcyjny statyczny eksport), import `test`/`expect` z `@app/testing/playwright`
+- E2E: web (produkcyjny statyczny eksport), import `test`/`expect` z `e2e/fixtures.ts`
   (reset bazy przed każdym testem jest automatyczny). Selektory przez role i etykiety — dlatego prymitywy UI
   ustawiają `role`, `aria-level`, `aria-label`. Natywne ekrany sprawdza build Androida/iOS (brak E2E na urządzeniu).
 - `/__test/*` istnieje tylko w `apps/api/src/test-server.ts`. Nigdy nie importuj `test-*.ts` z kodu produkcyjnego.

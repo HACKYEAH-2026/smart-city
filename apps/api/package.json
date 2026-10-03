@@ -7,20 +7,24 @@
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "dev": "NODE_ENV=test bun --watch src/test-server.ts",
+    "dev": "NODE_ENV=test bun --watch \"$PWD/src/test-server.ts\"",
     "build": "bun scripts/build.ts",
-    "start": "bun dist/server.js"
+    "start": "bun dist/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "bun scripts/db-check.ts",
+    "migrate": "bun src/db/migrate-cli.ts"
   },
   "dependencies": {
-    "@app/db": "workspace:*",
+    "@app/plugin-sdk": "workspace:*",
     "@app/shared": "workspace:*",
-    "hono": "^4.13.8",
     "@hono/zod-validator": "^0.9.1",
+    "@plugins/issues": "workspace:*",
     "better-auth": "^1.7.5",
-    "zod": "^4.6.5",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@app/testing": "workspace:*"
+    "drizzle-kit": "^0.31.11"
   }
 }

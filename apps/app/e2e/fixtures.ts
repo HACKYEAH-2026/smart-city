@@ -67,5 +67,5 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   ],
 });
 
-export { TEST_ADMIN_TOKEN } from "./constants";
+export { TEST_ADMIN_TOKEN } from "../../api/src/test-env";
 export { expect };

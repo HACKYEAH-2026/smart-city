@@ -1,8 +1,8 @@
-import type { Db } from "@app/db";
-import { schema } from "@app/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer } from "better-auth/plugins";
+import type { Db } from "./db";
+import { schema } from "./db";
 import type { Env } from "./env";
 
 /**

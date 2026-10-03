@@ -1,9 +1,10 @@
-import { schema } from "@app/db";
-import { type Community, type CommunityNavItem, toolCallSchema, viewParamsSchema } from "@app/shared";
+import { viewParamsSchema } from "@app/plugin-sdk";
+import { type Community, type CommunityNavItem, toolCallSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../context";
+import { schema } from "../db";
 import { requireUser } from "../middleware";
 import { createPluginContext } from "../plugins/context";
 import { PluginError, PluginInputError } from "../plugins/host";

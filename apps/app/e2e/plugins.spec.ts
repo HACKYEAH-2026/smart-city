@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, TEST_ADMIN_TOKEN, test } from "@app/testing/playwright";
 import type { Page } from "@playwright/test";
+import { expect, TEST_ADMIN_TOKEN, test } from "./fixtures";
 import { en } from "./messages";
 
 /**
@@ -43,7 +43,7 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await expect(list.getByRole("button", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
 });
 
-const BENCHES = readFileSync(join(import.meta.dirname, "../../api/src/plugins/examples/benches.ts"), "utf8");
+const BENCHES = readFileSync(join(import.meta.dirname, "../../../plugins/benches/index.ts"), "utf8");
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
   await register(page, "admin-demo@example.test");

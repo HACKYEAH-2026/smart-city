@@ -1,5 +1,5 @@
-import { expect, test } from "@app/testing/playwright";
 import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { en } from "./messages";
 
 /** Kryteria akceptacji auth: rejestracja, wylogowanie, ochrona /app, logowanie, błędne hasło. */

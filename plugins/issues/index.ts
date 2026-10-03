@@ -1,9 +1,9 @@
-import type { PluginContext, PluginDoc, PluginModule } from "@app/shared";
+import type { PluginContext, PluginDoc, PluginModule } from "@app/plugin-sdk";
 
 /**
  * WZORZEC WTYCZKI: zgłoszenia usterek z poparciem „+1” i łączeniem duplikatów.
  * Moduł nic nie importuje w runtime (tylko `import type`) — SDK dostaje od hosta.
- * Ten sam plik można wgrać przez POST /api/admin/plugins.
+ * Ten sam plik można wgrać przez POST /api/admin/plugins (bun run plugin:upload plugins/issues).
  */
 type Issue = {
   title: string;

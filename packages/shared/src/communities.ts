@@ -17,3 +17,7 @@ export const pluginInstallSchema = z.object({ pluginId: z.string().min(1) });
 
 /** Argumenty wywołania narzędzia wtyczki (dane formularza + args z akcji). */
 export const toolCallSchema = z.object({ args: z.record(z.string(), z.unknown()).default({}) });
+
+/** Społeczność i wpis jej nawigacji (odpowiedzi API dla aplikacji). */
+export type Community = { id: string; slug: string; name: string };
+export type CommunityNavItem = { pluginId: string; icon: string; view: string; label: string };

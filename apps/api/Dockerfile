@@ -11,7 +11,7 @@ ENV NODE_ENV=production \
     MIGRATIONS_DIR=/app/migrations \
     PORT=3000
 COPY --from=build /src/apps/api/dist/ ./
-COPY --from=build /src/packages/db/migrations ./migrations
+COPY --from=build /src/apps/api/migrations ./migrations
 # Plik bazy SQLite żyje na wolumenie /data (docker-compose); nowy wolumen dziedziczy właściciela z obrazu.
 RUN mkdir -p /data && chown bun:bun /data
 VOLUME /data

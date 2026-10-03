@@ -1,14 +1,14 @@
-import { schema } from "@app/db";
 import { type Note, noteCreateSchema, noteIdSchema, noteUpdateSchema } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../context";
+import { schema } from "../db";
 import { requireUser } from "../middleware";
 
 /**
  * WZORZEC ZASOBU. Nowy zasób: skopiuj ten plik + packages/shared/src/notes.ts
- * + tabelę w packages/db/src/schema.ts + test integracyjny apps/api/test/notes.test.ts.
+ * + tabelę w src/db/schema.ts + test integracyjny apps/api/test/notes.test.ts.
  * Zasada autoryzacji: KAŻDE zapytanie filtruje po userId; cudzy rekord = 404 (nie 403).
  */
 const { notes } = schema;

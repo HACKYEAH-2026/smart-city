@@ -1,4 +1,4 @@
-import type { Action } from "@app/shared";
+import type { Action } from "@app/plugin-sdk";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { useState } from "react";

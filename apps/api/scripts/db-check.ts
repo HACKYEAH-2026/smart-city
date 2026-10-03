@@ -7,7 +7,7 @@
 import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDb, migrate, migrationsFolder } from "../src/index";
+import { createDb, migrate, migrationsFolder } from "../src/db";
 
 const EXPECTED = [
   "account",

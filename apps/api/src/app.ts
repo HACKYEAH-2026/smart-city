@@ -1,9 +1,9 @@
-import type { Db } from "@app/db";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { createAuth } from "./auth";
 import type { AppEnv } from "./context";
+import type { Db } from "./db";
 import type { Env } from "./env";
 import { builtinPlugins } from "./plugins/builtin";
 import { defaultPluginsDir, PluginHost } from "./plugins/host";

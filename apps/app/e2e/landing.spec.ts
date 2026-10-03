@@ -1,4 +1,4 @@
-import { expect, test } from "@app/testing/playwright";
+import { expect, test } from "./fixtures";
 import { en, pl } from "./messages";
 
 /** Landing: statyczny HTML (SEO) z prawdziwymi nagłówkami i linkami, w każdym języku. */
