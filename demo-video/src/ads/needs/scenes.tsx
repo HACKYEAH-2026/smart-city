@@ -86,38 +86,26 @@ const TRIO = [
 const CAMPUS_HANDOFF = 6.5;
 const QR_SPAN = 7.4;
 
-const IntroPanel = ({
-  id,
-  label,
-  cue,
-  from,
-  dimmed,
-  grow,
-  switchAt,
-}: (typeof TRIO)[number] & { dimmed: boolean; grow: number; switchAt: number }) => {
+const IntroPanel = ({ id, label, cue, from, grow, dim }: (typeof TRIO)[number] & { grow: number; dim: number }) => {
   const frame = useCurrentFrame();
   const { duration } = useScene();
   const at = useCue(cue);
   const middle = id === "kampus";
+  // The campus clip plays at its own pace and hands over to its sequel on their shared frame.
+  const handoff = at + CAMPUS_HANDOFF * 30;
   const flex = middle ? 1 + 2 * grow : 1 - grow;
   if (frame < at) return <div style={{ flex }} />;
   return (
     <div style={{ flex, position: "relative", overflow: "hidden" }}>
-      {middle && frame >= switchAt ? (
-        <ClipVideo id="kampus-qr" from={0} at={switchAt} until={duration} span={QR_SPAN} />
+      {middle && frame >= handoff ? (
+        <ClipVideo id="kampus-qr" from={0} at={handoff} until={duration} span={QR_SPAN} />
       ) : (
-        <ClipVideo
-          id={id}
-          from={from}
-          at={at}
-          until={middle ? switchAt : duration}
-          span={middle ? CAMPUS_HANDOFF : undefined}
-        />
+        <ClipVideo id={id} from={from} at={at} until={middle ? handoff : duration} />
       )}
       <AbsoluteFill
         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0) 45%)", opacity: 1 - grow }}
       />
-      <AbsoluteFill style={{ background: "rgba(10,10,12,0.6)", opacity: dimmed ? 1 - grow : 0 }} />
+      <AbsoluteFill style={{ background: "rgba(10,10,12,0.6)", opacity: dim }} />
       <Headline
         text={label}
         at={at}
@@ -130,27 +118,33 @@ const IntroPanel = ({
 };
 
 /**
- * Three communities side by side; „Każda społeczność potrzebuje innych narzędzi.” Then the campus opens up to the
- * whole frame and its student walks to a QR code and scans it: the next scene cuts to the app's scanner.
+ * Three communities side by side. With „Każda społeczność…” the campus opens up to the whole frame, the line stays
+ * on it to its end, then its student walks to a QR code and scans it: the next scene cuts to the app's scanner.
  */
 export const IntroScene = () => {
   const frame = useCurrentFrame();
   const scene = useScene();
   const each = useCue("każda");
-  const switchAt = (scene.words.at(-1)?.to ?? 0) + 6;
+  const end = scene.words.at(-1)?.to ?? 0;
+  const expandAt = each + 24;
   const grow = keys(frame, [
-    [switchAt, 0],
-    [switchAt + 18, 1],
+    [expandAt, 0],
+    [expandAt + 18, 1],
   ]);
+  const lineOut = keys(frame, [
+    [end + 4, 0],
+    [end + 14, 1],
+  ]);
+  const dim = frame >= each ? 1 - lineOut : 0;
   return (
     <AbsoluteFill style={{ background: NIGHT }}>
       <div style={{ position: "absolute", inset: 0, display: "flex", gap: 6 * (1 - grow) }}>
         {TRIO.map((panel) => (
-          <IntroPanel key={panel.id} {...panel} dimmed={frame >= each} grow={grow} switchAt={switchAt} />
+          <IntroPanel key={panel.id} {...panel} grow={grow} dim={dim} />
         ))}
       </div>
       {frame >= each ? (
-        <Center style={{ opacity: 1 - grow }}>
+        <Center style={{ opacity: 1 - lineOut }}>
           <Headline
             text={"Każda społeczność\npotrzebuje innych narzędzi."}
             at={each}
