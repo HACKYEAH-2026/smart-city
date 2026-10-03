@@ -6,6 +6,7 @@ const place = (slug: string, extra: Partial<MyPlace> = {}): MyPlace => ({
   id: slug,
   slug,
   name: slug,
+  kind: "other",
   role: "user",
   isDefault: false,
   lastVisitAt: null,

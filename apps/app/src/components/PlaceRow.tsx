@@ -2,6 +2,7 @@ import type { MyPlace } from "@app/shared";
 import { Check } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
+import { placeKindLabel } from "../lib/placeKinds";
 import { initials } from "../lib/places";
 import { t } from "../texts";
 import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
@@ -15,12 +16,12 @@ export interface PlaceRowProps {
   onPress: () => void;
 }
 
-/** A place in the switcher (COMPONENTS.md → PlaceRow): abbreviation, name, role; the active place has a red frame and a check. */
+/** A place in the switcher (COMPONENTS.md → PlaceRow): abbreviation, name, kind of place; the active place has a red frame and a check. */
 export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${place.name}, ${place.role === "admin" ? t.place_role_admin : t.place_role_member}`}
+      accessibilityLabel={`${place.name}, ${placeKindLabel(place.kind)}`}
       accessibilityState={{ selected: active }}
       onPress={onPress}
       onPressIn={tapFeedback}
@@ -37,7 +38,7 @@ export function PlaceRow({ place, active, onPress }: PlaceRowProps) {
           {place.isDefault ? <Badge text={t.place_default_badge} tone="accent" /> : null}
         </View>
         <Text variant="small" color="textSecondary">
-          {place.role === "admin" ? t.place_role_admin : t.place_role_member}
+          {placeKindLabel(place.kind)}
         </Text>
       </View>
       {active ? (

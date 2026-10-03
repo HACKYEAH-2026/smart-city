@@ -1,9 +1,15 @@
 import { type DashboardWidgetSize, type Role, type UINode, viewParamsSchema } from "@app/plugin-sdk";
 import {
   type CommunityNavItem,
-  communityNameSchema,
+  type CreatedPlace,
   dashboardOrderSchema,
+  INVITE_CODE_ALPHABET,
+  INVITE_CODE_LENGTH,
+  type JoinRule,
   type MyPlace,
+  newPlaceSchema,
+  type PlaceDetails,
+  type PlaceKind,
   toolCallSchema,
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
@@ -37,7 +43,8 @@ type DashboardWidgetItem = {
 /**
  * Places (communities) and their plugins, for the app. A user sees only the places they are a member of;
  * everything else in a place answers 404 (the place may exist, the user does not learn it).
- * Creating a place makes its creator an admin. Joining a place is not part of the API yet.
+ * Creating a place makes its creator an admin and gives the place an invite code (shown to its admins only).
+ * Joining a place is not part of the API yet.
  */
 export const communitiesRoutes = new Hono<AppEnv>()
   .use(requireUser)
@@ -50,12 +57,14 @@ export const communitiesRoutes = new Hono<AppEnv>()
       id: RecordId;
       slug: string;
       name: string;
+      kind: PlaceKind | null;
       role: Role;
       is_default: boolean;
       last_visit: Date | null;
     }>(
       c.var.db,
-      `SELECT community.id AS id, community.slug AS slug, community.name AS name, role, is_default, last_visit
+      `SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
+              is_default, last_visit
          FROM membership WHERE user = $u ORDER BY name;`,
       { u: ref("user", c.var.user.id) },
     );
@@ -63,42 +72,68 @@ export const communitiesRoutes = new Hono<AppEnv>()
       id: keyOf(m.id),
       slug: m.slug,
       name: m.name,
+      kind: m.kind ?? "other",
       role: m.role,
       isDefault: m.is_default,
       lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
     }));
     return c.json(places);
   })
-  .post("/", zValidator("json", communityNameSchema), async (c) => {
-    const { name } = c.req.valid("json");
+  .post("/", zValidator("json", newPlaceSchema), async (c) => {
+    const { name, kind, address, description, joinRule, makeDefault } = c.req.valid("json");
     const slug = await freeSlug(c.var.db, name);
     if (!slug) return c.json({ error: "conflict", message: "could not derive a free slug" }, 409);
-    const created = await first<CommunityRow>(c.var.db, "CREATE community CONTENT { slug: $slug, name: $name };", {
-      slug,
-      name,
-    });
+    const inviteCode = await freeInviteCode(c.var.db);
+    const created = await first<CommunityRow>(
+      c.var.db,
+      `CREATE community CONTENT {
+         slug: $slug, name: $name, kind: $kind, address: $address, description: $description,
+         join_rule: $joinRule, invite_code: $inviteCode
+       };`,
+      { slug, name, kind, address, description, joinRule, inviteCode },
+    );
     if (!created) throw new Error("community create returned no row");
     const communityId = keyOf(created.id);
-    // The first place of a user becomes their default place.
+    const u = ref("user", c.var.user.id);
+    // The first place of a user becomes their default place; a later one only when asked (makeDefault).
     const hasDefault = await first<{ id: RecordId }>(
       c.var.db,
       "SELECT id FROM membership WHERE user = $u AND is_default LIMIT 1;",
-      {
-        u: ref("user", c.var.user.id),
-      },
+      { u },
     );
+    if (makeDefault && hasDefault) {
+      await first(c.var.db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+    }
     await first(c.var.db, "CREATE $m CONTENT { community: $c, user: $u, role: 'admin', is_default: $def };", {
       m: membershipRef(communityId, c.var.user.id),
       c: ref("community", communityId),
-      u: ref("user", c.var.user.id),
-      def: !hasDefault,
+      u,
+      def: makeDefault || !hasDefault,
     });
-    return c.json(toCommunity(created), 201);
+    const place: CreatedPlace = { ...toCommunity(created), inviteCode };
+    return c.json(place, 201);
   })
   .get("/:slug", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
-    return c.json({ ...toCommunity(member.row), role: member.role }, 200);
+    const details = await first<{
+      kind: PlaceKind | null;
+      address: string | null;
+      description: string | null;
+      join_rule: JoinRule | null;
+      invite_code: string | null;
+    }>(c.var.db, "SELECT kind, address, description, join_rule, invite_code FROM $c;", { c: member.row.id });
+    // Places created before the wizard have no answers stored: the schema defaults stand in.
+    const place: PlaceDetails = {
+      ...toCommunity(member.row),
+      role: member.role,
+      kind: details?.kind ?? "other",
+      address: details?.address ?? "",
+      description: details?.description ?? "",
+      joinRule: details?.join_rule ?? "approval",
+      inviteCode: member.role === "admin" ? (details?.invite_code ?? null) : null,
+    };
+    return c.json(place, 200);
   })
   /** Opening a place: remembers it as the user's last visited place (shown on the dashboard). */
   .post("/:slug/visit", async (c) => {
@@ -256,6 +291,25 @@ async function freeSlug(db: Db, name: string): Promise<string | null> {
   }
   return null;
 }
+
+/** A random invite code no other place has (INVITE_CODE_LENGTH characters of INVITE_CODE_ALPHABET). */
+async function freeInviteCode(db: Db): Promise<string> {
+  for (let i = 0; i < 20; i++) {
+    const code = randomInviteCode();
+    const taken = await first<{ id: RecordId }>(db, "SELECT id FROM community WHERE invite_code = $code LIMIT 1;", {
+      code,
+    });
+    if (!taken) return code;
+  }
+  throw new Error("no free invite code after 20 tries");
+}
+
+// The alphabet has 32 characters, so `byte % 32` picks every character equally often.
+const randomInviteCode = (): string =>
+  Array.from(
+    crypto.getRandomValues(new Uint8Array(INVITE_CODE_LENGTH)),
+    (byte) => INVITE_CODE_ALPHABET[byte % INVITE_CODE_ALPHABET.length],
+  ).join("");
 
 /** Community + enabled installation + loaded plugin + context with the user's role, or null (→ 404). */
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {

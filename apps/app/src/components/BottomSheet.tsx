@@ -30,7 +30,8 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
   return (
     <GorhomBottomSheet
       ref={ref}
-      index={-1}
+      // Opened on mount too (/app?places=1 from the "Miejsca" tab): snapToIndex before the first layout is lost.
+      index={visible ? 0 : -1}
       enableDynamicSizing
       enablePanDownToClose
       onClose={onClose}
