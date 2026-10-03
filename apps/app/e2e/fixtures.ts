@@ -1,16 +1,29 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { type AddressInfo, createServer } from "node:net";
 import { resolve } from "node:path";
 import { test as base, expect } from "@playwright/test";
 
 /**
  * E2E fixtures:
- *  - worker-scoped `api`: a separate API process (bun apps/api/src/test-server.ts) per worker,
+ *  - worker-scoped `api`: a separate API process (bun apps/api/src/test-server.ts) per worker, on a port the
+ *    OS picks (other E2E runs on this machine must never reach it, nor this run theirs),
  *    with its own embedded in-memory SurrealDB.
  *  - auto fixture: POST /__test/reset before EVERY test.
  *  - the frontend gets the worker's API URL via window.__API_URL__ (runtime config).
  */
 const ROOT = resolve(import.meta.dirname, "../../..");
-const BASE_PORT = 4100;
+
+/** A port nothing listens on right now, chosen by the OS. */
+function freePort(): Promise<number> {
+  return new Promise((resolvePort, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, () => {
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolvePort(port));
+    });
+  });
+}
 
 async function waitForHealth(url: string, proc: ChildProcess, timeoutMs = 30_000) {
   const start = Date.now();
@@ -32,7 +45,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   api: [
     // biome-ignore lint/correctness/noEmptyPattern: required by Playwright's fixture API
     async ({}, use, workerInfo) => {
-      const port = BASE_PORT + workerInfo.parallelIndex;
+      const port = await freePort();
+      // The frontend's port is random too (playwright.config.ts): the API must trust exactly that origin.
+      const web = new URL(String(workerInfo.project.use.baseURL)).origin;
       const url = `http://localhost:${port}`;
       const proc = spawn("bun", ["apps/api/src/test-server.ts"], {
         cwd: ROOT,
@@ -42,6 +57,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           PORT: String(port),
           DATABASE_URL: "mem://",
           API_URL: url,
+          TRUSTED_ORIGINS: web,
         },
         stdio: ["ignore", "inherit", "inherit"],
       });

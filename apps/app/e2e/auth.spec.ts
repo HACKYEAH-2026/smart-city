@@ -97,3 +97,15 @@ test("mobile width: no horizontal overflow (RN flex items must be allowed to shr
     expect(overflow, path).toBeLessThanOrEqual(0);
   }
 });
+
+test("login error appears under the button, so the form does not jump", async ({ page }) => {
+  await page.goto("/login");
+  const button = page.getByRole("button", { name: t.auth_submit_login });
+  const buttonTop = async () => (await button.boundingBox())?.y;
+  const before = await buttonTop();
+  await login(page, "nobody@example.test", "password123");
+  await expect(page.getByRole("alert")).toHaveText(t.auth_login_error);
+  expect(await buttonTop()).toBe(before);
+  const alert = await page.getByRole("alert").boundingBox();
+  expect(alert?.y).toBeGreaterThan(before ?? Number.POSITIVE_INFINITY);
+});
