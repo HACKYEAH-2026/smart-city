@@ -1,0 +1,11 @@
+# iPhone over Wi-Fi in Expo Go: `just dev-ios` (sets LAN_IP to this machine's Wi-Fi address). Run inside
+# `nix develop` / direnv. The phone and this machine must be on the same network (no adb reverse on iOS).
+# api: as in mprocs.yaml (same database in apps/api/.data), but photo URLs point at LAN_IP instead of localhost.
+# app: Expo on the LAN address; scan the QR code with the iPhone camera. The app calls the API on LAN_IP.
+procs:
+  api:
+    shell: API_URL="http://$LAN_IP:4000" DATABASE_URL="surrealkv://$PWD/.data/db" FILES_DIR="$PWD/.data/files" bun run dev
+    cwd: apps/api
+  app:
+    shell: REACT_NATIVE_PACKAGER_HOSTNAME="$LAN_IP" EXPO_PUBLIC_API_URL="http://$LAN_IP:4000" bunx expo start --lan --clear
+    cwd: apps/app

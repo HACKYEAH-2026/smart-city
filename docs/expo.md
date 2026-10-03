@@ -74,7 +74,11 @@ export const useCommunities = () =>
 - Android phone over USB (USB debugging on) or emulator: `just dev`. Its `usb` proc (`scripts/adb-reverse.ts`) runs
   `adb reverse` for :4000 and :8081 and Expo starts with `--localhost`, so the device's `localhost` is this machine
   and the default API URL works; press `a` in the `app` pane (installs a matching Expo Go if needed).
-  Phone over Wi-Fi instead: `bunx expo start --lan` in `apps/app` with `EXPO_PUBLIC_API_URL=http://<LAN IP>:4000`.
+  iPhone (no adb reverse on iOS): `just dev-ios` (`mprocs.ios.yaml`). It picks an address the phone can reach: the
+  USB cable when the iPhone is plugged in with Personal Hotspot on ("iPhone USB" network port, works on any Wi-Fi),
+  else the Mac's Wi-Fi (`en0`, else `en1`; phone on the same network), or `just dev-ios <ip>`. It starts the API with
+  `API_URL` on that address (signed photo URLs) and Expo with `--lan` and `EXPO_PUBLIC_API_URL` on it; scan the QR
+  code with the iPhone camera. Guest/hackathon Wi-Fi usually isolates devices: use the cable.
 - Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
 - Keyboard: `Screen` scrolls with `KeyboardAwareScrollView` (react-native-keyboard-controller, also in Expo Go), so a
   focused field and the button below it stay above the keyboard. Forms inside `Screen` need nothing more; do not add

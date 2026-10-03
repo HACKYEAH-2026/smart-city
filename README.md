@@ -46,6 +46,8 @@ plugins/        wtyczki: każda to pakiet zależny tylko od SDK (issues, announc
 nix develop            # bun, node, just, mprocs (albo: direnv allow); z Android SDK: nix develop .#android
 just dev               # bun install + mprocs: API (SurrealDB na dysku w apps/api/.data, demo „Kraków”) i Expo w jednym terminalu
                        # Android przez USB (debugowanie USB włączone): w panelu app wciśnij „a” (Expo Go, bez pushy)
+just dev-ios           # iPhone (Expo Go): kabel USB + włączony Hotspot osobisty, albo ta sama sieć Wi-Fi co Mac;
+                       # zeskanuj kod QR aparatem iPhone'a; inny adres: just dev-ios 192.168.x.y
 just                   # lista skrótów (api, app, usb, plugin, verify, test, e2e…)
 bun install
 bun run dev            # API + aplikacja Expo bez mprocs (i bez przekierowania portów USB: `just usb`)
