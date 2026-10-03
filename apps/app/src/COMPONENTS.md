@@ -66,7 +66,7 @@ Pole z mapą (Adres): kontener radius 14, border `border`, `overflow:hidden`; u 
 Stany komórki: wypełniona/domyślna (tło `surface`, border 1 `border`, `shadows.card`) · aktywna (border 2 `primary` + poświata 4 dp `focusRingStrong`) · pusta nieaktywna (tło `surfaceDisabled`, border `borderEmpty`). Auto-przeskok do następnej, backspace cofa, obsługa wklejania całego kodu, uppercase. Pod spodem: tekst pomocniczy `small` (lewa) + akcja „Wklej kod" z ikoną `ClipboardPaste` (prawa; `typography.buttonS`, `primary`, wysokość 44).
 
 ### PasswordStrength
-4 segmenty (grid 4 kol., gap 4, wysokość 4, radius 2): wypełnione `primary`, puste `border`; pod spodem podpowiedź `small` `textSecondary`.
+4 segmenty (grid 4 kol., gap 4, wysokość 4, radius 2): wypełnione `primary`, puste `border`; pod spodem podpowiedź `small` `textSecondary`. Wypełnienie animuje się płynnie od lewej do prawej (przy spadku — od prawej), `motion.base` na segment.
 
 ### Checkbox / Switch
 Zgoda (regulamin): checkbox 20 dp, kolor zaznaczenia `primary`, tekst `typography.caption` kolor `textBody` lineHeight ~20, linki `primary`, gap 12, wyrównanie do góry.
