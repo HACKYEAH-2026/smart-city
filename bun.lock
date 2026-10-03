@@ -25,6 +25,7 @@
         "openai": "^6.45.0",
         "surreal-better-auth": "2.0.0",
         "surrealdb": "2.0.10",
+        "typescript": "~6.0.3",
         "zod": "^4.6.5",
       },
     },

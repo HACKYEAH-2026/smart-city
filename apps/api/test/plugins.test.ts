@@ -230,17 +230,16 @@ describe("isolation and plugins uploaded on the fly", () => {
     expect(texts.filter((x) => x === "Planty")).toHaveLength(1);
   });
 
-  test("rejects: syntax error, bad manifest, nav without a view, overriding a built-in", async () => {
+  test("rejects: syntax error, bad manifest, nav without a view, overriding a built-in (stages: plugin-check.test.ts)", async () => {
     await start();
     const bad = async (source: string) => {
       const res = await uploadPlugin(source);
       expect(res.status).toBe(400);
-      return ((await res.json()) as { message: string }).message;
+      const body = (await res.json()) as { stage: string; message: string };
+      return `${body.stage} ${body.message}`;
     };
-    expect(await bad("export default (sdk => {")).toContain("does not compile");
-    expect(await bad("export default ({ definePlugin }) => definePlugin({ id: 'X', views: {} })")).toContain(
-      "Invalid manifest",
-    );
+    expect(await bad("export default (sdk => {")).toStartWith("syntax");
+    expect(await bad(BENCHES.replace('id: "benches"', 'id: "X"'))).toContain("Invalid manifest");
     expect(await bad(BENCHES.replace('view: "main"', 'view: "missing"'))).toContain("missing view");
     expect(await bad(BENCHES.replace('id: "benches"', 'id: "issues"'))).toContain("built-in");
   });
