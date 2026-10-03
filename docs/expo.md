@@ -22,10 +22,32 @@ Use the components from `src/components/` (design system); they set these for yo
 
 ## Routing (Expo Router)
 - Files in `app/` = routes. Keep them thin (`export { default } from "../src/screens/X"`).
-- Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, `<Slot />`).
+- Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, then a `<Stack>` of the /app screens).
 - Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<Link>`.
 - 404: `app/+not-found.tsx` (becomes `404.html` in the web build).
 - `<Head>` from `expo-router/head` on every screen: `<title>` ends up in the static HTML.
+
+## Transitions (screens and sections)
+- Screens move through the Expo Router `<Stack>`: the root (`app/_layout.tsx`) and `/app` (`app/app/_layout.tsx`).
+  Default `animation: "slide_from_right"`; the bottom bar's sections (`index`, `account`) use `fade`; the QR scanner
+  (`scan`) uses `slide_from_bottom`. `animationDuration: 250` is iOS only (Android keeps the system duration).
+- A new screen needs no entry: it slides in from the right. A different animation goes into the layout as
+  `<Stack.Screen name="..." options={{ animation: "..." }} />`.
+- Going forward: `router.push` or `<Link href>` (the stack grows, back works). Going back: `goBack(router, fallback)`
+  from `src/lib/navigation.ts`, never `router.replace`, so the screen slides back the way it came. `replace` only
+  where the flow must not stack: after sign-in or sign-out, after creating or joining a place, bottom bar tabs.
+- Sections that change inside one screen (code / link tabs, segments): wrap the changing part in
+  `<Animated.View key={value} entering={sectionEntering("fromLeft" | "fromRight")}>` from `src/lib/motion.ts`.
+  It works on every platform; the side is the direction the new content comes from.
+- Web: the router's stack does not animate screens (react-native-screens has no web transitions). Do not add
+  web-only animation hacks without agreeing it first.
+- Do not use `react-native-screen-transitions`: its expo-router integration crashes the static web export
+  (`Cannot access ... before initialization` during SSR, a worklet closure bug in 4.0.0 and 4.1.0-rc.0).
+  Revisit only after the web export builds with it.
+- Keep motion short (about 250 ms) and do not animate lists or every item.
+- E2E cannot see the motion. A screen that has just been entered can still be animating: wait for the final layout
+  with `expect.poll`. The previous screen stays mounted in the stack, so a text that appears on both screens matches
+  twice: scope it with `exact: true` or take the newest match (`.last()`), with a comment.
 
 ## Data (the only pattern)
 ```ts
