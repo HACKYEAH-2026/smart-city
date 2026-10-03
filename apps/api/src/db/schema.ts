@@ -1,4 +1,5 @@
 import { PLATFORM_SCHEMA } from "@app/plugin-sdk/engine";
+import { surql } from "surrealdb";
 
 /**
  * The only database schema (SurrealQL). Idempotent (`IF NOT EXISTS`): applied on every start and in tests,
@@ -22,7 +23,7 @@ export const TABLES = {
   pushToken: "push_token",
 } as const;
 
-export const SCHEMA = `
+export const SCHEMA = surql`
 ${PLATFORM_SCHEMA}
 DEFINE INDEX IF NOT EXISTS user_email ON user FIELDS email UNIQUE;
 

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { FILE_ID, type FileId, type Files } from "@app/plugin-sdk";
-import { RecordId } from "surrealdb";
+import { RecordId, surql, Table } from "surrealdb";
 import { type Db, TABLES } from "../../db";
 import type { FileStore } from "./store";
 
@@ -35,15 +35,13 @@ export class FileService {
     await this.sweep();
     const id = `file_${crypto.randomUUID()}` as FileId;
     await this.store.put(id, args.data);
-    await this.db.query("CREATE $f CONTENT $data;", {
-      f: fileRecord(id),
-      data: {
-        installation: installationRecord(args.installationId),
-        uploaded_by: new RecordId(TABLES.user, args.userId),
-        mime: args.mime,
-        size: args.data.byteLength,
-      },
-    });
+    const data = {
+      installation: installationRecord(args.installationId),
+      uploaded_by: new RecordId(TABLES.user, args.userId),
+      mime: args.mime,
+      size: args.data.byteLength,
+    };
+    await this.db.query(surql`CREATE ${fileRecord(id)} CONTENT ${data};`);
     return id;
   }
 
@@ -62,7 +60,7 @@ export class FileService {
       },
       remove: async (id) => {
         await own(id);
-        await this.db.query("DELETE $f;", { f: fileRecord(id) });
+        await this.db.query(surql`DELETE ${fileRecord(id)};`);
         await this.store.delete(id);
       },
     };
@@ -96,15 +94,17 @@ export class FileService {
 
   /** Deletes unconfirmed uploads older than 24 h (called on every upload). */
   async sweep(now = Date.now()) {
-    const [stale] = await this.db.query<[{ id: RecordId }[]]>(
-      `DELETE ${TABLES.file} WHERE status = "pending" AND created_at < $cutoff RETURN BEFORE;`,
-      { cutoff: new Date(now - PENDING_TTL_MS) },
+    const cutoff = new Date(now - PENDING_TTL_MS);
+    const [stale] = await this.db.query(
+      surql<
+        [{ id: RecordId }[]]
+      >`DELETE ${new Table(TABLES.file)} WHERE status = "pending" AND created_at < ${cutoff} RETURN BEFORE;`,
     );
     await Promise.all(stale.map((f) => this.store.delete(String(f.id.id))));
   }
 
   private async row(id: string): Promise<FileRow | undefined> {
-    const [rows] = await this.db.query<[FileRow[]]>("SELECT mime, size, installation FROM $f;", { f: fileRecord(id) });
+    const [rows] = await this.db.query(surql<[FileRow[]]>`SELECT mime, size, installation FROM ${fileRecord(id)};`);
     return rows[0];
   }
 

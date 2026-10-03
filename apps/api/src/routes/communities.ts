@@ -17,7 +17,7 @@ import {
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import {
   type CommunityRow,
@@ -67,10 +67,9 @@ export const communitiesRoutes = new Hono<AppEnv>()
       last_visit: Date | null;
     }>(
       c.var.db,
-      `SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
+      surql`SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
               is_default, last_visit
-         FROM membership WHERE user = $u ORDER BY name;`,
-      { u: ref("user", c.var.user.id) },
+         FROM membership WHERE user = ${ref("user", c.var.user.id)} ORDER BY name;`,
     );
     const places: MyPlace[] = mine.map((m) => ({
       id: keyOf(m.id),
@@ -92,11 +91,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
     const inviteCode = await freeInviteCode(c.var.db);
     const created = await first<CommunityRow>(
       c.var.db,
-      `CREATE community CONTENT {
-         slug: $slug, name: $name, kind: $kind, address: $address, description: $description,
-         join_rule: $joinRule, invite_code: $inviteCode
-       };`,
-      { slug, name, kind, address, description, joinRule, inviteCode },
+      surql`CREATE community CONTENT ${{ slug, name, kind, address, description, join_rule: joinRule, invite_code: inviteCode }};`,
     );
     if (!created) throw new Error("community create returned no row");
     const communityId = keyOf(created.id);
@@ -104,18 +99,16 @@ export const communitiesRoutes = new Hono<AppEnv>()
     // The first place of a user becomes their default place; a later one only when asked (makeDefault).
     const hasDefault = await first<{ id: RecordId }>(
       c.var.db,
-      "SELECT id FROM membership WHERE user = $u AND is_default LIMIT 1;",
-      { u },
+      surql`SELECT id FROM membership WHERE user = ${u} AND is_default LIMIT 1;`,
     );
     if (makeDefault && hasDefault) {
-      await first(c.var.db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+      await first(c.var.db, surql`UPDATE membership SET is_default = false WHERE user = ${u} AND is_default = true;`);
     }
-    await first(c.var.db, "CREATE $m CONTENT { community: $c, user: $u, role: 'admin', is_default: $def };", {
-      m: membershipRef(communityId, c.var.user.id),
-      c: ref("community", communityId),
-      u,
-      def: makeDefault || !hasDefault,
-    });
+    await first(
+      c.var.db,
+      surql`CREATE ${membershipRef(communityId, c.var.user.id)} CONTENT
+              { community: ${ref("community", communityId)}, user: ${u}, role: 'admin', is_default: ${makeDefault || !hasDefault} };`,
+    );
     const community = toCommunity(created);
     // One after another: the place's navigation lists plugins in the order they were enabled.
     for (const plugin of chosen) await c.var.plugins.enable(plugin, community);
@@ -160,7 +153,7 @@ export const communitiesRoutes = new Hono<AppEnv>()
       description: string | null;
       join_rule: JoinRule | null;
       invite_code: string | null;
-    }>(c.var.db, "SELECT kind, address, description, join_rule, invite_code FROM $c;", { c: member.row.id });
+    }>(c.var.db, surql`SELECT kind, address, description, join_rule, invite_code FROM ${member.row.id};`);
     // Places created before the wizard have no answers stored: the schema defaults stand in.
     const place: PlaceDetails = {
       ...toCommunity(member.row),
@@ -177,9 +170,10 @@ export const communitiesRoutes = new Hono<AppEnv>()
   .post("/:slug/visit", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
-    await first(c.var.db, "UPDATE $m SET last_visit = time::now();", {
-      m: membershipRef(keyOf(member.row.id), c.var.user.id),
-    });
+    await first(
+      c.var.db,
+      surql`UPDATE ${membershipRef(keyOf(member.row.id), c.var.user.id)} SET last_visit = time::now();`,
+    );
     return c.json({ ok: true }, 200);
   })
   /** Makes this place the user's default place; the previous default is cleared. */
@@ -188,9 +182,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
     if (!member) return c.json({ error: "not_found" }, 404);
     await first(
       c.var.db,
-      `UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;
-       UPDATE $m SET is_default = true;`,
-      { u: ref("user", c.var.user.id), m: membershipRef(keyOf(member.row.id), c.var.user.id) },
+      surql`UPDATE membership SET is_default = false WHERE user = ${ref("user", c.var.user.id)} AND is_default = true;
+            UPDATE ${membershipRef(keyOf(member.row.id), c.var.user.id)} SET is_default = true;`,
     );
     return c.json({ ok: true }, 200);
   })
@@ -198,8 +191,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
     if (!(await memberOf(c, c.req.param("slug")))) return c.json({ error: "not_found" }, 404);
     const installed = await rows<{ plugin: string }>(
       c.var.db,
-      "SELECT plugin, created_at FROM plugin_installation WHERE community.slug = $slug AND enabled ORDER BY created_at;",
-      { slug: c.req.param("slug") },
+      surql`SELECT plugin, created_at FROM plugin_installation
+            WHERE community.slug = ${c.req.param("slug")} AND enabled ORDER BY created_at;`,
     );
     const nav: CommunityNavItem[] = installed.flatMap(({ plugin: pluginId }) => {
       const plugin = c.var.plugins.get(pluginId);
@@ -221,8 +214,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
     const user = { id: c.var.user.id, name: c.var.user.name, role };
     const installed = await rows<{ id: RecordId; plugin: string }>(
       c.var.db,
-      "SELECT id, plugin, created_at FROM plugin_installation WHERE community = $c AND enabled ORDER BY created_at;",
-      { c: ref("community", community.id) },
+      surql`SELECT id, plugin, created_at FROM plugin_installation
+            WHERE community = ${ref("community", community.id)} AND enabled ORDER BY created_at;`,
     );
     const perPlugin = await Promise.all(
       installed.map(async ({ id, plugin: pluginId }) => {
@@ -252,10 +245,9 @@ export const communitiesRoutes = new Hono<AppEnv>()
       return c.json({ error: "forbidden" }, 403);
     }
     const { order } = c.req.valid("json");
-    await c.var.db.query("UPSERT $d SET order = $order, updated_at = time::now();", {
-      d: ref("dashboard", community.id),
-      order,
-    });
+    await c.var.db.query(
+      surql`UPSERT ${ref("dashboard", community.id)} SET order = ${order}, updated_at = time::now();`,
+    );
     return c.json({ order }, 200);
   })
   .get("/:slug/plugins/:pluginId/views/:view", zValidator("query", viewParamsSchema), async (c) => {
@@ -323,8 +315,7 @@ type PlaceByCode = CommunityRow & {
 function placeByInviteCode(db: Db, code: string): Promise<PlaceByCode | undefined> {
   return first<PlaceByCode>(
     db,
-    "SELECT id, slug, name, kind, address, description, join_rule FROM community WHERE invite_code = $code LIMIT 1;",
-    { code },
+    surql`SELECT id, slug, name, kind, address, description, join_rule FROM community WHERE invite_code = ${code} LIMIT 1;`,
   );
 }
 
@@ -338,23 +329,21 @@ export async function joinAsMember(db: Db, place: CommunityRow, userId: string, 
   const c = ref("community", communityId);
   const existing = await first<{ id: RecordId }>(
     db,
-    "SELECT id FROM membership WHERE user = $u AND community = $c LIMIT 1;",
-    { u, c },
+    surql`SELECT id FROM membership WHERE user = ${u} AND community = ${c} LIMIT 1;`,
   );
   if (!existing) {
-    await first(db, "CREATE $m CONTENT { community: $c, user: $u, role: 'user', is_default: false };", {
-      m: membershipRef(communityId, userId),
-      c,
-      u,
-    });
+    await first(
+      db,
+      surql`CREATE ${membershipRef(communityId, userId)} CONTENT { community: ${c}, user: ${u}, role: 'user', is_default: false };`,
+    );
   }
   if (makeDefault) {
-    await first(db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+    await first(db, surql`UPDATE membership SET is_default = false WHERE user = ${u} AND is_default = true;`);
   }
-  await first(db, "UPDATE $m SET last_visit = time::now(), is_default = $def OR is_default;", {
-    m: membershipRef(communityId, userId),
-    def: makeDefault,
-  });
+  await first(
+    db,
+    surql`UPDATE ${membershipRef(communityId, userId)} SET last_visit = time::now(), is_default = ${makeDefault} OR is_default;`,
+  );
 }
 
 /** Slug from the place name (ASCII, lowercase, hyphens), with a numeric suffix when taken. Null after 50 tries. */
@@ -385,9 +374,10 @@ function builtinPlugins(host: PluginHost, ids: string[]): LoadedPlugin[] | null 
 async function freeInviteCode(db: Db): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const code = randomInviteCode();
-    const taken = await first<{ id: RecordId }>(db, "SELECT id FROM community WHERE invite_code = $code LIMIT 1;", {
-      code,
-    });
+    const taken = await first<{ id: RecordId }>(
+      db,
+      surql`SELECT id FROM community WHERE invite_code = ${code} LIMIT 1;`,
+    );
     if (!taken) return code;
   }
   throw new Error("no free invite code after 20 tries");
@@ -404,9 +394,8 @@ const randomInviteCode = (): string =>
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const row = await first<{ id: RecordId; community: CommunityRow }>(
     c.var.db,
-    `SELECT id, community FROM plugin_installation
-       WHERE community.slug = $slug AND plugin = $plugin AND enabled FETCH community;`,
-    { slug, plugin: pluginId },
+    surql`SELECT id, community FROM plugin_installation
+            WHERE community.slug = ${slug} AND plugin = ${pluginId} AND enabled FETCH community;`,
   );
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
@@ -425,7 +414,7 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
 }
 
 const dashboardOrder = async (db: Db, communityId: string): Promise<string[]> =>
-  (await first<{ order: string[] }>(db, "SELECT order FROM $d;", { d: ref("dashboard", communityId) }))?.order ?? [];
+  (await first<{ order: string[] }>(db, surql`SELECT order FROM ${ref("dashboard", communityId)};`))?.order ?? [];
 
 /** Saved order first; widgets missing from it keep their default order after those (stable sort). */
 function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[] {

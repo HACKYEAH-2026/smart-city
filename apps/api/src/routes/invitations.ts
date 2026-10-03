@@ -1,7 +1,7 @@
 import { type Invitation, inviteSchema, type PlaceKind } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
-import type { RecordId } from "surrealdb";
+import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import { type CommunityRow, communityBySlug, type Db, first, keyOf, memberRole, ref, rows, toCommunity } from "../db";
 import { requireUser } from "../middleware";
@@ -22,9 +22,8 @@ export const invitationsRoutes = new Hono<AppEnv>()
       created: Date;
     }>(
       c.var.db,
-      `SELECT id, community.name AS name, community.kind AS kind, invited_by.name AS inviter, created_at AS created
-         FROM invitation WHERE user = $u ORDER BY created DESC;`,
-      { u: ref("user", c.var.user.id) },
+      surql`SELECT id, community.name AS name, community.kind AS kind, invited_by.name AS inviter, created_at AS created
+         FROM invitation WHERE user = ${ref("user", c.var.user.id)} ORDER BY created DESC;`,
     );
     const invitations: Invitation[] = mine.map((i) => ({
       id: keyOf(i.id),
@@ -42,7 +41,7 @@ export const invitationsRoutes = new Hono<AppEnv>()
     const role = place ? await memberRole(c.var.db, keyOf(place.id), c.var.user.id) : null;
     if (!place || !role) return c.json({ error: "not_found" }, 404);
     if (role !== "admin") return c.json({ error: "forbidden", message: "only admins invite" }, 403);
-    const invitee = await first<{ id: RecordId }>(c.var.db, "SELECT id FROM user WHERE email = $e;", { e: email });
+    const invitee = await first<{ id: RecordId }>(c.var.db, surql`SELECT id FROM user WHERE email = ${email};`);
     if (!invitee) return c.json({ error: "not_found", message: "no account with this email" }, 404);
     const inviteeId = keyOf(invitee.id);
     if (await memberRole(c.var.db, keyOf(place.id), inviteeId)) {
@@ -50,20 +49,19 @@ export const invitationsRoutes = new Hono<AppEnv>()
     }
     const u = ref("user", inviteeId);
     const c2 = ref("community", keyOf(place.id));
-    if (await first(c.var.db, "SELECT id FROM invitation WHERE community = $c AND user = $u LIMIT 1;", { c: c2, u })) {
+    if (await first(c.var.db, surql`SELECT id FROM invitation WHERE community = ${c2} AND user = ${u} LIMIT 1;`)) {
       return c.json({ error: "conflict", message: "already invited" }, 409);
     }
-    await first(c.var.db, "CREATE invitation CONTENT { community: $c, user: $u, invited_by: $i };", {
-      c: c2,
-      u,
-      i: ref("user", c.var.user.id),
-    });
+    await first(
+      c.var.db,
+      surql`CREATE invitation CONTENT { community: ${c2}, user: ${u}, invited_by: ${ref("user", c.var.user.id)} };`,
+    );
     return c.json({ ok: true }, 201);
   })
   .post("/:id/accept", async (c) => {
     const invitation = await ownInvitation(c);
     if (!invitation) return c.json({ error: "not_found" }, 404);
-    const place = await first<CommunityRow>(c.var.db, "SELECT id, slug, name FROM $c;", { c: invitation.community });
+    const place = await first<CommunityRow>(c.var.db, surql`SELECT id, slug, name FROM ${invitation.community};`);
     if (!place) throw new Error("invitation points to a missing place");
     await joinAsMember(c.var.db, place, c.var.user.id, false);
     await removeInvitation(c.var.db, invitation.id);
@@ -80,11 +78,11 @@ export const invitationsRoutes = new Hono<AppEnv>()
 async function ownInvitation(c: Context<AppEnv>) {
   return first<{ id: RecordId; community: RecordId }>(
     c.var.db,
-    "SELECT id, community FROM invitation WHERE id = $i AND user = $u LIMIT 1;",
-    { i: ref("invitation", c.req.param("id") ?? ""), u: ref("user", c.var.user.id) },
+    surql`SELECT id, community FROM invitation
+            WHERE id = ${ref("invitation", c.req.param("id") ?? "")} AND user = ${ref("user", c.var.user.id)} LIMIT 1;`,
   );
 }
 
 function removeInvitation(db: Db, id: RecordId) {
-  return first(db, "DELETE $i;", { i: id });
+  return first(db, surql`DELETE ${id};`);
 }

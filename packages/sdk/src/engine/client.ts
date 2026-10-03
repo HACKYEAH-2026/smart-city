@@ -1,6 +1,6 @@
-import { RecordId, type SurrealSession, Table } from "surrealdb";
+import { type BoundQuery, RecordId, type SurrealSession, surql, Table } from "surrealdb";
 import type { ColumnKind, ColumnSpec, Database, TableDef, Tables } from "../services/db";
-import { HOST, ident, refTable, SYSTEM_COLUMNS, tableName } from "./schema";
+import { HOST, ident, joinQueries, refTable, SYSTEM_COLUMNS, tableName } from "./schema";
 
 /**
  * Runtime implementation of `ctx.db` on SurrealDB. The plugin never writes SurrealQL: every statement is
@@ -15,7 +15,6 @@ export class DbError extends Error {}
 type Spec = Pick<ColumnSpec, "kind" | "nullable"> & Partial<ColumnSpec>;
 type Raw = Record<string, unknown> & { id: RecordId };
 type Row = Record<string, unknown> & { id: string };
-type Vars = Record<string, unknown>;
 
 const MAX_LIMIT = 1000;
 const SYSTEM_SPECS: Record<keyof typeof SYSTEM_COLUMNS, Spec> = {
@@ -24,7 +23,15 @@ const SYSTEM_SPECS: Record<keyof typeof SYSTEM_COLUMNS, Spec> = {
   updatedAt: { kind: "timestamp", nullable: false },
   createdBy: { kind: "ref", nullable: true, target: "user" },
 };
-const OPERATORS: Record<string, string> = { eq: "=", ne: "!=", gt: ">", gte: ">=", lt: "<", lte: "<=" };
+type Ident = ReturnType<typeof ident>;
+const OPERATORS: Record<string, (col: Ident, value: unknown) => BoundQuery> = {
+  eq: (col, value) => surql`${col} = ${value}`,
+  ne: (col, value) => surql`${col} != ${value}`,
+  gt: (col, value) => surql`${col} > ${value}`,
+  gte: (col, value) => surql`${col} >= ${value}`,
+  lt: (col, value) => surql`${col} < ${value}`,
+  lte: (col, value) => surql`${col} <= ${value}`,
+};
 
 const isOperators = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !(v instanceof Date) && !Array.isArray(v);
@@ -144,8 +151,7 @@ export function createDatabase<TT extends Tables>(opts: {
   const now = opts.now ?? (() => new Date());
   const installation = new RecordId(HOST.installation, installationId);
   /** Result of the last statement. */
-  const query = async <T>(sql: string, vars: Vars): Promise<T[]> =>
-    ((await surreal.query(sql, vars)) as unknown[]).at(-1) as T[];
+  const query = async <T>(q: BoundQuery): Promise<T[]> => ((await surreal.query(q)) as unknown[]).at(-1) as T[];
 
   const client = (name: string, def: TableDef) => {
     const table = tableName(pluginId, name);
@@ -174,47 +180,41 @@ export function createDatabase<TT extends Tables>(opts: {
       ...Object.fromEntries(Object.entries(def.columns).map(([col, c]) => [col, decode(c.spec, raw[col])])),
     });
 
-    /** WHERE clause (always scoped to the installation) and its variables. */
-    const compileWhere = (where: Record<string, unknown> = {}) => {
-      const vars: Vars = { installation };
-      const bind = (value: unknown) => {
-        const key = `w${Object.keys(vars).length}`;
-        vars[key] = value;
-        return `$${key}`;
-      };
-      const condition = (key: string, cond: unknown): string[] => {
-        const { field, spec, target } = specOf(key);
-        if (spec.kind === "json") throw new DbError(`${label(key)}: JSON columns cannot be filtered`);
-        const col = ident(field);
-        const value = (v: unknown) => encode(spec, v, label(key), false, target);
-        if (cond === null) return [`${col} = NONE`];
-        if (!isOperators(cond)) return [`${col} = ${bind(value(cond))}`];
-        return Object.entries(cond)
-          .filter(([, v]) => v !== undefined)
-          .map(([op, v]) => {
-            if (op === "in") return `${col} IN ${bind((v as unknown[]).map(value))}`;
-            const sqlOp = OPERATORS[op];
-            if (!sqlOp) throw new DbError(`${label(key)}: unknown operator "${op}"`);
-            return `${col} ${sqlOp} ${bind(value(v))}`;
-          });
-      };
+    const condition = (key: string, cond: unknown): BoundQuery[] => {
+      const { field, spec, target } = specOf(key);
+      if (spec.kind === "json") throw new DbError(`${label(key)}: JSON columns cannot be filtered`);
+      const col = ident(field);
+      const value = (v: unknown) => encode(spec, v, label(key), false, target);
+      if (cond === null) return [surql`${col} = NONE`];
+      if (!isOperators(cond)) return [surql`${col} = ${value(cond)}`];
+      return Object.entries(cond)
+        .filter(([, v]) => v !== undefined)
+        .map(([op, v]) => {
+          if (op === "in") return surql`${col} IN ${(v as unknown[]).map(value)}`;
+          const operator = OPERATORS[op];
+          if (!operator) throw new DbError(`${label(key)}: unknown operator "${op}"`);
+          return operator(col, value(v));
+        });
+    };
+
+    /** WHERE condition, always scoped to the installation. */
+    const compileWhere = (where: Record<string, unknown> = {}): BoundQuery => {
       const parts = Object.entries(where)
         .filter(([, cond]) => cond !== undefined)
         .flatMap(([key, cond]) => condition(key, cond));
-      return { sql: ["installation = $installation", ...parts].join(" AND "), vars };
+      return joinQueries([surql`installation = ${installation}`, ...parts], " AND ");
     };
 
     /** Validates one reference; returns a pending file to confirm with the write, if any. */
     const checkRef = async (col: string, spec: ColumnSpec, value: RecordId): Promise<RecordId[]> => {
       if (spec.target === "user") {
-        const [exists] = await query<boolean>("RETURN [record::exists($r)];", { r: value });
+        const [exists] = await query<boolean>(surql`RETURN [record::exists(${value})];`);
         if (!exists) throw new DbError(`${label(col)}: unknown user`);
         return [];
       }
       if (spec.target === "file") {
         const [file] = await query<{ installation: RecordId; status: string; uploaded_by?: RecordId }>(
-          "SELECT installation, status, uploaded_by FROM $r;",
-          { r: value },
+          surql`SELECT installation, status, uploaded_by FROM ${value};`,
         );
         if (!file || idOf(file.installation) !== installationId) throw new DbError(`${label(col)}: unknown file`);
         if (file.status !== "pending") return [];
@@ -223,7 +223,7 @@ export function createDatabase<TT extends Tables>(opts: {
         }
         return [value];
       }
-      const [row] = await query<{ installation: RecordId }>("SELECT installation FROM $r;", { r: value });
+      const [row] = await query<{ installation: RecordId }>(surql`SELECT installation FROM ${value};`);
       if (!row || idOf(row.installation) !== installationId)
         throw new DbError(`${label(col)}: unknown ${spec.target} id`);
       return [];
@@ -241,32 +241,39 @@ export function createDatabase<TT extends Tables>(opts: {
      * Runs a write (after optional `prelude` statements) and the file confirmations in one transaction;
      * returns the rows of the write.
      */
-    const write = async (sql: string, vars: Vars, values: Record<string, unknown>, prelude = ""): Promise<Raw[]> => {
+    const write = async (
+      statement: BoundQuery,
+      values: Record<string, unknown>,
+      prelude: BoundQuery = surql``,
+    ): Promise<Raw[]> => {
       const files = await checkRefs(values);
-      const statements = [
-        "BEGIN TRANSACTION;",
-        prelude,
-        `LET $result = (${sql});`,
-        files.length ? `UPDATE ${HOST.file} SET status = "kept" WHERE id IN $files;` : "",
-        "COMMIT TRANSACTION;",
-        "RETURN $result;",
-      ].join("\n");
+      const confirm = files.length
+        ? surql`UPDATE ${ident(HOST.file)} SET status = "kept" WHERE id IN ${files};`
+        : surql``;
+      const transaction = joinQueries(
+        [
+          surql`BEGIN TRANSACTION;`,
+          prelude,
+          surql`LET $result = (${statement});`,
+          confirm,
+          surql`COMMIT TRANSACTION;`,
+          surql`RETURN $result;`,
+        ],
+        "\n",
+      );
       try {
-        return (await retrying(() => query<Raw>(statements, { ...vars, files }))) ?? [];
+        return (await retrying(() => query<Raw>(transaction))) ?? [];
       } catch (err) {
         return translateError(err, name);
       }
     };
 
     /** SET clause: values, NONE for nulls (optional fields) and the update timestamp. */
-    const setClause = (values: Record<string, unknown>) => {
-      const vars: Vars = { setNow: now() };
-      const sets = Object.entries(values).map(([col, v], i) => {
-        if (v === null) return `${ident(col)} = NONE`;
-        vars[`set${i}`] = v;
-        return `${ident(col)} = $set${i}`;
-      });
-      return { sql: [...sets, "updated_at = $setNow"].join(", "), vars };
+    const setClause = (values: Record<string, unknown>): BoundQuery => {
+      const sets = Object.entries(values).map(([col, v]) =>
+        v === null ? surql`${ident(col)} = NONE` : surql`${ident(col)} = ${v}`,
+      );
+      return joinQueries([...sets, surql`updated_at = ${now()}`], ", ");
     };
 
     const valueFor = (spec: ColumnSpec, raw: unknown, col: string) => {
@@ -310,18 +317,16 @@ export function createDatabase<TT extends Tables>(opts: {
     /** Referenced rows by id: platform users/files or rows of another table of this plugin. */
     const lookup = async (spec: ColumnSpec, ids: string[]): Promise<Map<string, unknown>> => {
       const target = refTable(pluginId, spec);
-      const vars = { ids: ids.map((id) => new RecordId(target, id)), installation };
+      const records = ids.map((id) => new RecordId(target, id));
       if (spec.target === "user") {
         const users = await query<{ id: RecordId; name: string }>(
-          `SELECT id, name FROM ${HOST.user} WHERE id IN $ids;`,
-          vars,
+          surql`SELECT id, name FROM ${ident(HOST.user)} WHERE id IN ${records};`,
         );
         return new Map(users.map((u) => [idOf(u.id), { id: idOf(u.id), name: u.name }]));
       }
       if (spec.target === "file") {
         const files = await query<{ id: RecordId; mime: string; size: number }>(
-          `SELECT id, mime, size FROM ${HOST.file} WHERE id IN $ids AND installation = $installation;`,
-          vars,
+          surql`SELECT id, mime, size FROM ${ident(HOST.file)} WHERE id IN ${records} AND installation = ${installation};`,
         );
         return new Map(files.map((f) => [idOf(f.id), { id: idOf(f.id), mime: f.mime, size: f.size }]));
       }
@@ -342,27 +347,30 @@ export function createDatabase<TT extends Tables>(opts: {
       return rows;
     };
 
-    const orderSql = (orderBy: Record<string, unknown> = {}) => {
-      const parts = Object.entries(orderBy).map(([key, dir]) => {
-        if (dir !== "asc" && dir !== "desc") throw new DbError(`${name}: order must be "asc" or "desc"`);
-        return `${ident(specOf(key).field)} ${dir.toUpperCase()}`;
+    const orderBy = (order: Record<string, unknown> = {}): BoundQuery => {
+      const parts = Object.entries(order).map(([key, dir]) => {
+        const field = ident(specOf(key).field);
+        if (dir === "asc") return surql`${field} ASC`;
+        if (dir === "desc") return surql`${field} DESC`;
+        throw new DbError(`${name}: order must be "asc" or "desc"`);
       });
-      return [...parts, "created_at DESC", "id DESC"].join(", ");
+      return joinQueries([...parts, surql`created_at DESC`, surql`id DESC`], ", ");
     };
 
     type Find = { where?: object; orderBy?: object; limit?: number; offset?: number; with?: object };
     const findMany = async (q: Find = {}) => {
-      const w = compileWhere(q.where as Record<string, unknown>);
+      const where = compileWhere(q.where as Record<string, unknown>);
+      const order = orderBy(q.orderBy as Record<string, unknown>);
+      const [limit, offset] = [Math.min(q.limit ?? 100, MAX_LIMIT), q.offset ?? 0];
       const rows = await query<Raw>(
-        `SELECT * FROM ${ident(table)} WHERE ${w.sql} ORDER BY ${orderSql(q.orderBy as Record<string, unknown>)} LIMIT $limit START $offset;`,
-        { ...w.vars, limit: Math.min(q.limit ?? 100, MAX_LIMIT), offset: q.offset ?? 0 },
+        surql`SELECT * FROM ${ident(table)} WHERE ${where} ORDER BY ${order} LIMIT ${limit} START ${offset};`,
       );
       return expand(rows.map(decodeRow), q.with as Record<string, unknown>);
     };
 
-    const deleteWhere = async (sql: string, vars: Vars) => {
+    const deleteWhere = async (statement: BoundQuery) => {
       try {
-        return (await retrying(() => query<Raw>(sql, vars))).length;
+        return (await retrying(() => query<Raw>(statement))).length;
       } catch (err) {
         return translateError(err, name);
       }
@@ -374,17 +382,16 @@ export function createDatabase<TT extends Tables>(opts: {
       get: async (id: string, o: { with?: object } = {}) =>
         (await findMany({ where: { id }, limit: 1, ...o }))[0] ?? null,
       count: async (q: { where?: object } = {}) => {
-        const w = compileWhere(q.where as Record<string, unknown>);
+        const where = compileWhere(q.where as Record<string, unknown>);
         const [row] = await query<{ count: number }>(
-          `SELECT count() FROM ${ident(table)} WHERE ${w.sql} GROUP ALL;`,
-          w.vars,
+          surql`SELECT count() FROM ${ident(table)} WHERE ${where} GROUP ALL;`,
         );
         return Number(row?.count ?? 0);
       },
       insert: async (input: Record<string, unknown>) => {
         const values = encodeValues(input, "insert");
-        const vars = { rid: recordId(crypto.randomUUID()), data: content(values) };
-        const [raw] = await write("CREATE $rid CONTENT $data RETURN AFTER", vars, values);
+        const rid = recordId(crypto.randomUUID());
+        const [raw] = await write(surql`CREATE ${rid} CONTENT ${content(values)} RETURN AFTER`, values);
         return decodeRow(raw as Raw);
       },
       upsert: async (input: Record<string, unknown>, o: { on: string[] }) => {
@@ -396,11 +403,12 @@ export function createDatabase<TT extends Tables>(opts: {
         const match = compileWhere(Object.fromEntries(unique.map((c) => [c, keyValue(c, input)])));
         const set = setClause(values);
         // One transaction: find the row, then update it or create it (a concurrent duplicate fails on the unique index).
+        const rid = recordId(crypto.randomUUID());
         const [raw] = await write(
-          `IF $existing { (UPDATE $existing SET ${set.sql} RETURN AFTER) } ELSE { (CREATE $rid CONTENT $data RETURN AFTER) }`,
-          { ...match.vars, ...set.vars, rid: recordId(crypto.randomUUID()), data: content(values) },
+          surql`IF $existing { (UPDATE $existing SET ${set} RETURN AFTER) }
+                ELSE { (CREATE ${rid} CONTENT ${content(values)} RETURN AFTER) }`,
           values,
-          `LET $existing = (SELECT VALUE id FROM ${ident(table)} WHERE ${match.sql} LIMIT 1)[0];`,
+          surql`LET $existing = (SELECT VALUE id FROM ${ident(table)} WHERE ${match} LIMIT 1)[0];`,
         );
         return decodeRow(raw as Raw);
       },
@@ -408,31 +416,23 @@ export function createDatabase<TT extends Tables>(opts: {
         const values = encodeValues(patch, "patch");
         const set = setClause(values);
         const rows = await write(
-          `UPDATE $rid SET ${set.sql} WHERE installation = $installation RETURN AFTER`,
-          { ...set.vars, rid: recordId(id), installation },
+          surql`UPDATE ${recordId(id)} SET ${set} WHERE installation = ${installation} RETURN AFTER`,
           values,
         );
         return rows[0] ? decodeRow(rows[0]) : null;
       },
       updateMany: async (where: object, patch: Record<string, unknown>) => {
         const values = encodeValues(patch, "patch");
-        const w = compileWhere(where as Record<string, unknown>);
+        const filter = compileWhere(where as Record<string, unknown>);
         const set = setClause(values);
-        const rows = await write(
-          `UPDATE ${ident(table)} SET ${set.sql} WHERE ${w.sql} RETURN AFTER`,
-          { ...w.vars, ...set.vars },
-          values,
-        );
+        const rows = await write(surql`UPDATE ${ident(table)} SET ${set} WHERE ${filter} RETURN AFTER`, values);
         return rows.length;
       },
       delete: async (id: string) =>
-        (await deleteWhere("DELETE $rid WHERE installation = $installation RETURN BEFORE;", {
-          rid: recordId(id),
-          installation,
-        })) > 0,
+        (await deleteWhere(surql`DELETE ${recordId(id)} WHERE installation = ${installation} RETURN BEFORE;`)) > 0,
       deleteMany: async (where: object) => {
-        const w = compileWhere(where as Record<string, unknown>);
-        return deleteWhere(`DELETE ${ident(table)} WHERE ${w.sql} RETURN BEFORE;`, w.vars);
+        const filter = compileWhere(where as Record<string, unknown>);
+        return deleteWhere(surql`DELETE ${ident(table)} WHERE ${filter} RETURN BEFORE;`);
       },
       watch: async function* (q: Omit<Find, "offset"> = {}) {
         const live = await surreal.live(new Table(table));
@@ -471,10 +471,9 @@ export function createDatabase<TT extends Tables>(opts: {
       api,
       byIds: async (ids: string[]) =>
         (
-          await query<Raw>(`SELECT * FROM ${ident(table)} WHERE id IN $ids AND installation = $installation;`, {
-            ids: ids.map(recordId),
-            installation,
-          })
+          await query<Raw>(
+            surql`SELECT * FROM ${ident(table)} WHERE id IN ${ids.map(recordId)} AND installation = ${installation};`,
+          )
         ).map(decodeRow),
     };
   };
