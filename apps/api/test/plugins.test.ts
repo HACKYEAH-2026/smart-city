@@ -218,7 +218,7 @@ describe("isolation and plugins uploaded on the fly", () => {
     const u = await t.signUp();
     const seeded = BENCHES.replace('id: "benches"', 'id: "seeded"').replace(
       "    views: {",
-      '    onInstall: async (ctx) => {\n      await ctx.storage.create("benches", { park: "Planty", problem: "z instalacji" });\n    },\n    views: {',
+      '    onInstall: async (ctx) => {\n      await ctx.db.create("benches", { park: "Planty", problem: "z instalacji" });\n    },\n    views: {',
     );
     expect((await uploadPlugin(seeded)).status).toBe(201);
     await install("seeded");
@@ -242,10 +242,10 @@ describe("isolation and plugins uploaded on the fly", () => {
     expect(await bad(BENCHES.replace('id: "benches"', 'id: "issues"'))).toContain("built-in");
   });
 
-  test("plugin without storage permission or with invalid UI: 500 plugin_error, API keeps working", async () => {
+  test("plugin without db permission or with invalid UI: 500 plugin_error, API keeps working", async () => {
     await start();
     const u = await t.signUp();
-    await uploadPlugin(BENCHES.replace('id: "benches"', 'id: "nostore"').replace('permissions: ["storage"],', ""));
+    await uploadPlugin(BENCHES.replace('id: "benches"', 'id: "nostore"').replace('permissions: ["db"],', ""));
     await install("nostore");
     expect((await view(u.headers, "nostore/views/main")).res.status).toBe(500);
 

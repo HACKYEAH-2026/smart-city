@@ -32,7 +32,7 @@ const issueText = (d: Doc<Issue>) => `${d.data.title}. ${d.data.description}`;
 
 async function addReport(ctx: Context, issueId: string, draft: Draft) {
   if (draft.photo) await ctx.files.keep(draft.photo);
-  await ctx.storage.upsert<Report>("reports", `${issueId}:${ctx.user.id}`, {
+  await ctx.db.upsert<Report>("reports", `${issueId}:${ctx.user.id}`, {
     issueId,
     author: ctx.user.name,
     description: draft.description,
@@ -63,13 +63,13 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
     version: "2.0.0",
     icon: "🛠️",
     description: "Zgłaszanie usterek ze zdjęciem; AI łączy zgłoszenia tego samego problemu.",
-    permissions: ["storage", "files", "ai"],
+    permissions: ["db", "files", "ai"],
     nav: [{ view: "list", label: "Zgłoszenia" }],
 
     views: {
       list: async (ctx) => {
-        const items = await ctx.storage.list<Issue>("issues");
-        const reports = await ctx.storage.list<Report>("reports", { limit: 500 });
+        const items = await ctx.db.list<Issue>("issues");
+        const reports = await ctx.db.list<Report>("reports", { limit: 500 });
         const count = (id: string) => reports.filter((r) => r.data.issueId === id).length;
         return ui.screen("Zgłoszenia", [
           ui.text(`Usterki zgłoszone przez mieszkańców: ${ctx.community.name}.`, "soft"),
@@ -107,7 +107,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
 
       /** Confirmation before merging: form data arrives in the `draft` param. */
       merge: async (ctx, params) => {
-        const target = params.target ? await ctx.storage.get<Issue>("issues", params.target) : null;
+        const target = params.target ? await ctx.db.get<Issue>("issues", params.target) : null;
         const draft = parseDraft(params.draft);
         if (!target || !draft) return ui.screen("Nie znaleziono", [ui.button("Wróć", ui.navigate("list"))]);
         return ui.screen("Czy to ten sam problem?", [
@@ -127,9 +127,9 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
       },
 
       detail: async (ctx, params) => {
-        const doc = params.id ? await ctx.storage.get<Issue>("issues", params.id) : null;
+        const doc = params.id ? await ctx.db.get<Issue>("issues", params.id) : null;
         if (!doc) return ui.screen("Nie znaleziono", [ui.empty("To zgłoszenie nie istnieje.")]);
-        const reports = await ctx.storage.list<Report>("reports", { where: { issueId: doc.id }, order: "oldest" });
+        const reports = await ctx.db.list<Report>("reports", { where: { issueId: doc.id }, order: "oldest" });
         const mine = reports.some((r) => r.id === `${doc.id}:${ctx.user.id}`);
         const status = STATUS[doc.data.status];
         return ui.screen(doc.data.title, [
@@ -171,7 +171,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: draftSchema.extend({ force: z.boolean().default(false) }),
         handler: async (ctx, { force, ...draft }) => {
           if (!force) {
-            const open = await ctx.storage.list<Issue>("issues", { limit: 50 });
+            const open = await ctx.db.list<Issue>("issues", { limit: 50 });
             const candidates = open.filter((d) => d.data.status !== "fixed");
             const [match] = await ctx.ai.findSimilar(
               { text: `${draft.title}. ${draft.description}`, ...(draft.photo ? { image: draft.photo } : {}) },
@@ -190,7 +190,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
             }
           }
           if (draft.photo) await ctx.files.keep(draft.photo);
-          const issue = await ctx.storage.create<Issue>("issues", {
+          const issue = await ctx.db.create<Issue>("issues", {
             title: draft.title,
             description: draft.description,
             category: draft.category,
@@ -211,7 +211,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({ target: z.string().min(1), draft: z.string() }),
         handler: async (ctx, { target, draft }) => {
           const parsed = parseDraft(draft);
-          const issue = await ctx.storage.get<Issue>("issues", target);
+          const issue = await ctx.db.get<Issue>("issues", target);
           if (!issue || !parsed) return { error: "To zgłoszenie już nie istnieje." };
           await addReport(ctx, target, parsed);
           return {
@@ -226,7 +226,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         description: "Potwierdź, że widzisz ten sam problem (bez opisu i zdjęcia).",
         input: z.object({ id: z.string().min(1) }),
         handler: async (ctx, { id }) => {
-          if (!(await ctx.storage.get<Issue>("issues", id))) return { error: "To zgłoszenie już nie istnieje." };
+          if (!(await ctx.db.get<Issue>("issues", id))) return { error: "To zgłoszenie już nie istnieje." };
           await addReport(ctx, id, { title: "", description: "", category: "other" });
           return { toast: "Dzięki za potwierdzenie!", refresh: true };
         },
@@ -237,7 +237,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({ id: z.string().min(1), status: z.enum(["open", "accepted", "fixed"]) }),
         requires: "admin",
         handler: async (ctx, { id, status }) => {
-          const updated = await ctx.storage.update<Issue>("issues", id, { status });
+          const updated = await ctx.db.update<Issue>("issues", id, { status });
           if (!updated) return { error: "To zgłoszenie już nie istnieje." };
           return { toast: `Status: ${STATUS[status].text}`, refresh: true };
         },
@@ -248,7 +248,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef }) => {
         input: z.object({}),
         readOnly: true,
         handler: async (ctx) => {
-          const items = await ctx.storage.list<Issue>("issues");
+          const items = await ctx.db.list<Issue>("issues");
           return {
             data: items
               .filter((d) => d.data.status !== "fixed")

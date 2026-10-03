@@ -16,8 +16,8 @@ communities, users and installations; plugins provide everything else.
   plugin needs no new app release, and every plugin looks consistent and is accessible (WCAG).
 - **Actions are data:** `navigate` (another view of the same plugin) or `tool` (a tool call
   with the form data). See "Tool result" below.
-- **Data isolation:** `ctx.storage` and `ctx.files` are scoped to one installation (plugin × community).
-  A plugin cannot see the database, the disk, or data of other communities and plugins.
+- **Data isolation:** `ctx.db` and `ctx.files` are scoped to one installation (plugin × community).
+  A plugin cannot see the app database, the disk, or data of other communities and plugins.
 - **Validation at the boundary:** the manifest, tool input (Zod), `requires` and the returned UI are checked by
   the host. A plugin failure yields `500 plugin_error` for that request; the rest of the API keeps working.
 - **Language:** plugin code is in English; the content it renders for residents (titles, labels, toasts,
@@ -40,7 +40,7 @@ const benches: PluginModule = ({ definePlugin, ui, z, fileRef }) =>
     name: "Ławki",                          // shown to residents (Polish)
     version: "1.0.0",
     icon: "🪑",
-    permissions: ["storage", "files"],      // without a permission ctx.storage / ctx.files / ctx.ai throws
+    permissions: ["db", "files"],      // without a permission ctx.db / ctx.files / ctx.ai throws
     nav: [{ view: "main", label: "Ławki" }],
     onInstall: async (ctx) => { /* seed data; ctx.user = system (admin) */ },
     views: {
@@ -53,7 +53,7 @@ const benches: PluginModule = ({ definePlugin, ui, z, fileRef }) =>
         requires: "user",                   // "user" (default) | "admin" — the host returns 403
         handler: async (ctx, input) => {
           if (input.photo) await ctx.files.keep(input.photo);
-          await ctx.storage.create("benches", input);
+          await ctx.db.create("benches", input);
           return { toast: "Dziękujemy!", refresh: true };
         },
       },
@@ -65,12 +65,15 @@ export default benches;
 
 ## Plugin API (`ctx`)
 
+One file per service in `packages/sdk/src/`: `db.ts`, `files.ts`, `ai.ts`; `plugin.ts` holds the manifest,
+`Context` and `definePlugin`, `ui.ts` the UI catalog.
+
 ```ts
 ctx.user        { id, name, role: "admin" | "user" }   // role in this community
 ctx.community   { id, slug, name }
 ctx.now()       Date                                    // controllable in tests (t.setNow)
 
-ctx.storage     // "storage": JSON documents isolated per installation (plugin × community)
+ctx.db          // "db": JSON documents isolated per installation (plugin × community)
   .get(col, id)                          → Doc | null
   .list(col, { where?, order?, limit? }) → Doc[]       // where: equality on fields: { issueId, pinned: true }
   .create(col, data)                     → Doc          // the host generates the id

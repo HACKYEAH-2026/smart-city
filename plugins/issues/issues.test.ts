@@ -57,7 +57,7 @@ describe("issues: similar reports", () => {
     expect(ask.navigate?.view).toBe("merge");
     expect(ask.navigate?.params?.target).toBe(first.navigate!.params!.id!);
     expect(t.files.isKept(photo)).toBe(false);
-    expect(await t.storage.list("issues")).toHaveLength(1);
+    expect(await t.db.list("issues")).toHaveLength(1);
 
     const question = await t.as(bob).view("merge", ask.navigate!.params);
     expect(textsOf(question)).toEqual(
@@ -76,7 +76,7 @@ describe("issues: similar reports", () => {
     const merged = await t.as(bob).tool("merge", { target: id, draft: ask.navigate!.params!.draft! });
     expect(merged.navigate?.params?.id).toBe(id);
     expect(t.files.isKept(photo)).toBe(true);
-    expect(await t.storage.list("issues")).toHaveLength(1);
+    expect(await t.db.list("issues")).toHaveLength(1);
 
     const detail = await t.as(bob).view("detail", { id });
     expect(textsOf(detail)).toEqual(
@@ -90,7 +90,7 @@ describe("issues: similar reports", () => {
     await t.tool("report", { title: "Pierwsza usterka", category: "lighting" });
     const res = await t.as(bob).tool("report", { title: "Latarnia na Krótkiej", force: true });
     expect(res.toast).toContain("Dziękujemy");
-    expect(await t.storage.list("issues")).toHaveLength(2);
+    expect(await t.db.list("issues")).toHaveLength(2);
   });
 
   test("repeated merge by the same person doesn't duplicate the resident's report", async () => {

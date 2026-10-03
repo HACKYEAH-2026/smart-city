@@ -1,18 +1,9 @@
 import type { z } from "zod";
+import type { AI, AICall, SimilarMatch } from "./ai";
+import type { Database, Doc, Query } from "./db";
+import type { FileId, Files } from "./files";
 import { loadPlugin } from "./load";
-import type {
-  AI,
-  AICall,
-  Context,
-  Doc,
-  FileId,
-  Files,
-  PluginCommunity,
-  PluginUser,
-  Query,
-  SimilarMatch,
-  Storage,
-} from "./plugin";
+import type { Context, PluginCommunity, PluginUser } from "./plugin";
 import { screenSchema, type ToolResult, toolResultSchema, type UINode, type ViewParams } from "./ui";
 
 /**
@@ -28,7 +19,7 @@ import { screenSchema, type ToolResult, toolResultSchema, type UINode, type View
  */
 export class ForbiddenError extends Error {}
 
-export function memoryStorage(userId: () => string, now: () => Date): Storage {
+export function memoryDb(userId: () => string, now: () => Date): Database {
   const docs = new Map<string, { collection: string; seq: number; doc: Doc }>();
   let seq = 0;
   const keyOf = (collection: string, id: string) => `${collection}\u0000${id}`;
@@ -140,14 +131,14 @@ export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: 
   let current: PluginUser = opts.user ?? { id: "u-test", name: "Test User", role: "user" };
   let clock = new Date(Date.UTC(2026, 0, 1));
   const now = () => new Date(clock);
-  const storage = memoryStorage(() => current.id, now);
+  const db = memoryDb(() => current.id, now);
   const files = memoryFiles(() => current.id);
   const ai = mockAI();
 
   const harness = (user: PluginUser) => {
     const ctx = (): Context => {
       current = user;
-      return { user, community, now, storage, files: files.api, ai: ai.api };
+      return { user, community, now, db, files: files.api, ai: ai.api };
     };
     return {
       ctx,
@@ -179,9 +170,9 @@ export function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: 
     /** Runs onInstall (like the host after enabling the plugin in a community). */
     install: async () => {
       current = { id: "system", name: "System", role: "admin" };
-      await definition.onInstall?.({ user: current, community, now, storage, files: files.api, ai: ai.api });
+      await definition.onInstall?.({ user: current, community, now, db, files: files.api, ai: ai.api });
     },
-    storage,
+    db,
     files: { fake: (mime?: string) => files.fake(mime, current.id), isKept: files.isKept },
     ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar },
     setNow: (date: Date) => {

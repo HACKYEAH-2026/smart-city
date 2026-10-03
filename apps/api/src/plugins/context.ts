@@ -2,8 +2,8 @@ import type { Context, Permission, PluginCommunity, PluginUser } from "@app/plug
 import type { AIService } from "../ai/service";
 import type { Db } from "../db";
 import type { FileService } from "../files/service";
+import { createPluginDb } from "./db";
 import type { LoadedPlugin } from "./host";
-import { createStorage } from "./storage";
 
 /** Service without a manifest permission: every use fails with a clear error. */
 function denied<T extends object>(permission: Permission): T {
@@ -29,7 +29,7 @@ export function createPluginContext(
     user,
     community,
     now: () => new Date(),
-    storage: can("storage") ? createStorage(services.db, installationId, userId) : denied("storage"),
+    db: can("db") ? createPluginDb(services.db, installationId, userId) : denied("db"),
     files: can("files") ? services.files.forPlugin(installationId, userId) : denied("files"),
     ai: can("ai") ? services.ai.forPlugin(installationId) : denied("ai"),
   };
