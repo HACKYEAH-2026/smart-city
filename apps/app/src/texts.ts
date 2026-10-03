@@ -120,6 +120,7 @@ export const t = {
   location_confirm: "Potwierdź lokalizację",
   map_title: "Mapa miejsc",
   map_label: "Mapa",
+  dashboard_map_label: "Mapa miejsca",
   map_list_label: "Miejsca na mapie",
   map_empty: "Na mapie nie ma jeszcze miejsc. Utwórz miejsce, wskaż je na mapie i pokaż je innym.",
   map_error: "Nie udało się pobrać mapy miejsc.",

@@ -19,6 +19,10 @@ export type MapOptions = {
   tapToCenter: boolean;
   /** Height of whatever covers the map's lower edge (a panel): the attribution goes above it. */
   bottomInset: number;
+  /** Off: no text on the map at all (street names and pin labels); the pins stay. */
+  labels: boolean;
+  /** On: the base map in black and white (a CSS grayscale filter on the map). */
+  monochrome: boolean;
 };
 
 type GeoJsonSource = { type: "geojson"; data: { type: "FeatureCollection"; features: unknown[] } };
@@ -31,6 +35,8 @@ export type MapSpec = {
   interactive: boolean;
   tapToCenter: boolean;
   bottomInset: number;
+  labels: boolean;
+  monochrome: boolean;
   recolor: { type: string; match: string; prop: string; value: string }[];
   /** Replaces the base map's name labels: the Polish name where there is one. */
   labelField: unknown;
@@ -116,6 +122,8 @@ export const mapSpec = (options: MapOptions, data: MapData): MapSpec => ({
   interactive: options.interactive,
   tapToCenter: options.tapToCenter,
   bottomInset: options.bottomInset,
+  labels: options.labels,
+  monochrome: options.monochrome,
   labelField: ["coalesce", ["get", "name:pl"], ["get", "name"]],
   recolor: [
     { type: "background", match: ".", prop: "background-color", value: colors.mapBase },
@@ -125,7 +133,7 @@ export const mapSpec = (options: MapOptions, data: MapData): MapSpec => ({
     { type: "fill", match: "building", prop: "fill-color", value: colors.mapBuilding },
   ],
   sources: mapSources(data),
-  layers: LAYERS,
+  layers: options.labels ? LAYERS : LAYERS.filter((layer) => layer.type !== "symbol"),
   pressable: [PINS],
 });
 

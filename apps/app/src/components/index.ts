@@ -40,6 +40,7 @@ export type { MapViewHandle, MapViewProps } from "./MapView";
 export { MapView } from "./MapView";
 export { OtpInput } from "./OtpInput";
 export { PasswordStrength } from "./PasswordStrength";
+export { PlaceBackdrop } from "./PlaceBackdrop";
 export type { PlacePinProps } from "./PlacePin";
 export { PlacePin } from "./PlacePin";
 export type { PlaceRowProps } from "./PlaceRow";

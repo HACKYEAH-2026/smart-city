@@ -18,6 +18,10 @@ export interface MapViewProps {
   me?: GeoPoint | null;
   /** Off: a still preview (no gestures). */
   interactive?: boolean;
+  /** Off: no text on the map (street names, pin labels). */
+  labels?: boolean;
+  /** On: the base map in black and white. */
+  monochrome?: boolean;
   /** Height of a panel over the map's lower edge: the map's attribution stays above it. */
   bottomInset?: number;
   /** A tap on the map (not on a pin) moves the view there and calls `onTap` (the location picker). */
@@ -42,6 +46,8 @@ export function MapView({
   selectedId = null,
   me = null,
   interactive = true,
+  labels = true,
+  monochrome = false,
   bottomInset = 0,
   onTap,
   onPinPress,
@@ -51,7 +57,10 @@ export function MapView({
 }: MapViewProps) {
   const surface = useRef<MapSurfaceHandle>(null);
   const [spec] = useState(() =>
-    mapSpec({ center, zoom, interactive, tapToCenter: Boolean(onTap), bottomInset }, { pins, selectedId, me }),
+    mapSpec(
+      { center, zoom, interactive, labels, monochrome, tapToCenter: Boolean(onTap), bottomInset },
+      { pins, selectedId, me },
+    ),
   );
   const handlers = useRef({ onTap, onPinPress, onMove });
   handlers.current = { onTap, onPinPress, onMove };

@@ -8,16 +8,23 @@ import {
   BottomSheet,
   Button,
   Card,
-  DashboardMap,
   Heading,
   Icon,
   IconButton,
   Link,
+  PlaceBackdrop,
   PlaceRow,
   Screen,
   Text,
 } from "../components";
-import { useCommunities, useCommunityNav, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
+import {
+  useCommunities,
+  useCommunity,
+  useCommunityNav,
+  useDashboard,
+  useSetDefaultPlace,
+  useVisitPlace,
+} from "../data/communities";
 import { useSession } from "../data/session";
 import { tapFeedback } from "../lib/haptics";
 import { currentPlace } from "../lib/places";
@@ -62,6 +69,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
   const router = useRouter();
   const visit = useVisitPlace();
   const setDefault = useSetDefaultPlace();
+  const details = useCommunity(place.slug);
   const nav = useCommunityNav(place.slug);
   const widgets = useDashboard(place.slug);
   const { mutate: visitPlace } = visit;
@@ -82,7 +90,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
     <Screen
       chrome={false}
       tabBar
-      backdrop={<DashboardMap />}
+      backdrop={<PlaceBackdrop location={details.data?.location ?? null} />}
       overlay={
         // Design E-PrzelacznikMiejsc: picking a row switches the dashboard behind the sheet; the sheet stays open.
         <BottomSheet visible={switching} title={t.places_sheet_title} onClose={closeSwitcher}>

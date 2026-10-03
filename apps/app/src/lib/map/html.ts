@@ -28,6 +28,7 @@ const PAGE_SCRIPT = `
       spec.recolor.forEach(function (rule) {
         if (layer.type === rule.type && new RegExp(rule.match).test(layer.id)) map.setPaintProperty(layer.id, rule.prop, rule.value);
       });
+      if (layer.type === "symbol" && !spec.labels) return map.setLayoutProperty(layer.id, "visibility", "none");
       var label = layer.type === "symbol" && map.getLayoutProperty(layer.id, "text-field");
       if (label && JSON.stringify(label).indexOf("name") >= 0) map.setLayoutProperty(layer.id, "text-field", spec.labelField);
     });
@@ -60,6 +61,7 @@ const PAGE_SCRIPT = `
       interactive: spec.interactive,
       attributionControl: false,
     });
+    if (spec.monochrome) document.getElementById("map").style.filter = "grayscale(1)";
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     document.querySelector(".maplibregl-ctrl-bottom-left").style.marginBottom = spec.bottomInset + "px";
     map.on("load", addData);

@@ -158,6 +158,10 @@ export const sizes = {
   authMap: 300,
   /** Dashboard header: height of the map decoration. */
   dashboardMap: 230,
+  /** Dashboard header: the map fades into the screen over this height at its lower edge. */
+  dashboardMapFade: 120,
+  /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
+  dashboardMapCrop: 48,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
