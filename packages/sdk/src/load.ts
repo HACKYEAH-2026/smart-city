@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SchemaError, validateTables } from "./engine/schema";
 import { geoLocation } from "./geo";
 import {
+  DASHBOARD_WIDGET_SIZES_MAX,
   dashboardWidgetSizeSchema,
   definePlugin,
   type PluginDefinition,
@@ -75,13 +76,25 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
 }
 
+const dashboardWidgetMetaSchema = z.object({
+  size: dashboardWidgetSizeSchema,
+  // The raw string: the host shows the title as declared, so no trimming here (it would let padding past the limit).
+  title: z
+    .string()
+    .max(60)
+    .refine((title) => title.trim().length > 0, "Title must not be blank")
+    .optional(),
+  sizes: z.array(dashboardWidgetSizeSchema).max(DASHBOARD_WIDGET_SIZES_MAX).optional(),
+});
+
 function assertDashboardWidgets(definition: PluginDefinition): void {
   const invalid = Object.entries(definition.dashboardWidgets ?? {}).find(
-    ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetSizeSchema.safeParse(widget.size).success,
+    ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetMetaSchema.safeParse(widget).success,
   );
   if (invalid) {
     throw new PluginError(
-      `Dashboard widget "${invalid[0]}" must have a size ({ w: 1-2, h: 1-3 }) and a render function`,
+      `Dashboard widget "${invalid[0]}" must have a size ({ w: 1-3, h: 1-3 }) and a render function; ` +
+        `optional: title (1-60 characters), sizes (up to ${DASHBOARD_WIDGET_SIZES_MAX} more sizes)`,
     );
   }
 }

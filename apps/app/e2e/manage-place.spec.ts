@@ -37,6 +37,9 @@ test("only admins manage a place; the screen shows its sections, closed", async 
   await expect(page.getByRole("link", { name: t.manage_title })).toHaveCount(0);
   await page.goto("/app/c/krakow/manage");
   await expect(page.getByText(t.manage_admins_only)).toBeVisible();
+  await page.goto("/app/c/krakow/layout");
+  await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.manage_admins_only)).toBeVisible();
 
   await signOut(page);
   await loginAdmin(page);
@@ -161,8 +164,11 @@ test("invitations: the code with its QR; inviting someone by the email of their 
   await expect(email).toHaveValue("");
 });
 
-test("dashboard layout: the widgets in order; moving one changes the dashboard", async ({ page }) => {
+test("dashboard layout: the editor changes sizes, order and widgets; saving changes the dashboard", async ({
+  page,
+}) => {
   await loginAdmin(page);
+  // The announcements widget shows on the dashboard only once there is an announcement.
   await page.goto("/app/c/krakow/announcements/list");
   await page.getByLabel("Tytuł").fill("Zebranie użytkowników");
   await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
@@ -170,13 +176,62 @@ test("dashboard layout: the widgets in order; moving one changes the dashboard",
   await page.goto("/app");
   await openManage(page);
   await openSection(page, t.manage_layout_title);
-  const widgets = page.getByRole("list", { name: t.manage_layout_title }).getByRole("listitem");
-  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
-  await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
-  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/]);
+  await expect(
+    page.getByText(`${widgetsCount(2)} · ${t.manage_layout_grid} 3 ${t.manage_layout_columns}`),
+  ).toBeVisible();
+  await page.getByRole("link", { name: t.manage_layout_edit }).click();
+  await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.manage_layout_hint)).toBeVisible();
+
+  const grid = page.getByRole("list", { name: t.manage_layout_title });
+  const tiles = grid.getByRole("listitem");
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 3/]);
+  const announcements = grid.getByRole("button", { name: /Ogłoszenia/ });
+  await announcements.click();
+  await expect(announcements).toHaveAttribute("aria-pressed", "true");
+  const sizes = page.getByRole("radiogroup", { name: t.manage_layout_size_group });
+  await expect(sizes.getByRole("radio")).toHaveText(["3 × 3", "3 × 2"]);
+  await sizes.getByRole("radio", { name: "3 × 2" }).click();
+  await expect(sizes.getByRole("radio", { name: "3 × 2" })).toBeChecked();
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 2/]);
+  await expect(page.getByRole("button", { name: t.manage_layout_down })).toBeDisabled();
+  await page.getByRole("button", { name: t.manage_layout_up }).click();
+  await expect(tiles).toHaveText([/Ogłoszenia/, /Zgłoszenia/]);
+  await page.getByRole("button", { name: t.manage_layout_down }).click();
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
+  await page.getByRole("button", { name: t.manage_layout_remove, exact: true }).click();
+  await expect(tiles).toHaveText([/Zgłoszenia/]);
+  await expect(sizes).toHaveCount(0);
+
+  await page.getByRole("button", { name: t.manage_layout_add }).click();
+  const sheet = page.getByRole("dialog", { name: t.manage_layout_add });
+  await expect(sheet.getByText(`${t.manage_layout_sizes} 3×3, 3×2`)).toBeVisible();
+  await expect(sheet.getByRole("link", { name: t.manage_layout_more })).toBeVisible();
+  await sheet.getByRole("button", { name: `${t.manage_layout_add_one}: Ogłoszenia` }).click();
+  await expect(sheet).toHaveCount(0);
+  // Added back at the end with its default size, and selected.
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Ogłoszenia.*3 × 3/]);
+  await expect(announcements).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: t.manage_layout_up }).click();
+  await sizes.getByRole("radio", { name: "3 × 2" }).click();
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/]);
+  // Tapping the selected tile again deselects it.
+  await announcements.click();
+  await expect(announcements).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByRole("button", { name: t.manage_layout_add }).click();
+  await expect(sheet.getByText(t.manage_layout_add_none)).toBeVisible();
+  await sheet.getByRole("button", { name: t.close }).click();
+  await expect(sheet).toHaveCount(0);
+
+  await page.getByRole("button", { name: t.manage_layout_save, exact: true }).click();
+  await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
   await page.getByRole("button", { name: t.back }).click();
   const regions = page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+
+  await page.goto("/app/c/krakow/layout");
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/]);
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {

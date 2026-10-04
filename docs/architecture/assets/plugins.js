@@ -1068,7 +1068,7 @@ RETURN $result;`,
         const response = {
           canEdit: isAdmin(),
           widgets: node
-            ? [{ key: "announcements/latest", pluginId: "announcements", widget: "latest", size: { w: 2, h: 3 }, node }]
+            ? [{ key: "announcements/latest", pluginId: "announcements", widget: "latest", size: { w: 3, h: 3 }, node }]
             : [],
         };
         setCode(json, JSON.stringify(response, null, 2));

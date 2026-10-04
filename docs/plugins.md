@@ -651,18 +651,32 @@ ui.map({
 
 ## Dashboard widgets
 
-A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). Each widget declares a fixed `size` in grid
-cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3 rows — and a `render(ctx)` that
-returns `ui.widget(title, children, options?)`, or `null` to show nothing (e.g. no data yet). Content beyond the size
-is clipped. With `onPress` (a `navigate` action, usually the plugin's main list) the whole tile is tappable and
-shows a chevron (or its `link`, when it has one); cards, buttons and links inside it keep their own actions. Default order: plugin installation, then
-declaration. Community admins long-press a tile to reorder the dashboard (drag, or earlier/later buttons); the order
-is saved per community and widgets of newly installed plugins go last.
+A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). The dashboard is a grid
+3 columns wide (`DASHBOARD_COLUMNS`) in rows of fixed height. Each widget declares:
+
+| Field | Required | Meaning |
+|---|---|---|
+| `size` | yes | default size in grid cells: `w` 1-3 columns, `h` 1-3 rows (`{ w: 3, h: 3 }` = full width, 3 rows) |
+| `sizes` | no | up to 6 other sizes an admin may switch the widget to (same limits); `size` is always allowed |
+| `title` | no | 1-60 characters: the widget's name where admins arrange the dashboard (defaults to the plugin's `name`); set it when the plugin has more than one widget |
+| `render(ctx)` | yes | returns `ui.widget(title, children, options?)`, or `null` to show nothing (e.g. no data yet) |
+
+Content beyond the size is clipped, so `render` must fit the smallest size the widget offers. With `onPress` (a
+`navigate` action, usually the plugin's main list) the whole tile is tappable and shows a chevron (or its `link`,
+when it has one); cards, buttons and links inside it keep their own actions.
+
+Default order: plugin installation, then declaration, each widget at its `size`. Community admins arrange the
+dashboard in Zarządzaj miejscem → Układ pulpitu: the order, each widget's size (one of the sizes its plugin allows),
+and which widgets are on it (a removed widget can be added back). They can also long-press a tile on the dashboard
+to reorder it (drag, or earlier/later buttons). The layout is saved per community; widgets of newly enabled plugins
+go last, at their default size. A saved size the plugin no longer allows falls back to its `size`.
 
 ```ts
 dashboardWidgets: {
   latest: {
-    size: { w: 2, h: 3 },
+    title: "Ogłoszenia",
+    size: { w: 3, h: 3 },
+    sizes: [{ w: 3, h: 2 }],
     render: async (ctx) => {
       const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
       const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
@@ -884,8 +898,10 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | Endpoint | Description |
 |---|---|
 | `GET /api/communities/:slug/nav` | navigation for the app |
-| `GET /api/communities/:slug/dashboard` | `{ canEdit, widgets: [{ key, pluginId, widget, size, node }] }` rendered for the user, in the community's order |
-| `PATCH /api/communities/:slug/dashboard` `{ order }` | community admins: widget order (`"<pluginId>/<widget>"` keys); others 403 |
+| `GET /api/communities/:slug/dashboard` | `{ canEdit, widgets: [{ key, pluginId, widget, size, node }] }` rendered for the user: the widgets on the community's layout, in its order and sizes |
+| `PATCH /api/communities/:slug/dashboard` `{ order }` | community admins: widget order (`"<pluginId>/<widget>"` keys), sizes and removed widgets stay; others 403 |
+| `GET /api/communities/:slug/dashboard/layout` | community admins: `DashboardLayout` `{ columns, widgets, available }` — widgets on the dashboard (in order, with `title`, `size` and the allowed `sizes`) and the removed ones; others 403 |
+| `PUT /api/communities/:slug/dashboard/layout` `{ widgets: [{ key, size }] }` | community admins: the whole layout (declared widgets left out are removed); 400 `invalid_layout` for a key that is not a widget of an enabled plugin or a size it does not allow; returns the new `DashboardLayout` |
 | `GET /api/communities/:slug/plugins/:id/views/:view?…` | UI tree of a view |
 | `POST /api/communities/:slug/plugins/:id/tools/:tool` `{ args }` | tool call |
 | `POST /api/communities/:slug/plugins/:id/files` (multipart `file`) | upload → `{ fileId }` (pending) |

@@ -1,5 +1,5 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
-import type { JoinPlace, NewPlace, PlaceUpdate } from "@app/shared";
+import type { DashboardLayoutInput, JoinPlace, NewPlace, PlaceUpdate } from "@app/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
@@ -14,6 +14,8 @@ const c = api.api.communities;
 export const communitiesKey = ["communities"] as const;
 const communityKey = (slug: string) => ["communities", slug] as const;
 const dashboardKey = (slug: string) => [...communityKey(slug), "dashboard"] as const;
+/** Under the dashboard's key, so whatever refreshes the dashboard (a reorder, a plugin switched on) refreshes it too. */
+const dashboardLayoutKey = (slug: string): readonly string[] => [...dashboardKey(slug), "layout"];
 const pluginKey = (slug: string, pluginId: string) => [...communityKey(slug), "plugin", pluginId] as const;
 
 export function useCommunities() {
@@ -47,6 +49,29 @@ export function useSaveDashboardOrder(slug: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (order: string[]) => parseResponse(c[":slug"].dashboard.$patch({ param: { slug }, json: { order } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
+  });
+}
+
+/**
+ * Community admins: the dashboard layout to arrange (widgets on it with their sizes, and the removed ones). Fetched
+ * again on every mount even when cached: the editor starts its draft only from data fetched after it opened, never
+ * from a copy cached before.
+ */
+export function useDashboardLayout(slug: string) {
+  return useQuery({
+    queryKey: dashboardLayoutKey(slug),
+    queryFn: () => parseResponse(c[":slug"].dashboard.layout.$get({ param: { slug } })),
+    refetchOnMount: "always",
+  });
+}
+
+/** Community admins: save the dashboard layout; the dashboard and the layout (under its key) are refetched. */
+export function useSaveDashboardLayout(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (layout: DashboardLayoutInput) =>
+      parseResponse(c[":slug"].dashboard.layout.$put({ param: { slug }, json: layout })),
     onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
   });
 }

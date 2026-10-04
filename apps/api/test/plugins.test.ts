@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ToolResult, UINode } from "@app/plugin-sdk";
+import type { DashboardWidgetSize, ToolResult, UINode } from "@app/plugin-sdk";
 import { textsOf } from "@app/plugin-sdk/testing";
-import type { CommunityNavItem, PluginCatalogItem } from "@app/shared";
+import type { CommunityNavItem, DashboardLayout, PluginCatalogItem } from "@app/shared";
 import { createApp } from "../src/app";
 import { loadEnv } from "../src/env";
 import type { EmbeddingModel, LanguageModel } from "../src/services/ai/types";
@@ -417,8 +417,8 @@ describe("dashboard", () => {
 
     const before = await dashboard(u.headers);
     expect(before.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
-      { key: "issues/summary", size: { w: 2, h: 3 } },
-      { key: "announcements/latest", size: { w: 2, h: 3 } },
+      { key: "issues/summary", size: { w: 3, h: 3 } },
+      { key: "announcements/latest", size: { w: 3, h: 3 } },
     ]);
     // Tapping a tile opens the plugin view its widget names.
     expect(nodeOf(before, "issues/summary")).toMatchObject({ onPress: { type: "navigate", view: "list" } });
@@ -476,8 +476,159 @@ describe("dashboard", () => {
 
   test("a widget without a valid size is rejected on upload", async () => {
     await start();
-    const source = withWidget("huge", "{ size: { w: 3, h: 1 }, render: () => null }");
+    const source = withWidget("huge", "{ size: { w: 4, h: 1 }, render: () => null }");
     const res = await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source } });
     expect(res.status).toBe(400);
+  });
+
+  describe("layout", () => {
+    const layoutPath = `${base}/dashboard/layout`;
+    const getLayout = async (headers: Record<string, string>) => {
+      const res = await t.request(layoutPath, { headers });
+      expect(res.status).toBe(200);
+      return (await res.json()) as DashboardLayout;
+    };
+    const putLayout = (headers: Record<string, string>, widgets: unknown) =>
+      t.request(layoutPath, { method: "PUT", headers, json: { widgets } });
+    const tall: DashboardWidgetSize = { w: 3, h: 3 };
+    const short: DashboardWidgetSize = { w: 3, h: 2 };
+
+    test("no session 401, unknown community 404, residents 403", async () => {
+      await start();
+      const u = await t.signUp();
+      expect((await t.request(layoutPath)).status).toBe(401);
+      expect((await putLayout({}, [])).status).toBe(401);
+      expect((await t.request("/api/communities/nie-ma/dashboard/layout", { headers: cityAdmin.headers })).status).toBe(
+        404,
+      );
+      const elsewhere = await t.request("/api/communities/nie-ma/dashboard/layout", {
+        method: "PUT",
+        headers: cityAdmin.headers,
+        json: { widgets: [] },
+      });
+      expect(elsewhere.status).toBe(404);
+      expect((await t.request(layoutPath, { headers: u.headers })).status).toBe(403);
+      expect((await putLayout(u.headers, [])).status).toBe(403);
+    });
+
+    test("declared widgets of the enabled plugins, with titles and the sizes their plugins allow", async () => {
+      await start();
+      const layout = await getLayout(cityAdmin.headers);
+      expect(layout).toEqual({
+        columns: 3,
+        widgets: [
+          {
+            key: "issues/summary",
+            pluginId: "issues",
+            pluginName: "Zgłoszenia",
+            pluginIcon: "🛠️",
+            title: "Zgłoszenia",
+            size: tall,
+            sizes: [tall, short],
+          },
+          {
+            key: "announcements/latest",
+            pluginId: "announcements",
+            pluginName: "Ogłoszenia",
+            pluginIcon: "📢",
+            title: "Ogłoszenia",
+            size: tall,
+            sizes: [tall, short],
+          },
+        ],
+        available: [],
+      });
+    });
+
+    test("400 for an unknown key, a size the plugin does not allow, repeated keys or a bad body", async () => {
+      await start();
+      const invalid = async (widgets: unknown) => {
+        const res = await putLayout(cityAdmin.headers, widgets);
+        expect(res.status).toBe(400);
+        return res;
+      };
+      const unknown = await invalid([{ key: "nie/ma", size: tall }]);
+      expect(((await unknown.json()) as { error: string }).error).toBe("invalid_layout");
+      const disallowed = await invalid([{ key: "issues/summary", size: { w: 1, h: 1 } }]);
+      expect(((await disallowed.json()) as { error: string }).error).toBe("invalid_layout");
+      await invalid([
+        { key: "issues/summary", size: tall },
+        { key: "issues/summary", size: short },
+      ]);
+      await invalid([{ key: "issues/summary", size: { w: 4, h: 1 } }]);
+      await invalid("nie-lista");
+    });
+
+    test("a removed widget leaves the dashboard and is available; a chosen size and order are used", async () => {
+      await start();
+      const u = await t.signUp();
+      await tool(cityAdmin.headers, "announcements/tools/publish", { title: "Zebranie" });
+      const res = await putLayout(cityAdmin.headers, [{ key: "announcements/latest", size: short }]);
+      expect(res.status).toBe(200);
+      const saved = (await res.json()) as DashboardLayout;
+      expect(saved.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
+        { key: "announcements/latest", size: short },
+      ]);
+      expect(saved.available.map((w) => w.key)).toEqual(["issues/summary"]);
+      expect(await getLayout(cityAdmin.headers)).toEqual(saved);
+
+      const d = await dashboard(u.headers);
+      expect(d.widgets.map(({ key, size }) => ({ key, size }))).toEqual([{ key: "announcements/latest", size: short }]);
+
+      // Added back, first, at its default size.
+      await putLayout(cityAdmin.headers, [
+        { key: "issues/summary", size: tall },
+        { key: "announcements/latest", size: short },
+      ]);
+      expect((await dashboard(u.headers)).widgets.map(({ key, size }) => ({ key, size }))).toEqual([
+        { key: "issues/summary", size: tall },
+        { key: "announcements/latest", size: short },
+      ]);
+      expect((await getLayout(cityAdmin.headers)).available).toEqual([]);
+    });
+
+    test("reordering on the dashboard (PATCH) keeps the chosen sizes and removed widgets", async () => {
+      await start();
+      const u = await t.signUp();
+      await tool(cityAdmin.headers, "announcements/tools/publish", { title: "Zebranie" });
+      await uploadAndInstall(
+        withWidget(
+          "tiles",
+          "{ size: { w: 1, h: 1 }, sizes: [{ w: 2, h: 1 }], render: () => ui.widget('Notatki', []) }",
+        ),
+        "tiles",
+      );
+      await putLayout(cityAdmin.headers, [
+        { key: "issues/summary", size: short },
+        { key: "tiles/w", size: { w: 2, h: 1 } },
+      ]);
+      expect((await setOrder(cityAdmin.headers, ["tiles/w", "issues/summary"])).status).toBe(200);
+      const layout = await getLayout(cityAdmin.headers);
+      expect(layout.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
+        { key: "tiles/w", size: { w: 2, h: 1 } },
+        { key: "issues/summary", size: short },
+      ]);
+      expect(layout.available.map((w) => w.key)).toEqual(["announcements/latest"]);
+      expect((await dashboard(u.headers)).keys).toEqual(["tiles/w", "issues/summary"]);
+    });
+
+    test("widgets of a plugin enabled after saving go last, visible, at their default size", async () => {
+      await start();
+      await putLayout(cityAdmin.headers, [
+        { key: "announcements/latest", size: short },
+        { key: "issues/summary", size: tall },
+      ]);
+      await uploadAndInstall(
+        withWidget("tiles", "{ size: { w: 1, h: 1 }, title: 'Kafelek', render: () => ui.widget('Notatki', []) }"),
+        "tiles",
+      );
+      const layout = await getLayout(cityAdmin.headers);
+      expect(layout.widgets.map(({ key, title, size }) => ({ key, title, size }))).toEqual([
+        { key: "announcements/latest", title: "Ogłoszenia", size: short },
+        { key: "issues/summary", title: "Zgłoszenia", size: tall },
+        { key: "tiles/w", title: "Kafelek", size: { w: 1, h: 1 } },
+      ]);
+      expect((await dashboard(cityAdmin.headers)).keys).toEqual(["issues/summary", "tiles/w"]);
+    });
   });
 });

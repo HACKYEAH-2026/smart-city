@@ -1,8 +1,8 @@
-import type { UINode } from "@app/plugin-sdk";
-import { formatInviteCode, type JoinRule, type PlaceDetails, type PlaceKind } from "@app/shared";
+import { DASHBOARD_COLUMNS } from "@app/plugin-sdk";
+import { formatInviteCode, type JoinRule, type LayoutWidget, type PlaceDetails, type PlaceKind } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronDown, ChevronUp, LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
+import { LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import {
@@ -12,7 +12,6 @@ import {
   Feedback,
   Icon,
   IconBox,
-  IconButton,
   InviteCodeCard,
   NoticeScreen,
   RadioCard,
@@ -24,18 +23,17 @@ import {
 } from "../components";
 import {
   useCommunity,
-  useDashboard,
+  useDashboardLayout,
   useDeletePlace,
   useInvite,
   usePlaceMembers,
   usePlacePlugins,
-  useSaveDashboardOrder,
   useUpdatePlace,
 } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
+import { gridRects } from "../lib/grid";
 import { inviteLink } from "../lib/invite";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
-import { moveTo } from "../lib/order";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { enabledPlugins, pluginSubtitle } from "../lib/placePlugins";
 import { initials } from "../lib/places";
@@ -47,12 +45,11 @@ type Section = "invites" | "plugins" | "layout" | "members" | "settings";
 
 /** HTTP status of a failed API call (hono's DetailedError), to tell the user what went wrong. */
 const statusOf = (err: unknown): number | undefined => (err as { statusCode?: number } | null)?.statusCode;
-const titleOf = (node: UINode) => ("title" in node ? node.title : "");
 
 /**
  * Managing a place, for its admins (design E-ZarzadzanieMiejscem): sections that open in place, one at a time —
  * invitations (the code with its QR, inviting by email), the plugins that are on (and the way to add more), the
- * dashboard order, the members, the place's settings — and deleting the place. Members who are not admins get a
+ * dashboard layout, the members, the place's settings — and deleting the place. Members who are not admins get a
  * message instead.
  */
 export default function ManagePlace() {
@@ -192,53 +189,49 @@ function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string 
   );
 }
 
+/**
+ * The dashboard layout (design: card "Układ pulpitu"): how many widgets are on it and the grid's width, a preview of
+ * the grid, and the way to the layout editor.
+ */
 function LayoutSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
-  const dashboard = useDashboard(slug);
-  const save = useSaveDashboardOrder(slug);
-  const widgets = (dashboard.data?.widgets ?? []).map((w) => ({ key: w.key, title: titleOf(w.node as UINode) }));
-  const keys = widgets.map((w) => w.key);
-  const move = (key: string, index: number) => save.mutate(moveTo(keys, key, index));
+  const layout = useDashboardLayout(slug);
+  const widgets = layout.data?.widgets ?? [];
+  const columns = layout.data?.columns ?? DASHBOARD_COLUMNS;
+  const summary = `${widgetsCount(widgets.length)} · ${t.manage_layout_grid} ${columns} ${t.manage_layout_columns}`;
   return (
     <DisclosureCard
       icon={LayoutDashboard}
       title={t.manage_layout_title}
-      summary={widgetsCount(widgets.length)}
+      summary={summary}
       open={open}
       onToggle={onToggle}
     >
-      <Text variant="bodyL" color="textSecondary">
-        {widgets.length ? t.manage_layout_lead : t.manage_layout_empty}
-      </Text>
-      <View role="list" aria-label={t.manage_layout_title} style={styles.rows}>
-        {widgets.map((w, index) => (
-          <View key={w.key} role="listitem" style={styles.row}>
-            <Text variant="cardTitle" color="textSecondary">
-              {index + 1}
-            </Text>
-            <Text variant="cardTitle" style={styles.rowText}>
-              {w.title}
-            </Text>
-            {index > 0 ? (
-              <IconButton
-                icon={ChevronUp}
-                variant="roundSunken"
-                label={`${t.dashboard_move_earlier}: ${w.title}`}
-                onPress={() => move(w.key, index - 1)}
-              />
-            ) : null}
-            {index < widgets.length - 1 ? (
-              <IconButton
-                icon={ChevronDown}
-                variant="roundSunken"
-                label={`${t.dashboard_move_later}: ${w.title}`}
-                onPress={() => move(w.key, index + 1)}
-              />
-            ) : null}
-          </View>
-        ))}
-      </View>
-      <Feedback error={save.isError ? t.dashboard_save_error : null} />
+      {widgets.length ? (
+        <LayoutPreview widgets={widgets} columns={columns} />
+      ) : (
+        <Text variant="bodyL" color="textSecondary">
+          {t.manage_layout_empty}
+        </Text>
+      )}
+      <Button label={t.manage_layout_edit} variant="dark" size="sm" href={`/app/c/${slug}/layout`} />
     </DisclosureCard>
+  );
+}
+
+/** A small picture of the dashboard grid (decoration: the summary and the editor tell the same in words). */
+function LayoutPreview({ widgets, columns }: { widgets: LayoutWidget[]; columns: number }) {
+  const [width, setWidth] = useState(0);
+  const grid = gridRects(widgets, { width, columns, rowHeight: sizes.layoutPreviewRow, gap: spacing[3] });
+  return (
+    <View aria-hidden style={styles.preview}>
+      <View style={{ height: grid.height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {width
+          ? grid.tiles.map(({ item, rect }, index) => (
+              <View key={item.key} style={[styles.previewTile, index === 0 && styles.previewTileFirst, rect]} />
+            ))
+          : null}
+      </View>
+    </View>
   );
 }
 
@@ -384,6 +377,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  preview: { padding: spacing[5], borderRadius: radii.lg, backgroundColor: colors.background },
+  previewTile: {
+    position: "absolute",
+    borderRadius: radii.mini,
+    borderWidth: borders.hairline,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  previewTileFirst: { borderColor: colors.primary, backgroundColor: colors.primary },
   grow: { flex: 1 },
   delete: { alignItems: "center", gap: spacing[4] },
 });

@@ -1,12 +1,25 @@
-import { type DashboardWidgetSize, type Role, type UINode, viewParamsSchema } from "@app/plugin-sdk";
+import {
+  DASHBOARD_COLUMNS,
+  type DashboardWidgetSize,
+  type PluginCommunity,
+  type Context as PluginContext,
+  type PluginUser,
+  type Role,
+  sameSize,
+  type UINode,
+  viewParamsSchema,
+} from "@app/plugin-sdk";
 import {
   type CommunityNavItem,
   type CreatedPlace,
+  type DashboardLayout,
+  dashboardLayoutSchema,
   dashboardOrderSchema,
   INVITE_CODE_ALPHABET,
   INVITE_CODE_LENGTH,
   type JoinRule,
   joinPlaceSchema,
+  type LayoutWidget,
   type MyPlace,
   newPlaceSchema,
   type PlaceDetails,
@@ -222,41 +235,59 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json(nav);
   })
   /**
-   * Dashboard: widgets of the enabled plugins, rendered for this user, in the order set by the community admins
-   * (widgets not in it follow in the default order). A widget that fails or returns null is left out, so one
-   * broken plugin never breaks the dashboard. `canEdit` = the user may reorder it.
+   * Dashboard: the widgets on the community's layout (communityLayout), rendered for this user, in its order and
+   * sizes. A widget that fails or returns null is left out, so one broken plugin never breaks the dashboard.
+   * `canEdit` = the user may rearrange it.
    */
   .get("/:slug/dashboard", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
     const community = toPluginCommunity(member.row);
-    const role = member.role;
-    const user = { id: c.var.user.id, name: c.var.user.name, role };
-    const installed = await rows<{ id: RecordId; plugin: string }>(
-      c.var.db,
-      surql`SELECT id, plugin, created_at FROM plugin_installation
-            WHERE community = ${ref("community", community.id)} AND enabled ORDER BY created_at;`,
-    );
-    const perPlugin = await Promise.all(
-      installed.map(async ({ id, plugin: pluginId }) => {
-        const plugin = c.var.plugins.get(pluginId);
-        if (!plugin) return [];
-        const installationId = keyOf(id);
-        const lastVisit = await c.var.plugins.lastVisit(installationId, user.id);
-        const ctx = c.var.plugins.context(plugin, { installationId, community, user, lastVisit });
-        return Promise.all(
-          c.var.plugins.dashboardWidgets(plugin).map(async ({ name, size }) => {
-            const node = await c.var.plugins.renderDashboardWidget(plugin, name, ctx).catch(logWidgetFailure);
-            return node ? [{ key: `${pluginId}/${name}`, pluginId, widget: name, size, node }] : [];
-          }),
-        );
-      }),
-    );
-    const order = await dashboardOrder(c.var.db, community.id);
-    const widgets: DashboardWidgetItem[] = sortByOrder(perPlugin.flat(2), order);
-    return c.json({ canEdit: role === "admin", widgets }, 200);
+    const user = { id: c.var.user.id, name: c.var.user.name, role: member.role };
+    const layout = await communityLayout(c.var.db, c.var.plugins, community.id);
+    const widgets = await renderWidgets(c.var.plugins, layout.widgets, community, user);
+    return c.json({ canEdit: member.role === "admin", widgets }, 200);
   })
-  /** Community admins set the dashboard order (keys "<pluginId>/<widget>"). */
+  /** The dashboard layout for its admins: widgets on it (in order, with sizes) and the removed ones. */
+  .get("/:slug/dashboard/layout", requirePlaceAdmin("only admins arrange the dashboard"), async (c) => {
+    const layout = await communityLayout(c.var.db, c.var.plugins, keyOf(c.var.place.id));
+    return c.json(toDashboardLayout(layout), 200);
+  })
+  /**
+   * Community admins save the dashboard layout: the widgets on it in order, each with a size its plugin allows.
+   * Declared widgets left out are hidden. 400 when a key is not a widget of an enabled plugin or a size is not allowed.
+   */
+  .put(
+    "/:slug/dashboard/layout",
+    requirePlaceAdmin("only admins arrange the dashboard"),
+    zValidator("json", dashboardLayoutSchema),
+    async (c) => {
+      const communityId = keyOf(c.var.place.id);
+      const { widgets } = c.req.valid("json");
+      const current = await communityLayout(c.var.db, c.var.plugins, communityId);
+      const declared = [...current.widgets, ...current.available];
+      const invalid = widgets.find(({ key, size }) => !declared.find((d) => d.key === key)?.sizes.some(sameAs(size)));
+      if (invalid) {
+        return c.json(
+          { error: "invalid_layout", message: `"${invalid.key}" is not a widget here or cannot have this size` },
+          400,
+        );
+      }
+      const listed = new Set(widgets.map((w) => w.key));
+      const saved = {
+        order: widgets.map((w) => w.key),
+        sizes: widgets.map(({ key, size }) => ({ key, w: size.w, h: size.h })),
+        hidden: declared.filter((d) => !listed.has(d.key)).map((d) => d.key),
+      };
+      await c.var.db.query(
+        surql`UPSERT ${ref("dashboard", communityId)}
+              SET order = ${saved.order}, sizes = ${saved.sizes}, hidden = ${saved.hidden}, updated_at = time::now();`,
+      );
+      const layout = await communityLayout(c.var.db, c.var.plugins, communityId);
+      return c.json(toDashboardLayout(layout), 200);
+    },
+  )
+  /** Community admins reorder the dashboard in place (keys "<pluginId>/<widget>"); sizes and hidden widgets stay. */
   .patch(
     "/:slug/dashboard",
     requirePlaceAdmin("only admins arrange the dashboard"),
@@ -433,8 +464,125 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   return { plugin, ctx, installationId };
 }
 
-const dashboardOrder = async (db: Db, communityId: string): Promise<string[]> =>
-  (await first<{ order: string[] }>(db, surql`SELECT order FROM ${ref("dashboard", communityId)};`))?.order ?? [];
+/** A declared widget of an enabled plugin, with the size it has on this community's dashboard. */
+type ResolvedWidget = LayoutWidget & { widget: string; installationId: string; plugin: LoadedPlugin };
+type ResolvedLayout = { widgets: ResolvedWidget[]; available: ResolvedWidget[] };
+
+type SavedDashboard = { order: string[]; sizes: { key: string; w: number; h: number }[]; hidden: string[] };
+
+/**
+ * The community's dashboard layout, the one code path for the dashboard and its editor: the declared widgets of the
+ * enabled plugins (default order: installation, then declaration) resolved against what the admins saved.
+ * `widgets` = not hidden, in the saved order (widgets missing from it follow in the default order), each with its
+ * saved size when the plugin still allows it, else the plugin's default; `available` = the hidden ones.
+ */
+async function communityLayout(db: Db, host: PluginHost, communityId: string): Promise<ResolvedLayout> {
+  const declared = await declaredWidgets(db, host, communityId);
+  const saved = await savedDashboard(db, communityId);
+  const sized = declared.map((w) => ({ ...w, size: savedSize(w, saved) }));
+  const hidden = new Set(saved.hidden);
+  return {
+    widgets: sortByOrder(
+      sized.filter((w) => !hidden.has(w.key)),
+      saved.order,
+    ),
+    available: sized.filter((w) => hidden.has(w.key)),
+  };
+}
+
+async function declaredWidgets(db: Db, host: PluginHost, communityId: string): Promise<ResolvedWidget[]> {
+  const installed = await rows<{ id: RecordId; plugin: string }>(
+    db,
+    surql`SELECT id, plugin, created_at FROM plugin_installation
+          WHERE community = ${ref("community", communityId)} AND enabled ORDER BY created_at;`,
+  );
+  return installed.flatMap(({ id, plugin: pluginId }) => {
+    const plugin = host.get(pluginId);
+    if (!plugin) return [];
+    return host.dashboardWidgets(plugin).map(({ name, title, size, sizes }) => ({
+      key: `${pluginId}/${name}`,
+      pluginId,
+      pluginName: plugin.manifest.name,
+      pluginIcon: plugin.manifest.icon,
+      title,
+      size,
+      sizes,
+      widget: name,
+      installationId: keyOf(id),
+      plugin,
+    }));
+  });
+}
+
+/** What the admins saved; a place whose admins never arranged it (or saved before sizes existed) gets empty lists. */
+async function savedDashboard(db: Db, communityId: string): Promise<SavedDashboard> {
+  const row = await first<Partial<SavedDashboard>>(
+    db,
+    surql`SELECT order, sizes, hidden FROM ${ref("dashboard", communityId)};`,
+  );
+  return { order: row?.order ?? [], sizes: row?.sizes ?? [], hidden: row?.hidden ?? [] };
+}
+
+/** The saved size of a widget when its plugin still allows it, else the plugin's default. */
+function savedSize(widget: ResolvedWidget, saved: SavedDashboard): DashboardWidgetSize {
+  const chosen = saved.sizes.find((s) => s.key === widget.key);
+  return (chosen && widget.sizes.find((s) => s.w === chosen.w && s.h === chosen.h)) ?? widget.size;
+}
+
+const sameAs = (size: DashboardWidgetSize) => (other: DashboardWidgetSize) => sameSize(size, other);
+
+const toLayoutWidget = ({
+  key,
+  pluginId,
+  pluginName,
+  pluginIcon,
+  title,
+  size,
+  sizes,
+}: ResolvedWidget): LayoutWidget => ({
+  key,
+  pluginId,
+  pluginName,
+  pluginIcon,
+  title,
+  size,
+  sizes,
+});
+
+const toDashboardLayout = (layout: ResolvedLayout): DashboardLayout => ({
+  columns: DASHBOARD_COLUMNS,
+  widgets: layout.widgets.map(toLayoutWidget),
+  available: layout.available.map(toLayoutWidget),
+});
+
+/**
+ * Renders the widgets for this user, in their order; one context per installation (its `lastVisit` read once).
+ * A widget that throws, returns invalid UI or null is left out.
+ */
+async function renderWidgets(
+  host: PluginHost,
+  widgets: ResolvedWidget[],
+  community: PluginCommunity,
+  user: PluginUser,
+): Promise<DashboardWidgetItem[]> {
+  const installations = widgets.filter((w, i) => widgets.findIndex((o) => o.installationId === w.installationId) === i);
+  const contexts = new Map(
+    installations.map(({ installationId, plugin }): [string, Promise<PluginContext>] => [
+      installationId,
+      host
+        .lastVisit(installationId, user.id)
+        .then((lastVisit) => host.context(plugin, { installationId, community, user, lastVisit })),
+    ]),
+  );
+  const rendered = await Promise.all(
+    widgets.map(async ({ key, pluginId, widget, size, installationId, plugin }) => {
+      const ctx = await contexts.get(installationId);
+      const node = ctx ? await host.renderDashboardWidget(plugin, widget, ctx).catch(logWidgetFailure) : null;
+      return node ? [{ key, pluginId, widget, size, node }] : [];
+    }),
+  );
+  return rendered.flat();
+}
 
 /** Saved order first; widgets missing from it keep their default order after those (stable sort). */
 function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[] {

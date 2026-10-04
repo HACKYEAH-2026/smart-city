@@ -1,5 +1,5 @@
-/** `keys` with `key` moved to `index` (the dashboard order: on the dashboard and in "Zarządzaj miejscem"). */
-export const moveTo = (keys: string[], key: string, index: number): string[] => {
-  const rest = keys.filter((k) => k !== key);
-  return [...rest.slice(0, index), key, ...rest.slice(index)];
+/** `items` with `item` moved to `index` (the dashboard order: on the dashboard and in the layout editor). */
+export const moveTo = <T>(items: T[], item: T, index: number): T[] => {
+  const rest = items.filter((other) => other !== item);
+  return [...rest.slice(0, index), item, ...rest.slice(index)];
 };

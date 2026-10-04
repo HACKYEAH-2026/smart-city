@@ -1,17 +1,17 @@
-import type { Action, DashboardWidgetSize, NavigateAction, UINode } from "@app/plugin-sdk";
+import {
+  type Action,
+  DASHBOARD_COLUMNS,
+  type DashboardWidgetSize,
+  type NavigateAction,
+  type UINode,
+} from "@app/plugin-sdk";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react-native";
 import { useMemo, useRef, useState } from "react";
-import {
-  type AccessibilityActionEvent,
-  type LayoutRectangle,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { type AccessibilityActionEvent, PanResponder, Pressable, StyleSheet, View } from "react-native";
 import { Button, Icon, IconButton, Text } from "../components";
 import { useDashboard, useSaveDashboardOrder } from "../data/communities";
+import { type GridRect, gridRects } from "../lib/grid";
 import { longPressFeedback } from "../lib/haptics";
 import { moveTo } from "../lib/order";
 import { t } from "../texts";
@@ -20,7 +20,8 @@ import { pluginHref } from "./href";
 import { PluginRenderer } from "./Renderer";
 
 /**
- * Community dashboard: plugin widgets in a 2-column grid, each tile as big as its plugin declares. Tapping a tile
+ * Community dashboard: plugin widgets in a grid DASHBOARD_COLUMNS wide (design "Układ pulpitu"; placed by
+ * `src/lib/grid.ts`), each tile as big as the admins set it (its plugin's default otherwise). Tapping a tile
  * opens the plugin view its widget names (`onPress`, e.g. the full list); what is inside the tile (a card, a button)
  * keeps its own action. Community admins long-press a tile to enter edit mode (screen readers: the "Edytuj pulpit"
  * action), then drag a tile by its handle or use the earlier/later buttons. Every change is saved for the whole
@@ -30,11 +31,9 @@ type Widget = { key: string; pluginId: string; size: DashboardWidgetSize; node: 
 
 const GAP = spacing[6];
 
-/** Pixel size of a tile in a 2-column grid of `width`; rows are `sizes.widgetRow` high. */
-const tileSize = (size: DashboardWidgetSize, width: number) => ({
-  width: size.w === 2 ? width : (width - GAP) / 2,
-  height: size.h * sizes.widgetRow + (size.h - 1) * GAP,
-});
+/** The edit controls in a row (handle and two arrows, with their gaps and padding) and their inset from the tile's edge. */
+const CONTROLS_WIDTH = 3 * sizes.iconButton + 4 * spacing[2];
+const CONTROLS_INSET = spacing[6];
 
 /** `order` first, keys missing from it after, in their given order (the same rule as the API). */
 const arrange = (keys: string[], order: string[]) => {
@@ -43,11 +42,11 @@ const arrange = (keys: string[], order: string[]) => {
   return [...keys].sort((a, b) => rank(a) - rank(b));
 };
 
-const contains = (r: LayoutRectangle, x: number, y: number) =>
-  x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
+const contains = (r: GridRect, x: number, y: number) =>
+  x >= r.left && x <= r.left + r.width && y >= r.top && y <= r.top + r.height;
 
 /** The tile (other than `key`) under the point, in grid coordinates. */
-const tileAt = (rects: Map<string, LayoutRectangle>, key: string, x: number, y: number) =>
+const tileAt = (rects: Map<string, GridRect>, key: string, x: number, y: number) =>
   [...rects.entries()].find(([k, r]) => k !== key && contains(r, x, y))?.[0] ?? null;
 
 const titleOf = (node: UINode) => ("title" in node ? node.title : "");
@@ -70,7 +69,8 @@ export function Dashboard({ slug }: { slug: string }) {
   const save = useSaveDashboardOrder(slug);
   const [width, setWidth] = useState(0);
   const [editing, setEditing] = useState(false);
-  // Order chosen in this session; kept after saving so the grid never jumps back while the API refetches.
+  // The order being dragged or saved; dropped once the save settles (the refetched dashboard then has it, or, after
+  // an error, the saved order comes back), so a layout saved elsewhere (the layout editor) shows too.
   const [order, setOrder] = useState<string[]>([]);
   const widgets = (dashboard.data?.widgets ?? []) as Widget[];
   const keys = arrange(
@@ -78,12 +78,17 @@ export function Dashboard({ slug }: { slug: string }) {
     order,
   );
   const byKey = new Map(widgets.map((w) => [w.key, w]));
+  const grid = gridRects(
+    keys.flatMap((key) => byKey.get(key) ?? []),
+    { width, columns: DASHBOARD_COLUMNS, rowHeight: sizes.widgetRow, gap: GAP },
+  );
 
   const reorder = (next: string[]) => {
     setOrder(next);
-    save.mutate(next);
+    save.mutate(next, { onSettled: () => setOrder([]) });
   };
   const drag = useDrag(keys, setOrder, reorder);
+  drag.rects.current = new Map(grid.tiles.map(({ item, rect }) => [item.key, rect]));
 
   if (!widgets.length) return null;
   const canEdit = dashboard.data?.canEdit ?? false;
@@ -114,13 +119,13 @@ export function Dashboard({ slug }: { slug: string }) {
         ref={drag.grid}
         role="list"
         aria-label={t.community_dashboard_label}
-        style={styles.grid}
+        // The height needs no width, so the grid takes its space before it is measured (no jump after the first frame).
+        style={{ height: grid.height }}
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       >
         {width
-          ? keys.map((key, index) => {
-              const w = byKey.get(key);
-              if (!w) return null;
+          ? grid.tiles.map(({ item: w, rect }, index) => {
+              const key = w.key;
               const title = titleOf(w.node);
               const press = pressOf(w.node);
               const go = press ? () => open(w.pluginId)(press) : undefined;
@@ -128,8 +133,7 @@ export function Dashboard({ slug }: { slug: string }) {
                 <View
                   key={key}
                   role="listitem"
-                  style={[tileSize(w.size, width), editing && styles.editable, drag.active === key && styles.dragged]}
-                  onLayout={(e) => drag.rects.current.set(key, e.nativeEvent.layout)}
+                  style={[styles.tile, rect, editing && styles.editable, drag.active === key && styles.dragged]}
                 >
                   <Pressable
                     style={({ pressed }) => [styles.fill, editing ? styles.dimmed : pressed && styles.pressed]}
@@ -154,7 +158,13 @@ export function Dashboard({ slug }: { slug: string }) {
                     />
                   </Pressable>
                   {editing ? (
-                    <View style={styles.controls}>
+                    // A tile narrower than the row of controls (one column of three) gets them wrapped over it.
+                    <View
+                      pointerEvents="box-none"
+                      style={
+                        rect.width < CONTROLS_WIDTH + 2 * CONTROLS_INSET ? styles.controlsWrapped : styles.controls
+                      }
+                    >
                       <DragHandle label={`${t.dashboard_drag}: ${title}`} onDrag={drag.handlers(key)} />
                       {index > 0 ? (
                         <IconButton
@@ -163,7 +173,7 @@ export function Dashboard({ slug }: { slug: string }) {
                           onPress={() => reorder(moveTo(keys, key, index - 1))}
                         />
                       ) : null}
-                      {index < keys.length - 1 ? (
+                      {index < grid.tiles.length - 1 ? (
                         <IconButton
                           icon={ChevronRight}
                           label={`${t.dashboard_move_later}: ${title}`}
@@ -193,11 +203,11 @@ function DragHandle({ label, onDrag }: { label: string; onDrag: DragHandlers }) 
 
 /**
  * Drag to reorder: while a tile is dragged, it takes the place of the tile under the pointer (the grid reflows
- * live); on release the order is saved. Tile rectangles come from onLayout, relative to the grid.
+ * live); on release the order is saved. Tile rectangles (relative to the grid) are the ones the grid is drawn with.
  */
 function useDrag(keys: string[], preview: (keys: string[]) => void, commit: (keys: string[]) => void) {
   const grid = useRef<View>(null);
-  const rects = useRef(new Map<string, LayoutRectangle>());
+  const rects = useRef(new Map<string, GridRect>());
   const [active, setActive] = useState<string | null>(null);
   // Latest values for the responder callbacks, which are created once per tile.
   const state = useRef({
@@ -212,6 +222,10 @@ function useDrag(keys: string[], preview: (keys: string[]) => void, commit: (key
 
   const handlers = useMemo(() => {
     const cache = new Map<string, DragHandlers>();
+    const finish = () => {
+      setActive(null);
+      if (state.current.moved) state.current.commit(state.current.keys);
+    };
     return (key: string) => {
       const existing = cache.get(key);
       if (existing) return existing;
@@ -241,11 +255,9 @@ function useDrag(keys: string[], preview: (keys: string[]) => void, commit: (key
           s.keys = next;
           s.preview(next);
         },
-        onPanResponderRelease: () => {
-          setActive(null);
-          if (state.current.moved) state.current.commit(state.current.keys);
-        },
-        onPanResponderTerminate: () => setActive(null),
+        onPanResponderRelease: finish,
+        // Taken over by the system mid-drag: the order shown so far is kept (and saved), never left unsaved.
+        onPanResponderTerminate: finish,
       }).panHandlers;
       cache.set(key, created);
       return created;
@@ -259,7 +271,7 @@ const styles = StyleSheet.create({
   section: { gap: spacing[6] },
   toolbar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing[6] },
   hint: { flex: 1 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
+  tile: { position: "absolute" },
   fill: { flex: 1 },
   pressed: { opacity: opacity.pressed },
   dragged: { opacity: opacity.pressed, ...shadows.selected },
@@ -273,14 +285,26 @@ const styles = StyleSheet.create({
   dimmed: { opacity: opacity.disabled },
   controls: {
     position: "absolute",
-    bottom: spacing[6],
-    right: spacing[6],
+    bottom: CONTROLS_INSET,
+    right: CONTROLS_INSET,
     flexDirection: "row",
     gap: spacing[2],
     padding: spacing[2],
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     ...shadows.floating,
+  },
+  controlsWrapped: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignContent: "center",
+    justifyContent: "center",
+    gap: spacing[2],
   },
   handle: {
     width: sizes.iconButton,

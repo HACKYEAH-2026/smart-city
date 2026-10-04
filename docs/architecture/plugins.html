@@ -342,8 +342,9 @@
               <div data-note-body="widget">
                 <h4>Dashboard widgets</h4>
                 <p>
-                  A fixed <code>size</code> on a two-column grid (<code>w</code> 1–2, <code>h</code> 1–3) and a
-                  <code>render(ctx)</code> returning <code>ui.widget(…)</code> or <code>null</code> to hide it.
+                  A default <code>size</code> on a three-column grid (<code>w</code> 1–3, <code>h</code> 1–3), optional
+                  <code>sizes</code> an admin may switch it to (up to 6) and <code>title</code> (its name in the layout
+                  editor), and a <code>render(ctx)</code> returning <code>ui.widget(…)</code> or <code>null</code> to hide it.
                 </p>
                 <p>
                   Widgets must be <strong>read-only</strong> (<code>dashboardWidgetSchema</code>): no forms, inputs or
@@ -440,7 +441,7 @@
   const definition = callFactory(mod);       // default export is a function; factory(sdk) returns an object
   const manifest = parseManifest(definition); // pluginManifestSchema
   assertViews(definition, manifest);          // every nav.view exists
-  assertDashboardWidgets(definition);         // size { w: 1-2, h: 1-3 } and render()
+  assertDashboardWidgets(definition);         // size { w: 1-3, h: 1-3 }, sizes, title and render()
   assertTables(definition);                   // validateTables: names, refs, indexes
   assertTools(definition);                    // Zod input + handler
   assertStreams(definition);                  // Zod input + handler
@@ -1012,10 +1013,11 @@ RETURN $result;</code></pre>
           <div class="cols">
             <div class="callout">
               <span class="callout-title">Dashboard</span>
-              <code>GET /api/communities/:slug/dashboard</code> renders every widget of every enabled plugin for this
-              user in parallel, drops the ones that return <code>null</code> or fail, and sorts them by the order the
-              place's admins saved (<code>dashboard</code> table, keys <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>);
-              new widgets go last.
+              <code>GET /api/communities/:slug/dashboard</code> resolves the place's layout (<code>communityLayout</code>:
+              the declared widgets of the enabled plugins against what its admins saved in the <code>dashboard</code>
+              table — order, sizes, removed widgets; keys <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>; new widgets go
+              last), renders the widgets on it for this user in parallel and drops the ones that return
+              <code>null</code> or fail. Admins edit the layout with <code>GET/PUT …/dashboard/layout</code>.
             </div>
             <div class="callout">
               <span class="callout-title">After a tool call</span>

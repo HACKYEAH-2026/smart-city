@@ -12,6 +12,7 @@ import {
   PluginError,
   type PluginManifest,
   type PluginModule,
+  sameSize,
   screenSchema,
   summarize,
   type ToolResult,
@@ -41,6 +42,12 @@ export class PluginInputError extends Error {
 }
 
 export type LoadedPlugin = ReturnType<typeof loadPlugin> & { origin: "builtin" | "uploaded" };
+
+/** A dashboard widget as a plugin declares it (see PluginHost.dashboardWidgets). */
+export type DeclaredWidget = { name: string; title: string; size: DashboardWidgetSize; sizes: DashboardWidgetSize[] };
+
+const uniqueSizes = (sizes: DashboardWidgetSize[]): DashboardWidgetSize[] =>
+  sizes.filter((s, i) => sizes.findIndex((o) => sameSize(o, s)) === i);
 
 /**
  * Plugin registry. Built-ins are registered at startup; plugins uploaded via the API are stored
@@ -186,9 +193,17 @@ export class PluginHost {
     return parsed.data && this.signImages(parsed.data);
   }
 
-  /** Widgets a plugin declares, in its order. */
-  dashboardWidgets(plugin: LoadedPlugin): { name: string; size: DashboardWidgetSize }[] {
-    return Object.entries(plugin.definition.dashboardWidgets ?? {}).map(([name, w]) => ({ name, size: w.size }));
+  /**
+   * Widgets a plugin declares, in its order. `title` falls back to the plugin's name; `sizes` = every size an admin
+   * may pick, the default `size` first, repeats dropped.
+   */
+  dashboardWidgets(plugin: LoadedPlugin): DeclaredWidget[] {
+    return Object.entries(plugin.definition.dashboardWidgets ?? {}).map(([name, w]) => ({
+      name,
+      title: w.title ?? plugin.manifest.name,
+      size: w.size,
+      sizes: uniqueSizes([w.size, ...(w.sizes ?? [])]),
+    }));
   }
 
   /** When the user last opened a view of this installation (ctx.lastVisit), or null. */
