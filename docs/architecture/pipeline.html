@@ -543,6 +543,11 @@ authorization: Bearer $PLUGIN_ADMIN_TOKEN
                     does not see files added to a directory it has already read. So every version is a new module — and
                     Bun never unloads modules (a <a href="#limits">known limit</a>).
                   </p>
+                  <p>
+                    A file that is already there holds the same source and is not written again (<code>writeOnce</code>):
+                    under <code>bun --watch</code> (local dev) rewriting a module the API has imported restarts the API,
+                    which killed the plugin builder's job at its final check of a source that had just passed.
+                  </p>
                 </div>
               </li>
               <li data-hl="host db">

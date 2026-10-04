@@ -393,7 +393,7 @@ export const t = {
   build_you: "Twoja prośba",
   build_working: "AI pisze rozszerzenie…",
   build_working_attempt: "Sprawdzanie kodu, próba",
-  build_working_hint: "To zwykle trwa około minuty. Możesz zostawić ten ekran otwarty.",
+  build_working_hint: "To zwykle trwa około minuty. Możesz zamknąć ten ekran i wrócić później: AI pracuje dalej.",
   build_views: ["widok", "widoki", "widoków"],
   build_tools: ["akcja", "akcje", "akcji"],
   build_tables: ["tabela", "tabele", "tabel"],

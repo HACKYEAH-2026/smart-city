@@ -59,7 +59,7 @@ just                   # lista skrótów (api, app, usb, plugin, verify, test, e
 bun install
 bun run dev            # API + aplikacja Expo bez mprocs (i bez przekierowania portów USB: `just usb`)
 bun run plugin:upload <katalog-wtyczki>   # wgraj nową wtyczkę w locie
-bun run verify         # lint, typy, testy, schemat bazy, E2E, build, Android (w nix develop .#android)
+bun run verify         # lint, typy, testy, schemat bazy (szybko); E2E: bun run e2e, Android: bun run android
 ```
 
 Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md). Jak działa architektura (interaktywnie, otwórz w przeglądarce): [docs/architecture/index.html](docs/architecture/index.html).

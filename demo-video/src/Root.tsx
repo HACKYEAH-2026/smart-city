@@ -5,6 +5,7 @@ import { DURATION as NEEDS_DURATION } from "./ads/needs/timing";
 import { AdProblems } from "./ads/problems/Ad";
 import { DURATION as PROBLEMS_DURATION } from "./ads/problems/timing";
 import { FPS } from "./ads/shared/timing";
+import { FPS as LOOP_FPS, SIZE as LOOP_SIZE, LoginLoop, loopFrames, VARIANTS } from "./login/Loop";
 import { AppUi } from "./scenes/AppUi";
 import { DURATION, Video } from "./Video";
 
@@ -23,6 +24,18 @@ export const Root: React.FC = () => (
       width={1920}
       height={1080}
     />
+    {(Object.keys(VARIANTS) as (keyof typeof VARIANTS)[]).map((variant) => (
+      <Composition
+        key={variant}
+        id={`LoginLoop${variant.toUpperCase()}`}
+        component={LoginLoop}
+        durationInFrames={loopFrames(variant)}
+        fps={LOOP_FPS}
+        width={LOOP_SIZE}
+        height={LOOP_SIZE}
+        defaultProps={{ variant }}
+      />
+    ))}
     <Composition id="AppUi" component={AppUi} durationInFrames={90} fps={30} width={1920} height={1080} />
   </>
 );

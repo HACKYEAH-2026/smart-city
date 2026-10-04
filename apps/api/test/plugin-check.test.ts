@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MAX_CHECK_ISSUES, type PluginCheck } from "@app/plugin-sdk";
 import ts from "typescript";
@@ -77,7 +78,8 @@ describe("plugin check", () => {
     });
     const list = (await (await ctx.request("/api/admin/plugins", { headers: platform })).json()) as { id: string }[];
     expect(list.map((p) => p.id)).not.toContain("notes");
-  });
+    // One full check per plugin in plugins/ and the fixture: 16 s at load ~60, past the default 30 s when it peaks.
+  }, 120_000);
 
   test("syntax: the first syntax error with its position", async () => {
     const ctx = await start();
@@ -214,6 +216,22 @@ describe("plugin check", () => {
     const { line, column } = notez(source);
     expect(body.errors[0]).toMatchObject({ line, column });
     expect(body.message).toStartWith(`types: line ${line}:${column}: Property 'notez' does not exist`);
+  });
+
+  test("checking the same source again leaves its module file alone (a rewrite restarts `bun --watch` mid-build)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "plugin-check-"));
+    try {
+      t = await setup({ PLUGINS_DIR: dir });
+      expect((await check(t, NOTES)).status).toBe("ok");
+      const files = readdirSync(dir).map((hash) => join(dir, hash, "plugin.ts"));
+      expect(files).toHaveLength(1);
+      const written = statSync(files[0] ?? "").mtimeMs;
+      await Bun.sleep(20);
+      expect((await check(t, NOTES)).status).toBe("ok");
+      expect(statSync(files[0] ?? "").mtimeMs).toBe(written);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("type checking works from the recorded snapshot alone, mounted where no repo exists (production image)", async () => {

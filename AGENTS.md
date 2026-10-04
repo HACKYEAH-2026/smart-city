@@ -34,8 +34,11 @@ It only adds rules, it never overrides them. On conflict, AGENTS.md wins.
 A task is done only when `bun run verify` exits with code 0 and the report contains its real
 output (the summary table). "Should work" is not evidence.
 `VERIFY_SKIP` is not a green verify — report every skipped stage with a reason.
-Run commands in `nix develop` (or via direnv: `.envrc`); the full `verify` (with the Android build)
-in `nix develop .#android`.
+Run commands in `nix develop` (or via direnv: `.envrc`).
+`verify` is the fast gate (lint, types, unit, integration, schema). The slow stages are separate commands, run
+when the change needs them, with their output in the report too: a screen or user flow changed → its Playwright
+specs (`bunx playwright test e2e/<file>.spec.ts` in `apps/app`); a native change (`app.config.ts`, a native
+package) → `bun run android` in `nix develop .#android`.
 
 ## Order of work
 1. E2E tests from the acceptance criteria first (`apps/app/e2e/*.spec.ts`); they must fail.
@@ -44,9 +47,8 @@ in `nix develop .#android`.
 
 While working, run only the checks for what you changed: `bun test` in the touched package or plugin, one
 integration file (`bun scripts/bun-test.ts apps/api/test/<file>.test.ts`), one Playwright spec
-(`bunx playwright test e2e/<file>.spec.ts` in `apps/app`), `bun run typecheck`. The full `bun run verify` (~10 min,
-most of it the Android build; many sessions share this machine) runs once, right before the commit — not after
-every step.
+(`bunx playwright test e2e/<file>.spec.ts` in `apps/app`), `bun run typecheck`. `bun run verify` runs once, right
+before the commit — not after every step (many sessions share this machine).
 
 ## New platform resource = copy the "communities" pattern
 | Layer | Pattern file |

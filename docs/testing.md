@@ -31,8 +31,8 @@ wrote it. The E2E API process logs warnings and errors only (`LOG_LEVEL=warn` in
   an auto-fixture `POST /__test/reset` before every test, the API address passed to the frontend via `window.__API_URL__`.
 - Frontend: the production static Expo export (`expo export -p web`) served by `scripts/serve.ts` on a random port
   (`playwright.config.ts`). `bun run e2e` exports first; `E2E_PREBUILT=1 bun run e2e` serves the existing `dist/`
-  (verify does this after its build stage; use it locally when only specs changed).
+  (use it when only specs changed). E2E is not part of `bun run verify`: run the specs a change touches.
 - Shared helpers (`register`, `loginAdmin`, `signOut`, `PASSWORD`, `DEMO_ADMIN`) live in `fixtures.ts`; import them
   instead of copying (`plugins.spec.ts` still has its own copies, not migrated yet).
-- Native screens: covered by the Android build (verify) and iOS (CI); on-device E2E (Maestro/Detox) is deliberately out of scope.
+- Native screens: covered by the Android build (`bun run android`) and iOS (CI); on-device E2E (Maestro/Detox) is deliberately out of scope.
 - `/__test/reset` exists only in `test-server.ts` (NODE_ENV=test); `apps/api/scripts/build.ts` fails if it ends up in the bundle.
