@@ -37,7 +37,7 @@ export const Root: React.FC = () => (
       id="AdNeeds2"
       component={AdNeeds2}
       durationInFrames={NEEDS2_DURATION}
-      defaultProps={{ captions: true }}
+      defaultProps={{ captions: false }}
       {...AD}
     />
     <Composition

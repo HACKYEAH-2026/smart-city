@@ -6,7 +6,7 @@ Each folder is one ad, developed on its own and compared with the others before 
 |---|---|---|
 | `problems/` | `AdProblems` | opens on what goes wrong in a city today, then the app and the AI plugin builder (draft, captions) |
 | `needs/` | `AdNeeds` | a city, a campus and a housing cooperative need different things; one app fits each (44 s, voiced) |
-| `needs-2/` | `AdNeeds2` | second cut of `needs`: a fourth panel „i więcej”, the city's questions answered at once, the builder's publish reaching every member live (draft, captions) |
+| `needs-2/` | `AdNeeds2` | second cut of `needs`: a fourth panel „i więcej”, the city's questions answered at once, the builder's publish reaching every member live (53 s, voiced) |
 
 A variant has `script.ts` (the narration, one beat per scene), `timing.ts` (room around each beat), `scenes.tsx`
 (one component per beat) and `Ad.tsx` (the composition, registered in `src/Root.tsx`). Everything a variant
