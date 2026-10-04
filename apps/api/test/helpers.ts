@@ -54,7 +54,7 @@ export async function setup(
 ) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
-  const { app, auth, plugins, notifications, builder } = createApp({
+  const { app, auth, plugins, notifications, builder, files } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
@@ -124,6 +124,7 @@ export async function setup(
     plugins,
     notifications,
     builder,
+    files,
     push,
     request,
     signUp,

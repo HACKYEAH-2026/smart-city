@@ -14,9 +14,12 @@ Hasło (prezentacja, reklamy, README): **„Twoje Miejsce. Rośnie razem z Twoim
 
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
 - Administrator społeczności (np. urząd miasta): zarządza treściami wtyczek (np. zmienia status zgłoszeń).
-  Demo: `admin@krakow.test` / `password`.
-- Mieszkanka (lokalne API): `anna@krakow.test` / `password`, członkini trzech miejsc: Kraków (domyślne),
-  Kampus Główny (uczelnia) i Spółdzielnia Słoneczna (spółdzielnia mieszkaniowa).
+  Demo: `admin@krakow.test` / `password` (Urząd Miasta, Kraków), `admin@arena.test` / `password` (obsługa
+  Tauron Areny).
+- Mieszkanka (lokalne API): `anna@krakow.test` / `password`, członkini czterech miejsc: Kraków (domyślne),
+  Tauron Arena Kraków (uczestniczka wydarzenia), Kampus Główny (uczelnia) i Spółdzielnia Słoneczna (spółdzielnia
+  mieszkaniowa). Inni mieszkańcy z własnymi zgłoszeniami i wpisami, np. `piotr@krakow.test` / `password`
+  (wszyscy: `apps/api/src/test-demo.ts`).
 - Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie
@@ -32,7 +35,8 @@ Hasło (prezentacja, reklamy, README): **„Twoje Miejsce. Rośnie razem z Twoim
 ## Status demo
 
 W demo nie ma weryfikacji tożsamości (dołączanie kodem, linkiem, kodem QR albo z zaproszenia); mObywatel jest w v2.
-Co jest w demo, a co po hackathonie: `ROADMAP.md`. Społeczność demo: „Kraków”.
+Co jest w demo, a co po hackathonie: `ROADMAP.md`. Społeczność demo: „Kraków”; drugie miejsce demo (lokalne API):
+„Tauron Arena Kraków” w trakcie wydarzenia. Ich zgłoszenia, ogłoszenia i dyskusje to zmyślone dane demo.
 
 ## Język
 

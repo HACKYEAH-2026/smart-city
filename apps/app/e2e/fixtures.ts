@@ -135,6 +135,15 @@ export const seedResident = async (apiUrl: string) => {
   if (!res.ok) throw new Error(`seedResident ${res.status}`);
 };
 
+/**
+ * Seeds the whole local demo, as the dev API does on start: the resident's places and the demo content (accounts,
+ * Kraków's and the Tauron Arena's reports, announcements and discussions; apps/api/src/test-demo.ts).
+ */
+export const seedDemoContent = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/__test/demo`, { method: "POST" });
+  if (!res.ok) throw new Error(`seedDemoContent ${res.status}`);
+};
+
 /** The password of every user a test registers (register). */
 export const PASSWORD = "password123";
 /**
@@ -146,6 +155,8 @@ export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } a
 export const DEMO_ADMIN_NAME = "Urząd Miasta";
 /** A resident of Kraków, a campus and a cooperative: DEMO_RESIDENT in apps/api/src/test-routes.ts (copied too). */
 export const DEMO_RESIDENT = { email: "anna@krakow.test", password: "password" } as const;
+/** The Tauron Arena's admin: DEMO_ARENA_ADMIN in apps/api/src/test-demo.ts (copied too). */
+export const DEMO_ARENA_ADMIN = { email: "admin@arena.test", password: "password" } as const;
 
 /** Registers and lands on the dashboard; a new user has no places yet. */
 export const register = async (page: Page, email: string) => {

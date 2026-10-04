@@ -3,11 +3,13 @@ import { testGoogleIdToken } from "../../api/src/test-google";
 import { t } from "../src/texts";
 import {
   DEMO_ADMIN,
+  DEMO_ARENA_ADMIN,
   DEMO_RESIDENT,
   expect,
   joinKrakow,
   PASSWORD,
   register,
+  seedDemoContent,
   seedResident,
   signOut,
   test,
@@ -73,6 +75,28 @@ test("dev login as the demo resident: Kraków first, a member of the campus and 
     await expect(places.getByRole("link", { name: new RegExp(name) })).toBeVisible();
   }
   await expect(places.getByText(t.role_admin)).toHaveCount(0);
+});
+
+test("dev demo: the arena admin lands in the Tauron Arena; Anna's Kraków shows the most voted reports", async ({
+  page,
+  api,
+}) => {
+  await seedDemoContent(api.url);
+  await turnOnDevLogin(page);
+  await page.goto("/login");
+  await devLoginButton(page, DEMO_ARENA_ADMIN.email).click();
+  await expect(page.getByRole("heading", { name: "Tauron Arena Kraków", level: 1 })).toBeVisible();
+  await expect(page.getByText("Szatnia przy wejściu B czynna do końca wydarzenia")).toBeVisible();
+
+  await signOut(page);
+  await devLoginButton(page, DEMO_RESIDENT.email).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+  const popular = page.getByRole("list", { name: "Najpopularniejsze zgłoszenia" });
+  await expect(popular.getByText("Za krótkie zielone światło dla pieszych przy placu Inwalidów")).toBeVisible();
+
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_account }).click();
+  const places = page.getByRole("list", { name: t.account_places_label });
+  await expect(places.getByRole("link", { name: /Tauron Arena Kraków/ })).toBeVisible();
 });
 
 test("wrong password shows an error and does not let you in", async ({ page }) => {

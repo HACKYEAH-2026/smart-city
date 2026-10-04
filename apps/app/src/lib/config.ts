@@ -15,12 +15,15 @@ export function apiBaseUrl(): string {
 
 export type DevLoginAccount = { email: string; password: string };
 /**
- * Accounts the dev API seeds (apps/api/src/test-routes.ts; PRODUCT.md): the demo place's admin (DEMO_ADMIN) and a
- * resident of Kraków, a campus and a cooperative (DEMO_RESIDENT).
+ * Accounts the dev API seeds (apps/api/src/test-routes.ts and test-demo.ts; PRODUCT.md): the demo place's admin
+ * (DEMO_ADMIN), a resident of Kraków, the Tauron Arena, a campus and a cooperative (DEMO_RESIDENT), the Tauron Arena's
+ * admin (DEMO_ARENA_ADMIN) and a resident with reports of his own in Kraków and in the arena.
  */
 const DEV_LOGIN_ACCOUNTS: DevLoginAccount[] = [
   { email: "admin@krakow.test", password: "password" },
   { email: "anna@krakow.test", password: "password" },
+  { email: "admin@arena.test", password: "password" },
+  { email: "piotr@krakow.test", password: "password" },
 ];
 
 /**

@@ -42,8 +42,9 @@ const mapPlace = (slug: string, name: string, kind: PlaceKind, address: string, 
 });
 /**
  * Public places of Kraków for the map of places in local dev, so it is not a single pin: universities, offices,
- * libraries, culture, parks, hospitals… (40 pins with the demo place at the city hall). No members and no plugins: a
- * pin with a card. Names, addresses and points from OpenStreetMap (looked up once with Photon and Nominatim).
+ * libraries, culture, parks, hospitals… (40 pins with the demo place at the city hall and the Tauron Arena, a place
+ * of the demo in test-demo.ts). No members: a pin with a card, open to join (seedDemoMap). Names, addresses and points
+ * from OpenStreetMap (looked up once with Photon and Nominatim).
  */
 export const DEMO_MAP_PLACES = [
   mapPlace("uj", "Uniwersytet Jagielloński", "school", "Gołębia 24, 31-007 Kraków", 50.06086, 19.93324),
@@ -185,7 +186,6 @@ export const DEMO_MAP_PLACES = [
     50.06842,
     19.94789,
   ),
-  mapPlace("tauron-arena", "Tauron Arena Kraków", "other", "Stanisława Lema 7, 31-571 Kraków", 50.06772, 19.99155),
   mapPlace("stary-kleparz", "Stary Kleparz", "other", "Rynek Kleparski 20, 31-150 Kraków", 50.06738, 19.94109),
   mapPlace("park-wodny", "Park Wodny", "other", "Dobrego Pasterza 126, 31-478 Kraków", 50.08889, 19.98279),
   mapPlace(
@@ -215,7 +215,7 @@ type ResidentPlace = {
   pluginIds: string[];
 };
 /** On the map of places for everyone signed in, and joined by anyone (from the map, or with the code). */
-const PUBLIC_AND_OPEN = { on_map: true, join_rule: "open" } as const;
+export const PUBLIC_AND_OPEN = { on_map: true, join_rule: "open" } as const;
 /**
  * DEMO_RESIDENT's places besides Kraków: the campus and the housing cooperative of the demo video's ads, each with
  * only the plugins it needs. Made-up places on real addresses (points from Nominatim). Like Kraków, both are on the
@@ -257,13 +257,13 @@ async function seedAccount({ db, auth }: Deps, account: { email: string; passwor
   return existing ? keyOf(existing) : (await auth.api.signUpEmail({ body: { ...account } })).user.id;
 }
 
-async function seededCommunity(db: Db, slug: string) {
+export async function seededCommunity(db: Db, slug: string) {
   const row = await communityBySlug(db, slug);
   if (!row) throw new Error(`seed: community ${slug} missing`);
   return toCommunity(row);
 }
 
-function builtinPlugin(plugins: PluginHost, id: string) {
+export function builtinPlugin(plugins: PluginHost, id: string) {
   const plugin = plugins.get(id);
   if (plugin?.origin !== "builtin") throw new Error(`seed: no built-in plugin ${id}`);
   return plugin;
