@@ -139,15 +139,40 @@ describe("the map of places", () => {
     expect(slug).toBe("wawel"); // the seed has a "wawel" too
     await t.db.query(surql`CREATE community CONTENT { slug: "stare", name: "Stare", location: ${geoPoint(FLORIANSKA)},
                                                       on_map: true };`);
-    await seedDemoMap(t.db);
-    await seedDemoMap(t.db);
+    await seedDemoMap(t);
+    const codesBefore = (await mapOf(await t.signUp({ place: null }))).map((p) => p.inviteCode);
+    await seedDemoMap(t);
 
-    const map = await mapOf(await t.signUp({ place: null }));
+    const stranger = await t.signUp({ place: null });
+    const map = await mapOf(stranger);
     expect(map).toHaveLength(DEMO_MAP_PLACES.length);
-    expect(map.filter((p) => p.name === "Wawel")).toEqual([expect.objectContaining(FLORIANSKA)]);
+    expect(map.filter((p) => p.name === "Wawel")).toEqual([
+      expect.objectContaining({ ...FLORIANSKA, joinRule: "approval", inviteCode: null }),
+    ]);
     expect(map.map((p) => p.name)).not.toContain("Stare");
     for (const place of DEMO_MAP_PLACES.filter((p) => p.slug !== "wawel")) {
-      expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null }));
+      expect(map).toContainEqual(expect.objectContaining({ ...place, slug: null, joinRule: "open" }));
     }
+    // Every pin is open to join from the map, with its own code that survives a restart of the dev API.
+    const pins = map.filter((p) => p.name !== "Wawel");
+    const codes = pins.map((p) => p.inviteCode ?? "");
+    expect(codes.every((code) => /^[A-HJ-NP-Z2-9]{6}$/.test(code))).toBe(true);
+    expect(new Set(codes).size).toBe(pins.length);
+    expect(map.map((p) => p.inviteCode)).toEqual(codesBefore);
+
+    // A joined pin has the built-in plugins, like Kraków; the owner's own "Wawel" got none.
+    const nav = async (u: TestUser, s: string) =>
+      (
+        (await (await t.request(`/api/communities/${s}/nav`, { headers: u.headers })).json()) as { pluginId: string }[]
+      ).map((n) => n.pluginId);
+    const joined = await t.request("/api/communities/join", {
+      method: "POST",
+      headers: stranger.headers,
+      json: { code: codes[0] },
+    });
+    expect(joined.status).toBe(200);
+    const pin = (await joined.json()) as { slug: string };
+    expect(await nav(stranger, pin.slug)).toEqual(["issues", "announcements", "discussions"]);
+    expect(await nav(owner, "wawel")).toEqual([]);
   });
 });

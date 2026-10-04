@@ -46,7 +46,7 @@ await seedDemo(deps);
 // A resident of Kraków, a campus and a cooperative for local dev; /__test/reset (E2E) starts without them.
 await seedDemoResident(deps);
 // More pins on the map of places for local dev; /__test/reset (E2E) starts from the demo place alone.
-await seedDemoMap(handle.db);
+await seedDemoMap(deps);
 app.route("/", createTestRoutes(deps));
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
