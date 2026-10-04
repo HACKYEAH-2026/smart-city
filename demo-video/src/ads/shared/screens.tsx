@@ -87,10 +87,13 @@ const STATUS = {
 export type Status = keyof typeof STATUS;
 
 /** "1 osoba zgłasza", "3 osoby zgłaszają", "5 osób zgłasza" (the issues plugin's wording). */
-const supporters = (n: number) => {
+export const supporters = (n: number) => {
   const few = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
   return n === 1 ? "1 osoba zgłasza" : few ? `${n} osoby zgłaszają` : `${n} osób zgłasza`;
 };
+
+/** Residents who already report the lamp when the viewer's report joins it (then one more). */
+export const REPORTERS = 16;
 
 export const ISSUE = {
   title: "Nie świeci latarnia przy przystanku",

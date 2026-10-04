@@ -6,6 +6,7 @@ import { colors, Icon } from "../../app-ui";
 import { FONT, ramp, rise, useSpring } from "./kit";
 import { CLIP_SECONDS, type MediaId, mediaUrl } from "./media";
 import { Phone, SCREEN } from "./Phone";
+import { supporters } from "./screens";
 
 /**
  * Pieces every ad's scenes are built from: the city map backdrop, a phone placed in 3D, the app's screen pushes,
@@ -208,28 +209,19 @@ export const LeftShade = () => (
   />
 );
 
-export const Counter = ({ at }: { at: number }) => {
+/** The big count of residents reporting one issue: it rolls up from 1 to `to`, worded like the issues plugin. */
+export const Counter = ({ at, to }: { at: number; to: number }) => {
   const frame = useCurrentFrame();
-  const n = Math.min(4, Math.max(1, 1 + Math.floor((frame - at) / 4)));
-  const bump = frame - at < 16 && (frame - at) % 4 < 2 ? 0.06 : 0;
+  const n = Math.max(1, Math.min(to, 1 + Math.round(ramp(frame, at, at + 24) * (to - 1))));
+  const [count, ...words] = supporters(n).split(" ");
   const p = useSpring(at, 12);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 30, ...rise(p, 40) }}>
-      <div
-        style={{
-          fontFamily: FONT.bold,
-          fontSize: 300,
-          lineHeight: 0.9,
-          color: colors.primary,
-          transform: `scale(${1 + bump})`,
-        }}
-      >
-        {n}
-      </div>
+      <div style={{ fontFamily: FONT.bold, fontSize: 300, lineHeight: 0.9, color: colors.primary }}>{count}</div>
       <div style={{ fontFamily: FONT.bold, fontSize: 72, lineHeight: 1.05, color: colors.text }}>
-        osoby
+        {words[0]}
         <br />
-        zgłaszają
+        {words.slice(1).join(" ")}
       </div>
     </div>
   );

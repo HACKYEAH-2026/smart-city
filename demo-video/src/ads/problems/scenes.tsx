@@ -39,6 +39,7 @@ import {
   ManageScreen,
   mergeView,
   PluginScreen,
+  REPORTERS,
   ScannerScreen,
   type Status,
 } from "../shared/screens";
@@ -308,7 +309,7 @@ const FAN = [
 
 const FAN_WIDGETS = {
   estate: [announcementsWidget("Zebranie wspólnoty w czwartek o 18:00")],
-  city: [issuesWidget(3)],
+  city: [issuesWidget(REPORTERS)],
   campus: [announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji")],
 };
 
@@ -411,7 +412,7 @@ export const JoinScene = () => {
                 />
               ),
             },
-            { at: inside, node: <DashboardScreen widgets={[issuesWidget(3)]} /> },
+            { at: inside, node: <DashboardScreen widgets={[issuesWidget(REPORTERS)]} /> },
           ]}
         />
         <Flash at={lock} />
@@ -451,7 +452,7 @@ export const ReportScene = () => {
       <PhoneAt pose={pose}>
         <Pushed
           screens={[
-            { at: 0, node: <DashboardScreen widgets={[issuesWidget(3)]} /> },
+            { at: 0, node: <DashboardScreen widgets={[issuesWidget(REPORTERS)]} /> },
             {
               at: form,
               node: (
@@ -467,7 +468,13 @@ export const ReportScene = () => {
             {
               at: joined + 6,
               node: (
-                <PluginScreen node={detailView({ support: frame >= count ? 4 : 3, status: "open", admin: false })} />
+                <PluginScreen
+                  node={detailView({
+                    support: frame >= count ? REPORTERS + 1 : REPORTERS,
+                    status: "open",
+                    admin: false,
+                  })}
+                />
               ),
             },
           ]}
@@ -509,7 +516,7 @@ export const ReportScene = () => {
                   opacity: layer === 0 ? Math.min(1, card * 1.5) : (1 - merged) * 0.75 * card,
                 }}
               >
-                <IssueCard support={layer === 0 && frame >= one ? 4 : 1} />
+                <IssueCard support={layer === 0 && frame >= one ? REPORTERS + 1 : REPORTERS} />
               </div>
             ))}
           </div>
@@ -517,7 +524,7 @@ export const ReportScene = () => {
         </div>
       ) : (
         <div style={{ position: "absolute", left: 1040, top: 360 }}>
-          <Counter at={count - 2} />
+          <Counter at={count - 2} to={REPORTERS + 1} />
         </div>
       )}
     </Light>
@@ -549,12 +556,12 @@ export const CityScene = () => {
         style={{ position: "absolute", left: 0, right: 0, top: 54 }}
       />
       <PhoneAt pose={{ x: 690, y: 640, scale: 0.8, rotY: 18 }}>
-        <PluginScreen node={detailView({ support: 4, status, admin: true })} />
+        <PluginScreen node={detailView({ support: REPORTERS + 1, status, admin: true })} />
         <Tap x={75} y={338} at={accepted - 2} />
         <Tap x={242} y={338} at={fixed - 2} />
       </PhoneAt>
       <PhoneAt pose={{ x: 1230, y: 640, scale: 0.8, rotY: -18 }}>
-        <PluginScreen node={detailView({ support: 4, status, admin: false })} />
+        <PluginScreen node={detailView({ support: REPORTERS + 1, status, admin: false })} />
       </PhoneAt>
       <div style={{ position: "absolute", left: 690, top: 196, transform: "translateX(-50%)" }}>
         <Eyebrow>Urząd miasta</Eyebrow>
@@ -611,7 +618,7 @@ export const BuilderScene = () => {
   const main: Pose = inGrid
     ? { x: 960, y: 600, scale: 0.5 }
     : { x: 1290, y: 545, rotY: -10, opacity: frame >= phoneIn ? 1 : 0 };
-  const residents = [budgetWidget(), issuesWidget(4, "fixed")];
+  const residents = [budgetWidget(), issuesWidget(REPORTERS + 1, "fixed")];
   return (
     <Light drift={0.9}>
       <Center style={{ opacity: frame < phoneIn ? 1 : 0 }}>
