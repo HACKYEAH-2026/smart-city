@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import Head from "expo-router/head";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BackButton, Screen, Text } from "../components";
+import { BackButton, Screen, Text, Toast } from "../components";
 import { usePluginView } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { uploadPluginImage } from "../lib/upload";
@@ -15,7 +15,7 @@ import { PluginSheet } from "../plugins/PluginSheet";
 import { isFloating, isFooter, PluginRenderer } from "../plugins/Renderer";
 import { PluginScreenHeader } from "../plugins/ScreenHeader";
 import { t } from "../texts";
-import { colors, layout, radii, spacing } from "../theme";
+import { layout, sizes, spacing } from "../theme";
 
 type ScreenNode = Extract<UINode, { type: "Screen" }>;
 
@@ -56,6 +56,7 @@ export default function PluginView() {
   const renderer = { onAction: actions.onAction, busy: actions.busy, upload, showOverlay: overlays.showOverlay };
   // A chat's message field, pinned above the keyboard (it empties itself on send, keeping the keyboard open).
   const footer = node?.children.find(isFooter);
+  const floating = (node?.children ?? []).filter(isFloating);
 
   return (
     <Screen
@@ -65,10 +66,12 @@ export default function PluginView() {
       footer={footer ? <PluginRenderer node={footer} {...renderer} /> : undefined}
       overlay={
         <>
-          {(node?.children ?? []).filter(isFloating).map((floating, i) => (
+          {floating.map((button, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the floating nodes keep their place in the tree.
-            <PluginRenderer key={i} node={floating} {...renderer} />
+            <PluginRenderer key={i} node={button} {...renderer} />
           ))}
+          {/* A tool's confirmation floats over the bottom, above a floating button; the content does not move. */}
+          <Toast message={toast} lift={floating.length ? sizes.fab + spacing[6] : 0} />
           {overlays.overlay}
           {overlays.sheet ? (
             <PluginSheet
@@ -93,13 +96,6 @@ export default function PluginView() {
       ) : (
         <BackButton href={backHref} />
       )}
-      {toast ? (
-        <View role="status" style={styles.toast}>
-          <Text variant="bodyL" color="primaryPressed">
-            {toast}
-          </Text>
-        </View>
-      ) : null}
       {actions.toolError ? (
         <Text variant="bodyL" color="primaryPressed" role="alert">
           {actions.toolError}
@@ -147,7 +143,6 @@ function LeadGallery({ node, backHref }: { node: Extract<UINode, { type: "Galler
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
   afterGallery: { paddingTop: spacing[8] },
-  toast: { backgroundColor: colors.primaryTint, borderRadius: radii.md, padding: spacing[8] },
   bleed: { marginHorizontal: -layout.screenPaddingX },
   floatingBack: { position: "absolute", left: layout.screenPaddingX },
 });
