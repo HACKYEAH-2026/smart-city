@@ -5,6 +5,7 @@ import { View } from "react-native";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { BrandMark, colors, Icon } from "../../app-ui";
 import { BOOKING_CODE, Checks, CodePanel } from "../shared/builder";
+import { Finale } from "../shared/finale";
 import { Eyebrow, FONT, Headline, keys, rise, Tap, typed, useCue, useScene } from "../shared/kit";
 import type { MediaId } from "../shared/media";
 import {
@@ -551,48 +552,6 @@ export const BuilderScene = () => {
   );
 };
 
-/* ── 7 · outro: the brand and its line ──────────────────────────────────────────────────────────────── */
+/* ── 7 · outro: your home, your estate, your city — Twoje Miejsce (shared/finale.tsx) ─────────────────── */
 
-export const OutroScene = () => {
-  const frame = useCurrentFrame();
-  const name = useCue("twoje");
-  const line = useCue("miarę");
-  return (
-    <AbsoluteFill style={{ background: colors.primary }}>
-      <Center style={{ gap: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
-          <BrandMark size={170} color="onPrimary" />
-          <Headline text="Twoje Miejsce" at={name} spoken variant="snap" size={150} style={{ color: "#FFFFFF" }} />
-        </div>
-        <Headline
-          text="Na miarę Twojej społeczności."
-          at={line - 4}
-          spoken
-          variant="snap"
-          size={64}
-          align="center"
-          style={{ color: "#FFFFFF", fontFamily: FONT.semibold }}
-        />
-        <div
-          style={{
-            marginTop: 50,
-            fontFamily: FONT.semibold,
-            fontSize: 24,
-            letterSpacing: 2.4,
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.75)",
-            ...rise(
-              keys(frame, [
-                [line + 40, 0],
-                [line + 56, 1],
-              ]),
-              16,
-            ),
-          }}
-        >
-          HackYeah 2026 · Smart City
-        </div>
-      </Center>
-    </AbsoluteFill>
-  );
-};
+export const OutroScene = () => <Finale tagline="Na miarę Twojej społeczności." />;

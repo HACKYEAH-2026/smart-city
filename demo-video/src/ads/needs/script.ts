@@ -30,5 +30,5 @@ export const BEATS = [
     id: "builder",
     text: "A gdy czegoś brakuje, administrator opisuje funkcję własnymi słowami, a AI pisze rozszerzenie i je sprawdza.",
   },
-  { id: "outro", text: "Twoje Miejsce. [pause] Na miarę Twojej społeczności." },
+  { id: "outro", text: "Twój dom. [pause] Twoje osiedle. [pause] Twoje miasto. [pause] Twoje Miejsce." },
 ] as const;
