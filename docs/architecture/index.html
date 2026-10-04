@@ -1201,9 +1201,9 @@
           <h2>Quality gates</h2>
           <p class="section-intro">
             A task is done only when <code>bun run verify</code> exits 0 (<code>scripts/verify.ts</code>). The five checks
-            (lint … schema) are independent and run concurrently, each printing its output when it finishes; then build,
-            e2e (on the web export the build just made) and android run in order. Any failure ends the run with a non-zero
-            exit after the summary. Pick a stage.
+            (lint … schema) are independent and run concurrently, each printing its output when it finishes; any failure ends
+            the run with a non-zero exit after the summary. Build, e2e and android are slow, so they are separate commands,
+            run when a change needs them (a screen or flow: its Playwright specs; a native change: android). Pick a stage.
           </p>
           <div class="wide" data-group>
             <div class="pipeline">
@@ -1212,9 +1212,9 @@
               <button class="box" type="button" data-layer="sdk" data-show="unit"><span class="stage-n">3</span><span class="box-title">unit</span><span class="box-sub">concurrent</span></button>
               <button class="box" type="button" data-layer="api" data-show="int"><span class="stage-n">4</span><span class="box-title">integration</span><span class="box-sub">concurrent</span></button>
               <button class="box" type="button" data-layer="db" data-show="dbcheck"><span class="stage-n">5</span><span class="box-title">schema</span><span class="box-sub">concurrent</span></button>
-              <button class="box" type="button" data-show="build"><span class="stage-n">6</span><span class="box-title">build</span><span class="box-sub">then, in order</span></button>
-              <button class="box" type="button" data-layer="app" data-show="e2e"><span class="stage-n">7</span><span class="box-title">e2e</span><span class="box-sub">then, in order</span></button>
-              <button class="box" type="button" data-layer="app" data-show="android"><span class="stage-n">8</span><span class="box-title">android</span><span class="box-sub">then, in order</span></button>
+              <button class="box" type="button" data-show="build"><span class="stage-n">6</span><span class="box-title">build</span><span class="box-sub">on demand</span></button>
+              <button class="box" type="button" data-layer="app" data-show="e2e"><span class="stage-n">7</span><span class="box-title">e2e</span><span class="box-sub">on demand</span></button>
+              <button class="box" type="button" data-layer="app" data-show="android"><span class="stage-n">8</span><span class="box-title">android</span><span class="box-sub">on demand</span></button>
             </div>
             <div class="detail" data-pane="lint">
               <h3>lint + format <code>bun run lint</code></h3>
@@ -1278,8 +1278,8 @@
                 <code>scripts/serve.ts</code> on a random port). Each worker starts its own API
                 (<code>apps/api/src/test-server.ts</code>, <code>mem://</code>, a free port) and every test begins with
                 <code>POST /__test/reset</code>. Tests select by roles and labels, which is why the components set
-                <code>role</code>, <code>aria-level</code>, <code>aria-label</code>. Inside verify the stage serves the build
-                stage's <code>dist/</code> (<code>E2E_PREBUILT=1</code>); a plain <code>bun run e2e</code> exports first.
+                <code>role</code>, <code>aria-level</code>, <code>aria-label</code>. <code>bun run e2e</code> exports first;
+                <code>E2E_PREBUILT=1</code> serves the existing <code>dist/</code> (when only specs changed).
               </p>
               <p class="small muted">
                 <code>/__test/*</code> exists only in <code>test-server.ts</code>, which refuses to start outside
@@ -1298,15 +1298,15 @@
               <h3>android <code>bun run android</code></h3>
               <p>
                 <code>expo prebuild</code> + <code>assembleDebug</code>. Needs <code>JAVA_HOME</code>,
-                <code>ANDROID_HOME</code>, <code>ANDROID_NDK_HOME</code>: run the full verify inside
+                <code>ANDROID_HOME</code>, <code>ANDROID_NDK_HOME</code>: run it inside
                 <code>nix develop .#android</code>.
               </p>
             </div>
           </div>
           <div class="callout warn">
             <span class="callout-title">A skip is not green</span>
-            <code>VERIFY_SKIP=android,e2e</code> marks stages <code>SKIP</code> in the summary; a task reported with a
-            skipped stage must say which and why.
+            <code>VERIFY_SKIP=unit,schema</code> marks checks <code>SKIP</code> in the summary; a task reported with a
+            skipped check must say which and why.
           </div>
           <h3>CI</h3>
           <p>
@@ -1320,7 +1320,7 @@
                 <tr><th>Job</th><th>What</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>verify</code></td><td>The full <code>bun run verify</code> in <code>nix develop .#android</code>; uploads the Playwright report and the debug APK.</td></tr>
+                <tr><td><code>verify</code></td><td><code>bun run verify</code> in <code>nix develop</code> (the five checks).</td></tr>
                 <tr><td><code>ios</code></td><td><code>expo prebuild</code> + an unsigned simulator build on macOS; a signed archive only on tags with signing secrets.</td></tr>
                 <tr><td><code>android-release</code></td><td>Signed AAB, only when the signing secrets exist.</td></tr>
                 <tr><td><code>images</code></td><td>The API image (<code>apps/api/Dockerfile</code>) to GHCR on tags (its condition still names a <code>main</code> branch).</td></tr>

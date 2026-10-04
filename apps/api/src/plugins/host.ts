@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -336,10 +336,7 @@ export class PluginHost {
   private async compile(source: string): Promise<ReturnType<typeof loadPlugin>> {
     // Separate directory per content hash: each version is a new module (import() caches by path),
     // and Bun's resolver doesn't see files added to a directory it has already read.
-    const dir = join(this.dir, Bun.hash(source).toString(16));
-    mkdirSync(dir, { recursive: true });
-    const file = join(dir, "plugin.ts");
-    writeFileSync(file, source);
+    const file = writeOnce(join(this.dir, Bun.hash(source).toString(16)), source);
     let mod: { default?: unknown };
     try {
       mod = await import(file);
@@ -348,6 +345,19 @@ export class PluginHost {
     }
     return loadPlugin(mod.default);
   }
+}
+
+/**
+ * Writes a plugin's source to `<dir>/plugin.ts`, where `dir` is named by the source's hash; a file already there holds
+ * the same source and is left alone. Under `bun --watch` (dev) a rewrite of an imported module restarts the API, which
+ * killed the plugin builder's job at its final check of the source that had just passed.
+ */
+function writeOnce(dir: string, source: string): string {
+  const file = join(dir, "plugin.ts");
+  if (existsSync(file)) return file;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(file, source);
+  return file;
 }
 
 /** Every FileId the tree shows as a photo (the nodes signImages signs). */

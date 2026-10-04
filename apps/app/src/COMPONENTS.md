@@ -69,11 +69,11 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 44×44 dp, ikona 20 dp. Warianty:
 
 - `square` — radius 14, tło `surface`, border `borderSubtle` (przestawianie kafelków na pulpicie),
-- `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówkach ekranów i kroków; wariant sam wysuwa się o margines wokół ikony, więc ikona jest wyrównana do krawędzi treści),
+- `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówkach ekranów i kroków, zamknij w BottomSheet; wariant sam wysuwa się o margines wokół ikony, więc ikona jest wyrównana do krawędzi treści),
 - `round` — radius 22, tło `surface`, border `borderSubtle` (dzwonek powiadomień, awatar „JK" z inicjałami `typography.buttonS`),
 - `roundDark` — radius 22, tło `text`, ikona `onPrimary` (zębatka admina w nagłówku ekranu rozszerzenia; `CountBadge` w rogu nie jest zaimplementowany),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
-- `roundSunken` — radius 22, tło `surfaceSunken` (zamknij w bottom sheet),
+- `roundSunken` — radius 22, tło `surfaceSunken` (zamknij na panelu: zaznaczony widżet w edytorze układu pulpitu, karta miejsca na mapie),
 - `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` (na mapie: „Moja lokalizacja”).
 - **Wstecz nigdy nie ma tła** (ani `square`, ani `round`, ani `floating`), także nad mapą i zdjęciem: zawsze `BackButton` (`plain` + `ChevronLeft`, etykieta „Wróć”).
   Zawsze `accessibilityLabel` (np. „Wróć", „Powiadomienia").
@@ -176,7 +176,7 @@ Biała karta radius 20, `shadows.card` (otwarta: `cardRaised`). Nagłówek (cał
 
 ### PlaceRow (przełącznik miejsc)
 
-Przycisk pełnej szerokości: padding 10/14/10/10, radius 16, gap 14, tło `surface`, border 1.5. Aktywny: border `primary` + `shadows.selected`; nieaktywny: border transparent + `shadows.card`. Zawartość: `PlaceAvatar` 44 → nazwa 16/600 (+ Badge „Domyślne") nad rodzajem `small` `textSecondary`.
+Przycisk pełnej szerokości: padding 10/14/10/10, radius 16, gap 14, tło `surface`, border 1.5. Aktywny: border `primary` + `shadows.selected`; nieaktywny: border transparent + `shadows.card`. Zawartość: `PlaceAvatar` 44 → nazwa 16/600 (+ Badge „Domyślne") nad rodzajem `small` `textSecondary`. Miejsce, którym administrujesz: przed nazwą gwiazdka w kółku (`CircleStar` 18, `primary`, jak odznaka szeryfa, gap 6), a w etykiecie dostępności „Administrator".
 
 ### KeyValueRow
 
@@ -212,7 +212,7 @@ N równych segmentów w rzędzie, wysokość 4, radius 2; wypełnienie `primary`
 
 ### BottomSheet
 
-Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: opcjonalna etykieta `label` (`eyebrow`) nad `headingS` + `IconButton roundSunken` (zamknij). `scrollable`: treść przewija się, gdy arkusz sięga górnej krawędzi (górny odstęp = safe area); `dismissible={false}` (trwa akcja arkusza): bez przeciągania w dół, bez zamykania tłem, zamknij wyłączone. Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
+Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: opcjonalna etykieta `label` (`eyebrow`) nad `headingS` + `IconButton plain` (zamknij, bez tła). `scrollable`: treść przewija się, gdy arkusz sięga górnej krawędzi (górny odstęp = safe area); `dismissible={false}` (trwa akcja arkusza): bez przeciągania w dół, bez zamykania tłem, zamknij wyłączone. Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
 
 ### Pulpit (DashboardHeader + WidgetGrid)
 

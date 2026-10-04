@@ -5,9 +5,19 @@ import { getStaticFiles, staticFile } from "remotion";
  * Gemini image model, clips with Veo. The prompts live here, so each file can be made again and the README can
  * disclose how. While a file is missing, its scene shows a stand-in.
  */
-type Still = { kind: "image"; file: string; prompt: string; edit?: string };
-/** `start`: the clip opens on this frame of another clip (Veo image-to-video), so one shot continues the other. */
-type Clip = { kind: "video"; file: string; prompt: string; start?: { clip: string; second: number } };
+export type Still = { kind: "image"; file: string; prompt: string; edit?: string };
+/**
+ * `start`: the clip opens on this frame of another clip (Veo image-to-video), so one shot continues the other.
+ * `first`: it opens on this still instead; `last`: it ends on this still (Veo first and last frame).
+ */
+export type Clip = {
+  kind: "video";
+  file: string;
+  prompt: string;
+  start?: { clip: string; second: number };
+  first?: string;
+  last?: string;
+};
 
 /** Every generated clip is this long (Veo); a shot longer than what is left of its clip slows the clip down. */
 export const CLIP_SECONDS = 8;

@@ -147,6 +147,17 @@ test("picking a place in the switcher makes it the current place", async ({ page
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 });
 
+test("the place switcher marks the places the user administers", async ({ page, api }) => {
+  await register(page, "badge@example.test");
+  await createPlace(page, "Osiedle Testowe");
+  await joinKrakow(api.url, "badge@example.test");
+  await page.goto("/app");
+  await openSwitcher(page);
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("button", { name: `Osiedle Testowe, ${t.role_admin},` })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Kraków" })).not.toHaveAccessibleName(new RegExp(t.role_admin));
+});
+
 test("creating a place makes it the current place", async ({ page }) => {
   await register(page, "creator@example.test");
   await createPlace(page, "Osiedle Testowe");

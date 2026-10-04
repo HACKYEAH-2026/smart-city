@@ -72,7 +72,7 @@ function OpenSheet({
           icon={X}
           label={t.close}
           onPress={() => ref.current?.close()}
-          variant="roundSunken"
+          variant="plain"
           disabled={!dismissible}
         />
       </View>

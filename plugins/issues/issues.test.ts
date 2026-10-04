@@ -345,6 +345,20 @@ describe("issues: similar reports", () => {
     expect(cards(sheet)[0]?.counter).toEqual({ label: "1 głos", value: 1 });
   });
 
+  test("the AI compares what the problem is, not where: the address is left out, the place is the scope", async () => {
+    const plugin = await setup();
+    const asked: string[] = [];
+    plugin.ai.mockSimilar((query) => {
+      asked.push(query.text);
+      return [];
+    });
+    await report(plugin, "Pierwsza usterka", { location: oldTownAddress });
+    const lema = { lat: 50.0697, lng: 19.9638, address: "Stanisława Lema 7, 31-571 Kraków" };
+    const cups = { title: "Kubki i śmieci", description: "Ktoś zostawia kubki", location: lema };
+    await plugin.as(bob).tool("report", cups);
+    expect(asked).toEqual(["Pierwsza usterka", "Kubki i śmieci. Ktoś zostawia kubki"]);
+  });
+
   test("joining adds the photos, a vote (once) and a follow; the sheet says how many votes it has now", async () => {
     const plugin = await setup();
     lampsAreTheSame(plugin);

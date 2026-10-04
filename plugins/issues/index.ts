@@ -239,9 +239,12 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
         ? `${author.name} (anonimowo)`
         : author.name;
 
-  /** What the AI compares: the title, the description and the address (the same lamp post is at the same address). */
-  const describe = (i: { title: string; description: string; location?: GeoLocation | null }) =>
-    [i.title, i.description, i.location?.address].filter(Boolean).join(". ");
+  /**
+   * What the AI compares: the title and the description, without the address. The place is the scope: the same
+   * problem reported at two addresses of one place is offered for joining (the model judges "same object and place"
+   * and would reject two addresses).
+   */
+  const describe = (i: { title: string; description: string }) => [i.title, i.description].filter(Boolean).join(". ");
 
   /** Votes, comments and photos of the reports, and what this viewer voted, in a few queries. */
   const factsOf = async (ctx: Ctx, list: Issue[]) => {
@@ -634,7 +637,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
   return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "4.0.0",
+    version: "4.0.1",
     icon: "🛠️",
     description:
       "Zgłaszanie usterek ze zdjęciem i miejscem na mapie, podbijanie i odpowiedzi administratorów; AI łączy zgłoszenia tego samego problemu.",

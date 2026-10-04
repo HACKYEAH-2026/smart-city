@@ -65,7 +65,7 @@
           # Default: everything for dev, tests and web (fast, no Android SDK).
           devShells.default = mkShell base { };
 
-          # Full `bun run verify` (with the Android build): nix develop .#android
+          # The Android build (`bun run android`): nix develop .#android
           devShells.android = mkShell (base ++ [ pkgs.jdk17 androidSdk ]) {
             JAVA_HOME = pkgs.jdk17.home;
             ANDROID_HOME = sdkRoot;
