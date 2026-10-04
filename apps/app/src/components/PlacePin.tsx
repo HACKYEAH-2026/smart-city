@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Icon } from "./Icon";
 
 export interface PlacePinProps {
@@ -17,9 +18,9 @@ export function PlacePin({ icon }: PlacePinProps) {
   return (
     <View pointerEvents="none" style={styles.frame}>
       <View style={styles.pin}>
-        <View style={styles.head}>
+        <AccentGradient style={styles.head}>
           <Icon icon={icon} size={sizes.iconM} color="onPrimary" strokeWidth={2} />
-        </View>
+        </AccentGradient>
         <View style={styles.stem} />
       </View>
       <View style={styles.shadow} />

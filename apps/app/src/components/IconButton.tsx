@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet } from "react-native";
 import { tapFeedback } from "../lib/haptics";
 import { borders, type ColorToken, colors, opacity, radii, shadows, sizes } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -76,6 +77,9 @@ export function IconButton({
             ]
       }
     >
+      {variant === "roundDark" ? (
+        <AccentGradient style={[StyleSheet.absoluteFill, { borderRadius: radii.pill }]} />
+      ) : null}
       {icon ? (
         <Icon
           icon={icon}
@@ -124,7 +128,7 @@ const styles = StyleSheet.create({
   },
   roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
   roundOnDark: { borderRadius: radii.pill, backgroundColor: colors.onDarkOverlay },
-  roundDark: { borderRadius: radii.pill, backgroundColor: colors.text },
+  roundDark: { borderRadius: radii.pill, backgroundColor: colors.primary },
   roundOnImage: { borderRadius: radii.pill, backgroundColor: colors.photoOverlay },
   floating: { borderRadius: radii.lg, backgroundColor: colors.surface, ...shadows.floating },
 });

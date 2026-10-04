@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { colors, radii, sizes, type TypographyToken } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -28,16 +29,14 @@ const BOX: Record<IconBoxSize, { side: number; radius: number; emoji: Typography
 /** Rounded square with an accent icon (COMPONENTS.md → IconBox): `primaryTint` background, `primary` icon. */
 export function IconBox({ icon, size = "md", selected = false, neutral = false, dark = false }: IconBoxProps) {
   const box = BOX[size];
-  return (
-    <View
-      style={[
-        styles.box,
-        { width: box.side, height: box.side, borderRadius: box.radius },
-        neutral && styles.neutral,
-        selected && styles.selected,
-        dark && styles.dark,
-      ]}
-    >
+  const frame = [
+    styles.box,
+    { width: box.side, height: box.side, borderRadius: box.radius },
+    neutral && styles.neutral,
+    dark && styles.dark,
+  ];
+  const content = (
+    <>
       {typeof icon === "string" ? (
         <Text variant={box.emoji} aria-hidden>
           {icon}
@@ -45,8 +44,10 @@ export function IconBox({ icon, size = "md", selected = false, neutral = false, 
       ) : (
         <Icon icon={icon} color={selected || dark ? "onPrimary" : neutral ? "text" : "primary"} />
       )}
-    </View>
+    </>
   );
+  // The selected box is the accent gradient; its content is white.
+  return selected ? <AccentGradient style={frame}>{content}</AccentGradient> : <View style={frame}>{content}</View>;
 }
 
 const styles = StyleSheet.create({

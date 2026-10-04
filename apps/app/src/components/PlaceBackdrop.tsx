@@ -18,7 +18,7 @@ import Svg, {
 } from 'react-native-svg';
 import { STREET_ZOOM } from '../lib/map/spec';
 import { t } from '../texts';
-import { colors, layout, opacity, sizes } from '../theme';
+import { colors, gradients, layout, opacity, sizes } from '../theme';
 import { DashboardMap } from './DashboardMap';
 import { MapView } from './MapView';
 import { useScrollY } from './Screen';
@@ -61,10 +61,10 @@ export function PlaceBackdrop({ location }: PlaceBackdropProps) {
           <RadialGradient id='glow' cx='50%' cy='50%' r='50%'>
             <Stop
               offset='0'
-              stopColor={colors.primary}
+              stopColor={gradients.accent[0]}
               stopOpacity={opacity.dashboardGlow / 3}
             />
-            <Stop offset='1' stopColor={colors.primary} stopOpacity='0' />
+            <Stop offset='1' stopColor={gradients.accent[1]} stopOpacity='0' />
           </RadialGradient>
         </Defs>
         <Circle cx='50%' cy='50%' r='50%' fill='url(#glow)' />

@@ -1,9 +1,10 @@
 import { Link as RouterLink } from "expo-router";
 import { Plus } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { tapFeedback } from "../lib/haptics";
 import { usePressed } from "../lib/pressed";
 import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -24,9 +25,9 @@ export function CreateRow({ label, href }: CreateRowProps) {
         onPressOut={press.onPressOut}
         style={StyleSheet.flatten([styles.row, press.pressed && styles.pressed])}
       >
-        <View style={styles.plus}>
+        <AccentGradient style={styles.plus}>
           <Icon icon={Plus} color="onPrimary" strokeWidth={2.2} />
-        </View>
+        </AccentGradient>
         <Text variant="cardTitle">{label}</Text>
       </Pressable>
     </RouterLink>

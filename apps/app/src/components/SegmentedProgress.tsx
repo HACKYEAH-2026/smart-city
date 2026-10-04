@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { colors, motion, sizes, spacing } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 
 export interface SegmentedProgressProps {
   /** How many segments are filled, 0–`segments`; a fraction fills part of a segment. */
@@ -46,7 +47,7 @@ export function SegmentedProgress({ value, segments, gap = spacing[3] }: Segment
         <View key={i} style={styles.segment}>
           <Animated.View
             style={[
-              styles.fill,
+              styles.fillBox,
               {
                 width: progress.interpolate({
                   inputRange: [i, i + 1],
@@ -55,7 +56,9 @@ export function SegmentedProgress({ value, segments, gap = spacing[3] }: Segment
                 }),
               },
             ]}
-          />
+          >
+            <AccentGradient style={StyleSheet.absoluteFill} />
+          </Animated.View>
         </View>
       ))}
     </View>
@@ -71,5 +74,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     overflow: "hidden",
   },
-  fill: { height: "100%", backgroundColor: colors.primary },
+  // The animated width is on the box; the gradient fills it.
+  fillBox: { height: "100%", overflow: "hidden" },
 });

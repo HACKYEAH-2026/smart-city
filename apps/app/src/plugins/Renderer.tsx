@@ -15,6 +15,7 @@ import {
   SuccessMark,
   Text,
 } from "../components";
+import { AccentGradient } from "../components/AccentGradient";
 import { toggleA11y } from "../lib/a11y";
 import { tapFeedback } from "../lib/haptics";
 import { initials } from "../lib/places";
@@ -183,7 +184,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
             aria-valuenow={node.value}
             style={styles.track}
           >
-            <View style={[styles.fill, { width: `${pct}%` }]} />
+            <AccentGradient style={[styles.fill, { width: `${pct}%` }]} />
           </View>
         </View>
       );
@@ -587,10 +588,15 @@ function FloatingAction({ node }: { node: Extract<UINode, { type: "Fab" }> }) {
       onPress={() => onAction(node.action)}
       style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing[12] }, pressed && styles.pressed]}
     >
-      {node.icon ? <Icon icon={UI_ICON[node.icon]} size={sizes.iconM} color="onPrimary" strokeWidth={2} /> : null}
-      <Text variant="button" color="onPrimary">
-        {node.label}
-      </Text>
+      {({ pressed }) => (
+        <>
+          {pressed ? null : <AccentGradient style={[StyleSheet.absoluteFill, { borderRadius: radii.pill }]} />}
+          {node.icon ? <Icon icon={UI_ICON[node.icon]} size={sizes.iconM} color="onPrimary" strokeWidth={2} /> : null}
+          <Text variant="button" color="onPrimary">
+            {node.label}
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -788,7 +794,12 @@ function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
               busy && styles.disabled,
             ]}
           >
-            <Icon icon={Send} size={sizes.iconS} color="onPrimary" strokeWidth={2} />
+            {({ pressed }) => (
+              <>
+                {pressed ? null : <AccentGradient style={[StyleSheet.absoluteFill, styles.sendButton]} />}
+                <Icon icon={Send} size={sizes.iconS} color="onPrimary" strokeWidth={2} />
+              </>
+            )}
           </Pressable>
         </View>
       ) : (

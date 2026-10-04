@@ -4,6 +4,7 @@ import { Pressable, type PressableProps, type StyleProp, StyleSheet, View, type 
 import { tapFeedback } from "../lib/haptics";
 import { usePressed } from "../lib/pressed";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Text } from "./Text";
 
 export type ButtonVariant =
@@ -48,12 +49,17 @@ const RADIUS: Record<ButtonSize, number> = {
   xs: radii.md,
 };
 
-const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; pressedBg: string }> = {
-  primary: { bg: colors.primary, fg: colors.onPrimary, pressedBg: colors.primaryPressed },
+const VARIANT: Record<
+  ButtonVariant,
+  { bg: string; border?: string; fg: string; pressedBg: string; gradient?: boolean }
+> = {
+  // The accent gradient fills the button; `bg` (the first gradient colour) shows only if the gradient is not drawn.
+  primary: { bg: colors.primary, fg: colors.onPrimary, pressedBg: colors.primaryPressed, gradient: true },
   secondary: { bg: colors.surface, border: colors.border, fg: colors.text, pressedBg: colors.surfaceSunken },
   tint: { bg: colors.background, fg: colors.text, pressedBg: colors.surfaceMuted },
   accent: { bg: colors.primaryTint, fg: colors.primaryPressed, pressedBg: colors.primaryTintPressed },
-  dark: { bg: colors.text, fg: colors.surface, pressedBg: colors.textBody },
+  // The dark button is the accent gradient now (white text, as on the primary button).
+  dark: { bg: colors.primary, fg: colors.onPrimary, pressedBg: colors.primaryPressed, gradient: true },
   onDark: { bg: colors.surface, fg: colors.text, pressedBg: colors.surfaceSunken },
   ghost: { bg: "transparent", fg: colors.text, pressedBg: colors.surfaceSunken },
   ghostOnDark: { bg: colors.onDarkOverlay, fg: colors.onPrimary, pressedBg: colors.onPrimaryOverlay },
@@ -93,8 +99,11 @@ export function Button({
     },
     style,
   ];
-  const content = (
+  const content = (pressed: boolean) => (
     <>
+      {v.gradient && !pressed ? (
+        <AccentGradient style={[StyleSheet.absoluteFill, { borderRadius: RADIUS[size] }]} />
+      ) : null}
       {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
       <Text
         variant={size === "lg" ? "button" : size === "md" || size === "sm" ? "buttonM" : "buttonS"}
@@ -122,7 +131,7 @@ export function Button({
         }}
         style={StyleSheet.flatten(frame(link.pressed))}
       >
-        {content}
+        {content(link.pressed)}
       </Pressable>
     );
     // Disabled, it is left out of the router's link (no href on the web), so there is nothing to follow.
@@ -147,7 +156,7 @@ export function Button({
       style={({ pressed }) => frame(pressed)}
       {...rest}
     >
-      {content}
+      {({ pressed }) => content(pressed)}
     </Pressable>
   );
 }

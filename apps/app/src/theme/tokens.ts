@@ -1,16 +1,22 @@
 /**
- * Twoje Miejsce design tokens (direction E · red #E50101).
+ * Twoje Miejsce design tokens (accent: the #D81B60 → #F2545B gradient, see `gradients`).
  * SINGLE SOURCE OF TRUTH for every visual value in the React Native app.
  * Components and screens take values from here (via `../theme`) — never hardcode hex colors,
  * spacing, radii, font sizes or shadows.
  */
 
+/** Accent gradients: from the first colour (top left) to the second (bottom right). */
+export const gradients = {
+  accent: ['#D81B60', '#F2545B'] as const,
+};
+
 export const colors = {
   // Brand
-  primary: '#E50101', // primary CTA, active elements, links, accent icons
-  primaryPressed: '#B30000', // pressed state, text on primaryTint (contrast), destructive text
-  primaryTint: '#FDECEC', // icon/avatar/badge background, success ring
-  primaryTintPressed: '#FAD9D9', // pressed state of an accent button on primaryTint (outside the design)
+  // The first colour of the accent gradient: text, icons, lines and dots use it; large fills use `gradients.accent`.
+  primary: '#D81B60', // primary CTA, active elements, links, accent icons
+  primaryPressed: '#A10F50', // pressed state, text on primaryTint (contrast), destructive text
+  primaryTint: '#FBE8F0', // icon/avatar/badge background, success ring
+  primaryTintPressed: '#F6D2E2', // pressed state of an accent button on primaryTint (outside the design)
   // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
   neutralTint: '#ECEAE5',
   neutralText: '#3E3E46',
@@ -455,7 +461,7 @@ export const typography = {
 export const shadows = {
   none: {},
   redGlow: {
-    shadowColor: '#E50101',
+    shadowColor: '#D81B60',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.24,
     shadowRadius: 14,
@@ -479,7 +485,7 @@ export const shadows = {
   },
   /** Selected card / row (red glow 0 6 18 .12) */
   selected: {
-    shadowColor: '#E50101',
+    shadowColor: '#D81B60',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 9,
@@ -503,7 +509,7 @@ export const shadows = {
   },
   /** Focus glow of a text field (COMPONENTS.md → TextField: 4 dp, primary at .10) */
   focusRing: {
-    shadowColor: '#E50101',
+    shadowColor: '#D81B60',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -555,7 +561,7 @@ export const opacity = {
   /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
   scrim: 0.55,
   /** Dashboard header: the red glow's strength at its centre (fades to 0 at its edge). */
-  dashboardGlow: 0.9,
+  dashboardGlow: 1.2,
   pluginScrim: 0.4,
 } as const;
 

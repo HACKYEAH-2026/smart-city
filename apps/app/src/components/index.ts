@@ -1,3 +1,4 @@
+export { AccentGradient } from "./AccentGradient";
 export type { ActionRowProps } from "./ActionRow";
 export { ActionRow } from "./ActionRow";
 export { AppHeader } from "./AppHeader";
