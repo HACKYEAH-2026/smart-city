@@ -27,6 +27,15 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "cleanliness", label: "Czystość" },
   { value: "other", label: "Inne" },
 ];
+/** A date for residents, in Polish: "2 paź, 18:40". */
+const formatDate = (d: Date) =>
+  new Intl.DateTimeFormat("pl-PL", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+
 /** The tag that says what a report is: a problem (red) or a suggestion (blue). */
 const KIND_TAG = {
   problem: { text: "Problem", tone: "danger", icon: "alert" },
@@ -80,6 +89,18 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
       },
       { indexes: [["status"]] },
     ),
+    /** A step of the report's progress: the status it moved to, and the administrator's note. */
+    statusLog: t.table({
+      issue: t.ref("issues"),
+      status: t.enum(["open", "accepted", "fixed"]),
+      note: t.text().default(""),
+    }),
+    /** A comment under an issue. */
+    comments: t.table({
+      issue: t.ref("issues"),
+      author: t.ref("user"),
+      text: t.text(),
+    }),
     /** A resident's report under an issue (including the first reporter's); one per person per issue. */
     reports: t.table(
       {
@@ -202,7 +223,6 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
     location: GeoLocation,
     tone: "neutral" | "info" | "warning" | "success",
   ) => [
-    ...(location.address ? [ui.text(location.address, "soft")] : []),
     ui.map({
       label: "Miejsce zgłoszenia",
       layers: [
@@ -315,44 +335,51 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
 
       /** "Sugestia" on the dashboard opens this form with the suggestion kind already picked. */
       new: (_ctx, params) =>
-        ui.screen("Nowe zgłoszenie", [
-          ui.form({
-            submitLabel: "Wyślij zgłoszenie",
-            submit: ui.tool("report"),
-            children: [
-              ui.imagePicker({ name: "photo", label: "Zdjęcie (opcjonalnie)" }),
-              ui.select({
-                name: "kind",
-                label: "Rodzaj",
-                options: KINDS,
-                value: params.kind === "suggestion" ? "suggestion" : "problem",
-              }),
-              ui.select({
-                name: "category",
-                label: "Kategoria",
-                variant: "chips",
-                options: CATEGORIES,
-                value: "other",
-              }),
-              ui.textInput({ name: "title", label: "Tytuł" }),
-              ui.textInput({
-                name: "description",
-                label: "Opis",
-                multiline: true,
-              }),
-              ui.locationInput({
-                name: "location",
-                label: "Lokalizacja (opcjonalnie)",
-              }),
-              ui.switch({
-                name: "anonymous",
-                label: "Zgłoś anonimowo",
-                hint: "Członkowie nie zobaczą Twojego imienia",
-                value: false,
-              }),
-            ],
-          }),
-        ]),
+        ui.screen(
+          "Nowe zgłoszenie",
+          [
+            ui.form({
+              submitLabel: "Wyślij zgłoszenie",
+              submit: ui.tool("report"),
+              children: [
+                ui.imagePicker({
+                  name: "photo",
+                  label: "Zdjęcie (opcjonalnie)",
+                }),
+                ui.select({
+                  name: "kind",
+                  label: "Rodzaj",
+                  options: KINDS,
+                  value: params.kind === "suggestion" ? "suggestion" : "problem",
+                }),
+                ui.select({
+                  name: "category",
+                  label: "Kategoria",
+                  variant: "chips",
+                  options: CATEGORIES,
+                  value: "other",
+                }),
+                ui.textInput({ name: "title", label: "Tytuł" }),
+                ui.textInput({
+                  name: "description",
+                  label: "Opis",
+                  multiline: true,
+                }),
+                ui.locationInput({
+                  name: "location",
+                  label: "Lokalizacja (opcjonalnie)",
+                }),
+                ui.switch({
+                  name: "anonymous",
+                  label: "Zgłoś anonimowo",
+                  hint: "Członkowie nie zobaczą Twojego imienia",
+                  value: false,
+                }),
+              ],
+            }),
+          ],
+          { back: ui.navigate("list") },
+        ),
 
       /** Confirmation after a report went in: the report as the residents see it, and a way back to the list. */
       sent: async (ctx, params) => {
@@ -404,42 +431,98 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
           orderBy: { createdAt: "asc" },
           with: { author: true },
         });
-        const mine = reports.some((r) => r.author.id === ctx.user.id);
+        const comments = await ctx.db.comments.findMany({
+          where: { issue: issue.id },
+          orderBy: { createdAt: "asc" },
+          with: { author: true },
+          limit: 500,
+        });
+        const steps = await ctx.db.statusLog.findMany({
+          where: { issue: issue.id },
+          orderBy: { createdAt: "asc" },
+          limit: 100,
+        });
+        const pressed = reports.some((r) => r.author.id === ctx.user.id);
         const status = STATUS[issue.status];
-        return ui.screen(issue.title, [
-          ui.row([ui.badge(status.text, status.tone), ui.badge(categoryLabel(issue.category))]),
-          ui.text(issue.description || "Brak opisu."),
-          ...(issue.location ? issuePlace(issue.id, issue.title, issue.location, status.tone) : []),
-          ...(issue.photo ? [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] : []),
-          ui.stat("Poparcie", supporters(reports.length)),
-          mine
-            ? ui.badge("Zgłaszasz ten problem", "success")
-            : ui.button("Ja też to widzę", ui.tool("support", { id: issue.id })),
-          ...(ctx.user.role === "admin"
-            ? [
-                ui.row([
-                  ui.button("Przyjmij", ui.tool("setStatus", { id: issue.id, status: "accepted" }), "quiet"),
-                  ui.button("Oznacz jako naprawione", ui.tool("setStatus", { id: issue.id, status: "fixed" }), "quiet"),
-                ]),
-              ]
-            : []),
-          ui.heading(`Zgłoszenia użytkowników (${reports.length})`, 3),
-          ui.list(
-            "Zgłoszenia użytkowników",
-            reports.map((r) =>
-              ui.card({
-                title: reporterName(ctx.user, r),
-                ...(r.description ? { subtitle: r.description } : {}),
-                ...(r.photo
-                  ? {
-                      children: [ui.image(r.photo, `Zdjęcie od: ${r.author.name}`)],
-                    }
-                  : {}),
-              }),
+        const kind = KIND_TAG[issue.kind];
+        const reporter = reports[0] ? reporterName(ctx.user, reports[0]) : null;
+        return ui.screen(
+          issue.title,
+          [
+            ...(issue.photo ? [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] : []),
+            ui.tags([
+              { text: kind.text, tone: kind.tone, icon: kind.icon },
+              { text: status.text, tone: status.tone, dot: true },
+            ]),
+            ui.text(
+              [reporter, formatDate(issue.createdAt), categoryLabel(issue.category)].filter(Boolean).join(" · "),
+              "soft",
             ),
-          ),
-          ui.button("Wróć do listy", ui.navigate("list"), "quiet"),
-        ]);
+            ui.text(issue.description || "Brak opisu."),
+            ui.place(issue.location ? (issue.location.address ?? "Lokalizacja na mapie") : "Nie podano miejsca"),
+            // "Podbij" confirms the report again without a second count (the support tool is idempotent).
+            ui.row(
+              [
+                ui.button(
+                  `${pressed ? "Podbite" : "Podbij"} (${reports.length})`,
+                  ui.tool("support", { id: issue.id }),
+                ),
+                ui.share("Udostępnij", `/app/c/${ctx.community.slug}/issues/detail?id=${issue.id}`),
+              ],
+              { grow: true },
+            ),
+            ...(issue.location ? issuePlace(issue.id, issue.title, issue.location, status.tone) : []),
+            ...(ctx.user.role === "admin"
+              ? [
+                  ui.row([
+                    ui.button(
+                      "Przyjmij",
+                      ui.tool("setStatus", {
+                        id: issue.id,
+                        status: "accepted",
+                      }),
+                      "quiet",
+                    ),
+                    ui.button(
+                      "Oznacz jako naprawione",
+                      ui.tool("setStatus", { id: issue.id, status: "fixed" }),
+                      "quiet",
+                    ),
+                  ]),
+                ]
+              : []),
+            ui.heading("Postęp", 3),
+            ui.timeline([
+              {
+                title: "Zgłoszone",
+                at: formatDate(issue.createdAt),
+                tone: "neutral",
+              },
+              ...steps.map((step) => ({
+                title: STATUS[step.status].text,
+                at: formatDate(step.createdAt),
+                ...(step.note ? { text: step.note } : {}),
+                tone: STATUS[step.status].tone,
+              })),
+            ]),
+            ui.heading(`Komentarze (${comments.length})`, 3),
+            ...(comments.length
+              ? [
+                  ui.list(
+                    "Komentarze",
+                    comments.map((c) => ui.card({ title: c.author.name, subtitle: c.text })),
+                  ),
+                ]
+              : [ui.empty("Nie ma jeszcze komentarzy.")]),
+            ui.form({
+              submitLabel: "Wyślij",
+              submit: ui.tool("comment", { id: issue.id }),
+              inline: true,
+              children: [ui.textInput({ name: "text", label: "Dodaj komentarz" })],
+            }),
+          ],
+          { back: ui.navigate("list") },
+        );
       },
     },
 
@@ -581,12 +664,37 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
         input: z.object({
           id: z.string().min(1),
           status: z.enum(["open", "accepted", "fixed"]),
+          note: z.string().trim().max(500).default(""),
         }),
         requires: "admin",
-        handler: async (ctx, { id, status }) => {
+        handler: async (ctx, { id, status, note }) => {
           const updated = await ctx.db.issues.update(id, { status });
           if (!updated) return { error: "To zgłoszenie już nie istnieje." };
+          await ctx.db.statusLog.insert({ issue: id, status, note });
           return { toast: `Status: ${STATUS[status].text}`, refresh: true };
+        },
+      },
+
+      /** A comment under an issue; an empty one is refused with a message for the resident. */
+      comment: {
+        description: "Dodaj komentarz pod zgłoszeniem.",
+        input: z.object({
+          id: z.string().min(1),
+          text: z
+            .string()
+            .trim()
+            .max(500)
+            .refine((text) => text.length > 0, "Napisz komentarz.")
+            .default(""),
+        }),
+        handler: async (ctx, { id, text }) => {
+          if (!(await ctx.db.issues.get(id))) return { error: "To zgłoszenie już nie istnieje." };
+          await ctx.db.comments.insert({
+            issue: id,
+            author: ctx.user.id,
+            text,
+          });
+          return { toast: "Komentarz dodany.", refresh: true };
         },
       },
 

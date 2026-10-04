@@ -607,6 +607,8 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?, icon?)` |
 | Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips", options: [{ label, selected?, action }] })` — options only navigate (sorting, filters); `ui.navigate(view, params, { replace: true })` replaces the view instead of stacking one |
 | Fab | `ui.fab({ label, icon?, action })` — a floating button over the screen (bottom right, outside its scroll), e.g. "Zgłoś"; navigates |
+| Timeline | `ui.timeline([{ title, at?, text?, tone? }])` — the steps of something that moves on (a report's progress): a dot per step (its tone), the date and an optional note |
+| Share | `ui.share(label, path)` — a button that shares a link to a place in the app (`path` starts with `/app/`); the app builds the full address |
 | Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` |
 | Empty | `ui.empty(text)` |
 | Image | `ui.image(fileId, alt)` |

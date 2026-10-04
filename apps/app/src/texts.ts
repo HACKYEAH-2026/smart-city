@@ -271,6 +271,7 @@ export const t = {
   plugin_map_list_show: "Pokaż listę",
   plugin_map_list_hide: "Ukryj listę",
   plugin_map_legend: "Legenda mapy",
+  plugin_progress: "Postęp zgłoszenia",
   // Managing a place (design E-ZarzadzanieMiejscem), for its admins
   manage_title: "Zarządzaj miejscem",
   manage_admins_only: "Tylko administratorzy mogą zarządzać tym miejscem.",

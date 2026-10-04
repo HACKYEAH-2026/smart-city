@@ -131,6 +131,8 @@ export const radii = {
 export const sizes = {
   iconButton: 44,
   buttonLg: 54,
+  /** A square icon button beside a field or a main button (its height matches the button). */
+  squareButton: 54,
   buttonMd: 50,
   buttonSm: 46,
   buttonXs: 40,

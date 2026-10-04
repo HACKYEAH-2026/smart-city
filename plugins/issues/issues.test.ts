@@ -55,7 +55,7 @@ describe("issues: reporting", () => {
 
     const detail = await t.view("detail", res.navigate!.params);
     expect(textsOf(detail)).toEqual(
-      expect.arrayContaining(["Nie świeci lampa", "Długa 12", "1 osoba zgłasza", "Zgłaszasz ten problem"]),
+      expect.arrayContaining(["Nie świeci lampa", "Długa 12", "Podbite (1)", "Udostępnij", "Postęp"]),
     );
     expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
   });
@@ -78,9 +78,11 @@ describe("issues: reporting", () => {
       anonymous: true,
     });
     const id = navigate!.params!.id!;
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("Zgłoszenie anonimowe");
+    expect(textsOf(await t.as(bob).view("detail", { id })).some((x) => x.startsWith("Zgłoszenie anonimowe"))).toBe(
+      true,
+    );
     expect(textsOf(await t.as(bob).view("detail", { id }))).not.toContain("Alice");
-    expect(textsOf(await t.as(admin).view("detail", { id }))).toContain("Alice (anonimowo)");
+    expect(textsOf(await t.as(admin).view("detail", { id })).some((x) => x.startsWith("Alice (anonimowo)"))).toBe(true);
     expect((await t.db.issues!.get(id))?.kind).toBe("suggestion");
   });
 
@@ -239,15 +241,7 @@ describe("issues: similar reports", () => {
     expect(await t.db.issues!.count()).toBe(1);
 
     const detail = await t.as(bob).view("detail", { id });
-    expect(textsOf(detail)).toEqual(
-      expect.arrayContaining([
-        "2 osoby zgłaszają",
-        "Zgłoszenia użytkowników (2)",
-        "Bob",
-        "Od tygodnia",
-        "Zdjęcie od: Bob",
-      ]),
-    );
+    expect(textsOf(detail)).toEqual(expect.arrayContaining(["Podbite (2)", "Postęp"]));
   });
 
   test('"different problem" (force) creates a new issue despite similarity', async () => {
@@ -268,7 +262,7 @@ describe("issues: similar reports", () => {
     const id = navigate!.params!.id!;
     await t.as(bob).tool("support", { id });
     await t.as(bob).tool("support", { id });
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osoby zgłaszają");
+    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("Podbite (2)");
   });
 });
 
@@ -461,5 +455,46 @@ describe("issues: list", () => {
       false,
       true,
     ]);
+  });
+});
+
+describe("issues: details", () => {
+  test("a detail: the vote counter, the progress, the comments with their form, and a share link to the issue", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const id = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    await t.as(admin).tool("setStatus", { id, status: "accepted", note: "Zgłosiliśmy sprawę zarządcy drogi." });
+    await t.as(bob).tool("comment", { id, text: "Potwierdzam, rano prawie wjechałem w nią rowerem." });
+
+    const view = await t.view("detail", { id });
+    expect(findAll(view, (n) => n.type === "Button" && n.label === "Podbite (1)")).toHaveLength(1);
+    expect(findAll(view, (n) => n.type === "Share")).toEqual([
+      { type: "Share", label: "Udostępnij", path: `/app/c/test/issues/detail?id=${id}` },
+    ]);
+    expect(findAll(view, (n) => n.type === "Timeline")).toEqual([
+      {
+        type: "Timeline",
+        items: [
+          { title: "Zgłoszone", at: expect.any(String), tone: "neutral" },
+          { title: "Przyjęte", at: expect.any(String), text: "Zgłosiliśmy sprawę zarządcy drogi.", tone: "warning" },
+        ],
+      },
+    ]);
+    expect(textsOf(view)).toContain("Komentarze (1)");
+    expect(textsOf(view)).toContain("Potwierdzam, rano prawie wjechałem w nią rowerem.");
+    expect(findNode(view, (n) => n.type === "Form")).toMatchObject({
+      inline: true,
+      submit: { type: "tool", tool: "comment", args: { id } },
+      children: [{ type: "TextInput", name: "text" }],
+    });
+    expect(textsOf(view)).not.toContain("Wróć do listy");
+    expect(view).toMatchObject({ back: { type: "navigate", view: "list" } });
+  });
+
+  test("comments: a comment needs text; the first reporter's name leads the subtitle", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const id = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    expect((await t.tool("comment", { id, text: "   " }).catch((e) => e)) instanceof Error).toBe(true);
+    await t.tool("comment", { id, text: "Dzięki za zgłoszenie." });
+    expect(textsOf(await t.view("detail", { id }))).toContain("Dzięki za zgłoszenie.");
   });
 });

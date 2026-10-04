@@ -45,9 +45,9 @@ test("community -> issues plugin: report an issue and find it on the list", asyn
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
   // The sent screen shows the report as residents see it; its card opens the details.
   await page.getByRole("button", { name: "Nie świeci latarnia na Długiej" }).click();
-  await expect(page.getByText("Zgłaszasz ten problem")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Podbite (1)" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Wróć do listy" }).click();
+  await page.getByRole("link", { name: t.back }).click();
   const list = page.getByRole("list", { name: "Lista zgłoszeń" });
   await expect(list.getByRole("button", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
 });
@@ -105,10 +105,7 @@ test("photo report, then a similar report is merged under it; the city admin clo
   await expect(page.getByRole("status")).toContainText("Dołączyliśmy");
   await expect(page.getByRole("heading", { name: "Nie świeci latarnia na Długiej" })).toBeVisible();
   // The list screen stays mounted under the detail screen in the stack, so the newest match is the one on top.
-  await expect(page.getByText("2 osoby zgłaszają").last()).toBeVisible();
-  await expect(
-    page.getByRole("list", { name: "Zgłoszenia użytkowników" }).getByText("Ciemno od tygodnia"),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Podbite (2)" }).last()).toBeVisible();
   await expect(page.getByRole("button", { name: "Oznacz jako naprawione" })).toHaveCount(0);
 
   const issueUrl = page.url();
@@ -151,7 +148,7 @@ test("issues on the map: a report placed on the map shows up on the map of repor
   await expect(page.getByText("Floriańska 15, 31-019 Kraków").last()).toBeVisible();
   await expect(page.getByTitle("Miejsce zgłoszenia")).toBeVisible();
 
-  await page.getByRole("button", { name: "Wróć do listy" }).click();
+  await page.getByRole("link", { name: t.back }).click();
   await expect(page.getByTitle("Mapa zgłoszeń").last()).toBeVisible();
   await page
     .getByRole("button", { name: `${t.plugin_map_list_show} (1)` })
@@ -311,7 +308,7 @@ test("issues widget: the most reported open issues; tapping the tile opens the l
   await register(page, "sasiadka@example.test", api.url);
   await page.goto("/app/c/krakow/issues/list");
   await page.getByRole("button", { name: "Przewrócony kosz przy szkole" }).click();
-  await page.getByRole("button", { name: "Ja też to widzę" }).click();
+  await page.getByRole("button", { name: /^Podbij/ }).click();
   await expect(page.getByRole("status")).toContainText("Dzięki za potwierdzenie");
 
   await page.goto("/app");
