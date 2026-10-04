@@ -285,6 +285,8 @@ test("issues on the map: a report placed on the map shows its address and pin", 
 const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/notes-plugin.ts"), "utf8");
 
 test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
+  // The tile shows on the dashboard's next poll (every 15 s): more than the default 30 s on a busy machine.
+  test.setTimeout(60_000);
   await register(page, "admin-demo@example.test", api.url);
   await page.goto("/app");
   await expect(page.getByRole("link", { name: ISSUES_TILE, exact: true })).toBeVisible();
@@ -536,4 +538,36 @@ test("issues: after a report is sent, back does not return to the filled-in form
   await page.goBack();
   await expect(page).toHaveURL(/\/issues\/list$/);
   await expect(page.getByRole("button", { name: "Wyślij zgłoszenie" })).toHaveCount(0);
+});
+
+test("discussions: a moderator closes one from the header after confirming; residents can no longer write", async ({
+  page,
+  api,
+}) => {
+  await login(page, "admin@krakow.test");
+  await page.goto("/app/c/krakow/discussions/new");
+  await page.getByLabel("Temat").fill("Remont Plant");
+  await page.getByRole("button", { name: "Załóż dyskusję" }).click();
+  await expect(page.getByRole("heading", { name: "Remont Plant", level: 1 })).toBeVisible();
+
+  // Dismissing the confirmation changes nothing.
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Zamknij dyskusję" }).click();
+  await expect(page.getByText("Dyskusja jest zamknięta")).toHaveCount(0);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Zamknij dyskusję" }).click();
+  await expect(page.getByText("Dyskusja jest zamknięta")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Otwórz dyskusję" })).toBeVisible();
+  await expect(page.getByLabel("Twoja wiadomość")).toBeVisible(); // moderators still write
+
+  await signOut(page);
+  await register(page, "mieszkaniec@example.test", api.url);
+  await page
+    .getByRole("region", { name: "Dyskusje" })
+    .getByRole("button", { name: /Remont Plant/ })
+    .click();
+  await expect(page.getByText("Dyskusja jest zamknięta")).toBeVisible();
+  await expect(page.getByLabel("Twoja wiadomość")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Otwórz dyskusję" })).toHaveCount(0);
 });

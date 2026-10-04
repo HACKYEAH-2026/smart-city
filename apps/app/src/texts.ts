@@ -263,6 +263,8 @@ export const t = {
   plugin_action_error: "Coś poszło nie tak. Sprawdź formularz i spróbuj ponownie.",
   plugin_unsupported: "Ten element wymaga nowszej wersji aplikacji.",
   plugin_activity_new: "Nowe",
+  plugin_chat_you: "Ty",
+  cancel: "Anuluj",
   plugin_photo_camera: "Aparat",
   plugin_photo_gallery: "Galeria",
   plugin_photo_add: "Dodaj",

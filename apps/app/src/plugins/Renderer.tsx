@@ -34,6 +34,7 @@ import {
   spacing,
 } from "../theme";
 import { CardRow } from "./CardRow";
+import { ChatThread, MessageComposer } from "./Chat";
 import {
   type ActionOptions,
   ActionsContext,
@@ -66,6 +67,9 @@ export type { UploadImage } from "./context";
 
 /** Nodes that float over the screen, outside its scroll (a screen's "Zgłoś" button): PluginView draws them as an overlay. */
 export const isFloating = (node: UINode) => node.type === "Fab";
+
+/** The node pinned under a screen's content, above the keyboard (a chat's message field): PluginView's footer. */
+export const isFooter = (node: UINode) => node.type === "Composer";
 
 export function PluginRenderer(props: {
   node: UINode;
@@ -106,7 +110,7 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
     case "Screen":
       return (
         <View style={[styles.screen, (node.chrome === false || inSheet) && styles.confirmation]}>
-          <Children nodes={node.children.filter((n) => !isFloating(n))} />
+          <Children nodes={node.children.filter((n) => !isFloating(n) && !isFooter(n))} />
         </View>
       );
     case "Widget":
@@ -255,6 +259,10 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <ShareButton node={node} />;
     case "Fab":
       return <FloatingAction node={node} />;
+    case "Chat":
+      return <ChatThread node={node} />;
+    case "Composer":
+      return <MessageComposer node={node} />;
     case "Activity":
       return <ActivityRow node={node} />;
     case "Map":

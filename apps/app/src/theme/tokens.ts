@@ -53,7 +53,7 @@ export const colors = {
   scannerHint: "#707078",
   onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
   onPrimaryOverlay: "rgba(255,255,255,0.18)", // icon on a red card
-  photoOverlay: "rgba(27,27,31,0.72)", // a pill over a photo ("+2", "1 / 2"), back over a photo or a map
+  photoOverlay: "rgba(27,27,31,0.72)", // a pill over a photo ("+2", "1 / 2")
 
   // Layers
   scrim: "#5F646C", // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)

@@ -119,6 +119,7 @@ export const UI_ICONS = [
   "people",
   "plus",
   "lock",
+  "unlock",
   "shield",
   "settings",
   "sliders",
@@ -181,15 +182,23 @@ const cardImageSchema = imageRefSchema.extend({ more: z.number().int().min(0).ma
 export type CardImage = z.infer<typeof cardImageSchema>;
 
 /**
- * A button in a screen's header (navigation chrome, so it only navigates): `pill` (default) = icon and label,
- * `icon` = a round icon-only button whose label is its accessible name.
+ * A button in a screen's header: `pill` (default) = icon and label, `icon` = a round icon-only button whose label is
+ * its accessible name. It navigates, or runs a tool (e.g. closing a discussion); with `confirm` the app asks first, in
+ * the system dialog with these texts.
  */
 const screenActionSchema = z
   .object({
     label: z.string().min(1).max(40),
     icon: uiIconSchema.optional(),
     variant: z.enum(["pill", "icon"]).optional(),
-    action: navigateActionSchema,
+    action: z.union([navigateActionSchema, toolActionSchema]),
+    confirm: z
+      .object({
+        title: z.string().min(1).max(80),
+        message: z.string().max(240),
+        confirmLabel: z.string().min(1).max(40),
+      })
+      .optional(),
   })
   .refine((a) => a.variant !== "icon" || a.icon !== undefined, "An icon-only action needs an icon");
 export type ScreenAction = z.infer<typeof screenActionSchema>;
@@ -398,6 +407,40 @@ const leafSchemas = [
     action: navigateActionSchema,
   }),
   /**
+   * A conversation like a messenger: bubbles oldest first, the viewer's own (`mine`) on the right in the brand colour,
+   * the others' on the left with the author's initials. Consecutive messages of one person are grouped and a time
+   * line separates messages further apart. `note`: a small line under a bubble (e.g. "edytowano").
+   */
+  z.object({
+    type: z.literal("Chat"),
+    label: z.string().min(1).max(80),
+    messages: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(100),
+          person: z.string().min(1).max(120),
+          text: z.string().max(5000),
+          at: z.iso.datetime({ offset: true }),
+          mine: z.boolean().optional(),
+          note: z.string().max(40).optional(),
+        }),
+      )
+      .max(1000),
+  }),
+  /**
+   * A message field with a send button, pinned to the bottom of the screen above the keyboard (like a messenger).
+   * Sending runs `submit` with its args plus `{ [name]: text }`; an empty field is not sent. One per screen; not in
+   * widgets.
+   */
+  z.object({
+    type: z.literal("Composer"),
+    name: z.string().min(1),
+    label: z.string().min(1).max(60),
+    placeholder: z.string().max(80).optional(),
+    sendLabel: z.string().min(1).max(40),
+    submit: toolActionSchema,
+  }),
+  /**
    * Something a person did, and when: their avatar (initials of `person`), the title, a line of text (e.g. the last
    * message of a discussion) and `at` (an ISO date; the app shows "5 min temu"). `unread` marks it as new for this
    * user. In a widget it is one compact row; on a screen the text is shown in full (e.g. a message in a thread).
@@ -570,7 +613,15 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
 /** View returned by a plugin: always a Screen at the root. */
 export const screenSchema = uiNodeSchema.refine((n) => n.type === "Screen", "View must return a Screen node");
 
-const INPUT_NODES: readonly UINodeType[] = ["Form", "TextInput", "Select", "Switch", "ImagePicker", "LocationInput"];
+const INPUT_NODES: readonly UINodeType[] = [
+  "Form",
+  "TextInput",
+  "Select",
+  "Switch",
+  "ImagePicker",
+  "LocationInput",
+  "Composer",
+];
 
 const removable = (tags: CardTag[] | undefined) => tags?.some((tag) => tag.onRemove) ?? false;
 
@@ -605,7 +656,7 @@ type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 export const ui = {
   /**
    * `options.eyebrow`: a small line above the title (e.g. the place's name); `options.back`: where back leads;
-   * `options.actions`: up to 2 header buttons that navigate.
+   * `options.actions`: up to 2 header buttons that navigate or run a tool (optionally confirmed).
    */
   screen: (
     title: string,
@@ -703,6 +754,8 @@ export const ui = {
   gallery: (items: { file: string; alt: string }[]): Of<"Gallery"> => ({ type: "Gallery", items }),
   menu: (props: Props<"Menu">): Of<"Menu"> => ({ type: "Menu", ...props }),
   activity: (props: Props<"Activity">): Of<"Activity"> => ({ type: "Activity", ...props }),
+  chat: (props: Props<"Chat">): Of<"Chat"> => ({ type: "Chat", ...props }),
+  composer: (props: Props<"Composer">): Of<"Composer"> => ({ type: "Composer", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
   map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
     /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */

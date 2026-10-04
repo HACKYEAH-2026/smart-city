@@ -95,6 +95,8 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 - `Platform.OS` branches only in `src/lib/` and in routes, never in screens.
 - UI text: ONLY `apps/app/src/texts.ts` via `import { t } from "../texts"; t.key`. No Polish literals in components.
 - Look and feel: only tokens from `apps/app/src/theme/` (`tokens.ts`, design system "Twoje Miejsce"); build screens from the components in `apps/app/src/components/` (see `apps/app/src/COMPONENTS.md`).
+- Back buttons NEVER have a background (no square, round or floating button for "go back"), on every screen, also over
+  a map or a photo: always `<BackButton />` from `apps/app/src/components/` (a plain chevron).
 - Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only

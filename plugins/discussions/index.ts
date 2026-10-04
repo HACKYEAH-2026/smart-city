@@ -108,12 +108,35 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
     });
   };
 
-  const replyForm = (discussion: string) =>
-    ui.form({
-      submitLabel: "Wyślij",
+  const composer = (discussion: string) =>
+    ui.composer({
+      name: "text",
+      label: "Twoja wiadomość",
+      placeholder: "Napisz wiadomość…",
+      sendLabel: "Wyślij",
       submit: ui.tool("sendMessage", { discussion }),
-      children: [ui.textInput({ name: "text", label: "Twoja wiadomość", multiline: true })],
     });
+
+  /** Moderators close a discussion from the header (an icon, after confirming) and open it again. */
+  const lockAction = (discussion: { id: string; locked: boolean }) =>
+    discussion.locked
+      ? {
+          icon: "unlock" as const,
+          variant: "icon" as const,
+          label: "Otwórz dyskusję",
+          action: ui.tool("lockDiscussion", { id: discussion.id, locked: false }),
+        }
+      : {
+          icon: "lock" as const,
+          variant: "icon" as const,
+          label: "Zamknij dyskusję",
+          action: ui.tool("lockDiscussion", { id: discussion.id, locked: true }),
+          confirm: {
+            title: "Zamknąć dyskusję?",
+            message: "Mieszkańcy nie będą mogli pisać nowych wiadomości. Możesz ją później otworzyć.",
+            confirmLabel: "Zamknij",
+          },
+        };
 
   return definePlugin({
     id: "discussions",
@@ -156,6 +179,7 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
             ],
           }),
         ]),
+      /** A messenger-like chat: the opening post, the messages as bubbles, the message field pinned at the bottom. */
       thread: async (ctx, params) => {
         const discussion = params.id ? await ctx.db.discussions.get(params.id, { with: { author: true } }) : null;
         if (!discussion) return ui.screen("Nie znaleziono", [ui.empty("Ta dyskusja nie istnieje.")]);
@@ -164,42 +188,39 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
           orderBy: { createdAt: "asc" },
           with: { author: true },
         });
-        // New since the previous visit; on the first one nothing is marked (all of it is new).
-        const unread = (m: { createdAt: Date; author: Person }) =>
-          Boolean(ctx.lastVisit) && m.author.id !== ctx.user.id && isNew(ctx, m.createdAt);
-        return ui.screen(discussion.title, [
-          ui.activity({
-            title: nameOf(ctx, discussion.author),
-            text: discussion.body || "Zaczyna dyskusję.",
-            person: discussion.author.name,
-            at: discussion.createdAt.toISOString(),
-          }),
-          ...(discussion.locked ? [ui.badge("Zamknięta: piszą tylko moderatorzy", "neutral")] : []),
-          messages.length
-            ? ui.list(
-                "Wiadomości",
-                messages.map((m) =>
+        return ui.screen(
+          discussion.title,
+          [
+            ...(discussion.body
+              ? [
                   ui.activity({
-                    title: nameOf(ctx, m.author),
-                    text: m.editedAt ? `${m.text} (edytowano)` : m.text,
-                    person: m.author.name,
-                    at: m.createdAt.toISOString(),
-                    ...(unread(m) ? { unread: true } : {}),
+                    title: nameOf(ctx, discussion.author),
+                    text: discussion.body,
+                    person: discussion.author.name,
+                    at: discussion.createdAt.toISOString(),
                   }),
-                ),
-              )
-            : ui.empty("Nie ma jeszcze odpowiedzi."),
-          ...(!discussion.locked || isModerator(ctx) ? [replyForm(discussion.id)] : []),
-          ...(isModerator(ctx)
-            ? [
-                ui.button(
-                  discussion.locked ? "Otwórz dyskusję" : "Zamknij dyskusję",
-                  ui.tool("lockDiscussion", { id: discussion.id, locked: !discussion.locked }),
-                  "quiet",
-                ),
-              ]
-            : []),
-        ]);
+                ]
+              : []),
+            ...(discussion.locked
+              ? [ui.text("Dyskusja jest zamknięta. Nowe wiadomości piszą tylko moderatorzy.", "soft")]
+              : []),
+            messages.length
+              ? ui.chat({
+                  label: "Wiadomości",
+                  messages: messages.map((m) => ({
+                    id: m.id,
+                    person: m.author.name,
+                    text: m.text,
+                    at: m.createdAt.toISOString(),
+                    ...(m.author.id === ctx.user.id ? { mine: true } : {}),
+                    ...(m.editedAt ? { note: "edytowano" } : {}),
+                  })),
+                })
+              : ui.empty("Nie ma jeszcze wiadomości. Napisz pierwszą."),
+            ...(!discussion.locked || isModerator(ctx) ? [composer(discussion.id)] : []),
+          ],
+          isModerator(ctx) ? { actions: [lockAction(discussion)] } : {},
+        );
       },
     },
 

@@ -1,5 +1,5 @@
 > **Note:** this file is the design spec; the implemented components are the exports of `src/components/index.ts`.
-> Built under another name: ScreenHeader (step variant) → `StepHeader`, ScreenHeader (title variant) → `TitleHeader`, StepProgress → `SegmentedProgress`,
+> Built under another name: ScreenHeader (step variant) → `StepHeader`, ScreenHeader (title variant) → `TitleHeader`, back in a header → `BackButton`, StepProgress → `SegmentedProgress`,
 > Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
 > QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
 > (no component): PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
@@ -74,10 +74,9 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 - `roundDark` — radius 22, tło `text`, ikona `onPrimary` (zębatka admina w nagłówku ekranu rozszerzenia; `CountBadge` w rogu nie jest zaimplementowany),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
 - `roundSunken` — radius 22, tło `surfaceSunken` (zamknij w bottom sheet),
-- `roundOnImage` — radius 22, tło `photoOverlay` (ciemne, półprzezroczyste jak licznik zdjęć), ikona `onPrimary` (wstecz nad zdjęciem lub mapą),
-- `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` („Moja lokalizacja" nad mapą).
+- `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` (na mapie: „Moja lokalizacja”).
+- **Wstecz nigdy nie ma tła** (ani `square`, ani `round`, ani `floating`), także nad mapą i zdjęciem: zawsze `BackButton` (`plain` + `ChevronLeft`, etykieta „Wróć”).
   Zawsze `accessibilityLabel` (np. „Wróć", „Powiadomienia").
-  Wstecz w lewym górnym rogu nigdy nie ma białego tła (odciąga wzrok od ekranu): `plain`, a nad zdjęciem lub mapą `roundOnImage`.
 
 ### Label (eyebrow)
 
@@ -224,6 +223,10 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 - `EmptyStateCard`: Card radius 20, padding 20, `IconBox` 48 radius 14 + tytuł 16/600 + opis `caption` (lineHeight 20).
 - `CtaCard` (Zaproś użytkowników): radius 20, padding 16, tło `primary`, `IconBox` w wariancie `onPrimary`, tytuł 16/600 biały, podtytuł `caption` biały z `opacity.onPrimarySubtitle`, `ChevronRight` po prawej.
 
+### Czat (wtyczki: `ui.chat` + `ui.composer`)
+
+Jak w komunikatorze: moje dymki po prawej (`primary`, tekst `onPrimary`), cudze po lewej (`surface` + ramka `borderSubtle`) z inicjałami autora (koło 28 dp `primaryTint`, `chip` `primary`) przy ostatnim dymku serii i imieniem (`small` `textSecondary`) nad pierwszym. Dymek: radius 18, w środku serii narożniki od strony autora 6; padding 8/12, tekst `body`, maks. 78% szerokości. Seria = kolejne wiadomości jednej osoby w odstępach < 10 min; przerwa → wyśrodkowana godzina (`small`: „14:05”, „wczoraj, 14:05”, „1 paź, 14:05”). Pole wiadomości przypięte na dole nad klawiaturą (pasek `background` z górną linią `borderSubtle`): pigułka 44 dp (`surface`, ramka `border`, `input`) + okrągły przycisk 44 dp `primary` z `SendHorizontal`, wyszarzony przy pustym polu; Enter wysyła, pole czyści się od razu. Akcja moderatora (np. zamknięcie dyskusji) to `IconButton round` w prawym górnym rogu, z potwierdzeniem.
+
 ### HeroBanner
 
 Czerwona karta radius 22, padding 22, min wysokość 172, treść przy dole: etykieta `labelHero` + `headingM` (biały). Dekoracja SVG: jasne ulice `rgba(255,255,255,0.09)` + pinezka (kółko biała 7 dp w obwódce 16 dp `opacity .25`).
@@ -255,7 +258,7 @@ Węzły z katalogu SDK (`packages/sdk/src/ui.ts`) rysuje `Renderer.tsx` z kompon
   14 px). Segmented tabs have a 48 dp track and 40 dp segments; card lists use 10 dp gaps. Meta items with icons
   have no preceding dot.
 
-- Nagłówek ekranu (`ScreenHeader.tsx`): `IconButton plain` (wstecz) → etykieta `label` nad `Heading level 1 headingS` → akcje: pigułka `Button dark xs` z ikoną (radius pill) albo `IconButton roundDark`. Gdy pierwszy węzeł to `Gallery`, galeria idzie na całą szerokość u góry, a wstecz to `IconButton roundOnImage` nad nią.
+- Nagłówek ekranu (`ScreenHeader.tsx`): `BackButton` (wstecz, bez tła) → etykieta `label` nad `Heading level 1 headingS` → akcje: pigułka `Button dark xs` z ikoną (radius pill) albo `IconButton roundDark`. Gdy pierwszy węzeł to `Gallery`, galeria idzie na całą szerokość u góry, a wstecz to `BackButton` nad nią (biały szewron, bez tła).
 - Karta (`CardRow.tsx`): na ekranie biała karta radius 18, padding 12, `shadows.card`: miniatura 76 (`sizes.cardThumb`, radius 12, pigułka „+N” `photoOverlay`), tytuł `rowTitle` w 2 wierszach, linia meta `small` `textSecondary` (`MetaLine.tsx`, kropki między elementami), po prawej pigułka głosów 32 (`sizes.votePill`: wciśnięta `primary`/`onPrimary`, niewciśnięta `surface` + ramka `border`, tekst `primary`; `aria-pressed` przez `src/lib/a11y.ts`). Karta bez zdjęcia, ikony, meta, licznika, tagów i kropki to zwykła `Card` z tekstem. W liście `grouped` (biała grupa radius 18, linie `divider`): kolumna kropki „nowe” 8 dp, miniatura 52 albo `IconBox sm` (`neutral`, `dark` z licznikiem), liczba głosów strzałka nad liczbą (`text`), `CountBadge` 22 (`primary`), chevron. W widżecie: wiersz z tytułem w 1 linii (`link`) i liczbą głosów w `primary`.
 - `Menu.tsx`: wyzwalacz tekstowy 36 dp (`buttonS` + `ChevronDown`) albo pigułka 28 dp z ramką i ikoną `primary`; otwiera `BottomSheet` z `RadioCard`. W kafelku pulpitu (bez nakładki) opcje są rzędem `Chip`.
 - `Gallery.tsx`: strony 4:3 przewijane w poziomie, pigułka „1 / 2” 28 dp `photoOverlay` w rogu (`aria-live`).
@@ -279,7 +282,7 @@ Znacznik miejsca na tle pulpitu (`PlaceBackdrop`): czerwona poświata (gradient 
 
 ### SearchField ✅ (`src/components/SearchField.tsx`)
 
-Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `IconButton roundOnImage`.
+Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `BackButton` (bez tła).
 Wariant `outlined` (nad listą, np. „Szukaj rozszerzeń"): wysokość 50 (`sizes.inputS`), ramka 1 px `border` zamiast cienia; bez `onSubmit` filtruje przy każdym znaku.
 
 ### Ekran „Lokalizacja miejsca" (kreator, krok 2)
@@ -298,7 +301,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-DolaczQR            | Skanowanie QR                                             | ScannerFrame, IconButton roundOnDark ×2, Button onDark / ghost-on-dark                                               |
 | E-DolaczKod           | Kod lub link                                              | SegmentedControl, OtpInput, TextField url + „Wklej", Button primary                                                  |
 | E-Zaproszenia         | Zaproszenia                                               | InviteCard ×N                                                                                                        |
-| E-PodgladMiejsca      | Podgląd miejsca                                           | zdjęcie/mapa + IconButton roundOnImage, panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
+| E-PodgladMiejsca      | Podgląd miejsca                                           | zdjęcie/mapa + BackButton (bez tła), panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
 | E-Dashboard           | Pulpit (członek)                                          | DashboardHeader, EmptyStateCard, BottomTabBar                                                                        |
 | E-PrzelacznikMiejsc   | Przełącznik miejsc                                        | BottomSheet, PlaceRow ×N, Button secondary ×2                                                                        |
 | E-NoweMiejsceTyp      | Nowe miejsce 1/4                                          | ScreenHeader (krok), SelectableCard ×6, Button primary                                                               |

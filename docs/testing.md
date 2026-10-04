@@ -14,7 +14,8 @@ even when every test passed, and also when the engine is still open at exit (the
 `packages/sdk/src/test-preload.ts`, which closes it after the run). Never open another `mem://` connection in tests.
 That makes the crash rare, not impossible: now and then Bun still segfaults while exiting after a fully green run.
 `test:unit` and `test:int` therefore run through `scripts/bun-test.ts`, which counts a SIGSEGV after a summary with
-"0 fail" and no "N errors" as green (with a note) and keeps every other exit code. The API is called through
+"0 fail" and no "N errors" as green (with a note), the same for a SIGABRT whose output shows the engine's
+"failed to lock mutex" panic (the same teardown), and keeps every other exit code. The API is called through
 `app.request()` (no ports), `close()` after each test. `t.seed()` adds the demo community, the built-in plugins
 and a signed-in community admin; `t.signIn({ email, password })` signs in another seeded account. Inject a fake AI
 model with `setup({}, { ai: { language } })`.

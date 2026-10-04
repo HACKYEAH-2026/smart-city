@@ -1,10 +1,9 @@
 import type { UINode } from "@app/plugin-sdk";
 import { useLocalSearchParams } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { IconButton, Screen, Text } from "../components";
+import { BackButton, Screen, Text } from "../components";
 import { usePluginView } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { uploadPluginImage } from "../lib/upload";
@@ -13,7 +12,7 @@ import { PluginGallery } from "../plugins/Gallery";
 import { appHref, pluginHref, viewParamsFrom } from "../plugins/href";
 import { usePluginOverlays } from "../plugins/overlays";
 import { PluginSheet } from "../plugins/PluginSheet";
-import { isFloating, PluginRenderer } from "../plugins/Renderer";
+import { isFloating, isFooter, PluginRenderer } from "../plugins/Renderer";
 import { PluginScreenHeader } from "../plugins/ScreenHeader";
 import { t } from "../texts";
 import { colors, layout, radii, spacing } from "../theme";
@@ -55,11 +54,15 @@ export default function PluginView() {
   const lead = first?.type === "Gallery" ? first : undefined;
   const content: ScreenNode | undefined = node && lead ? { ...node, children: node.children.slice(1) } : node;
   const renderer = { onAction: actions.onAction, busy: actions.busy, upload, showOverlay: overlays.showOverlay };
+  // A chat's message field, pinned above the keyboard (it empties itself on send, keeping the keyboard open).
+  const footer = node?.children.find(isFooter);
 
   return (
     <Screen
       chrome={false}
       gap={lead ? spacing[0] : undefined}
+      stickToEnd={Boolean(node?.children.some((n) => n.type === "Chat"))}
+      footer={footer ? <PluginRenderer node={footer} {...renderer} /> : undefined}
       overlay={
         <>
           {(node?.children ?? []).filter(isFloating).map((floating, i) => (
@@ -88,7 +91,7 @@ export default function PluginView() {
       {node?.chrome === false ? null : node ? (
         <PluginScreenHeader node={node} backHref={lead ? null : backHref} onAction={actions.onAction} />
       ) : (
-        <IconButton icon={ChevronLeft} label={t.back} variant="plain" href={backHref} />
+        <BackButton href={backHref} />
       )}
       {toast ? (
         <View role="status" style={styles.toast}>
@@ -124,7 +127,10 @@ export default function PluginView() {
   );
 }
 
-/** The view's first Gallery across the full width at the top of the screen (design Z-Szczegoly), back floating over it. */
+/**
+ * The view's first Gallery across the full width at the top of the screen (design Z-Szczegoly), with back over it: a
+ * white chevron without a background, like every back button.
+ */
 function LeadGallery({ node, backHref }: { node: Extract<UINode, { type: "Gallery" }>; backHref: string }) {
   const insets = useSafeAreaInsets();
   const top = insets.top + layout.screenTopOffset;
@@ -132,7 +138,7 @@ function LeadGallery({ node, backHref }: { node: Extract<UINode, { type: "Galler
     <View style={[styles.bleed, { marginTop: -top }]}>
       <PluginGallery node={node} edgeToEdge />
       <View style={[styles.floatingBack, { top }]}>
-        <IconButton icon={ChevronLeft} label={t.back} variant="roundOnImage" href={backHref} />
+        <BackButton href={backHref} color="onPrimary" />
       </View>
     </View>
   );

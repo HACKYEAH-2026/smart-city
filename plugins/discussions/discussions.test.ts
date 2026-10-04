@@ -168,32 +168,69 @@ describe("discussions: dashboard widget and views", () => {
     ]);
   });
 
-  test("thread: the opening post, the messages and a reply form; a locked one only for moderators", async () => {
+  test("thread: the opening post, a chat with my messages marked, the message field; locking from the header", async () => {
     const { t, discussion } = await start();
     t.setNow(at(1));
-    await t.view("thread", { id: discussion });
-    t.setNow(at(2));
     await send(t, bartek, discussion, "Raczej klony");
+    t.setNow(at(2));
+    const mine = await send(t, anna, discussion, "Lipy dają cień");
+    await t.tool("editMessage", { id: mine!.id, text: "Lipy dają więcej cienia" });
     const thread = await t.view("thread", { id: discussion });
-    expect(nodesOf(thread, "Activity").map((a) => [a.title, a.text, a.unread ?? false])).toEqual([
-      ["Ty", "Co sadzimy?", false],
-      ["Bartek", "Raczej klony", true],
+    expect(nodesOf(thread, "Activity").map((a) => [a.title, a.text])).toEqual([["Ty", "Co sadzimy?"]]);
+    expect(nodesOf(thread, "Chat")[0]?.messages).toEqual([
+      { id: expect.any(String), person: "Bartek", text: "Raczej klony", at: at(1).toISOString() },
+      {
+        id: mine!.id,
+        person: "Anna",
+        text: "Lipy dają więcej cienia",
+        at: at(2).toISOString(),
+        mine: true,
+        note: "edytowano",
+      },
     ]);
-    expect(nodesOf(thread, "Form")[0]?.submit).toEqual({ type: "tool", tool: "sendMessage", args: { discussion } });
-    expect(nodesOf(thread, "Button")).toEqual([]);
+    expect(nodesOf(thread, "Composer")[0]).toMatchObject({
+      name: "text",
+      label: "Twoja wiadomość",
+      sendLabel: "Wyślij",
+      submit: { type: "tool", tool: "sendMessage", args: { discussion } },
+    });
+    expect(thread).not.toHaveProperty("actions"); // residents do not moderate
+
+    const moderated = await t.as(moderator).view("thread", { id: discussion });
+    expect(moderated).toMatchObject({
+      actions: [
+        {
+          icon: "lock",
+          variant: "icon",
+          label: "Zamknij dyskusję",
+          action: { type: "tool", tool: "lockDiscussion", args: { id: discussion, locked: true } },
+          confirm: { title: "Zamknąć dyskusję?", confirmLabel: "Zamknij" },
+        },
+      ],
+    });
 
     await t.as(moderator).tool("lockDiscussion", { id: discussion, locked: true });
     const locked = await t.as(bartek).view("thread", { id: discussion });
-    expect(textsOf(locked)).toContain("Zamknięta: piszą tylko moderatorzy");
-    expect(nodesOf(locked, "Form")).toEqual([]);
-    expect(nodesOf(await t.dashboardWidget("recent"), "Activity")[0]?.text).toBe("Zamknięta · Bartek: Raczej klony");
+    expect(textsOf(locked)).toContain("Dyskusja jest zamknięta. Nowe wiadomości piszą tylko moderatorzy.");
+    expect(nodesOf(locked, "Composer")).toEqual([]);
+    expect(nodesOf(await t.dashboardWidget("recent"), "Activity")[0]?.text).toBe(
+      "Zamknięta · Ty: Lipy dają więcej cienia",
+    );
 
-    const moderated = await t.as(moderator).view("thread", { id: discussion });
-    expect(nodesOf(moderated, "Form")).toHaveLength(1);
-    expect(nodesOf(moderated, "Button")[0]).toMatchObject({
-      label: "Otwórz dyskusję",
-      action: { type: "tool", tool: "lockDiscussion", args: { id: discussion, locked: false } },
+    const reopen = await t.as(moderator).view("thread", { id: discussion });
+    expect(nodesOf(reopen, "Composer")).toHaveLength(1);
+    expect(reopen).toMatchObject({
+      actions: [{ icon: "unlock", label: "Otwórz dyskusję", action: { args: { id: discussion, locked: false } } }],
     });
+    expect(reopen).not.toHaveProperty("actions.0.confirm");
+  });
+
+  test("thread without a description or messages: no opening post, an invitation to write", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const id = ((await t.tool("createDiscussion", { title: "Parking pod blokiem" })).data as { id: string }).id;
+    const thread = await t.view("thread", { id });
+    expect(nodesOf(thread, "Activity")).toEqual([]);
+    expect(textsOf(thread)).toContain("Nie ma jeszcze wiadomości. Napisz pierwszą.");
   });
 
   test("list: a card per discussion with the last message, when, how many people and messages, what is new", async () => {

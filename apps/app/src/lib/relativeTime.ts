@@ -1,4 +1,13 @@
-import { differenceInCalendarDays, differenceInHours, differenceInMinutes, format, parseISO } from "date-fns";
+import {
+  differenceInCalendarDays,
+  differenceInHours,
+  differenceInMinutes,
+  format,
+  isSameDay,
+  isSameYear,
+  parseISO,
+  subDays,
+} from "date-fns";
 import { pl } from "date-fns/locale/pl";
 import { t } from "../texts";
 
@@ -35,4 +44,13 @@ function daysAgo(days: number): string {
   const weeks = Math.floor(days / 7);
   if (weeks === 0) return `${days} ${t.time_days_ago}`;
   return `${weeks} ${weeks === 1 ? t.time_week_ago : t.time_weeks_ago}`;
+}
+
+/** A message's time in a chat: "14:05" today, "wczoraj, 14:05", "1 paź, 14:05", "1 paź 2025, 14:05". */
+export function messageTime(iso: string, now: Date = new Date()): string {
+  const then = parseISO(iso);
+  const time = format(then, "HH:mm");
+  if (isSameDay(then, now)) return time;
+  if (isSameDay(then, subDays(now, 1))) return `${t.time_yesterday}, ${time}`;
+  return format(then, isSameYear(then, now) ? "d MMM, HH:mm" : "d MMM yyyy, HH:mm", { locale: pl });
 }
