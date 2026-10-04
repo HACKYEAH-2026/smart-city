@@ -27,7 +27,7 @@ It only adds rules, it never overrides them. On conflict, AGENTS.md wins.
 - Everything else is in English: identifiers (variables, functions, types, files, API routes, DB columns,
   text keys), code comments and JSDoc, test names, log/console output, developer-facing error messages,
   script and CI output, commit messages and developer docs (`AGENTS.md`, `docs/`).
-- Exceptions: `README.md`, `PRODUCT.md` and `ROADMAP.md` describe the product for the team and the jury and stay in Polish.
+- Exceptions: `README.md`, `PRODUCT.md`, `ROADMAP.md` and `PRESENTATION.md` (the pitch deck) describe the product for the team and the jury and stay in Polish.
 - In tests, Polish strings are allowed only as data or as selectors/assertions that must match the Polish UI.
 
 ## Definition of done (the only one)

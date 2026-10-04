@@ -74,6 +74,7 @@ Projekt zgłaszamy do zadania otwartego **SMART CITY** na HackYeah 2026. Prace h
 - **Generator wtyczek (HackYeah):** biblioteka `@strands-agents/sdk` (Strands Agents: agent z narzędziem `check_plugin`, który pisze i poprawia wtyczkę; także `ctx.ai` wtyczek) z klientem `openai`; usługa OpenAI API (`api.openai.com`, Responses API, model z `AI_MODEL`: `gpt-6-luna`). Bez klucza generator jest wyłączony. Wtyczki mogą też liczyć embeddingi tekstu (`ctx.ai.embed`, np. do wyłapywania powtórzonych zgłoszeń): ten sam klucz i endpoint embeddingów OpenAI API, model `text-embedding-3-small`.
 - **Użycie AI:** kod i dokumentację piszemy z pomocą asystentów AI (Claude Code). Zespół rozumie każdą część rozwiązania i odpowiada za nią.
 - **Zgłoszenie:** tytuł, nazwa zespołu, członkowie, opis i prezentacja PDF (maks. 10 slajdów). Opcjonalnie dochodzą repozytorium, demo i zrzuty ekranu.
+- **Prezentacja (HackYeah):** szkic slajdów to `PRESENTATION.md` w formacie [Marp](https://marp.app) (slajdy rozdziela `---`). PDF robi Marp CLI (`@marp-team/marp-cli`, uruchamiany ręcznie przez `bunx`, poza zależnościami projektu; potrzebuje Chrome albo `CHROME_PATH`): `bunx @marp-team/marp-cli@4.5.1 PRESENTATION.md --pdf --allow-local-files`. Slajdy ładują fonty Schibsted Grotesk i Barlow Condensed z Google Fonts.
 
 ## Status
 
