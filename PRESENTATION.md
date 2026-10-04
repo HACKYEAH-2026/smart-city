@@ -147,6 +147,26 @@ style: |
   }
   section.flow ol li strong { display: block; font-size: 21px; margin-bottom: 2px; }
   section.flow ul { font-size: 23px; }
+  /* Places side by side (class "places"): each top-level item is a card, its nested list the place's functions. */
+  section.places > ul {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 28px;
+  }
+  section.places > ul > li {
+    margin: 0;
+    padding: 18px 18px 20px;
+    background: #FFFFFF;
+    border: 1px solid #E3E0D8;
+    border-radius: 18px;
+  }
+  section.places > ul > li > strong { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
+  section.places ul ul { padding-left: 1em; font-size: 19px; line-height: 1.3; color: #5E5E66; }
+  section.places ul ul li { margin: 0.35em 0; }
+  section.places p { font-size: 23px; }
   /* Title and closing slides: the accent gradient, from the first colour to the second. */
   section.lead {
     display: flex;
@@ -184,27 +204,12 @@ style: |
 
 Cyfrowe społeczności dla prawdziwych miejsc: miasta, uczelni, osiedla.
 
-**HackYeah 2026 · SMART CITY · [nazwa zespołu]**
+**HackYeah 2026 · SMART CITY · Twój Team**
 
 <!--
-Notatki: jedno zdanie o tym, czym jest Twoje Miejsce, i od razu przejście do problemu. Hasło pada tu i na końcu.
--->
-
----
-
-## Problem
-
-# Lokalne sprawy giną w grupach i formularzach
-
-*Latarnia, która nie świeci. Dziura w chodniku. Ogłoszenie, którego nikt nie zobaczył.*
-
-- **Grupy na Facebooku:** boty, anonimy i chaos. Zgłoszenie znika w wątku, a urząd nie ma tam porządku ani kanału odpowiedzi.
-- **Oficjalne systemy miasta** rzadko dają mieszkańcom wygodny kanał kontaktu.
-- **Każda nowa usługa to osobny projekt:** zamówienie, budowa, kolejna aplikacja albo formularz.
-- **Miasto, uczelnia i spółdzielnia** mają inne sprawy, a dostają te same narzędzia albo żadne.
-
-<!--
-Notatki: bez liczb (PRODUCT.md: żadnych wymyślonych danych). Konkretny przykład z Krakowa, jeśli ktoś z zespołu go ma.
+Notatki: jedno zdanie o tym, czym jest Twoje Miejsce. Hasło pada tu i na końcu. Problem tylko mówimy (bez slajdu):
+lokalne sprawy giną w grupach na Facebooku (boty, anonimy, chaos) i w formularzach miasta, a każda nowa usługa to
+nowe zamówienie i nowa aplikacja. Bez liczb (PRODUCT.md: żadnych wymyślonych danych).
 -->
 
 ---
@@ -217,14 +222,15 @@ Notatki: bez liczb (PRODUCT.md: żadnych wymyślonych danych). Konkretny przykł
 
 # Jedna aplikacja, która dopasowuje się do miejsca
 
-- **Każde miejsce ma swoją społeczność:** miasto, dzielnica, uczelnia, spółdzielnia.
-- **Funkcje to wtyczki.** Miejsce włącza tylko to, czego potrzebuje, a administrator układa pulpit mieszkańców.
-- **Jedno konto, wiele miejsc.** Mieszkanka Krakowa należy też do kampusu i spółdzielni i przełącza się między nimi.
-- **iOS, Android i przeglądarka** z jednej bazy kodu.
+- **Każde miejsce ma swoją społeczność.**
+- **Funkcje to wtyczki:** miejsce włącza tylko potrzebne.
+- **Jedno konto, wiele miejsc.**
+- **iOS, Android i przeglądarka.**
 
 <!--
-Notatki: w demo konto anna@krakow.test należy do czterech miejsc: Kraków, Tauron Arena Kraków, Kampus Główny,
-Spółdzielnia Słoneczna.
+Notatki: administrator miejsca włącza wtyczki i układa pulpit mieszkańców. Jedna baza kodu dla trzech platform.
+W demo konto anna@krakow.test należy do czterech miejsc: Kraków, Tauron Arena Kraków, Kampus Główny,
+Spółdzielnia Słoneczna, i przełącza się między nimi.
 -->
 
 ---
@@ -237,13 +243,15 @@ Spółdzielnia Słoneczna.
 
 # Usterkę zgłaszasz zdjęciem
 
-1. **Zdjęcie i miejsce na mapie,** tytuł i krótki opis. Anonimowo, jeśli miejsce na to pozwala.
-2. **AI sprawdza, czy ktoś już to zgłosił.** Jeśli tak, pyta „Czy to ten sam problem?”, a Ty dołączasz do zgłoszenia zamiast tworzyć nowe.
-3. **Podbijasz i komentujesz** zgłoszenia innych mieszkańców.
-4. **Dostajesz powiadomienie push,** gdy urząd odpowie albo zamknie zgłoszenie.
+1. **Zdjęcie i miejsce na mapie.**
+2. **AI pyta: „Czy to ten sam problem?”**
+3. **Podbijasz i komentujesz.**
+4. **Push, gdy urząd odpowie.**
 
 <!--
 Notatki: to jest kryterium „użyteczność”. Pokazać, że cała ścieżka to kilka dotknięć, bez logowania do osobnego systemu miasta.
+Zgłoszenie może być anonimowe, jeśli miejsce na to pozwala. Gdy AI znajdzie to samo zgłoszenie, mieszkaniec dołącza do
+niego zamiast tworzyć nowe. Push przychodzi też, gdy urząd zamknie zgłoszenie.
 -->
 
 ---
@@ -256,14 +264,15 @@ Notatki: to jest kryterium „użyteczność”. Pokazać, że cała ścieżka t
 
 # Jedno zgłoszenie zamiast wielu takich samych
 
-- **Powtórzone zgłoszenia łączą się w jedno,** a urząd widzi, ilu mieszkańców dotyczy sprawa.
-- **AI przypisuje kategorię** (drogi i chodniki, oświetlenie, czystość, zieleń). Urząd może ją zmienić.
-- **Odpowiedź dla mieszkańców i notatka wewnętrzna.** Zamknięcie zgłoszenia powiadamia autora i osoby, które dołączyły.
-- **Ogłoszenia i dyskusje** w tym samym miejscu.
-- **Ustawienia miejsca:** głosowanie, komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
+- **Takie same zgłoszenia łączą się w jedno.** Urząd widzi, ilu mieszkańców to dotyczy.
+- **AI nadaje kategorię,** urząd może ją zmienić.
+- **Odpowiedź dociera do każdego,** kto zgłosił sprawę.
 
 <!--
 Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi odpowiedź zamiast ciszy.
+Kategorie: drogi i chodniki, oświetlenie, czystość, zieleń. Odpowiedź dla mieszkańców i notatka wewnętrzna; zamknięcie
+powiadamia autora i osoby, które dołączyły. W tym samym miejscu ogłoszenia i dyskusje. Ustawienia miejsca: głosowanie,
+komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
 -->
 
 ---
@@ -274,19 +283,81 @@ Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplika
 
 # Nowa potrzeba to nowa funkcja, nie nowa aplikacja
 
-1. **Dziś** Mieszkańcy zgłaszają usterki, czytają ogłoszenia administracji i rozmawiają w dyskusjach.
-2. **Nowa potrzeba** Na osiedle przychodzą dziki. Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął.
-3. **Administrator opisuje** dwie funkcje własnymi słowami: „Uwaga, dzik!” i „Oddam za darmo”.
-4. **Mieszkańcy dostają** ostrzeżenie, gdy dzik jest w pobliżu, i tablicę rzeczy do oddania.
+1. **Dziś** Usterki, ogłoszenia, dyskusje.
+2. **Nowa potrzeba** Dziki na osiedlu. Dobre meble przy śmietniku.
+3. **Administrator opisuje** „Uwaga, dzik!” i „Oddam za darmo”.
+4. **Mieszkańcy dostają** ostrzeżenie o dziku w pobliżu i tablicę rzeczy do oddania.
 
-- **Nic nowego do instalowania i uczenia się.** To samo konto, te same powiadomienia, ten sam pulpit.
-- **Bez programisty i bez zamówienia.** AI pisze wtyczkę, a administrator ją sprawdza i publikuje.
+- **Bez programisty i bez zamówienia.** AI pisze wtyczkę, administrator ją publikuje.
 
 <!--
-Notatki: to jest hasło „Rośnie razem z Twoimi potrzebami” w praktyce, a następny slajd pokazuje, jak to działa.
+Notatki: to jest hasło „Rośnie razem z Twoimi potrzebami” w praktyce. Sprawne meble lądują przy śmietniku, choć sąsiad
+chętnie by je wziął. Administrator opisuje obie funkcje własnymi słowami. Nic nowego do instalowania i uczenia się: to
+samo konto, te same powiadomienia, ten sam pulpit.
 Ostrzeżenie dostają tylko mieszkańcy w promieniu np. 500 m (zapisane miejsce albo pozycja z otwartej aplikacji z ostatnich
-30 minut), a wtyczka nie zna niczyjej lokalizacji: dopasowuje ją serwer. To samo działa w skali miasta: Kraków może
-włączyć „Uwaga, dzik!” dla wszystkich mieszkańców. Bez liczb, których nie zmierzyliśmy.
+30 minut), a wtyczka nie zna niczyjej lokalizacji: dopasowuje ją serwer. Następny slajd: to samo w skali miasta.
+Bez liczb, których nie zmierzyliśmy.
+-->
+
+---
+
+<!-- _class: flow -->
+
+## Przykład: Kraków
+
+# Potrzeby mieszkańców zmieniają się szybciej niż narzędzia miasta
+
+1. **Dziś** Zgłoszenia usterek, ogłoszenia urzędu, dyskusje.
+2. **Nowa potrzeba** Remont, objazd, brak wody. Komunikat nie trafia do tych, których dotyczy.
+3. **Urząd opisuje** „Utrudnienia w okolicy”.
+4. **Mieszkańcy dostają** mapę utrudnień i powiadomienie tylko o tych w swojej okolicy.
+
+- **Wtyczka nie zna niczyjego adresu.** Okolicę dopasowuje serwer.
+
+<!--
+Notatki: ta sama droga co w spółdzielni, tylko skala inna. W spółdzielni ostrzeżenie dotyczy prawie wszystkich, w mieście
+powiadomienie dla wszystkich byłoby spamem, więc dostaje je tylko okolica utrudnienia.
+Urząd zaznacza na mapie obszar (np. ulicę w remoncie albo rejon bez wody), a powiadomienie dostają mieszkańcy z zapisanym
+adresem albo niedawną pozycją w tym promieniu. Adresy mieszkańcy dodają sami w koncie („adresy do powiadomień w okolicy”).
+SDK ma do tego gotowe elementy: obszary na mapie (`ui.map.areas`) i powiadomienia „w pobliżu” (promień do 50 km).
+Tej wtyczki nie przygotowaliśmy na demo: to przykład opisu dla generatora, nie gotowa funkcja.
+-->
+
+---
+
+<!-- _class: places -->
+
+## Od miasta po dom
+
+# Każde miejsce włącza swoje funkcje
+
+- **Miasto**
+  - Zgłoszenia usterek
+  - Utrudnienia w okolicy
+  - Budżet obywatelski
+  - Konsultacje społeczne
+- **Uczelnia**
+  - Rezerwacja sal
+  - Ogłoszenia dziekanatu
+  - Zmiany w planie zajęć
+  - Rzeczy znalezione
+- **Spółdzielnia mieszkaniowa**
+  - Uwaga, dzik!
+  - Oddam za darmo
+  - Odczyty liczników
+  - Usterki w bloku
+- **Dom**
+  - Lista zakupów
+  - Grafik sprzątania
+  - Wspólne wydatki
+  - Kalendarz rodziny
+
+**Zgłoszenia, ogłoszenia i dyskusje działają w demo.** Resztę administrator opisuje, a AI pisze.
+
+<!--
+Notatki: ta sama aplikacja i ten sam generator od całego miasta po jedno mieszkanie; zmienia się tylko zestaw wtyczek.
+Wbudowane wtyczki to zgłoszenia usterek, ogłoszenia i dyskusje. Pozostałe funkcje to przykłady opisów dla generatora:
+nie przygotowaliśmy ich na demo (ROADMAP.md). Budżet obywatelski wymaga weryfikacji mieszkańców (mObywatel, v2).
 -->
 
 ---
@@ -297,20 +368,21 @@ włączyć „Uwaga, dzik!” dla wszystkich mieszkańców. Bez liczb, których 
 
 # Brakuje funkcji? Administrator opisuje ją jednym zdaniem
 
-1. **Opis** po polsku, własnymi słowami
+1. **Opis** po polsku
 2. **AI pisze** wtyczkę
-3. **Sprawdzenie** kodu, automatycznie
-4. **Szkic** widzą tylko administratorzy
-5. **Publikacja** i działa u mieszkańców
+3. **Sprawdzenie** automatyczne
+4. **Szkic** dla administratorów
+5. **Publikacja** u mieszkańców
 
-- **Bez aktualizacji w sklepach i bez restartu serwera.** Nowy widżet pojawia się na otwartych telefonach w ciągu kilkunastu sekund.
-- **Zmiany też jednym zdaniem:** „dodaj zdjęcie” tworzy nową wersję, a dane wtyczki zostają.
+- **Bez aktualizacji w sklepach i bez restartu serwera.**
+- **Zmiany też jednym zdaniem:** „dodaj zdjęcie”.
 
 <!--
-Notatki: najważniejszy slajd (kryterium „pomysł”, 30%). Najlepiej pokazać na żywo, w Spółdzielni Słonecznej z poprzedniego
-slajdu: „Uwaga, dzik!: mieszkaniec zgłasza dzika ze zdjęciem i miejscem na mapie, a sąsiedzi w promieniu 500 m dostają
-ostrzeżenie.” Drugi telefon (konto mieszkańca z zapisanym miejscem przy osiedlu) pokazuje ostrzeżenie.
-„Kilkanaście sekund”: pulpit odświeża się co 15 s.
+Notatki: najważniejszy slajd (kryterium „pomysł”, 30%). Najlepiej pokazać na żywo, w Spółdzielni Słonecznej (pierwszy
+przykład): „Uwaga, dzik!: mieszkaniec zgłasza dzika ze zdjęciem i miejscem na mapie, a sąsiedzi w promieniu 500 m
+dostają ostrzeżenie.” Drugi telefon (konto mieszkańca z zapisanym miejscem przy osiedlu) pokazuje ostrzeżenie.
+Nowy widżet pojawia się na otwartych telefonach w ciągu kilkunastu sekund (pulpit odświeża się co 15 s). Zmiana
+(„dodaj zdjęcie”) tworzy nową wersję, a dane wtyczki zostają.
 Uwaga: napisanie wersji przez AI trwa dłużej (limit 5 minut), więc na demo przygotować wtyczkę wcześniej albo zagadać czas.
 -->
 
@@ -324,18 +396,18 @@ Uwaga: napisanie wersji przez AI trwa dłużej (limit 5 minut), więc na demo pr
 
 | Wtyczka na serwerze | Aplikacja na telefonie |
 | --- | --- |
-| Jeden plik TypeScript, zależny tylko od SDK | Rysuje ekrany, które opisuje serwer |
-| Własne tabele, osobne dla każdego miejsca | Katalog 34 elementów UI: formularze, mapa, galeria… |
-| Widoki, widżety i akcje z walidacją (Zod) | Nowa funkcja bez nowej wersji aplikacji |
+| Jeden plik TypeScript, tylko SDK | Rysuje ekrany opisane przez serwer |
+| Własne tabele w każdym miejscu | 36 elementów UI: formularze, mapa, galeria… |
+| Akcje z walidacją (Zod) | Nowa funkcja bez nowej wersji aplikacji |
 
-Serwer przysyła opis ekranu, a aplikacja go rysuje. Dlatego wtyczka napisana przez AI działa od razu na iOS, Androidzie i w przeglądarce.
-
-### Kod od AI przechodzi te same bramki co każda wtyczka, więc działa.
+### Kod od AI przechodzi te same bramki co każda wtyczka.
 
 *Składnia → importy → typy → safety → wczytanie → schemat bazy*
 
 <!--
-Notatki: samo połączenie wtyczek i Server-Driven UI jest znane (np. aplikacje Slacka). Nowe jest to, że na tym fundamencie
+Notatki: serwer przysyła opis ekranu, a aplikacja go rysuje. Dlatego wtyczka napisana przez AI działa od razu na iOS,
+Androidzie i w przeglądarce. Wtyczka ma widoki, widżety i akcje; jej tabele są osobne dla każdego miejsca.
+Samo połączenie wtyczek i Server-Driven UI jest znane (np. aplikacje Slacka). Nowe jest to, że na tym fundamencie
 AI pisze funkcje bezpiecznie: pisze tylko kod serwera przeciw wąskiemu SDK, nigdy kod aplikacji.
 Bramki: wtyczka widzi tylko `ctx` (bez dostępu do bazy aplikacji, dysku, sieci i lokalizacji mieszkańców); dane każdej
 instalacji są odizolowane; błędy wracają do agenta AI, który poprawia kod (najwyżej 3 sprawdzenia na wersję); niezgodna
@@ -354,10 +426,10 @@ na Worker/WASM i to jest v2 (ROADMAP.md).
 
 # Twoje Miejsce. Rośnie razem z Twoimi potrzebami.
 
-**[nazwa zespołu] · [członkowie zespołu]**
+**Twój Team**
 
-github.com/HACKYEAH-2026/smart-city
+Karol Jażdrzyk · Marcin Niemczyk · Dawid Danieluk
 
 <!--
-Notatki: zakończyć hasłem. Link do repozytorium tylko, jeśli będzie publiczne na czas oceny.
+Notatki: zakończyć hasłem.
 -->
