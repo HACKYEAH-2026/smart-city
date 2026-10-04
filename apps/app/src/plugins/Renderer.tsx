@@ -352,7 +352,11 @@ function PluginList({ node }: { node: Extract<UINode, { type: "List" }> }) {
   const grouped = !inWidget && node.variant === "grouped";
   const rows = inWidget || grouped;
   return (
-    <View role="list" aria-label={node.label} style={grouped ? styles.group : inWidget ? styles.widgetList : styles.list}>
+    <View
+      role="list"
+      aria-label={node.label}
+      style={grouped ? styles.group : inWidget ? styles.widgetList : styles.list}
+    >
       <InGroupContext.Provider value={grouped}>
         {node.children.map((n, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: as in Children.
@@ -372,14 +376,13 @@ function PluginList({ node }: { node: Extract<UINode, { type: "List" }> }) {
 function PluginButton({ node }: { node: Extract<UINode, { type: "Button" }> }) {
   const { onAction, busy, onLongPress } = useContext(ActionsContext);
   const inWidget = useContext(InWidgetContext);
-  const variant: ButtonVariant =
-    inWidget
-      ? "dark"
-      : node.pressed === undefined
-        ? BUTTON_VARIANT[node.variant ?? "primary"]
-        : node.pressed
-          ? "primary"
-          : "outline";
+  const variant: ButtonVariant = inWidget
+    ? "dark"
+    : node.pressed === undefined
+      ? BUTTON_VARIANT[node.variant ?? "primary"]
+      : node.pressed
+        ? "primary"
+        : "outline";
   const toggle = node.pressed === undefined ? {} : toggleA11y(node.pressed, { disabled: busy });
   // Widget actions keep their full height even when the content above them runs out of room.
   return (

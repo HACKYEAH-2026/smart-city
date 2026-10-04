@@ -1,7 +1,9 @@
 import type { ToolAction, ViewParams } from "@app/plugin-sdk";
 import type { FormValue } from "./context";
 
-/** A refresh synchronizes pristine fields with server values and preserves dirty drafts. */
+/**
+ * A refresh takes the fields the server changed (a removed one disappears) and keeps the user's drafts in the rest.
+ */
 export function syncFormValues(
   draft: Record<string, FormValue>,
   before: Record<string, FormValue>,
@@ -10,8 +12,8 @@ export function syncFormValues(
   const names = [...new Set([...Object.keys(draft), ...Object.keys(before), ...Object.keys(after)])];
   return Object.fromEntries(
     names.flatMap((name) => {
-      const pristine = JSON.stringify(draft[name]) === JSON.stringify(before[name]);
-      const value = pristine ? after[name] : draft[name];
+      const changed = JSON.stringify(before[name]) !== JSON.stringify(after[name]);
+      const value = changed ? after[name] : draft[name];
       return value === undefined ? [] : [[name, value]];
     }),
   );
