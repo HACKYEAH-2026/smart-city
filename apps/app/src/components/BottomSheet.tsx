@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { tapFeedback } from "../lib/haptics";
 import { t } from "../texts";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
 import { Heading } from "./Heading";
@@ -31,7 +32,8 @@ export interface BottomSheetProps {
 /**
  * Bottom sheet (COMPONENTS.md → BottomSheet) on @gorhom/bottom-sheet: native gestures and spring motion. The dimmed
  * backdrop fades on its own (it does not move with the sheet); pan down, a tap on the backdrop or the close button
- * slide it away, then `onClose` runs. Render it outside the scrolling content (`Screen` → `overlay`).
+ * slide it away, then `onClose` runs. Every close gives one light haptic tick: the close button and a backdrop tap
+ * when pressed, a pan once the sheet is gone. Render it outside the scrolling content (`Screen` → `overlay`).
  * Mounted only while `visible`: gorhom never moves a sheet that mounts closed to its closed position, it stays at
  * the window height. Where the app draws under the system bars and the window is shorter than the screen (Android
  * in Expo Go), the top of the sheet then showed above the bottom edge, with an invisible backdrop taking every tap.
@@ -50,7 +52,22 @@ function OpenSheet({
   accentEyebrow = false,
 }: Omit<BottomSheetProps, "visible">) {
   const ref = useRef<GorhomBottomSheet>(null);
+  // Whether this close has ticked already (the close button ticks on its own when pressed).
+  const ticked = useRef(false);
   const insets = useSafeAreaInsets();
+  const closeByButton = () => {
+    ticked.current = true;
+    ref.current?.close();
+  };
+  const tickOnBackdrop = () => {
+    ticked.current = true;
+    tapFeedback();
+  };
+  // gorhom's onAnimate misses a pan that drags the sheet all the way down: a pan ticks here, once the sheet is gone.
+  const closed = () => {
+    if (!ticked.current) tapFeedback();
+    onClose();
+  };
   const body = (
     <View role="dialog" aria-label={title} style={styles.content}>
       <View style={styles.head}>
@@ -68,13 +85,7 @@ function OpenSheet({
           ) : null}
           <Heading level={2}>{title}</Heading>
         </View>
-        <IconButton
-          icon={X}
-          label={t.close}
-          onPress={() => ref.current?.close()}
-          variant="plain"
-          disabled={!dismissible}
-        />
+        <IconButton icon={X} label={t.close} onPress={closeByButton} variant="plain" disabled={!dismissible} />
       </View>
       {children}
     </View>
@@ -86,7 +97,7 @@ function OpenSheet({
       enableDynamicSizing
       enablePanDownToClose={dismissible}
       topInset={insets.top}
-      onClose={onClose}
+      onClose={closed}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handle}
       backdropComponent={(props) => (
@@ -95,6 +106,7 @@ function OpenSheet({
           appearsOnIndex={0}
           disappearsOnIndex={-1}
           pressBehavior={dismissible ? "close" : "none"}
+          onPress={tickOnBackdrop}
           opacity={accentEyebrow ? opacity.pluginScrim : opacity.scrim}
         />
       )}
