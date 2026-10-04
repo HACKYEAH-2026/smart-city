@@ -209,7 +209,8 @@ Notatki: bez liczb (PRODUCT.md: żadnych wymyślonych danych). Konkretny przykł
 - **iOS, Android i przeglądarka** z jednej bazy kodu.
 
 <!--
-Notatki: w demo konto anna@krakow.test należy do trzech miejsc: Kraków, Kampus Główny, Spółdzielnia Słoneczna.
+Notatki: w demo konto anna@krakow.test należy do czterech miejsc: Kraków, Tauron Arena Kraków, Kampus Główny,
+Spółdzielnia Słoneczna.
 -->
 
 ---
@@ -255,6 +256,29 @@ Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplika
 
 <!-- _class: flow -->
 
+## Przykład: Spółdzielnia Słoneczna
+
+# Nowa potrzeba to nowa funkcja, nie nowa aplikacja
+
+1. **Dziś** Mieszkańcy zgłaszają usterki, czytają ogłoszenia administracji i rozmawiają w dyskusjach.
+2. **Nowa potrzeba** Na osiedle przychodzą dziki. Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął.
+3. **Administrator opisuje** dwie funkcje własnymi słowami: „Uwaga, dzik!” i „Oddam za darmo”.
+4. **Mieszkańcy dostają** ostrzeżenie, gdy dzik jest w pobliżu, i tablicę rzeczy do oddania.
+
+- **Nic nowego do instalowania i uczenia się.** To samo konto, te same powiadomienia, ten sam pulpit.
+- **Bez programisty i bez zamówienia.** AI pisze wtyczkę, a administrator ją sprawdza i publikuje.
+
+<!--
+Notatki: to jest hasło „Rośnie razem z Twoimi potrzebami” w praktyce, a następny slajd pokazuje, jak to działa.
+Ostrzeżenie dostają tylko mieszkańcy w promieniu np. 500 m (zapisane miejsce albo pozycja z otwartej aplikacji z ostatnich
+30 minut), a wtyczka nie zna niczyjej lokalizacji: dopasowuje ją serwer. To samo działa w skali miasta: Kraków może
+włączyć „Uwaga, dzik!” dla wszystkich mieszkańców. Bez liczb, których nie zmierzyliśmy.
+-->
+
+---
+
+<!-- _class: flow -->
+
 ## Innowacja
 
 # Brakuje funkcji? Administrator opisuje ją jednym zdaniem
@@ -269,8 +293,10 @@ Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplika
 - **Zmiany też jednym zdaniem:** „dodaj zdjęcie” tworzy nową wersję, a dane wtyczki zostają.
 
 <!--
-Notatki: najważniejszy slajd (kryterium „pomysł”, 30%). Najlepiej pokazać na żywo: np. „Rezerwacja sali spotkań: mieszkańcy
-wybierają dzień i godzinę, a administrator widzi listę rezerwacji.” „Kilkanaście sekund”: pulpit odświeża się co 15 s.
+Notatki: najważniejszy slajd (kryterium „pomysł”, 30%). Najlepiej pokazać na żywo, w Spółdzielni Słonecznej z poprzedniego
+slajdu: „Uwaga, dzik!: mieszkaniec zgłasza dzika ze zdjęciem i miejscem na mapie, a sąsiedzi w promieniu 500 m dostają
+ostrzeżenie.” Drugi telefon (konto mieszkańca z zapisanym miejscem przy osiedlu) pokazuje ostrzeżenie.
+„Kilkanaście sekund”: pulpit odświeża się co 15 s.
 Uwaga: napisanie wersji przez AI trwa dłużej (limit 5 minut), więc na demo przygotować wtyczkę wcześniej albo zagadać czas.
 -->
 

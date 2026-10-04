@@ -326,7 +326,7 @@ describe("local dev seed", () => {
         }[]
       ).map((n) => n.pluginId);
     expect(await nav("kampus-glowny")).toEqual(["announcements", "discussions"]);
-    expect(await nav("spoldzielnia-sloneczna")).toEqual(["issues", "announcements"]);
+    expect(await nav("spoldzielnia-sloneczna")).toEqual(["issues", "announcements", "discussions"]);
 
     // Both are on the map of places for everyone, with their codes: anyone can join them from there.
     const stranger = await t.signUp({ place: null });

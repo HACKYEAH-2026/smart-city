@@ -238,11 +238,11 @@ export const DEMO_RESIDENT_PLACES: ResidentPlace[] = [
     name: "Spółdzielnia Słoneczna",
     kind: "estate",
     address: "os. Słoneczne 1, 31-956 Kraków",
-    description: "Zgłoszenia usterek w budynkach i ogłoszenia administracji osiedla.",
+    description: "Zgłoszenia usterek w budynkach, ogłoszenia administracji i dyskusje sąsiadów.",
     invite_code: "SLNCZN",
     lat: 50.07679,
     lng: 20.03974,
-    pluginIds: ["issues", "announcements"],
+    pluginIds: ["issues", "announcements", "discussions"],
   },
 ];
 
