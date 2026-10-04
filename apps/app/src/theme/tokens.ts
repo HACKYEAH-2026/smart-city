@@ -7,77 +7,77 @@
 
 export const colors = {
   // Brand
-  primary: '#E50101', // primary CTA, active elements, links, accent icons
-  primaryPressed: '#B30000', // pressed state, text on primaryTint (contrast), destructive text
-  primaryTint: '#FDECEC', // icon/avatar/badge background, success ring
-  primaryTintPressed: '#FAD9D9', // pressed state of an accent button on primaryTint (outside the design)
+  primary: "#E50101", // primary CTA, active elements, links, accent icons
+  primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
+  primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
+  primaryTintPressed: "#FAD9D9", // pressed state of an accent button on primaryTint (outside the design)
   // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
-  neutralTint: '#ECEAE5',
-  neutralText: '#3E3E46',
-  infoTint: '#E8EEF8',
-  infoText: '#1F4E8C',
-  warningTint: '#FFF1D6',
-  warningText: '#7A4F00',
-  successTint: '#E3F1E6',
-  successText: '#1E6B34',
-  onPrimary: '#FFFFFF',
+  neutralTint: "#ECEAE5",
+  neutralText: "#3E3E46",
+  infoTint: "#E8EEF8",
+  infoText: "#1F4E8C",
+  warningTint: "#FFF1D6",
+  warningText: "#7A4F00",
+  successTint: "#E3F1E6",
+  successText: "#1E6B34",
+  onPrimary: "#FFFFFF",
 
   // Text
-  text: '#1B1B1F', // main text, headings, "dark" button
-  textBody: '#3E3E46', // longer descriptions
-  textSecondary: '#5E5E66', // captions, labels, helper text
-  iconMuted: '#8A919C', // chevrons in list rows
-  placeholder: '#8A8A92', // input placeholder
+  text: "#1B1B1F", // main text, headings, "dark" button
+  textBody: "#3E3E46", // longer descriptions
+  textSecondary: "#5E5E66", // captions, labels, helper text
+  iconMuted: "#8A919C", // chevrons in list rows
+  placeholder: "#8A8A92", // input placeholder
 
   // Backgrounds and surfaces
-  background: '#F5F3EE', // screen background (warm off-white)
-  surface: '#FFFFFF', // cards, fields, list rows, tab bar
-  surfaceSunken: '#EAE7E0', // segmented control background, close button in sheet
-  surfaceMuted: '#F0EEE9', // neutral avatars/badges (member)
-  surfaceDisabled: '#FAF9F7', // empty code cells
-  mapBase: '#ECE9E1', // map / photo placeholder
+  background: "#F5F3EE", // screen background (warm off-white)
+  surface: "#FFFFFF", // cards, fields, list rows, tab bar
+  surfaceSunken: "#EAE7E0", // segmented control background, close button in sheet
+  surfaceMuted: "#F0EEE9", // neutral avatars/badges (member)
+  surfaceDisabled: "#FAF9F7", // empty code cells
+  mapBase: "#ECE9E1", // map / photo placeholder
 
   // Borders
-  border: '#DDD9CF', // fields, secondary buttons
-  borderSubtle: '#E3E0D8', // icon buttons, tab bar top edge
-  borderEmpty: '#E6E3DC', // empty code cells
-  divider: '#EEEBE4', // separators inside cards/lists
-  dashed: '#D3CEC2', // dashed frames, bottom sheet handle
-  dashedStrong: '#B9B4A9', // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
-  dot: '#B5B2AA', // dash in the ABC-DEF code
+  border: "#DDD9CF", // fields, secondary buttons
+  borderSubtle: "#E3E0D8", // icon buttons, tab bar top edge
+  borderEmpty: "#E6E3DC", // empty code cells
+  divider: "#EEEBE4", // separators inside cards/lists
+  dashed: "#D3CEC2", // dashed frames, bottom sheet handle
+  dashedStrong: "#B9B4A9", // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
+  dot: "#B5B2AA", // dash in the ABC-DEF code
 
   // Dark mode (QR scanner only)
-  scannerBg: '#17171A',
-  scannerText: '#C8C8CC',
-  scannerHint: '#707078',
-  onDarkOverlay: 'rgba(255,255,255,0.10)', // buttons on dark background
-  onPrimaryOverlay: 'rgba(255,255,255,0.18)', // icon on a red card
+  scannerBg: "#17171A",
+  scannerText: "#C8C8CC",
+  scannerHint: "#707078",
+  onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
+  onPrimaryOverlay: "rgba(255,255,255,0.18)", // icon on a red card
 
   // Layers
-  scrim: '#5F646C', // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
-  focusRing: 'rgba(229,1,1,0.10)', // field focus glow
-  focusRingStrong: 'rgba(229,1,1,0.12)', // code cell / selected card glow
+  scrim: "#5F646C", // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
+  focusRing: "rgba(229,1,1,0.10)", // field focus glow
+  focusRingStrong: "rgba(229,1,1,0.12)", // code cell / selected card glow
 
   // Map decorations (illustrations on login and dashboard screens)
-  mapPark: '#E4EBDD',
-  mapWater: '#E4EAF3',
-  mapRoad: '#E6E2D8',
-  mapRoadMinor: '#ECE8DF',
+  mapPark: "#E4EBDD",
+  mapWater: "#E4EAF3",
+  mapRoad: "#E6E2D8",
+  mapRoadMinor: "#ECE8DF",
   // Live maps (OpenFreeMap base recoloured to the tokens above, src/lib/map/spec.ts)
-  mapBuilding: '#E3DFD5', // buildings, a shade darker than mapBase
-  mapMe: '#3D6AE0', // the user's own position (blue dot with a halo)
+  mapBuilding: "#E3DFD5", // buildings, a shade darker than mapBase
+  mapMe: "#3D6AE0", // the user's own position (blue dot with a halo)
   // What plugin maps mean by a tone (ui.map: pins, routes, areas). The app's UI shows only danger in colour, but on a
   // map colour is how layers tell apart; danger is the brand red, and info stays clear of the blue "me" dot.
-  mapNeutral: '#5E5E66',
-  mapInfo: '#1F6FA8',
-  mapSuccess: '#2E7D32',
-  mapWarning: '#C26A00',
+  mapNeutral: "#5E5E66",
+  mapInfo: "#1F6FA8",
+  mapSuccess: "#2E7D32",
+  mapWarning: "#C26A00",
 
   // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
-  googleBlue: '#4285F4',
-  googleGreen: '#34A853',
-  googleYellow: '#FBBC05',
-  googleRed: '#EA4335',
+  googleBlue: "#4285F4",
+  googleGreen: "#34A853",
+  googleYellow: "#FBBC05",
+  googleRed: "#EA4335",
 } as const;
 
 export const spacing = {
@@ -122,9 +122,9 @@ export const radii = {
   md: 12, // icon box, 46 px button, segment
   lg: 14, // fields, main buttons, back button
   xl: 16, // list rows, small cards
-  '2xl': 18, // list groups, SelectableCard
-  '3xl': 20, // dashboard cards, dashboard tiles
-  '4xl': 22, // banner/hero, success card, the layout editor's grid
+  "2xl": 18, // list groups, SelectableCard
+  "3xl": 20, // dashboard cards, dashboard tiles
+  "4xl": 22, // banner/hero, success card, the layout editor's grid
   panel: 24, // top corners of a non-modal panel at the bottom of a screen (layout editor)
   mini: 8, // tiles of the dashboard layout preview
   outline: 3, // the outline rectangle of a widget size choice ("3 × 2")
@@ -258,10 +258,10 @@ export const sizes = {
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */
 export const fontFamily = {
   // Schibsted Grotesk — text, headings, buttons, labels, codes
-  regular: 'SchibstedGrotesk_400Regular',
-  medium: 'SchibstedGrotesk_500Medium',
-  semibold: 'SchibstedGrotesk_600SemiBold',
-  bold: 'SchibstedGrotesk_700Bold',
+  regular: "SchibstedGrotesk_400Regular",
+  medium: "SchibstedGrotesk_500Medium",
+  semibold: "SchibstedGrotesk_600SemiBold",
+  bold: "SchibstedGrotesk_700Bold",
 } as const;
 
 /**
@@ -413,7 +413,7 @@ export const shadows = {
   none: {},
   /** Default card / list row (0 1 2 rgba .06) */
   card: {
-    shadowColor: '#1B1B1F',
+    shadowColor: "#1B1B1F",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
@@ -421,7 +421,7 @@ export const shadows = {
   },
   /** Dashboard / success card (0 1 2 + 0 8 24 rgba .05) */
   cardRaised: {
-    shadowColor: '#1B1B1F',
+    shadowColor: "#1B1B1F",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
     shadowRadius: 12,
@@ -429,7 +429,7 @@ export const shadows = {
   },
   /** Selected card / row (red glow 0 6 18 .12) */
   selected: {
-    shadowColor: '#E50101',
+    shadowColor: "#E50101",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 9,
@@ -437,7 +437,7 @@ export const shadows = {
   },
   /** Small floating button on the map / active segment (0 2 8 .12) */
   floating: {
-    shadowColor: '#1B1B1F',
+    shadowColor: "#1B1B1F",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -445,7 +445,7 @@ export const shadows = {
   },
   /** A panel at the bottom of a screen, over the content (0 -8 28 rgba .10) */
   panel: {
-    shadowColor: '#1B1B1F',
+    shadowColor: "#1B1B1F",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.1,
     shadowRadius: 14,
@@ -453,7 +453,7 @@ export const shadows = {
   },
   /** Focus glow of a text field (COMPONENTS.md → TextField: 4 dp, primary at .10) */
   focusRing: {
-    shadowColor: '#E50101',
+    shadowColor: "#E50101",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
