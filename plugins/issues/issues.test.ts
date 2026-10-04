@@ -802,6 +802,15 @@ describe("issues: admin", () => {
       ["Zieleń", "removeCategory"],
       ["Inne", undefined],
     ]);
+    // A new category comes from a message box whose icon is a plus, not the paper plane.
+    expect(nodes(await plugin.as(admin).view("settings"), "Form")).toContainEqual(
+      expect.objectContaining({
+        submitLabel: "Dodaj",
+        submit: { type: "tool", tool: "addCategory" },
+        inline: true,
+        submitIcon: "plus",
+      }),
+    );
     expect((await plugin.as(admin).tool("addCategory", { name: "Windy" })).toast).toBe("Dodano kategorię.");
     expect((await plugin.as(admin).tool("addCategory", { name: "windy" })).error).toBe("Taka kategoria już jest.");
     expect((await plugin.as(admin).tool("addCategory", { name: "inne" })).error).toBe("Taka kategoria już jest.");

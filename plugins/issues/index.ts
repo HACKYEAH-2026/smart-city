@@ -637,7 +637,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
   return definePlugin({
     id: "issues",
     name: "Zgłoszenia",
-    version: "4.0.1",
+    version: "4.0.2",
     icon: "🛠️",
     description:
       "Zgłaszanie usterek ze zdjęciem i miejscem na mapie, podbijanie i odpowiedzi administratorów; AI łączy zgłoszenia tego samego problemu.",
@@ -1205,6 +1205,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
             ui.form({
               submitLabel: "Dodaj",
               submit: ui.tool("addCategory"),
+              submitIcon: "plus",
               inline: true,
               children: [ui.textInput({ name: "name", label: "Nowa kategoria" })],
             }),
