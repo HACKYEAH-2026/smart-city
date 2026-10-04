@@ -45,7 +45,7 @@ export type { InviteCodeCardProps } from "./InviteCodeCard";
 export { InviteCodeCard } from "./InviteCodeCard";
 export type { LinkProps } from "./Link";
 export { Link } from "./Link";
-export { MapDecoration } from "./MapDecoration";
+export { LoginVideo } from "./LoginVideo";
 export type { MapViewHandle, MapViewProps } from "./MapView";
 export { MapView } from "./MapView";
 export type { MessageInputProps } from "./MessageInput";

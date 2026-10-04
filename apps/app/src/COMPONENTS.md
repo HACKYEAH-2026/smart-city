@@ -302,7 +302,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 
 | Plik w projekcie      | Ekran                                                     | Główne komponenty                                                                                                    |
 | --------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| E-Logowanie           | Logowanie                                                 | dekoracja mapy, wordmark, TextField ×2, Button primary, Button secondary ×2 (Google/Apple), Link                     |
+| E-Logowanie           | Logowanie                                                 | klip pętli (`LoginVideo`, wideo wyciszone, zanika w dół), wordmark, TextField ×2, Button primary, Button secondary ×2 (Google/Apple), Link                     |
 | E-Rejestracja         | Rejestracja (krok 1 z 2)                                  | ScreenHeader (krok), TextField ×3, PasswordStrength, Checkbox, Button primary                                        |
 | E-BrakMiejsc          | Brak miejsc na koncie                                     | IconButton round (konto), HeroBanner, ActionRow ×4, CreateRow                                                        |
 | E-DolaczQR            | Skanowanie QR                                             | ScannerFrame, IconButton roundOnDark ×2, Button onDark / ghost-on-dark                                               |

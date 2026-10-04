@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
-import { Brand, Button, GoogleLogo, Heading, Link, MapDecoration, Screen, Text, TextField } from "../components";
+import { Brand, Button, GoogleLogo, Heading, Link, LoginVideo, Screen, Text, TextField } from "../components";
 import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
 import { devLoginAccounts } from "../lib/config";
 import { t } from "../texts";
@@ -54,7 +54,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen chrome={false} backdrop={<MapDecoration />}>
+    <Screen chrome={false} backdrop={<LoginVideo />}>
       <Head>
         <title>{t.meta_login_title}</title>
       </Head>
