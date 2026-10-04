@@ -766,19 +766,20 @@ size the plugin no longer allows falls back to its `size`.
 dashboardWidgets: {
   latest: {
     title: "Ogłoszenia",
-    size: { w: 3, h: 3 },
-    sizes: [{ w: 3, h: 2 }],
+    size: { w: 3, h: 2 },
+    sizes: [{ w: 3, h: 3 }],
     render: async (ctx) => {
       const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
       const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
       return ui.widget(
         "Ogłoszenia",
         [
-          fresh.length ? ui.text("Nowe od Twojej ostatniej wizyty", "soft") : ui.empty("Nic nowego."),
+          ...(fresh.length ? [] : [ui.empty("Nic nowego.")]),
           ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
           ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
         ],
-        { onPress: ui.navigate("list") }, // tapping the tile
+        // A short line under the title; tapping the tile opens the list.
+        { ...(fresh.length ? { subtitle: "Nowe od Twojej ostatniej wizyty" } : {}), onPress: ui.navigate("list") },
       );
     },
   },

@@ -448,7 +448,7 @@ describe("dashboard", () => {
     const before = await dashboard(u.headers);
     expect(before.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
       { key: "issues/summary", size: { w: 3, h: 2 } },
-      { key: "announcements/latest", size: { w: 3, h: 3 } },
+      { key: "announcements/latest", size: { w: 3, h: 2 } },
       { key: "discussions/recent", size: { w: 3, h: 3 } },
     ]);
     // Tapping a tile opens the plugin view its widget names.
@@ -580,8 +580,8 @@ describe("dashboard", () => {
             pluginName: "Ogłoszenia",
             pluginIcon: "📢",
             title: "Ogłoszenia",
-            size: tall,
-            sizes: [tall, short],
+            size: short,
+            sizes: [short, tall],
           },
           {
             key: "discussions/recent",
@@ -619,27 +619,27 @@ describe("dashboard", () => {
     test("a removed widget leaves the dashboard and is available; a chosen size and order are used", async () => {
       await start();
       const u = await t.signUp();
-      const res = await putLayout(cityAdmin.headers, [{ key: "announcements/latest", size: short }]);
+      const res = await putLayout(cityAdmin.headers, [{ key: "announcements/latest", size: tall }]);
       expect(res.status).toBe(200);
       const saved = (await res.json()) as DashboardLayout;
       expect(saved.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
-        { key: "announcements/latest", size: short },
+        { key: "announcements/latest", size: tall },
       ]);
       expect(saved.available.map((w) => w.key)).toEqual(["issues/summary", "discussions/recent"]);
       expect(await getLayout(cityAdmin.headers)).toEqual(saved);
 
       const d = await dashboard(u.headers);
-      expect(d.widgets.map(({ key, size }) => ({ key, size }))).toEqual([{ key: "announcements/latest", size: short }]);
+      expect(d.widgets.map(({ key, size }) => ({ key, size }))).toEqual([{ key: "announcements/latest", size: tall }]);
 
       // Added back: issues first, discussions last, both at their default size.
       await putLayout(cityAdmin.headers, [
         { key: "issues/summary", size: tall },
-        { key: "announcements/latest", size: short },
+        { key: "announcements/latest", size: tall },
         { key: "discussions/recent", size: tall },
       ]);
       expect((await dashboard(u.headers)).widgets.map(({ key, size }) => ({ key, size }))).toEqual([
         { key: "issues/summary", size: tall },
-        { key: "announcements/latest", size: short },
+        { key: "announcements/latest", size: tall },
         { key: "discussions/recent", size: tall },
       ]);
       expect((await getLayout(cityAdmin.headers)).available).toEqual([]);

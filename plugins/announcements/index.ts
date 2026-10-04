@@ -43,7 +43,7 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
   return definePlugin({
     id: "announcements",
     name: "Ogłoszenia",
-    version: "1.1.0",
+    version: "1.1.1",
     icon: "📢",
     description: "Ogłoszenia administratorów dla użytkowników, z podglądem nowości na pulpicie.",
     permissions: ["db"],
@@ -84,8 +84,9 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
     dashboardWidgets: {
       latest: {
         title: "Ogłoszenia",
-        size: { w: 3, h: 3 },
-        sizes: [{ w: 3, h: 2 }],
+        // Two rows fit what it shows (a line, up to 2 new announcements, the button); a taller one stays an option.
+        size: { w: 3, h: 2 },
+        sizes: [{ w: 3, h: 3 }],
         render: async (ctx) => {
           const any = (await ctx.db.announcements.count()) > 0;
           const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
@@ -95,12 +96,11 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
             limit: 2,
           });
           const total = fresh.length ? await ctx.db.announcements.count({ where: since }) : 0;
+          // What is new is the subtitle under the title: one short line, so the two rows fit two announcements.
           return ui.widget(
             "Ogłoszenia",
             [
-              any
-                ? ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft")
-                : ui.empty("Nie ma jeszcze ogłoszeń."),
+              ...(any ? [] : [ui.empty("Nie ma jeszcze ogłoszeń.")]),
               ...fresh.map((a) =>
                 ui.card({
                   title: a.title,
@@ -109,7 +109,10 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
               ),
               ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
             ],
-            { onPress: ui.navigate("list") },
+            {
+              ...(any ? { subtitle: total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty." } : {}),
+              onPress: ui.navigate("list"),
+            },
           );
         },
       },
