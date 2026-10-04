@@ -1,7 +1,17 @@
 import type { Page } from "@playwright/test";
 import { testGoogleIdToken } from "../../api/src/test-google";
 import { t } from "../src/texts";
-import { DEMO_ADMIN, expect, joinKrakow, PASSWORD, register, signOut, test } from "./fixtures";
+import {
+  DEMO_ADMIN,
+  DEMO_RESIDENT,
+  expect,
+  joinKrakow,
+  PASSWORD,
+  register,
+  seedResident,
+  signOut,
+  test,
+} from "./fixtures";
 
 /** Auth acceptance criteria: sign-up, sign-out, /app protection, sign-in, wrong password. */
 const login = async (page: Page, email: string, password: string) => {
@@ -27,18 +37,42 @@ test("sign out closes /app, logging back in opens the dashboard of the place", a
 });
 
 /** Dev login: EXPO_PUBLIC_DEV_LOGIN=true in the repo's .env; E2E turns it on with `__DEV_LOGIN__` (like `__API_URL__`). */
-test("dev login: hidden by default; with the flag one tap signs in as the demo admin", async ({ page }) => {
-  const devLogin = page.getByRole("button", { name: `${t.auth_dev_login} ${DEMO_ADMIN.email}` });
-  await page.goto("/login");
-  await expect(page.getByRole("button", { name: t.auth_submit_login })).toBeVisible();
-  await expect(devLogin).toHaveCount(0);
-
-  await page.addInitScript(() => {
+const devLoginButton = (page: Page, email: string) =>
+  page.getByRole("button", { name: `${t.auth_dev_login} ${email}` });
+const turnOnDevLogin = (page: Page) =>
+  page.addInitScript(() => {
     (globalThis as unknown as { __DEV_LOGIN__: boolean }).__DEV_LOGIN__ = true;
   });
+
+test("dev login: hidden by default; with the flag one tap signs in as the demo admin", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: t.auth_submit_login })).toBeVisible();
+  await expect(page.getByRole("button", { name: new RegExp(`^${t.auth_dev_login}`) })).toHaveCount(0);
+
+  await turnOnDevLogin(page);
   await page.reload();
-  await devLogin.click();
+  await expect(devLoginButton(page, DEMO_RESIDENT.email)).toBeVisible();
+  await devLoginButton(page, DEMO_ADMIN.email).click();
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+});
+
+test("dev login as the demo resident: Kraków first, a member of the campus and the cooperative", async ({
+  page,
+  api,
+}) => {
+  await seedResident(api.url);
+  await turnOnDevLogin(page);
+  await page.goto("/login");
+  await devLoginButton(page, DEMO_RESIDENT.email).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_account }).click();
+  await expect(page.getByText(DEMO_RESIDENT.email)).toBeVisible();
+  const places = page.getByRole("list", { name: t.account_places_label });
+  for (const name of ["Kampus Główny", "Kraków", "Spółdzielnia Słoneczna"]) {
+    await expect(places.getByRole("link", { name: new RegExp(name) })).toBeVisible();
+  }
+  await expect(places.getByText(t.role_admin)).toHaveCount(0);
 });
 
 test("wrong password shows an error and does not let you in", async ({ page }) => {

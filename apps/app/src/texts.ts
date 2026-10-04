@@ -218,7 +218,7 @@ export const t = {
   auth_goto_login: "Zaloguj się",
   auth_goto_register: "Zarejestruj się",
   auth_login_error: "Nieprawidłowy email lub hasło.",
-  /** Dev login button (EXPO_PUBLIC_DEV_LOGIN); followed by the demo admin's email. */
+  /** Dev login buttons (EXPO_PUBLIC_DEV_LOGIN); followed by a seeded account's email (demo admin, demo resident). */
   auth_dev_login: "Dev: zaloguj jako",
   auth_register_error: "Nie udało się założyć konta. Ten email może być już zajęty.",
   auth_register_lead: "Jedno konto — wszystkie Twoje miejsca w jednej aplikacji.",
