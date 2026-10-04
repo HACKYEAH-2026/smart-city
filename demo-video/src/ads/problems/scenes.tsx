@@ -725,4 +725,4 @@ export const BuilderScene = () => {
 
 /* ── 8 · outro: your home, your estate, your city — Twoje Miejsce (shared/finale.tsx) ─────────────────── */
 
-export const OutroScene = () => <Finale tagline="Rośnie razem z Twoją społecznością." />;
+export const OutroScene = () => <Finale tagline="Rośnie razem z Twoimi potrzebami." />;
