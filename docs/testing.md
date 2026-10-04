@@ -19,6 +19,11 @@ That makes the crash rare, not impossible: now and then Bun still segfaults whil
 and a signed-in community admin; `t.signIn({ email, password })` signs in another seeded account. Inject a fake AI
 model with `setup({}, { ai: { language } })`.
 
+## Logs in tests
+The API's log (`apps/api/src/log.ts`) is silent in `test:unit` and `test:int` (`scripts/bun-test.ts` sets
+`LOG_LEVEL=silent` unless it is set): `LOG_LEVEL=debug bun run test:int` shows every line next to the test that
+wrote it. The E2E API process logs warnings and errors only (`LOG_LEVEL=warn` in `fixtures.ts`).
+
 ## E2E
 - Fixture `apps/app/e2e/fixtures.ts`: a worker-scoped API process (`apps/api/src/test-server.ts`) on a free port the
   OS picks,

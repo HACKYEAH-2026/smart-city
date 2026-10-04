@@ -1,5 +1,6 @@
 import { type AI, type FileId, type SimilarMatch, type SimilarOptions, withAITimeout } from "@app/plugin-sdk";
 import { z } from "zod";
+import { type LogFields, logger } from "../../log";
 import type { FileService } from "../files/service";
 import type { AIProviders, ModelImage } from "./types";
 
@@ -10,6 +11,8 @@ const CALLS_PER_MINUTE = 60;
 const EMBEDS_PER_MINUTE = 600;
 /** Characters per embedded text; well below the embedding models' input limit (8191 tokens for OpenAI's). */
 const EMBED_TEXT_MAX = 8000;
+
+const log = logger("ai");
 
 export class AINotConfiguredError extends Error {
   constructor() {
@@ -74,9 +77,12 @@ export class AIService {
 
     const generate = async (prompt: string, imgs: ModelImage[], schema?: z.ZodType, signal?: AbortSignal) => {
       const model = this.providers.language;
-      if (!model) throw new AINotConfiguredError();
+      if (!model) throw notConfigured(installationId, "a model call");
       this.limit(installationId, CALLS_PER_MINUTE);
-      return model.generate({ prompt, images: imgs, ...(schema ? { schema } : {}), ...(signal ? { signal } : {}) });
+      const fields = { installation: installationId, chars: prompt.length, images: imgs.length, structured: !!schema };
+      return logged("info", "model call", fields, () =>
+        model.generate({ prompt, images: imgs, ...(schema ? { schema } : {}), ...(signal ? { signal } : {}) }),
+      );
     };
 
     return {
@@ -95,7 +101,13 @@ export class AIService {
       ) => {
         const pool = candidates.slice(0, CANDIDATES_MAX);
         if (!pool.length) return [];
-        if (!this.providers.language) return lexicalSimilar(query.text, pool, opts);
+        if (!this.providers.language) {
+          log.debug("findSimilar without a model: shared words", {
+            installation: installationId,
+            candidates: pool.length,
+          });
+          return lexicalSimilar(query.text, pool, opts);
+        }
         const list = pool.map((item, i) => `[${i}] ${opts.text(item)}`).join("\n");
         const prompt = [
           "A resident is reporting a problem. Decide which existing reports describe THE SAME real-world problem",
@@ -114,10 +126,12 @@ export class AIService {
 
       embed: async (text) => {
         const model = this.providers.embedding;
-        if (!model) throw new AINotConfiguredError();
+        if (!model) throw notConfigured(installationId, "an embedding");
         const input = embeddable(text);
         this.limit(`${installationId}:embed`, EMBEDS_PER_MINUTE);
-        return model.embed(input);
+        return logged("debug", "embedding", { installation: installationId, chars: input.length }, () =>
+          model.embed(input),
+        );
       },
     };
   }
@@ -126,8 +140,32 @@ export class AIService {
   private limit(key: string, max: number) {
     const now = Date.now();
     const recent = (this.calls.get(key) ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= max) throw new Error("AI rate limit exceeded for this plugin installation");
+    if (recent.length >= max) {
+      log.warn("plugin over its AI rate limit", { key, perMinute: max });
+      throw new Error("AI rate limit exceeded for this plugin installation");
+    }
     recent.push(now);
     this.calls.set(key, recent);
   }
+}
+
+function notConfigured(installation: string, what: string): AINotConfiguredError {
+  log.warn(`a plugin asked for ${what}, but AI is not configured`, { installation });
+  return new AINotConfiguredError();
+}
+
+/** A request to a model, logged with its time at `level`, or as an error with the provider's answer (rethrown). */
+async function logged<T>(level: "info" | "debug", what: string, fields: LogFields, run: () => Promise<T>): Promise<T> {
+  const started = performance.now();
+  const ms = () => Math.round(performance.now() - started);
+  return run().then(
+    (out) => {
+      log[level](what, { ...fields, ms: ms() });
+      return out;
+    },
+    (err: unknown) => {
+      log.error(`${what} failed`, { ...fields, ms: ms(), err });
+      throw err;
+    },
+  );
 }

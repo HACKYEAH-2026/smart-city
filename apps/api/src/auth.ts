@@ -4,6 +4,7 @@ import { bearer } from "better-auth/plugins";
 import { surrealdbAdapter } from "surreal-better-auth";
 import type { Db } from "./db";
 import type { Env } from "./env";
+import { libraryLogger } from "./log";
 
 /** Checks a Google ID token's signature; replaces Better Auth's check against Google's keys (tests only). */
 export type GoogleIdTokenVerifier = (token: string) => Promise<boolean>;
@@ -35,6 +36,7 @@ function googleProvider(env: Env, verifyIdToken?: GoogleIdTokenVerifier) {
  * auth path for web and the native Expo app (Authorization header), without relying on cookies.
  */
 export function createAuth(db: Db, env: Env, opts: { verifyGoogleIdToken?: GoogleIdTokenVerifier } = {}) {
+  const auth = libraryLogger("auth");
   return betterAuth({
     baseURL: env.API_URL,
     basePath: "/api/auth",
@@ -45,6 +47,8 @@ export function createAuth(db: Db, env: Env, opts: { verifyGoogleIdToken?: Googl
     socialProviders: googleProvider(env, opts.verifyGoogleIdToken),
     plugins: [bearer()],
     rateLimit: { enabled: env.NODE_ENV === "production" },
+    // Everything Better Auth logs (failed sign-ins, Google token checks…) goes to ours; LOG_LEVEL filters it.
+    logger: { level: "debug", log: (level, message, ...args) => auth[level](message, ...args) },
   });
 }
 

@@ -172,6 +172,16 @@
       }
     },
     {
+      "includes": ["apps/api/src/**", "!apps/api/src/db/migrate-cli.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/api/**", "packages/sdk/**", "scripts/**"],
       "plugins": ["./biome-plugins/raw-surql.grit"]
     },

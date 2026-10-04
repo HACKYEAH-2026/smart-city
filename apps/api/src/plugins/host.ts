@@ -25,12 +25,15 @@ import { DbError } from "@app/plugin-sdk/engine";
 import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import { z } from "zod";
 import { first, fromGeoPoint, keyOf, ref, rows, toDate, visitRef } from "../db";
+import { logger } from "../log";
 import { planPluginTables, syncPluginTables } from "../services/db/service";
 import { FileInputError } from "../services/files/service";
 import { checkImports, checkSafety, checkSyntax, checkTypes, failAs } from "./check";
 import { createPluginContext, type PluginServices, SYSTEM_USER } from "./context";
 
 export { PluginError };
+
+const log = logger("plugins");
 
 /** The tool requires a role the user doesn't have (HTTP 403). */
 export class ForbiddenError extends Error {}
@@ -90,9 +93,14 @@ export class PluginHost {
           await syncPluginTables(this.db, loaded);
           this.plugins.set(loaded.manifest.id, { ...loaded, origin: "uploaded" });
         } catch (err) {
-          console.error(`plugin ${keyOf(row.id)}: failed to load stored code`, err);
+          log.error("stored plugin failed to load: skipped", { plugin: keyOf(row.id), err });
         }
       }
+      log.info("plugins ready", {
+        builtin: this.count("builtin"),
+        uploaded: this.count("uploaded"),
+        stored: stored.length,
+      });
     })();
     return this.stored;
   }
@@ -103,6 +111,10 @@ export class PluginHost {
 
   list(): LoadedPlugin[] {
     return [...this.plugins.values()];
+  }
+
+  private count(origin: LoadedPlugin["origin"]): number {
+    return this.list().filter((p) => p.origin === origin).length;
   }
 
   /** Checks plugin source exactly as an upload does, without storing it or changing the database. */
@@ -119,6 +131,15 @@ export class PluginHost {
    * fails to apply rejects the upload and leaves the previous version running.
    */
   async upload(source: string): Promise<PluginManifest> {
+    const manifest = await this.store(source).catch((err: unknown) => {
+      if (err instanceof PluginCheckError) log.warn(`upload rejected at ${err.stage}`, { errors: err.errors });
+      throw err;
+    });
+    log.info("plugin uploaded", { plugin: manifest.id, version: manifest.version });
+    return manifest;
+  }
+
+  private async store(source: string): Promise<PluginManifest> {
     const loaded = await this.validate(source);
     const { id, version } = loaded.manifest;
     await syncPluginTables(this.db, loaded).catch(failAs("schema"));
@@ -148,6 +169,7 @@ export class PluginHost {
       surql`UPDATE plugin_installation SET enabled = true WHERE community = ${c} AND plugin = ${id};
             INSERT IGNORE INTO plugin_installation { community: ${c}, plugin: ${id} } RETURN id;`,
     );
+    log.info(created ? "plugin installed" : "plugin enabled", { plugin: id, community: community.id });
     const onInstall = plugin.definition.onInstall;
     if (!created || !onInstall) return;
     const ctx = this.context(plugin, {
@@ -236,7 +258,7 @@ export class PluginHost {
         surql`UPSERT ${visitRef(installationId, userId)}
               SET installation = ${ref("installation", installationId)}, user = ${ref("user", userId)}, at = time::now();`,
       )
-      .catch((err: unknown) => console.error(`visit ${installationId}/${userId} not recorded`, err));
+      .catch((err: unknown) => log.warn("visit not recorded", { installation: installationId, user: userId, err }));
   }
 
   async callTool(plugin: LoadedPlugin, name: string, ctx: Context, args: unknown): Promise<ToolResult> {
@@ -244,7 +266,11 @@ export class PluginHost {
     if (!tool) throw new PluginError(`tool_not_found:${name}`);
     if (tool.requires === "admin" && ctx.user.role !== "admin") throw new ForbiddenError(`${name} requires admin`);
     const input = tool.input.safeParse(args);
-    if (!input.success) throw new PluginInputError(input.error.issues);
+    if (!input.success) {
+      // Often the plugin's fault, not the user's: a form field that arrives as a string where the tool wants a number.
+      log.info("tool input rejected", { plugin: plugin.manifest.id, tool: name, issues: input.error.issues });
+      throw new PluginInputError(input.error.issues);
+    }
     const out = (await guard(plugin, `tool ${name}`, () => tool.handler(ctx, input.data))) ?? {};
     const parsed = toolResultSchema.safeParse(out);
     if (!parsed.success) {
@@ -352,9 +378,13 @@ async function guard<T>(plugin: LoadedPlugin, what: string, fn: () => T | Promis
   } catch (err) {
     if (err instanceof PluginError || err instanceof PluginInputError || err instanceof ForbiddenError) throw err;
     if (err instanceof FileInputError || err instanceof DbError) {
+      log.info(`${what} rejected by ctx.${err instanceof DbError ? "db" : "files"}`, {
+        plugin: plugin.manifest.id,
+        message: err.message,
+      });
       throw new PluginInputError([{ path: [], message: err.message }]);
     }
-    throw new PluginError(`${plugin.manifest.id}: ${what} threw: ${(err as Error).message}`);
+    throw new PluginError(`${plugin.manifest.id}: ${what} threw: ${(err as Error).message}`, { cause: err });
   }
 }
 

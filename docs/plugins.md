@@ -1048,8 +1048,11 @@ request changes it:
 
 - **Author** (`PluginAuthor`, `apps/api/src/services/ai/author/`): in the host a Strands Agents agent on the env's
   model (`StrandsPluginAuthor` in `author/strands.ts`; `AI_API_KEY` + `AI_MODEL`, see `.env.example`) with one tool,
-  `check_plugin` = the checks above. Its instructions are the host's rules plus this whole guide. It writes, checks,
-  fixes (at most 8 checks, 5 minutes) and answers with a Polish summary for the admin. Without a model the builder
+  `check_plugin` = the checks above. Its instructions are the host's rules, a small plugin that passes every check
+  (`author/example.ts`, also what `TestPluginAuthor` writes) and this whole guide. It writes, checks, fixes (at most 3
+  checks, 5 minutes) and answers with a Polish summary for the admin. Every step is in the API log (scopes `builder`
+  and `author`, with the plugin id and version number): each check's stage and errors, failed model calls, why the
+  agent stopped, the tokens it used and why a version failed (the admin only sees the reason). Without a model the builder
   answers `503 ai_unavailable`; tests and E2E use `TestPluginAuthor` (`PLUGIN_AUTHOR=test` in test-server). A place
   gets 20 requests to the AI a day (`429 rate_limited`).
 - **Plugin and versions** (`place_plugin`, `plugin_version`): the plugin has a generated id (`ai-…`) owned by the place;
@@ -1072,7 +1075,7 @@ request changes it:
 - `testPlugin().db` is untyped (`plugin.db.items!`): the harness gets the module, not its table types.
 - The `types` and `safety` stages compile the source with TypeScript synchronously in the API process: ~1-2 s per
   check (the first one in a process much longer; the plugin builder warms the compiler up at start) during which the
-  API answers nothing else. The plugin builder's author runs up to 8 checks per version. Fix: run checks in a Worker.
+  API answers nothing else. The plugin builder's author runs up to 3 checks per version. Fix: run checks in a Worker.
 - A check that reaches `load` imports the source as a new module into the API process, and Bun never unloads
   modules: many checks (e.g. an AI agent iterating on a plugin) grow memory. Fix: run `load` in a disposable Worker.
 - Tests share one embedded engine per process (`testEngine()`); never open another `mem://` connection

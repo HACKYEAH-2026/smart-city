@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import { fromGeoPoint, keyOf, ref, rows } from "../db";
+import { logger } from "../log";
 import { requireUser } from "../middleware";
 
 type MapRow = {
@@ -24,12 +25,14 @@ type MapRow = {
   member: boolean;
 };
 
+const log = logger("geo");
+
 /** The geocoder's answer, or null when the provider failed (network, outage): the app then lets the user pin by hand. */
 const attempt = <T>(call: () => Promise<T>): Promise<{ value: T } | null> =>
   call().then(
     (value) => ({ value }),
-    (error) => {
-      console.error("geocoder:", error);
+    (err: unknown) => {
+      log.warn("geocoder failed: the app lets the user pin by hand", { err });
       return null;
     },
   );

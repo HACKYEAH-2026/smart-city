@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOG_LEVELS } from "./log";
 
 const csv = z
   .string()
@@ -13,6 +14,8 @@ const csv = z
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().default(3000),
+  /** The least important log level written (log.ts reads it itself; here it is checked at startup). */
+  LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   DATABASE_URL: z.string().min(1),
   /** Public API URL (Better Auth baseURL), e.g. https://api.example.com */
   API_URL: z.url(),

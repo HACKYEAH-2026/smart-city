@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import type { CheckIssue } from "@app/plugin-sdk";
 import type ts from "typescript";
+import { logger } from "../log";
 import { safetyIssues } from "./safety";
 
 type TS = typeof ts;
@@ -99,9 +100,16 @@ async function analysis(source: string): Promise<Analysis> {
 
 /**
  * Loads the compiler and the SDK types ahead of the first check (a cold first check takes seconds and blocks the
- * process). For hosts that will check plugins soon, e.g. with the plugin builder on.
+ * process). For hosts that will check plugins soon, e.g. with the plugin builder on. Never throws: it logs.
  */
-export const warmTypeChecker = (): Promise<void> => analysis(PROBE).then(() => undefined);
+export async function warmTypeChecker(): Promise<void> {
+  const log = logger("typecheck");
+  const started = performance.now();
+  await analysis(PROBE).then(
+    () => log.info("plugin type checker ready", { ms: Math.round(performance.now() - started) }),
+    (err: unknown) => log.error("plugin type checker failed to warm up", { err }),
+  );
+}
 
 /** Type errors in plugin source, checked against the plugin SDK; empty = none. */
 export const typeIssues = async (source: string): Promise<CheckIssue[]> => (await analysis(source)).types;

@@ -64,6 +64,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           // Address search answers with fixed Kraków addresses (apps/api/src/test-geocoder.ts), never the network.
           GEOCODER: "test",
           TRUSTED_ORIGINS: web,
+          // Warnings and errors only (one info line per request would drown Playwright's output).
+          LOG_LEVEL: process.env.LOG_LEVEL ?? "warn",
         },
         stdio: ["ignore", "inherit", "inherit"],
       });

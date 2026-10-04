@@ -30,7 +30,8 @@ const greenSummary = (output: string): boolean => {
 const proc = Bun.spawn(["bun", "test", ...Bun.argv.slice(2)], {
   stdout: "pipe",
   stderr: "pipe",
-  env: { ...process.env, ...(process.stdout.isTTY ? { FORCE_COLOR: "1" } : {}) },
+  // The API's log (apps/api/src/log.ts) stays quiet in tests; LOG_LEVEL=debug bun run test:int shows it.
+  env: { LOG_LEVEL: "silent", ...process.env, ...(process.stdout.isTTY ? { FORCE_COLOR: "1" } : {}) },
 });
 const [out, err, code] = await Promise.all([
   tee(proc.stdout, process.stdout),

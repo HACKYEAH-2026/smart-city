@@ -1,10 +1,12 @@
+import { configureLogging } from "@strands-agents/sdk";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { authProviders, createAuth, type GoogleIdTokenVerifier } from "./auth";
 import type { AppEnv } from "./context";
 import type { Db } from "./db";
 import type { Env } from "./env";
+import { libraryLogger, logger } from "./log";
+import { requestLog } from "./middleware";
 import { PluginBuilder } from "./plugins/builder";
 import { builtinPlugins } from "./plugins/builtin";
 import { defaultPluginsDir, PluginHost } from "./plugins/host";
@@ -33,6 +35,10 @@ import { NotificationService } from "./services/notifications/service";
 import { ExpoPushSender } from "./services/push/expo";
 import type { PushSender } from "./services/push/types";
 
+const log = logger("app");
+// Strands Agents logs (model retries, tool errors…) join ours instead of going to the console.
+configureLogging(libraryLogger("strands"));
+
 /** The model from env (Strands + OpenAI-compatible API); without AI_API_KEY and AI_MODEL — none. */
 const modelFromEnv = (env: Env) =>
   env.AI_API_KEY && env.AI_MODEL ? { apiKey: env.AI_API_KEY, model: env.AI_MODEL, baseUrl: env.AI_BASE_URL } : null;
@@ -47,6 +53,7 @@ const embeddingFromEnv = (env: Env) =>
 function aiFromEnv(env: Env): AIProviders {
   const model = modelFromEnv(env);
   const embedding = embeddingFromEnv(env);
+  log.info("ctx.ai", { language: model?.model ?? "off", embedding: embedding ? EMBEDDING_MODEL : "off" });
   return { ...(model ? { language: new StrandsLanguageModel(model) } : {}), ...(embedding ? { embedding } : {}) };
 }
 
@@ -56,8 +63,12 @@ function aiFromEnv(env: Env): AIProviders {
  */
 function authorFromEnv(env: Env): PluginAuthor | undefined {
   const model = modelFromEnv(env);
-  if (!model) return undefined;
-  setTimeout(() => void warmTypeChecker().catch((err: unknown) => console.error("plugin type checker", err)), 0);
+  if (!model) {
+    log.warn("plugin builder off: no AI_API_KEY and AI_MODEL (requests answer 503 ai_unavailable)");
+    return undefined;
+  }
+  log.info("plugin builder on", { model: model.model, endpoint: model.baseUrl ?? "api.openai.com" });
+  setTimeout(() => void warmTypeChecker(), 0);
   return new StrandsPluginAuthor(model);
 }
 
@@ -101,7 +112,7 @@ export function createApp({
   const builder = new PluginBuilder(db, plugins, author === undefined ? authorFromEnv(env) : (author ?? undefined));
 
   const app = new Hono<AppEnv>();
-  if (env.NODE_ENV !== "test") app.use(logger());
+  app.use(requestLog);
   app.use(
     "/api/*",
     cors({
@@ -124,7 +135,7 @@ export function createApp({
   });
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
   app.onError((err, c) => {
-    console.error(err);
+    log.error(`${c.req.method} ${c.req.path} failed`, { err });
     return c.json({ error: "internal_error" }, 500);
   });
 

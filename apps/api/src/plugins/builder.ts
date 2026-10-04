@@ -2,6 +2,7 @@ import type { PluginCheck } from "@app/plugin-sdk";
 import type { AiPlugin, PluginOutline, PluginVersion, VersionError, VersionStatus } from "@app/shared";
 import { type RecordId, surql } from "surrealdb";
 import { type CommunityRow, type Db, first, keyOf, ref, rows, toCommunity, toDate } from "../db";
+import { logger, withLogFields } from "../log";
 import { AuthorError, type AuthorTask, type PluginAuthor } from "../services/ai/author/types";
 import type { PluginHost } from "./host";
 
@@ -10,6 +11,8 @@ const VERSION_TIMEOUT_MS = 5 * 60_000;
 const STALE_AFTER_MS = VERSION_TIMEOUT_MS + 60_000;
 /** Requests to the AI one place may make in 24 hours (each one costs model calls). */
 export const REQUESTS_PER_DAY = 20;
+
+const log = logger("builder");
 
 type PluginRow = { id: RecordId; published?: number };
 type VersionRow = {
@@ -75,6 +78,7 @@ export class PluginBuilder {
   /** A new plugin from the admin's description: a draft whose first version the author starts writing right away. */
   async create(place: CommunityRow, userId: string, request: string): Promise<AiPlugin | "limit"> {
     if (await this.overLimit(place)) return "limit";
+    log.info("new plugin requested", { place: place.slug, user: userId });
     const plugin = await first<PluginRow>(
       this.db,
       surql`CREATE ${ref("placePlugin", newPluginId())} CONTENT ${{ community: place.id, author: ref("user", userId) }};`,
@@ -89,7 +93,10 @@ export class PluginBuilder {
     const plugin = await this.plugin(place, pluginId);
     if (!plugin) return null;
     const versions = await this.versions(plugin.id);
-    if (versions.some((v) => statusOf(v) === "working")) return "busy";
+    if (versions.some((v) => statusOf(v) === "working")) {
+      log.info("change refused: a version is being written", { plugin: pluginId });
+      return "busy";
+    }
     if (await this.overLimit(place)) return "limit";
     await this.startVersion(place, plugin, versions, request);
     return toAiPlugin(plugin, await this.versions(plugin.id));
@@ -103,12 +110,16 @@ export class PluginBuilder {
     const plugin = await this.plugin(place, pluginId);
     if (!plugin) return null;
     const ready = (await this.versions(plugin.id)).findLast((v) => statusOf(v) === "ready" && v.source);
-    if (!ready?.source) return "not_ready";
+    if (!ready?.source) {
+      log.info("publish refused: no ready version", { plugin: pluginId });
+      return "not_ready";
+    }
     const manifest = await this.host.upload(ready.source);
     const loaded = this.host.get(manifest.id);
     if (!loaded) throw new Error(`plugin ${manifest.id} not loaded after upload`);
     await this.host.enable(loaded, toCommunity(place));
     await this.db.query(surql`UPDATE ${plugin.id} SET published = ${ready.n};`);
+    log.info("plugin published", { plugin: pluginId, n: ready.n, place: place.slug });
     return toAiPlugin({ ...plugin, published: ready.n }, await this.versions(plugin.id));
   }
 
@@ -152,7 +163,10 @@ export class PluginBuilder {
       request,
       previous: base?.source ? { source: base.source, requests: earlier.map((v) => v.request) } : null,
     };
-    this.track(version.id, task);
+    withLogFields({ plugin: task.pluginId, n }, () => {
+      log.info("version started", { place: place.slug, kind: task.place.kind, from: base?.n ?? null, request });
+      this.track(version.id, task);
+    });
   }
 
   /** The place asked the AI REQUESTS_PER_DAY times in the last 24 hours. */
@@ -162,7 +176,9 @@ export class PluginBuilder {
       surql`SELECT count() AS count FROM plugin_version
             WHERE plugin.community = ${place.id} AND created_at > time::now() - 1d GROUP ALL;`,
     );
-    return (found?.count ?? 0) >= REQUESTS_PER_DAY;
+    const over = (found?.count ?? 0) >= REQUESTS_PER_DAY;
+    if (over) log.warn("request refused: the place used its AI requests for today", { place: place.slug });
+    return over;
   }
 
   private async kindOf(place: CommunityRow): Promise<string> {
@@ -180,17 +196,29 @@ export class PluginBuilder {
     this.jobs.add(tracked);
   }
 
-  /** Runs the author and stores the outcome on the version (never throws: a failure is the version's status). */
+  /**
+   * Runs the author and stores the outcome on the version (never throws: a failure is the version's status). Logs
+   * the outcome with how long it took and how many checks ran: why a version failed is only in the log.
+   */
   private async write(version: RecordId, task: AuthorTask): Promise<void> {
-    const outcome = await this.authorVersion(version, task).catch(failureOf);
+    const started = performance.now();
+    const checks = { count: 0 };
+    const outcome = await this.authorVersion(version, task, checks).catch(failureOf);
     await this.db.query(surql`UPDATE ${version} MERGE ${outcome};`);
+    const took = { ms: Math.round(performance.now() - started), checks: checks.count };
+    if (outcome.status === "ready") log.info("version ready", { ...took, name: outcome.outline.name });
+    else log.warn(`version failed: ${outcome.error}`, took);
   }
 
-  private async authorVersion(version: RecordId, task: AuthorTask) {
+  private async authorVersion(version: RecordId, task: AuthorTask, checks: { count: number }) {
     if (!this.author) return { status: "failed", error: "ai_unavailable" } as const;
     const check = async (source: string) => {
+      checks.count += 1;
       await this.db.query(surql`UPDATE ${version} SET attempts += 1;`);
-      return ownedBy(task.pluginId, await this.host.check(source));
+      const started = performance.now();
+      const result = ownedBy(task.pluginId, await this.host.check(source));
+      logCheck(checks.count, result, Math.round(performance.now() - started));
+      return result;
     };
     const written = await this.author.write(task, check, AbortSignal.timeout(VERSION_TIMEOUT_MS));
     // The author's word is not enough: the host checks the final source itself.
@@ -212,15 +240,24 @@ function ownedBy(pluginId: string, result: PluginCheck): PluginCheck {
   return { status: "error", stage: "load", errors: [{ message: `The plugin id must be "${pluginId}"` }] };
 }
 
+/** One check of the author's source: what failed and where (the author sees the same and tries to fix it). */
+function logCheck(attempt: number, result: PluginCheck, ms: number): void {
+  if (result.status === "ok") log.info("check passed", { attempt, ms });
+  else log.info(`check failed at ${result.stage}`, { attempt, ms, errors: result.errors });
+}
+
+/** The version's failure; its cause goes to the log (the admin only sees the reason). */
 function failureOf(err: unknown): { status: "failed"; error: VersionError } {
   if (err instanceof AuthorError) {
-    console.error(`plugin builder: ${err.message}`);
+    const last = err.last?.status === "error" ? { stage: err.last.stage, errors: err.last.errors } : null;
+    log.warn("no source passed the checks", { last, answer: err.answer ?? null });
     return { status: "failed", error: "check_failed" };
   }
   if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError" || /cancel/i.test(err.name))) {
+    log.warn(`the author ran out of time (${VERSION_TIMEOUT_MS / 1000} s)`, { err });
     return { status: "failed", error: "timeout" };
   }
-  console.error("plugin builder: the author failed", err);
+  log.error("the author failed", { err });
   return { status: "failed", error: "internal" };
 }
 

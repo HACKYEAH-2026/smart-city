@@ -48,6 +48,7 @@ import {
   toCommunity,
   toPluginCommunity,
 } from "../db";
+import { logger } from "../log";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 import { ForbiddenError, type LoadedPlugin, PluginError, type PluginHost, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
@@ -59,6 +60,8 @@ type DashboardWidgetItem = {
   size: DashboardWidgetSize;
   node: UINode;
 };
+
+const log = logger("communities");
 
 /**
  * Places (communities) and their plugins, for the app. A user sees only the places they are a member of;
@@ -608,8 +611,9 @@ function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[
   return items.toSorted((a, b) => rank(a.key) - rank(b.key));
 }
 
+/** A widget that fails is left out of the dashboard; why is only in the log. */
 function logWidgetFailure(err: unknown): null {
-  console.error(err instanceof Error ? err.message : err);
+  log.error("dashboard widget left out", { err });
   return null;
 }
 
@@ -617,7 +621,7 @@ function pluginFailure(c: Context<AppEnv>, err: unknown) {
   if (err instanceof PluginInputError) return c.json({ error: "invalid_input", issues: err.issues }, 400);
   if (err instanceof ForbiddenError) return c.json({ error: "forbidden" }, 403);
   if (err instanceof PluginError) {
-    console.error(err.message);
+    log.error("plugin failed", { err });
     return c.json({ error: "plugin_error" }, 500);
   }
   throw err;

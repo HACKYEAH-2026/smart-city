@@ -23,12 +23,18 @@ export type AuthorTask = {
 /** `summary`: what was built or changed, in Polish, for the place's admin (2-4 sentences, no code). */
 export type AuthorResult = { source: string; summary: string };
 
-/** The author gave up: no source it wrote passed the checks. `last` is the last check result (for logs). */
+/**
+ * The author gave up: no source it wrote passed the checks. For the log: `last` is the last check result (null: it
+ * never ran one), `answer` what the model said at the end.
+ */
 export class AuthorError extends Error {
-  constructor(readonly last: PluginCheck | null) {
+  constructor(
+    readonly last: PluginCheck | null,
+    readonly answer?: string,
+  ) {
     super(`no plugin source passed the checks${last?.status === "error" ? ` (last: ${last.stage})` : ""}`);
   }
 }
 
 /** Checks one author may run per version; after that the check tool tells it to stop. */
-export const MAX_CHECKS = 8;
+export const MAX_CHECKS = 3;

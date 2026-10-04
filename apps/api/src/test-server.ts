@@ -9,6 +9,7 @@
 import { createApp } from "./app";
 import { createDb, migrate } from "./db";
 import { loadEnv } from "./env";
+import { logger } from "./log";
 import { TestPluginAuthor } from "./test-author";
 import { TEST_ENV } from "./test-env";
 import { TestGeocoder } from "./test-geocoder";
@@ -23,8 +24,9 @@ const env = loadEnv({
   ...process.env,
   PORT: port,
 });
+const log = logger("api");
 if (env.NODE_ENV !== "test") {
-  console.error("test-server.ts requires NODE_ENV=test");
+  log.error("test-server.ts requires NODE_ENV=test");
   process.exit(1);
 }
 
@@ -48,7 +50,7 @@ await seedDemoMap(handle.db);
 app.route("/", createTestRoutes(deps));
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
-console.log(`api(test): listening on :${server.port} [${env.DATABASE_URL}]`);
+log.info(`listening on :${server.port} (test server)`, { db: env.DATABASE_URL });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, async () => {

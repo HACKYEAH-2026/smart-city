@@ -151,7 +151,7 @@
                   „Stwórz rozszerzenie z AI”. They describe the feature in their own words.
                 </li>
                 <li>
-                  An agent writes the plugin and runs <code>PluginHost.check()</code> on it, up to 8 times, until a
+                  An agent writes the plugin and runs <code>PluginHost.check()</code> on it, up to 3 times, until a
                   version passes; the host then checks the final source again itself.
                 </li>
                 <li>
@@ -840,14 +840,16 @@ CREATE plugin_version CONTENT { plugin, n: 1, request };   -- status "working", 
                 </div>
               </li>
               <li data-hl="agent">
-                <button class="step-title" type="button">The agent gets the rules and the whole guide</button>
+                <button class="step-title" type="button">The agent gets the rules, an example and the whole guide</button>
                 <div class="step-body">
                   <p>
                     <code>StrandsPluginAuthor</code> creates one agent per version, with a single tool,
                     <code>check_plugin</code>, and <code>AbortSignal.timeout(5 min)</code>. Its system prompt,
                     <code>AUTHOR_INSTRUCTIONS</code>, is the host's rules (one file, <code>import type</code> only, the given
                     id and version, Polish for residents, no host globals, only the permissions it uses, compatible table
-                    changes…) followed by the whole of <a href="../plugins.md">docs/plugins.md</a>.
+                    changes…, at most 3 checks), then a small plugin that passes every check (the board of notes in
+                    <span class="path">author/example.ts</span>, the one <code>TestPluginAuthor</code> writes) and the
+                    whole of <a href="../plugins.md">docs/plugins.md</a>.
                   </p>
                   <p>
                     The message (<code>authorPrompt</code>) names the plugin id, version and place; for a change it also
@@ -856,13 +858,13 @@ CREATE plugin_version CONTENT { plugin, n: 1, request };   -- status "working", 
                 </div>
               </li>
               <li data-hl="agent builder host db">
-                <button class="step-title" type="button">Write, check, fix — at most 8 checks</button>
+                <button class="step-title" type="button">Write, check, fix — at most 3 checks</button>
                 <div class="step-body">
                   <p>
                     Each <code>check_plugin</code> call increments <code>attempts</code>, runs
                     <code>PluginHost.check()</code> (all six stages; <code>schema</code> against the tables stored so far)
                     and <code>ownedBy()</code>: a source under any other id fails with
-                    <code>The plugin id must be "ai-…"</code> at stage <code>load</code>. After 8 calls the tool only
+                    <code>The plugin id must be "ai-…"</code> at stage <code>load</code>. After 3 calls (<code>MAX_CHECKS</code>) the tool only
                     answers <code>Check limit reached: stop and answer the admin now.</code>
                   </p>
                   <figure class="snippet">
@@ -943,7 +945,7 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
             <div class="states">
               <div class="state-row">
                 <span class="state-label">Version</span>
-                <span class="box state-wait"><span class="box-title">working</span><span class="box-sub">attempts 0…8</span></span>
+                <span class="box state-wait"><span class="box-title">working</span><span class="box-sub">attempts 0…3</span></span>
                 <span class="arrow">→ passes, re-checked →</span>
                 <span class="box state-ok"><span class="box-title">ready</span><span class="box-sub">source · summary · outline</span></span>
               </div>
@@ -992,8 +994,8 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
               <h4>Tests never call a model</h4>
               <p>
                 <code>TestPluginAuthor</code> (<span class="path">apps/api/src/test-author.ts</span>; in E2E via
-                <code>PLUGIN_AUTHOR=test</code> in <span class="path">test-server.ts</span>) writes a fixed board of notes
-                named after the quoted text in the request, and checks it like the real author. <code>firstTry: "typo"</code>
+                <code>PLUGIN_AUTHOR=test</code> in <span class="path">test-server.ts</span>) writes the author's example board of notes
+                (<span class="path">author/example.ts</span>) named after the quoted text in the request, and checks it like the real author. <code>firstTry: "typo"</code>
                 makes its first check fail on <code>ctx.db.notez</code> to exercise the loop.
               </p>
             </div>
@@ -1013,7 +1015,7 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
             <div class="card">
               <h4>Checks block the API</h4>
               <p>
-                <code>types</code> and <code>safety</code> compile synchronously; the AI author runs up to 8 checks per
+                <code>types</code> and <code>safety</code> compile synchronously; the AI author runs up to 3 checks per
                 version.
               </p>
               <p class="small"><span class="chip info">fix</span> Run checks in a Worker.</p>

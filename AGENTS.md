@@ -79,6 +79,9 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 - AI on the host: the model only from `apps/api/src/services/ai/model.ts`. Each AI agent of a feature has its own folder
   `apps/api/src/services/ai/<agent>/` (pattern: `author/`): `types.ts` (the swappable interface; tests use a fake),
   `prompt.ts` (instructions and the per-call message), `strands.ts` (the Strands Agents implementation and its tools).
+- API logs: only `logger(scope)` from `apps/api/src/log.ts` (Biome's `noConsole` holds in `apps/api/src`). Log where it
+  happens what explains a failure: the cause (`err`), the ids involved and what was tried; a background job gets its ids
+  with `withLogFields`. Every request is logged by `requestLog` (`middleware.ts`). `LOG_LEVEL` picks the level.
 - App configuration: only `apps/app/app.config.ts`. `android/` and `ios/` are GENERATED (`expo prebuild`) —
   do not edit or commit them. A native change = a config plugin or a field in `app.config.ts`.
 - Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.

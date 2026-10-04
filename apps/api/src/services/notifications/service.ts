@@ -10,6 +10,7 @@ import {
 import { LOCATION_FRESH_MINUTES, NOTIFICATIONS_PAGE, type NotificationInbox } from "@app/shared";
 import { type BoundQuery, Duration, type RecordId, surql } from "surrealdb";
 import { type Db, geoPoint, keyOf, ref, rows, toDate } from "../../db";
+import { logger } from "../../log";
 import type { PushMessage, PushSender } from "../push/types";
 
 type NotificationRow = {
@@ -76,6 +77,8 @@ function pushMessages(sender: Sender, n: Notification, delivered: Delivered[], d
   });
 }
 
+const log = logger("notify");
+
 /**
  * Residents' notifications. Plugins send them with ctx.notify (fan-out on write: one row per recipient, all in
  * one statement); residents read them in their inbox (/api/me/notifications) across all their communities, and
@@ -96,6 +99,13 @@ export class NotificationService {
       const notification = parseNotification(args.views, input);
       const delivered = await this.store(args, notification);
       const devices = await this.devicesOf(delivered.map((d) => d.user));
+      log.info("notification sent", {
+        plugin: args.pluginId,
+        community: args.community.slug,
+        to: notification.to,
+        recipients: delivered.length,
+        devices: devices.length,
+      });
       this.deliver(pushMessages(args, notification, delivered, devices));
     };
   }
@@ -128,8 +138,11 @@ export class NotificationService {
     if (!messages.length) return;
     const sending = this.push
       .send(messages)
-      .then(({ invalidTokens }) => this.forget(invalidTokens))
-      .catch((err: unknown) => console.error(`push: ${messages.length} message(s) not sent`, err))
+      .then(({ invalidTokens }) => {
+        log.info("push sent", { messages: messages.length, uninstalled: invalidTokens.length });
+        return this.forget(invalidTokens);
+      })
+      .catch((err: unknown) => log.error("push not sent", { messages: messages.length, err }))
       .finally(() => this.inFlight.delete(sending));
     this.inFlight.add(sending);
   }
