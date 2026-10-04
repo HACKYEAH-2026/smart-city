@@ -1,4 +1,4 @@
-import type { AI, FileId, SimilarMatch, SimilarOptions } from "@app/plugin-sdk";
+import { type AI, type FileId, type SimilarMatch, type SimilarOptions, withAITimeout } from "@app/plugin-sdk";
 import { z } from "zod";
 import type { FileService } from "../files/service";
 import type { AIProviders, ModelImage } from "./types";
@@ -72,16 +72,19 @@ export class AIService {
         (x): x is ModelImage => x !== null,
       );
 
-    const generate = async (prompt: string, imgs: ModelImage[], schema?: z.ZodType) => {
+    const generate = async (prompt: string, imgs: ModelImage[], schema?: z.ZodType, signal?: AbortSignal) => {
       const model = this.providers.language;
       if (!model) throw new AINotConfiguredError();
       this.limit(installationId, CALLS_PER_MINUTE);
-      return model.generate({ prompt, images: imgs, ...(schema ? { schema } : {}) });
+      return model.generate({ prompt, images: imgs, ...(schema ? { schema } : {}), ...(signal ? { signal } : {}) });
     };
 
     return {
+      // `timeoutMs` bounds reading the photos and the model; past it the model is told to stop (signal).
       call: async (req) => {
-        const out = await generate(req.prompt, await images(req.images ?? []), req.schema);
+        const out = await withAITimeout(req.timeoutMs, async (signal) =>
+          generate(req.prompt, await images(req.images ?? []), req.schema, signal),
+        );
         return (req.schema ? req.schema.parse(out) : String(out)) as never;
       },
 

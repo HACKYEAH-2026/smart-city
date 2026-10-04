@@ -34,6 +34,7 @@ export const colors = {
   surface: "#FFFFFF", // cards, fields, list rows, tab bar
   surfaceSunken: "#EAE7E0", // segmented control background, close button in sheet
   surfaceMuted: "#F0EEE9", // neutral avatars/badges (member)
+  pluginIcon: "#EDEBE6",
   surfaceDisabled: "#FAF9F7", // empty code cells
   mapBase: "#ECE9E1", // map / photo placeholder
 
@@ -52,6 +53,7 @@ export const colors = {
   scannerHint: "#707078",
   onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
   onPrimaryOverlay: "rgba(255,255,255,0.18)", // icon on a red card
+  photoOverlay: "rgba(27,27,31,0.72)", // a pill over a photo ("+2", "1 / 2")
 
   // Layers
   scrim: "#5F646C", // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
@@ -142,6 +144,20 @@ export const sizes = {
   buttonXs: 40,
   /** "Dodaj do miejsca" on a plugin's catalog card (design 44; a `sm` button made lower). */
   buttonPluginAdd: 44,
+  widgetButton: 44,
+  widgetIcon: 15,
+  widgetRowLine: 32,
+  switchTrack: 52,
+  switchHeight: 32,
+  switchKnob: 26,
+  commentAvatar: 32,
+  compactLocationPreview: 72,
+  cardThumbFeatured: 96,
+  cardThumbCompact: 64,
+  pluginSuccessMark: 72,
+  pluginSuccessRing: 92,
+  pluginSuccessIcon: 34,
+  heroTitleWidth: 240,
   input: 52,
   /** A search field above a list (design "Dodaj rozszerzenie": 50). */
   inputS: 50,
@@ -232,7 +248,7 @@ export const sizes = {
   /** The map of places: the panel under the map (list or a place's card) at most this tall. */
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
-  widgetRow: 112,
+  widgetRow: 96,
   /** Dashboard layout (design "Układ pulpitu"): a grid row in the editor and in the preview on "Zarządzaj miejscem". */
   layoutRow: 64,
   layoutPreviewRow: 22,
@@ -242,9 +258,27 @@ export const sizes = {
   layoutSizeOption: 48,
   /** A small pill button in a list row ("Dodaj" in the "Dodaj widżet" sheet). */
   pillButton: 38,
-  /** A list card's counter (votes): its width and minimum height. */
-  voteWidth: 48,
-  voteHeight: 64,
+  /** A plugin card's counter pill (votes) at the right of its meta line. */
+  votePill: 32,
+  /** A plugin card's thumbnail: in a list of cards, and in a grouped list's row. */
+  cardThumb: 76,
+  cardThumbSm: 52,
+  /** The "+N" pill over a thumbnail and the "1 / 2" pill over a gallery. */
+  photoMore: 20,
+  photoPill: 28,
+  /** A red number badge at the right of a row (unread, pending; COMPONENTS.md → CountBadge). */
+  countBadge: 22,
+  /** A tile of a plugin's tile tabs ("8" over "Aktywne"). */
+  tabTile: 76,
+  /** The box with an icon over a plugin's empty state, and its icon. */
+  emptyBox: 64,
+  emptyBoxIcon: 30,
+  /** A plugin menu's trigger: a plain text button, or a small outlined pill (a chip). */
+  menuText: 36,
+  menuChip: 28,
+  /** A removable tag (an outlined pill with an "X"), and its remove button. */
+  removableTag: 36,
+  removableTagButton: 28,
   /** A tag (badge) on a list card: its height, and the dot in a status tag. */
   tagHeight: 24,
   tagDot: 6,
@@ -262,6 +296,7 @@ export const fontFamily = {
   medium: "SchibstedGrotesk_500Medium",
   semibold: "SchibstedGrotesk_600SemiBold",
   bold: "SchibstedGrotesk_700Bold",
+  condensed: "BarlowCondensed_600SemiBold",
 } as const;
 
 /**
@@ -269,6 +304,7 @@ export const fontFamily = {
  * Values derived from the design (e.g. -0.025em × 30 px = -0.75).
  */
 export const typography = {
+  sectionLabel: { fontFamily: fontFamily.condensed, fontSize: 14, lineHeight: 18, letterSpacing: 0.84 },
   // Headings
   titleXL: {
     fontFamily: fontFamily.bold,
@@ -411,6 +447,13 @@ export const typography = {
 /** Shadows: iOS (shadow*) + Android (elevation). Spread into StyleSheet: `...shadows.card`. */
 export const shadows = {
   none: {},
+  redGlow: {
+    shadowColor: "#E50101",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
+    elevation: 4,
+  },
   /** Default card / list row (0 1 2 rgba .06) */
   card: {
     shadowColor: "#1B1B1F",
@@ -504,6 +547,7 @@ export const opacity = {
   heroPinHalo: 0.25,
   /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
   scrim: 0.55,
+  pluginScrim: 0.4,
 } as const;
 
 export const motion = {

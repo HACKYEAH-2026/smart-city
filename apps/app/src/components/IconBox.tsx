@@ -15,6 +15,8 @@ export interface IconBoxProps {
   selected?: boolean;
   /** Neutral variant: `surfaceSunken` background, `text` icon (e.g. a closed section of "Zarządzaj miejscem"). */
   neutral?: boolean;
+  /** Dark variant: `text` background, white icon (a plugin's admin row that needs attention). */
+  dark?: boolean;
 }
 
 const BOX: Record<IconBoxSize, { side: number; radius: number; emoji: TypographyToken }> = {
@@ -24,7 +26,7 @@ const BOX: Record<IconBoxSize, { side: number; radius: number; emoji: Typography
 };
 
 /** Rounded square with an accent icon (COMPONENTS.md → IconBox): `primaryTint` background, `primary` icon. */
-export function IconBox({ icon, size = "md", selected = false, neutral = false }: IconBoxProps) {
+export function IconBox({ icon, size = "md", selected = false, neutral = false, dark = false }: IconBoxProps) {
   const box = BOX[size];
   return (
     <View
@@ -33,6 +35,7 @@ export function IconBox({ icon, size = "md", selected = false, neutral = false }
         { width: box.side, height: box.side, borderRadius: box.radius },
         neutral && styles.neutral,
         selected && styles.selected,
+        dark && styles.dark,
       ]}
     >
       {typeof icon === "string" ? (
@@ -40,7 +43,7 @@ export function IconBox({ icon, size = "md", selected = false, neutral = false }
           {icon}
         </Text>
       ) : (
-        <Icon icon={icon} color={selected ? "onPrimary" : neutral ? "text" : "primary"} />
+        <Icon icon={icon} color={selected || dark ? "onPrimary" : neutral ? "text" : "primary"} />
       )}
     </View>
   );
@@ -54,4 +57,5 @@ const styles = StyleSheet.create({
   },
   neutral: { backgroundColor: colors.surfaceSunken },
   selected: { backgroundColor: colors.primary },
+  dark: { backgroundColor: colors.text },
 });

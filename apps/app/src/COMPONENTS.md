@@ -3,9 +3,24 @@
 > Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
 > QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
 > (no component): PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
-> KeyValueRow. Not implemented: CountBadge, CtaCard, IconButton `roundDark`, the A4 printout.
+> KeyValueRow, CountBadge (in plugin rows: `src/plugins/CardRow.tsx`). Not implemented: CtaCard, the A4 printout.
 
 # Twoje Miejsce — specyfikacja komponentów (React Native)
+
+## Issues design alignment (2026-10-04)
+
+- Plugin section labels and screen eyebrows use `sectionLabel`: Barlow Condensed 600, 14/18, uppercase.
+- `TextField`: section label; `hideLabel` keeps the accessible name, `variant="pill"` is a 44 dp composer input,
+  `variant="muted"` has a muted surface and dashed border.
+- `SegmentedControl`: 48 dp track (4 dp padding), 40 dp segments.
+- `SwitchRow`: semantic switch row with a drawn 52×32 dp track and white 26 dp knob on every platform.
+- Dashboard grid unit: 96 dp, gap 12; 3×2 = 204 dp, 3×3 = 312 dp. Widget header: neutral 15 dp icon,
+  gray 13 px title, 14/16 dp padding, light card shadow, compact 32 dp rows, dark 44 dp CTA.
+- Plugin FAB: 32 dp above the safe bottom inset, `shadows.redGlow`. List cards: gap 10 dp.
+- Plugin comments: 32 dp avatar outside a compact white bubble; inline composer uses a circular 44 dp send button.
+- Plugin location field: bordered card, 72 dp map preview, pin/address and accent change link.
+- `SuccessMark large`: 72 dp red circle, 92 dp ring and 34 dp check; plugin Hero uses a centered 28 px title.
+- Plugin sheets: sentence-case red eyebrow with sparkle, lighter 0.4 backdrop and 10 dp content gaps.
 
 Źródło: projekt „E · Czerwień #E50101" (17 ekranów). Wszystkie wartości pochodzą z `src/theme/tokens.ts`
 (`colors.*`, `spacing.*`, `radii.*`, `sizes.*`, `typography.*`, `shadows.*`). Nazwy tokenów podane w nawiasach.
@@ -41,6 +56,7 @@ Logo „Roofline M": dwa dachy rysują literę M (Miejsce), kropka między domam
 | `onDark`           | `surface`                              | `text`           | skaner: „Symuluj rozpoznanie kodu"                    |
 | `ghost`            | transparent                            | `text`           | „Przejdź do pulpitu"                                  |
 | `destructiveGhost` | transparent                            | `primaryPressed` | „Usuń miejsce"                                        |
+| `outline`          | `surface` + border `primary` 1 px      | `primary`        | przełącznik rozszerzenia niewciśnięty („Podbij")      |
 
 Rozmiary: `lg` 54 dp / `typography.button` (CTA na dole ekranu) · `md` 50 dp (Google/Apple, `buttonM`) · `sm` 46 dp radius 12 (Odrzuć/Akceptuj, w karcie) · `xs` 40 dp radius 12 (`buttonS`, „Wygeneruj nowy").
 Radius: lg/md → `radii.lg` (14), sm/xs → `radii.md` (12). Minimalny cel dotyku 44 dp (xs ma 40 — używać tylko z `hitSlop`).
@@ -55,7 +71,7 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 - `square` — radius 14, tło `surface`, border `borderSubtle` (przestawianie kafelków na pulpicie),
 - `plain` — bez tła i obramowania, sama ikona; pole dotyku nadal 44×44 (wstecz/anuluj w nagłówkach ekranów i kroków; wariant sam wysuwa się o margines wokół ikony, więc ikona jest wyrównana do krawędzi treści),
 - `round` — radius 22, tło `surface`, border `borderSubtle` (dzwonek powiadomień, awatar „JK" z inicjałami `typography.buttonS`),
-- `roundDark` — **niezaimplementowany** (brak w `IconButtonVariant`); w projekcie: radius 22, tło `text`, ikona `surface` (zębatka admina; może mieć `CountBadge` w rogu top 2/right 2),
+- `roundDark` — radius 22, tło `text`, ikona `onPrimary` (zębatka admina w nagłówku ekranu rozszerzenia; `CountBadge` w rogu nie jest zaimplementowany),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
 - `roundSunken` — radius 22, tło `surfaceSunken` (zamknij w bottom sheet),
 - `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` (wstecz na zdjęciu/mapie w PodgladMiejsca).
@@ -77,7 +93,7 @@ Etykieta pola i nagłówek sekcji: `Text variant="label" color="textSecondary"` 
 
 Wysokość 52, radius 14, tło `surface`, border 1 `border`, padding poziomy 16, tekst `typography.input`, kolor `text`, placeholder `placeholder`.
 Fokus: border 2 `primary` + poświata 4 dp `focusRing` (RN: dodatkowy `View` pod polem lub `shadowColor primary, radius 4, opacity .10`); przy fokusie padding 15 (kompensacja grubszej ramki).
-Struktura: `Label` → pole → opcjonalny `helper` (`typography.small`, `textSecondary`). Wiersz label + link (np. „Nie pamiętasz hasła?") — `justifyContent: space-between`, `alignItems: baseline`.
+Struktura: `Label` → pole → opcjonalny `helper` (`typography.small`, `textSecondary`; prop `helper` w `TextField`). Wiersz label + link (np. „Nie pamiętasz hasła?") — `justifyContent: space-between`, `alignItems: baseline`.
 Warianty: `email`, `password` (maska + przełącznik), `url` + przycisk „Wklej" (46–52 dp, secondary, tekst `primary`), `multiline` (textarea: min 3 wiersze, padding 14/16, lineHeight 21.75, bez resize).
 Pole z mapą (Adres): kontener radius 14, border `border`, `overflow:hidden`; u góry wiersz 52 dp z polem i separatorem `divider`, pod nim blok mapy 120 dp `mapBase` z pływającym przyciskiem „Popraw pinezkę" (36 dp, radius 10, `shadows.floating`, right/bottom 10).
 
@@ -93,11 +109,11 @@ Stany komórki: wypełniona/domyślna (tło `surface`, border 1 `border`, `shado
 ### Checkbox / Switch
 
 Zgoda (regulamin): checkbox 20 dp, kolor zaznaczenia `primary`, tekst `typography.caption` kolor `textBody` lineHeight ~20, linki `primary`, gap 12, wyrównanie do góry.
-Wiersz przełącznika („Ustaw jako domyślne"): biała karta radius 16, padding 14/16, `shadows.card`, tytuł 15/600 (+ opcjonalny opis `small`), po prawej Switch 22 dp z `trackColor.true = primary` (użyj `Switch`). Cały wiersz dotykalny (`accessibilityRole="switch"`).
+Wiersz przełącznika („Ustaw jako domyślne"): biała karta radius 16, padding 14/16, `shadows.card`, tytuł 15/600 (+ opcjonalny opis `small`), po prawej Switch 22 dp z `trackColor.true = primary` (użyj `Switch`). Cały wiersz dotykalny (`accessibilityRole="switch"`). `SwitchRow flush`: wiersz bez własnej karty, w białej grupie (ustawienia rozszerzenia); `disabled` (zapisywanie) przyciemnia go.
 
 ### SegmentedControl
 
-Kontener: tło `surfaceSunken`, radius 14, padding 4, 2 kolumny. Segment: wysokość 44, radius 11, `buttonM`. Aktywny: tło `surface`, tekst `text`, cień (0 1 3 .12 — `shadows.floating` lżejszy); nieaktywny: transparent, tekst `textSecondary`. `accessibilityRole="tablist"` / `tab`.
+Kontener: tło `surfaceSunken`, radius 14, padding 4, 2 kolumny. Segment: wysokość 44, radius 11, `buttonM`. Aktywny: tło `surface`, tekst `text`, cień (0 1 3 .12 — `shadows.floating` lżejszy); nieaktywny: transparent, tekst `textSecondary`. `accessibilityRole="tablist"` / `tab`; `kind="radio"` (wybór, który zostaje, np. ustawienie): `radiogroup` / `radio` z nazwą `label`. `disabled` przyciemnia i blokuje segmenty (tak samo `Chip`, `ChoiceButton`, `RadioCard`, `IconButton`).
 
 ---
 
@@ -120,7 +136,7 @@ Białe tło `surface`, radius 20 (`3xl`), padding 20 (lub 16 w kartach zaprosze�
 ### IconBox
 
 Kwadrat z zaokrągleniem (`radii.md` 12 / `lg` 14 dla 48 dp), tło `primaryTint`, ikona `primary`. Wariant `selected`: tło `primary`, ikona `onPrimary`. Wariant `onPrimary`: tło `onPrimaryOverlay`, ikona biała (na czerwonej karcie).
-W kodzie (`src/components/IconBox.tsx`): rozmiary `sm` 40 (wiersze list, SelectableCard) · `md` 44 (domyślny) · `xl` 52 radius 16 (karta rozszerzenia w katalogu); wariant `neutral` (tło `surfaceSunken`, ikona `text`); zamiast ikony może być emoji rozszerzenia (`emojiM` 20 / `emojiL` 26, dekoracja ukryta przed czytnikiem ekranu). Wariant `onPrimary` nie jest zaimplementowany.
+W kodzie (`src/components/IconBox.tsx`): rozmiary `sm` 40 (wiersze list, SelectableCard) · `md` 44 (domyślny) · `xl` 52 radius 16 (karta rozszerzenia w katalogu); wariant `neutral` (tło `surfaceSunken`, ikona `text`); wariant `dark` (tło `text`, ikona `onPrimary`: wiersz rozszerzenia z licznikiem, np. „Panel zgłoszeń”); zamiast ikony może być emoji rozszerzenia (`emojiM` 20 / `emojiL` 26, dekoracja ukryta przed czytnikiem ekranu). Wariant `onPrimary` nie jest zaimplementowany.
 
 ### Avatar ✅ (`src/components/Avatar.tsx`)
 
@@ -195,7 +211,7 @@ N równych segmentów w rzędzie, wysokość 4, radius 2; wypełnienie `primary`
 
 ### BottomSheet
 
-Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: `headingS` + `IconButton roundSunken` (zamknij). Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
+Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi `radii.sheet` (28), padding 12/24/32, gap 20; uchwyt 40×5 radius 3 `dashed`, wyśrodkowany. Nagłówek: opcjonalna etykieta `label` (`eyebrow`) nad `headingS` + `IconButton roundSunken` (zamknij). `scrollable`: treść przewija się, gdy arkusz sięga górnej krawędzi (górny odstęp = safe area); `dismissible={false}` (trwa akcja arkusza): bez przeciągania w dół, bez zamykania tłem, zamknij wyłączone. Użyj `@gorhom/bottom-sheet` lub `Modal`. Animacja `motion.sheet`.
 
 ### Pulpit (DashboardHeader + WidgetGrid)
 
@@ -225,6 +241,28 @@ Card radius 22: lewa strona etykieta `label` „Kod zaproszeniowy" → `codeXL` 
 ### ScannerFrame (skaner QR — tryb ciemny)
 
 Ekran: tło `scannerBg`, padding 56/24/40. Ramka 268×268, radius 32, tło `scannerFrame`; cztery narożniki 52×52 (border 3 `onPrimary`, zaokrąglenie 32 po zewnętrznej stronie); pozioma linia skanowania 2 dp `primary`, marginesy 32 (animowana w pionie). Podgląd z aparatu: `expo-camera` (`CameraView`, `barcodeScannerSettings: qr`). Tekst pomocniczy `bodyL` kolor `scannerText`, max szerokość 280, wyśrodkowany. Na dole przyciski `onDark` i `roundOnDark`-style (tło `onDarkOverlay`, tekst biały).
+
+## Widoki rozszerzeń (`src/plugins/`)
+
+Węzły z katalogu SDK (`packages/sdk/src/ui.ts`) rysuje `Renderer.tsx` z komponentów powyżej (projekty „Z-…”):
+
+- Shared widget renderer: neutral 15 dp header icon, gray `smallStrong` title (13 px), horizontal padding 16 dp,
+  vertical padding 14 dp. Dark full-width CTA stays 44 dp tall; list content clips before the CTA. Grid rows are
+  96 dp with 12 dp gaps (3×2 = 204 dp; 3×3 = 312 dp).
+- Section headings (`ui.heading` level 3) and screen eyebrows use uppercase `sectionLabel` (Barlow Condensed,
+  14 px). Segmented tabs have a 48 dp track and 40 dp segments; card lists use 10 dp gaps. Meta items with icons
+  have no preceding dot.
+
+- Nagłówek ekranu (`ScreenHeader.tsx`): `IconButton square` (wstecz) → etykieta `label` nad `Heading level 1 headingS` → akcje: pigułka `Button dark xs` z ikoną (radius pill) albo `IconButton roundDark`. Gdy pierwszy węzeł to `Gallery`, galeria idzie na całą szerokość u góry, a wstecz to `IconButton floating` nad nią.
+- Karta (`CardRow.tsx`): na ekranie biała karta radius 18, padding 12, `shadows.card`: miniatura 76 (`sizes.cardThumb`, radius 12, pigułka „+N” `photoOverlay`), tytuł `rowTitle` w 2 wierszach, linia meta `small` `textSecondary` (`MetaLine.tsx`, kropki między elementami), po prawej pigułka głosów 32 (`sizes.votePill`: wciśnięta `primary`/`onPrimary`, niewciśnięta `surface` + ramka `border`, tekst `primary`; `aria-pressed` przez `src/lib/a11y.ts`). Karta bez zdjęcia, ikony, meta, licznika, tagów i kropki to zwykła `Card` z tekstem. W liście `grouped` (biała grupa radius 18, linie `divider`): kolumna kropki „nowe” 8 dp, miniatura 52 albo `IconBox sm` (`neutral`, `dark` z licznikiem), liczba głosów strzałka nad liczbą (`text`), `CountBadge` 22 (`primary`), chevron. W widżecie: wiersz z tytułem w 1 linii (`link`) i liczbą głosów w `primary`.
+- `Menu.tsx`: wyzwalacz tekstowy 36 dp (`buttonS` + `ChevronDown`) albo pigułka 28 dp z ramką i ikoną `primary`; otwiera `BottomSheet` z `RadioCard`. W kafelku pulpitu (bez nakładki) opcje są rzędem `Chip`.
+- `Gallery.tsx`: strony 4:3 przewijane w poziomie, pigułka „1 / 2” 28 dp `photoOverlay` w rogu (`aria-live`).
+- Puste (`Empty`): ikona 30 w białym pudełku 64 (radius 20, `shadows.card`), `Heading cardTitleL`, tekst `bodyL` — wyśrodkowane; w widżecie bez ikony, na środku reszty kafelka.
+- `Tabs tiles`: kafelki 76 dp radius 16, liczba `headingM` nad etykietą `smallStrong`; wybrany: tło `text`, tekst `surface`.
+- `Stat`: biała płytka radius 16, liczba `headingS` (`successText` / `primary` wg tonu), etykieta `small`. `Notice`: wiersz jak `Place` z ikoną `textBody`.
+- Tag z `onRemove` (`Tags.tsx`): pigułka 36 dp z ramką `border` i przyciskiem `X` (`iconMuted`).
+- Arkusz widoku (`PluginSheet.tsx`, `navigate` z `present: "sheet"`): `BottomSheet` z etykietą i tytułem widoku.
+- Strona rozszerzenia (`src/screens/PluginPage.tsx`, Z-StronaPluginu): wstecz, `IconBox xl neutral` z emoji, „Rozszerzenie” nad nazwą; część rozszerzenia (`adminView`); sekcja „Widżet rozszerzenia” (biała grupa: nazwa, „Rozmiary: …”, `Badge success`/`neutral`, `Button tint sm`); `Button destructiveGhost` na dole.
 
 ## Mapy
 
@@ -268,7 +306,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-NoweMiejsceGotowe   | Miejsce utworzone                                         | SuccessMark, StatusPill, karta kodu+QR, Button primary + ghost                                                       |
 | E-ZaprosOsoby         | Zaproś osoby                                              | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary                                               |
 | E-DashboardAdmin      | Pulpit (administrator)                                    | jak Dashboard + StatusPill, IconButton roundDark z CountBadge, CtaCard                                               |
-| E-ZarzadzanieMiejscem | Zarządzaj miejscem                                        | TitleHeader, DisclosureCard: zapraszanie (karta), rozszerzenia (`flush`: włączone rozszerzenia — IconBox `sm` z emoji, nazwa `rowTitle` + „N widżetów · opis" `small`, linia `divider`; Button `primary sm` z `href` „Dodaj rozszerzenie"), układ pulpitu („N widżetów · siatka 3 kolumn"; podgląd siatki `aria-hidden`: tło `background`, radius 14, padding 10, wiersze `layoutPreviewRow` 22, gap 6, kafelki radius `mini` 8 — pierwszy `primary`, reszta `surface` z ramką `borderSubtle`; Button `dark sm` z `href` „Edytuj układ pulpitu"), członkowie (RoleBadge), ustawienia; Button destructiveGhost |
+| E-ZarzadzanieMiejscem | Zarządzaj miejscem                                        | TitleHeader, DisclosureCard: zapraszanie (karta), rozszerzenia (`flush`: włączone rozszerzenia — IconBox `sm` z emoji, nazwa `rowTitle` + „N widżetów · opis" `small`, `ChevronRight`, linia `divider`; wiersz to link do strony rozszerzenia; Button `primary sm` z `href` „Dodaj rozszerzenie"), układ pulpitu („N widżetów · siatka 3 kolumn"; podgląd siatki `aria-hidden`: tło `background`, radius 14, padding 10, wiersze `layoutPreviewRow` 22, gap 6, kafelki radius `mini` 8 — pierwszy `primary`, reszta `surface` z ramką `borderSubtle`; Button `dark sm` z `href` „Edytuj układ pulpitu"), członkowie (RoleBadge), ustawienia; Button destructiveGhost |
 | E-UkladPulpitu        | Układ pulpitu (edytor)                                    | TitleHeader + Button `dark xs` „Zapisz" jako pigułka 44 dp; podpowiedź `small`; siatka 3 kolumn (tło `surfaceSunken`, radius 22, padding/gap 10, wiersze `layoutRow` 64): kafelek = przycisk z `aria-pressed` (radius 16, emoji + nazwa `tileTitle`, plakietka rozmiaru `label` radius 6; zaznaczony: ramka 2 `primary` + `shadows.selected`, plakietka `primary`), na końcu przerywany kafelek „Dodaj widżet" (`dashedStrong`). Panel zaznaczonego widżetu przy dolnej krawędzi (nie modalny: `surface`, górne rogi `radii.panel` 24, `shadows.panel`): nazwa `cardTitle` + rozszerzenie `small`, zamknij `roundSunken`, `label` „Rozmiar" + `radiogroup` opcji 48 dp (obrys `layoutSizeUnit` × w/h; zaznaczona: tło `text`), Button `secondary sm` „Wyżej"/„Niżej" i `accent sm` „Usuń". BottomSheet „Dodaj widżet": grupy rozszerzeń (emoji + nazwa `smallStrong`), białe karty wierszy (`rowTitle` + „Rozmiary: …" `small`, Button `primary xs` pigułka 38 „Dodaj"), Button `ghost sm` „Więcej widżetów? Dodaj rozszerzenie" |
 | E-KatalogWidzetow     | Dodaj rozszerzenie (katalog rozszerzeń miejsca)           | TitleHeader, SearchField `outlined`, `label` „Rozszerzenia", karty rozszerzeń (radius 20, padding 18, `cardRaised`: IconBox `xl` z emoji + nazwa `cardTitleL` + podtytuł `small`, Button `accent` „Dodaj do miejsca" 44 dp), na dole ActionRow „Stwórz rozszerzenie z AI" |
 | E-WydrukQR            | Wydruk A4 z QR                                            | szablon wydruku (poza główną nawigacją; niezaimplementowany)                                                         |

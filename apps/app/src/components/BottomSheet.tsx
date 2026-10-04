@@ -1,18 +1,31 @@
-import GorhomBottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
-import { X } from "lucide-react-native";
+import GorhomBottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import { Sparkles, X } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../texts";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
 import { Heading } from "./Heading";
+import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
+import { Text } from "./Text";
 
 export interface BottomSheetProps {
   visible: boolean;
   title: string;
+  /** A small label over the title (e.g. what the sheet is about). */
+  eyebrow?: string;
   onClose: () => void;
   children: ReactNode;
+  /**
+   * The content scrolls once the sheet reaches the top of the screen (a long list of options, a plugin view). Without
+   * it the sheet is as tall as its content, up to the screen.
+   */
+  scrollable?: boolean;
+  /** False while the sheet must stay (e.g. its action is running): no pan down, no backdrop tap, close disabled. */
+  dismissible?: boolean;
+  accentEyebrow?: boolean;
 }
 
 /**
@@ -27,14 +40,52 @@ export function BottomSheet({ visible, ...sheet }: BottomSheetProps) {
   return visible ? <OpenSheet {...sheet} /> : null;
 }
 
-function OpenSheet({ title, onClose, children }: Omit<BottomSheetProps, "visible">) {
+function OpenSheet({
+  title,
+  eyebrow,
+  onClose,
+  children,
+  scrollable = false,
+  dismissible = true,
+  accentEyebrow = false,
+}: Omit<BottomSheetProps, "visible">) {
   const ref = useRef<GorhomBottomSheet>(null);
+  const insets = useSafeAreaInsets();
+  const body = (
+    <View role="dialog" aria-label={title} style={styles.content}>
+      <View style={styles.head}>
+        <View style={styles.title}>
+          {eyebrow ? (
+            <View style={styles.eyebrow}>
+              {accentEyebrow ? <Icon icon={Sparkles} size={sizes.iconXs} color="primary" /> : null}
+              <Text
+                variant={accentEyebrow ? "smallStrong" : "label"}
+                color={accentEyebrow ? "primary" : "textSecondary"}
+              >
+                {eyebrow}
+              </Text>
+            </View>
+          ) : null}
+          <Heading level={2}>{title}</Heading>
+        </View>
+        <IconButton
+          icon={X}
+          label={t.close}
+          onPress={() => ref.current?.close()}
+          variant="roundSunken"
+          disabled={!dismissible}
+        />
+      </View>
+      {children}
+    </View>
+  );
   return (
     <GorhomBottomSheet
       ref={ref}
       index={0}
       enableDynamicSizing
-      enablePanDownToClose
+      enablePanDownToClose={dismissible}
+      topInset={insets.top}
       onClose={onClose}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handle}
@@ -43,18 +94,12 @@ function OpenSheet({ title, onClose, children }: Omit<BottomSheetProps, "visible
           {...props}
           appearsOnIndex={0}
           disappearsOnIndex={-1}
-          pressBehavior="close"
-          opacity={opacity.scrim}
+          pressBehavior={dismissible ? "close" : "none"}
+          opacity={accentEyebrow ? opacity.pluginScrim : opacity.scrim}
         />
       )}
     >
-      <BottomSheetView role="dialog" aria-label={title} style={styles.content}>
-        <View style={styles.head}>
-          <Heading level={2}>{title}</Heading>
-          <IconButton icon={X} label={t.close} onPress={() => ref.current?.close()} variant="roundSunken" />
-        </View>
-        {children}
-      </BottomSheetView>
+      {scrollable ? <BottomSheetScrollView>{body}</BottomSheetScrollView> : <BottomSheetView>{body}</BottomSheetView>}
     </GorhomBottomSheet>
   );
 }
@@ -73,5 +118,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[12],
     gap: spacing[9],
   },
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[6] },
+  title: { flex: 1, gap: spacing[1] },
+  eyebrow: { flexDirection: "row", alignItems: "center", gap: spacing[3] },
 });

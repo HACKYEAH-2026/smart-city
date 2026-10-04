@@ -16,7 +16,7 @@ import { longPressFeedback } from "../lib/haptics";
 import { moveTo } from "../lib/order";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
-import { pluginHref } from "./href";
+import { pluginRoute } from "./href";
 import { PluginRenderer } from "./Renderer";
 
 /**
@@ -93,7 +93,7 @@ export function Dashboard({ slug }: { slug: string }) {
   if (!widgets.length) return null;
   const canEdit = dashboard.data?.canEdit ?? false;
   const open = (pluginId: string) => (action: Action) => {
-    if (action.type === "navigate") router.push(pluginHref(slug, pluginId, action.view, action.params) as never);
+    if (action.type === "navigate") router.push(pluginRoute(slug, pluginId, action.view, action.params));
   };
   const startEditing = () => {
     longPressFeedback();

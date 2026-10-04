@@ -17,6 +17,8 @@ export interface ScreenProps {
   tabBar?: boolean;
   /** Drawn over the whole screen, outside the scroll (e.g. a bottom sheet). */
   overlay?: ReactNode;
+  /** Content gap override for edge-to-edge media screens. */
+  gap?: number;
 }
 
 /** How far the content has scrolled (dp), shared with the backdrop, which reacts to it on the UI thread. */
@@ -35,7 +37,7 @@ export function useScrollY(): SharedValue<number> {
  * Keyboard: the focused field scrolls above it together with the button below it, and the first tap on a
  * button while the keyboard is open presses it (instead of only closing the keyboard).
  */
-export function Screen({ children, chrome = true, backdrop, tabBar = false, overlay }: ScreenProps) {
+export function Screen({ children, chrome = true, backdrop, tabBar = false, overlay, gap }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   return (
@@ -63,7 +65,7 @@ export function Screen({ children, chrome = true, backdrop, tabBar = false, over
           },
         ]}
       >
-        <View role="main" style={styles.frame}>
+        <View role="main" style={[styles.frame, gap === undefined ? undefined : { gap }]}>
           {chrome ? <AppHeader /> : null}
           {children}
           {chrome ? <AppFooter /> : null}

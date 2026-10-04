@@ -74,6 +74,10 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (!definition.views || typeof definition.views !== "object") throw new PluginError("Plugin must define views");
   const missing = manifest.nav.find((entry) => typeof definition.views[entry.view] !== "function");
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
+  const admin = manifest.adminView;
+  if (admin !== undefined && typeof definition.views[admin] !== "function") {
+    throw new PluginError(`adminView points to missing view "${admin}"`);
+  }
 }
 
 const dashboardWidgetMetaSchema = z.object({

@@ -990,23 +990,23 @@ RETURN $result;</code></pre>
               <tbody>
                 <tr>
                   <td>Roots</td>
-                  <td><code>ui.screen(title, children)</code> for views, <code>ui.widget(title, children, options?)</code> for dashboard widgets</td>
+                  <td><code>ui.screen(title, children, { eyebrow?, back?, actions?, chrome? })</code> for views (the app draws its header unless <code>chrome: false</code>); <code>back</code> accepts navigation or an app action, including <code>ui.app("pluginPage")</code> for the current installation's host page. <code>ui.widget(title, children, options?)</code> for dashboard widgets (<code>render(ctx, frame)</code>: <code>frame.size</code> is the tile's size)</td>
                 </tr>
                 <tr>
                   <td>Layout</td>
-                  <td><code>ui.stack</code>, <code>ui.row</code>, <code>ui.list(label, items)</code>, <code>ui.card({ title, subtitle?, badge?, onPress?, children? })</code></td>
+                  <td><code>ui.stack</code>, <code>ui.row</code>, <code>ui.list(label, items, { variant?: "grouped" })</code>, <code>ui.card({ title, subtitle?, badge?, image?, icon?, meta?, counter?, count?, unread?, onPress?, children? })</code></td>
                 </tr>
                 <tr>
                   <td>Content</td>
-                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.badge</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty</code>, <code>ui.image(fileId, alt)</code>, <code>ui.highlight</code>, <code>ui.activity({ title, text?, person?, at?, unread? })</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code></td>
+                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.meta</code>, <code>ui.notice</code>, <code>ui.badge</code>, <code>ui.tags</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty(text, { title?, icon? })</code>, <code>ui.image(fileId, alt)</code>, <code>ui.gallery</code>, <code>ui.timeline</code>, <code>ui.activity({ title, text?, person?, at?, unread? })</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code>; <code>ui.highlight</code> is deprecated</td>
                 </tr>
                 <tr>
                   <td>Actions</td>
-                  <td><code>ui.button(label, action, variant?)</code>; actions are <code>ui.navigate(view, params?)</code> or <code>ui.tool(name, args?)</code></td>
+                  <td><code>ui.button(label, action, variant?, icon?, { pressed? })</code>, <code>ui.tabs</code>, <code>ui.menu</code>, <code>ui.share</code>, <code>ui.fab</code>; actions are <code>ui.navigate(view, params?, { replace?, present?: "sheet" })</code>, <code>ui.tool(name, args?)</code> or <code>ui.app("dashboard")</code></td>
                 </tr>
                 <tr>
                   <td>Forms</td>
-                  <td><code>ui.form({ submitLabel, submit: ui.tool(…), children })</code> with <code>ui.textInput</code>, <code>ui.select</code>, <code>ui.imagePicker</code>, <code>ui.locationInput</code>; field values become the tool's <code>args</code></td>
+                  <td><code>ui.form({ submitLabel, submit: ui.tool(…), children })</code> with <code>ui.textInput</code>, <code>ui.select</code>, <code>ui.switch</code>, <code>ui.imagePicker({ max?, value? })</code>, <code>ui.locationInput</code>; field values become the tool's <code>args</code>. A Switch or Select outside a Form with an <code>action</code> saves on every change</td>
                 </tr>
               </tbody>
             </table>
@@ -1051,12 +1051,13 @@ RETURN $result;</code></pre>
                 <div class="box" data-layer="api"><span class="box-title">2 · Upload</span><span class="box-sub"><code>POST …/plugins/:id/files</code>, JPEG/PNG/WebP ≤ 10 MB → <code>file_&lt;uuid&gt;</code>, status <code>pending</code></span></div>
                 <div class="box" data-layer="plugin"><span class="box-title">3 · Validate</span><span class="box-sub">tool input <code>fileRef()</code> (format check, typed <code>FileId</code>)</span></div>
                 <div class="box" data-layer="sdk"><span class="box-title">4 · Keep</span><span class="box-sub">a <code>t.ref("file")</code> write confirms it (<code>kept</code>) in the same transaction</span></div>
-                <div class="box" data-layer="api"><span class="box-title">5 · Show</span><span class="box-sub"><code>ui.image(fileId)</code>; the host adds a signed URL (HMAC, 1 h)</span></div>
+                <div class="box" data-layer="api"><span class="box-title">5 · Show</span><span class="box-sub"><code>ui.image(fileId)</code>; the host adds a signed URL (HMAC, 1 h) to a file the viewer may see</span></div>
               </div>
               <ul>
                 <li>Only the user who uploaded a pending file may reference it (<code>DbError: … file was uploaded by another user</code>); once kept, any row of the installation may.</li>
                 <li>Uploads never referenced are deleted after 24 h (swept on the next upload). Bytes live in a <code>FileStore</code> on disk, metadata in <code>plugin_file</code>.</li>
-                <li><code>ctx.files.info(id)</code> and <code>ctx.files.remove(id)</code> only accept files of this installation.</li>
+                <li><code>ctx.files.info(id)</code> and <code>ctx.files.remove(id)</code> only accept files of this installation; <code>info</code> says who uploaded the file (<code>uploadedBy</code>) and whether it is <code>kept</code>.</li>
+                <li>A view may name any FileId (e.g. from its params), so the host signs only this installation's kept files and the viewer's own pending uploads (<span class="path">apps/api/src/services/files/service.ts</span> <code>visible</code>); others are left without a URL.</li>
                 <li>Upload is the app's only hand-written <code>fetch</code> (<span class="path">apps/app/src/lib/upload.ts</span>): multipart has no RPC types.</li>
               </ul>
             </div>

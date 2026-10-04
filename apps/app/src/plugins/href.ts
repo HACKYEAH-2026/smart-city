@@ -1,10 +1,28 @@
-import type { ViewParams } from "@app/plugin-sdk";
+import type { AppAction, ViewParams } from "@app/plugin-sdk";
+import type { Href } from "expo-router";
 
-/** Plugin view screen path: /app/c/<slug>/<plugin>/<view>?<params>. */
+/**
+ * A plugin view as a typed route for the router (navigation). Its params go in the query; the route's own segments
+ * come last, so a view param named like one of them cannot redirect it.
+ */
+export function pluginRoute(slug: string, pluginId: string, view: string, params: ViewParams = {}): Href {
+  return { pathname: "/app/c/[slug]/[plugin]/[view]", params: { ...params, slug, plugin: pluginId, view } };
+}
+
+/** Plugin view screen path: /app/c/<slug>/<plugin>/<view>?<params> (a screen's identity: flash messages, back). */
 export function pluginHref(slug: string, pluginId: string, view: string, params: ViewParams = {}): string {
   const path = [slug, pluginId, view].map(encodeURIComponent).join("/");
   const query = new URLSearchParams(params).toString();
   return `/app/c/${path}${query ? `?${query}` : ""}`;
+}
+
+/** App actions always target this installation's host page, never a plugin's embedded admin view. */
+export function appHref(slug: string, pluginId: string, screen: AppAction["screen"]): string {
+  return screen === "dashboard" ? "/app" : `/app/c/${encodeURIComponent(slug)}/manage/${encodeURIComponent(pluginId)}`;
+}
+
+export function appRoute(slug: string, pluginId: string, screen: AppAction["screen"]): Href {
+  return screen === "dashboard" ? "/app" : { pathname: "/app/c/[slug]/manage/[pluginId]", params: { slug, pluginId } };
 }
 
 /** View params from Expo Router route params (no path segments, single strings only). */

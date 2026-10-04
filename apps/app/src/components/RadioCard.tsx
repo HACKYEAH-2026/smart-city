@@ -12,18 +12,22 @@ export interface RadioCardProps {
   badge?: string;
   selected: boolean;
   onPress: () => void;
+  /** Shown dimmed and not pressable (e.g. while the choice is being saved). */
+  disabled?: boolean;
 }
 
 /**
  * Selectable option (COMPONENTS.md → RadioCard). Selection is shown by the border, the shadow and the filled dot,
  * not by color alone. Put several inside a View with role="radiogroup".
  */
-export function RadioCard({ label, description, badge, selected, onPress }: RadioCardProps) {
+export function RadioCard({ label, description, badge, selected, onPress, disabled = false }: RadioCardProps) {
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
       aria-checked={selected}
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
       onPressIn={tapFeedback}
       onPress={onPress}
       style={({ pressed }) => [
@@ -31,6 +35,7 @@ export function RadioCard({ label, description, badge, selected, onPress }: Radi
         description ? styles.top : null,
         selected ? styles.selected : styles.idle,
         pressed && styles.pressed,
+        disabled && styles.disabled,
       ]}
     >
       <View style={[styles.dot, selected && styles.dotSelected]}>
@@ -53,6 +58,7 @@ export function RadioCard({ label, description, badge, selected, onPress }: Radi
 
 const styles = StyleSheet.create({
   pressed: { opacity: opacity.pressed },
+  disabled: { opacity: opacity.disabled },
   card: {
     minHeight: sizes.iconBox,
     flexDirection: "row",

@@ -185,6 +185,10 @@ export const t = {
   time_minutes_ago: "min temu",
   time_hours_ago: "godz. temu",
   time_yesterday: "wczoraj",
+  /** "3 dni temu" (2–6 days), "1 tydz. temu", "2 tyg. temu" (up to 5 weeks; older times are dates). */
+  time_days_ago: "dni temu",
+  time_week_ago: "tydz. temu",
+  time_weeks_ago: "tyg. temu",
   time_now: "teraz",
   time_minutes: "min",
   time_hours: "godz.",
@@ -258,12 +262,13 @@ export const t = {
   plugin_activity_new: "Nowe",
   plugin_photo_camera: "Aparat",
   plugin_photo_gallery: "Galeria",
+  plugin_photo_add: "Dodaj",
   plugin_photo_remove: "Usuń zdjęcie",
   plugin_photo_uploading: "Wysyłanie zdjęcia…",
   plugin_photo_error: "Nie udało się wysłać zdjęcia. Spróbuj ponownie.",
   plugin_photo_preview: "Wybrane zdjęcie",
   plugin_location_pick: "Wskaż na mapie",
-  plugin_location_change: "Zmień miejsce",
+  plugin_location_change: "Zmień",
   plugin_location_remove: "Usuń miejsce",
   plugin_location_preview: "Wybrane miejsce na mapie",
   plugin_location_hint: "Tu pojawi się pinezka",
@@ -271,6 +276,25 @@ export const t = {
   plugin_map_list_hide: "Ukryj listę",
   plugin_map_legend: "Legenda mapy",
   plugin_progress: "Postęp zgłoszenia",
+  /** The "+N" badge on a thumbnail: "Dodatkowe zdjęcia: 2". */
+  plugin_photos_more: "Dodatkowe zdjęcia",
+  /** A photo's position: "Zdjęcie 1 z 3" (a gallery page, a picked photo). */
+  plugin_photo_number: "Zdjęcie",
+  plugin_photo_of: "z",
+  /** The remove button of a tag: "Usuń: Oświetlenie". */
+  plugin_tag_remove: "Usuń",
+  // A plugin's page in "Zarządzaj miejscem" (design Z-StronaPluginu)
+  plugin_page_eyebrow: "Rozszerzenie",
+  plugin_page_widget: "Widżet rozszerzenia",
+  plugin_page_on_dashboard: "Na pulpicie",
+  plugin_page_off_dashboard: "Poza pulpitem",
+  plugin_page_not_found: "Tego rozszerzenia nie ma w tym miejscu.",
+  plugin_page_remove: "Usuń rozszerzenie z miejsca",
+  plugin_page_remove_title: "Usunąć rozszerzenie z miejsca?",
+  plugin_page_remove_body:
+    "Zniknie z pulpitu i nawigacji miejsca. Jego dane zostaną zachowane i wrócą, gdy dodasz je ponownie.",
+  plugin_page_remove_confirm: "Usuń",
+  plugin_page_remove_error: "Nie udało się usunąć rozszerzenia.",
   // Managing a place (design E-ZarzadzanieMiejscem), for its admins
   manage_title: "Zarządzaj miejscem",
   manage_admins_only: "Tylko administratorzy mogą zarządzać tym miejscem.",

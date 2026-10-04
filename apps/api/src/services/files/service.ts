@@ -4,7 +4,7 @@ import { RecordId, surql, Table } from "surrealdb";
 import { type Db, TABLES } from "../../db";
 import type { FileStore } from "./store";
 
-type FileRow = { mime: string; size: number; installation: RecordId };
+type FileRow = { mime: string; size: number; installation: RecordId; status: string; uploaded_by?: RecordId };
 const fileRecord = (id: string) => new RecordId(TABLES.file, id);
 const installationRecord = (id: string) => new RecordId(TABLES.installation, id);
 
@@ -56,7 +56,12 @@ export class FileService {
     return {
       info: async (id) => {
         const row = await own(id);
-        return { mime: row.mime, size: row.size };
+        return {
+          mime: row.mime,
+          size: row.size,
+          uploadedBy: row.uploaded_by ? String(row.uploaded_by.id) : null,
+          kept: row.status === "kept",
+        };
       },
       remove: async (id) => {
         await own(id);
@@ -72,6 +77,22 @@ export class FileService {
     if (!row || String(row.installation.id) !== installationId) return null;
     const data = await this.store.get(id);
     return data ? { mime: row.mime, data } : null;
+  }
+
+  /**
+   * Of `ids`, the files `userId` may see in this installation: kept ones (a row of the plugin shows them) and the
+   * user's own pending uploads. A plugin's tree may name any FileId (e.g. from a view param), so only these are signed.
+   */
+  async visible(installationId: string, userId: string, ids: string[]): Promise<Set<string>> {
+    const valid = [...new Set(ids)].filter((id) => FILE_ID.test(id));
+    if (!valid.length) return new Set();
+    // Point lookups by record id (a WHERE over the table would scan every upload).
+    const rows = await Promise.all(valid.map(async (id) => ({ id, row: await this.row(id) })));
+    const seen = (row: FileRow | undefined) =>
+      row !== undefined &&
+      String(row.installation.id) === installationId &&
+      (row.status === "kept" || (row.uploaded_by !== undefined && String(row.uploaded_by.id) === userId));
+    return new Set(rows.filter(({ row }) => seen(row)).map(({ id }) => id));
   }
 
   /** Signed, short-lived URL (works in <Image> without an Authorization header). */
@@ -104,7 +125,9 @@ export class FileService {
   }
 
   private async row(id: string): Promise<FileRow | undefined> {
-    const [rows] = await this.db.query(surql<[FileRow[]]>`SELECT mime, size, installation FROM ${fileRecord(id)};`);
+    const [rows] = await this.db.query(
+      surql<[FileRow[]]>`SELECT mime, size, installation, status, uploaded_by FROM ${fileRecord(id)};`,
+    );
     return rows[0];
   }
 

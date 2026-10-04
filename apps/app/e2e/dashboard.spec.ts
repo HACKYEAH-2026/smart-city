@@ -57,9 +57,7 @@ test("the dashboard shows the current place, the place's features and the bottom
   await page.goto("/app");
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
   await expect(page.getByText(t.dashboard_greeting)).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true })).toBeVisible();
   const bar = page.getByRole("navigation", { name: t.nav_main });
   await expect(bar.getByRole("link", { name: t.tab_dashboard })).toHaveAttribute("aria-current", "page");
   await expect(bar.getByRole("link", { name: t.tab_places })).toBeVisible();
@@ -116,7 +114,7 @@ test("leaving the Account tab for the dashboard shows no place switcher; the das
   await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_dashboard }).click();
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }).click();
+  await page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true }).click();
   await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
 });
 

@@ -13,6 +13,7 @@
   "dependencies": {
     "@app/plugin-sdk": "workspace:*",
     "@app/shared": "workspace:*",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
     "@expo-google-fonts/schibsted-grotesk": "^0.4.2",
     "@expo/metro-runtime": "~57.0.16",
     "@gorhom/bottom-sheet": "^5",

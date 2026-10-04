@@ -2,9 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { geoLocation } from "./geo";
 import { sdk } from "./load";
 import { pluginManifestSchema } from "./plugin";
-import { dashboardWidgetSchema, MAP_LIMITS, screenSchema, UI_ICONS, ui, uiNodeSchema } from "./ui";
+import {
+  dashboardWidgetSchema,
+  MAP_LIMITS,
+  type ScreenAction,
+  screenSchema,
+  toolResultSchema,
+  UI_ICONS,
+  ui,
+  uiNodeSchema,
+} from "./ui";
 
 describe("UI catalog", () => {
+  test("screen back allows host app destinations and rejects tools", () => {
+    const screen = ui.screen("Settings", [], { back: ui.app("pluginPage"), chrome: false });
+    expect(screenSchema.parse(screen)).toEqual(screen);
+    expect(screenSchema.safeParse({ ...screen, back: ui.tool("save") }).success).toBe(false);
+    expect(screenSchema.safeParse({ ...screen, back: { type: "app", screen: "unknown" } }).success).toBe(false);
+  });
   test("tree built from builders passes validation", () => {
     const tree = ui.screen("Zgłoszenia", [
       ui.button("Nowe", ui.navigate("new")),
@@ -293,5 +308,254 @@ describe("place row", () => {
     const place = ui.place("ul. Słoneczna 5");
     expect(uiNodeSchema.parse(place)).toEqual(place);
     expect(uiNodeSchema.safeParse({ type: "Place", text: "" }).success).toBe(false);
+  });
+});
+
+describe("reserved plugin ids", () => {
+  test("an id the app's routes use (manage) is rejected", () => {
+    const base = { name: "Notatki", version: "1.0.0", nav: [{ view: "main", label: "Notatki" }] };
+    expect(pluginManifestSchema.safeParse({ ...base, id: "manage" }).success).toBe(false);
+    expect(pluginManifestSchema.safeParse({ ...base, id: "manager" }).success).toBe(true);
+  });
+});
+
+describe("cards with photos, meta and counts", () => {
+  const at = "2026-10-01T08:00:00.000Z";
+
+  test("an image with +N, a meta line, a toggle counter: valid, and not read-only", () => {
+    const card = ui.card({
+      title: "Dziura w jezdni",
+      image: { file: "f1", alt: "Zdjęcie dziury", more: 2 },
+      meta: [{ at }, { text: "8", icon: "chat", label: "Komentarze: 8" }],
+      counter: { label: "Podbij zgłoszenie", value: 24, pressed: true, action: ui.tool("vote", { id: "1" }) },
+      onPress: ui.navigate("detail", { id: "1" }),
+    });
+    expect(uiNodeSchema.parse(card)).toEqual(card);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [card])).success).toBe(false);
+  });
+
+  test("a plain count (no action, no pressed), an icon, a count badge and an unread dot are read-only", () => {
+    const rows = ui.list(
+      "Najczęściej podbijane",
+      [
+        ui.card({ title: "Latarnia", counter: { label: "17 głosów", value: 17 }, unread: true }),
+        ui.card({ title: "Panel zgłoszeń", icon: "shield", count: 5, onPress: ui.navigate("admin") }),
+      ],
+      { variant: "grouped" },
+    );
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [rows])).success).toBe(true);
+  });
+
+  test("rejects a bad meta item, too many photos besides the thumbnail and a negative count", () => {
+    const parse = (props: object) => uiNodeSchema.safeParse({ type: "Card", title: "x", ...props }).success;
+    expect(parse({ meta: [{ at: "wczoraj" }] })).toBe(false);
+    expect(parse({ meta: [] })).toBe(false);
+    expect(parse({ meta: [{ text: "" }] })).toBe(false);
+    expect(parse({ image: { file: "f", alt: "a", more: 100 } })).toBe(false);
+    expect(parse({ count: -1 })).toBe(false);
+    expect(parse({ icon: "rocket" })).toBe(false);
+  });
+
+  test("a removable tag makes a card or a Tags row not read-only", () => {
+    const tag = { text: "Oświetlenie", onRemove: ui.tool("removeCategory", { name: "Oświetlenie" }) };
+    expect(uiNodeSchema.parse(ui.tags([tag]))).toEqual(ui.tags([tag]));
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [ui.tags([tag])])).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [ui.card({ title: "x", tags: [tag] })])).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [ui.tags([{ text: "Oświetlenie" }])])).success).toBe(true);
+  });
+
+  test("a list's variant is cards or grouped", () => {
+    expect(uiNodeSchema.safeParse({ type: "List", label: "x", variant: "table", children: [] }).success).toBe(false);
+  });
+});
+
+describe("new leaves: notice, meta, gallery, menu", () => {
+  test("notice: a text with an icon and a tone", () => {
+    const notice = ui.notice("Widzisz tylko swoje zgłoszenia.", { icon: "lock" });
+    expect(uiNodeSchema.parse(notice)).toEqual(notice);
+    expect(uiNodeSchema.safeParse({ type: "Notice", text: "" }).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [notice])).success).toBe(true);
+  });
+
+  test("meta: 1-5 items, each a moment or a text", () => {
+    const meta = ui.meta([{ text: "Anna N." }, { at: "2026-10-01T08:00:00+02:00" }]);
+    expect(uiNodeSchema.parse(meta)).toEqual(meta);
+    expect(uiNodeSchema.safeParse({ type: "Meta", items: [] }).success).toBe(false);
+    expect(uiNodeSchema.safeParse({ type: "Meta", items: Array(6).fill({ text: "x" }) }).success).toBe(false);
+  });
+
+  test("gallery: 1-10 photos with alt texts", () => {
+    const gallery = ui.gallery([
+      { file: "f1", alt: "Dziura z bliska" },
+      { file: "f2", alt: "Dziura z daleka" },
+    ]);
+    expect(uiNodeSchema.parse(gallery)).toEqual(gallery);
+    expect(uiNodeSchema.safeParse({ type: "Gallery", items: [] }).success).toBe(false);
+  });
+
+  test("menu: navigate options keep it read-only, a tool option does not", () => {
+    const sort = ui.menu({
+      label: "Sortowanie",
+      variant: "text",
+      options: [
+        {
+          label: "Najwięcej głosów",
+          selected: true,
+          action: ui.navigate("admin", { sort: "votes" }, { replace: true }),
+        },
+        { label: "Najnowsze", action: ui.navigate("admin", { sort: "newest" }, { replace: true }) },
+      ],
+    });
+    expect(uiNodeSchema.parse(sort)).toEqual(sort);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [sort])).success).toBe(true);
+    const category = ui.menu({
+      label: "Kategoria",
+      icon: "sliders",
+      variant: "chip",
+      options: [
+        { label: "Oświetlenie", selected: true, action: ui.tool("setCategory", { category: "Oświetlenie" }) },
+        { label: "Inne", action: ui.tool("setCategory", { category: "Inne" }) },
+      ],
+    });
+    expect(uiNodeSchema.parse(category)).toEqual(category);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [category])).success).toBe(false);
+    expect(uiNodeSchema.safeParse({ ...sort, options: sort.options.slice(0, 1) }).success).toBe(false);
+  });
+});
+
+describe("empty, stat, button, share, tabs, text input", () => {
+  test("empty: an optional title and icon", () => {
+    const empty = ui.empty("Nikt jeszcze niczego nie zgłosił.", { title: "Na razie cisza", icon: "megaphone" });
+    expect(uiNodeSchema.parse(empty)).toEqual(empty);
+    expect(ui.empty("Nic.")).toEqual({ type: "Empty", text: "Nic." });
+  });
+
+  test("stat: an optional tone", () => {
+    expect(uiNodeSchema.parse(ui.stat("aktywnych", "8", "success"))).toEqual({
+      type: "Stat",
+      label: "aktywnych",
+      value: "8",
+      tone: "success",
+    });
+  });
+
+  test("button: the ink variant and a pressed toggle", () => {
+    const vote = ui.button("Podbite · 25", ui.tool("vote", { id: "1" }), "primary", undefined, { pressed: true });
+    expect(uiNodeSchema.parse(vote)).toEqual(vote);
+    const report = ui.button("Zgłoś problem", ui.navigate("new"), "ink", "camera");
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [report])).success).toBe(true);
+  });
+
+  test("share: a full-width button variant", () => {
+    const share = ui.share("Udostępnij sąsiadom", "/app/c/krakow/issues/detail?id=1", { variant: "button" });
+    expect(uiNodeSchema.parse(share)).toEqual(share);
+    expect(uiNodeSchema.safeParse({ ...share, variant: "link" }).success).toBe(false);
+  });
+
+  test("tabs: tiles with counts", () => {
+    const tabs = ui.tabs({
+      label: "Stan zgłoszeń",
+      variant: "tiles",
+      options: [
+        {
+          label: "Aktywne",
+          count: 8,
+          selected: true,
+          action: ui.navigate("admin", { state: "active" }, { replace: true }),
+        },
+        { label: "Zamknięte", count: 41, action: ui.navigate("admin", { state: "closed" }, { replace: true }) },
+      ],
+    });
+    expect(uiNodeSchema.parse(tabs)).toEqual(tabs);
+  });
+
+  test("text input: a hint and a placeholder", () => {
+    const input = ui.textInput({ name: "reply", label: "Odpowiedź", hint: "Widoczna dla członków", placeholder: "…" });
+    expect(uiNodeSchema.parse(input)).toEqual(input);
+    expect(uiNodeSchema.safeParse({ ...input, hint: "x".repeat(161) }).success).toBe(false);
+  });
+});
+
+describe("photos, settings that save at once", () => {
+  test("image picker: up to `max` photos, prefilled with uploaded ones", () => {
+    const picker = ui.imagePicker({
+      name: "photos",
+      label: "Zdjęcia",
+      max: 3,
+      value: [{ file: "f1" }, { file: "f2" }],
+    });
+    expect(uiNodeSchema.parse(picker)).toEqual(picker);
+    expect(uiNodeSchema.safeParse({ ...picker, max: 1 }).success).toBe(false);
+    expect(uiNodeSchema.safeParse({ ...picker, max: 11 }).success).toBe(false);
+    expect(uiNodeSchema.parse(ui.imagePicker({ name: "photo", label: "Zdjęcie" }))).toEqual({
+      type: "ImagePicker",
+      name: "photo",
+      label: "Zdjęcie",
+    });
+  });
+
+  test("switch and select may carry a tool action; they are inputs, so never in a widget", () => {
+    const save = ui.tool("saveSettings");
+    const toggle = ui.switch({ name: "votingEnabled", label: "Podbijanie", value: true, action: save });
+    const who = ui.select({
+      name: "commentPermission",
+      label: "Kto może komentować",
+      variant: "segmented",
+      options: [
+        { value: "members", label: "Wszyscy członkowie" },
+        { value: "admins", label: "Tylko administratorzy" },
+      ],
+      value: "members",
+      action: save,
+    });
+    expect(uiNodeSchema.parse(toggle)).toEqual(toggle);
+    expect(uiNodeSchema.parse(who)).toEqual(who);
+    expect(uiNodeSchema.safeParse({ ...who, variant: "radio" }).success).toBe(true);
+    expect(uiNodeSchema.safeParse({ ...toggle, action: ui.navigate("x") }).success).toBe(false);
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [toggle])).success).toBe(false);
+  });
+});
+
+describe("screen header actions, sheets, app actions, widget link count", () => {
+  test("a screen has up to 2 header actions that navigate; an icon-only one needs an icon", () => {
+    const panel: ScreenAction = { label: "Panel", icon: "shield", action: ui.navigate("admin") };
+    const screen = ui.screen("Zgłoszenia", [], { actions: [panel] });
+    expect(screenSchema.parse(screen)).toEqual(screen);
+    const parse = (actions: unknown[]) => screenSchema.safeParse({ ...screen, actions }).success;
+    expect(parse([{ label: "Ustawienia", variant: "icon", icon: "settings", action: ui.navigate("settings") }])).toBe(
+      true,
+    );
+    expect(parse([{ label: "Ustawienia", variant: "icon", action: ui.navigate("settings") }])).toBe(false);
+    expect(parse([{ ...panel, action: ui.tool("remove") }])).toBe(false);
+    expect(parse([panel, panel, panel])).toBe(false);
+  });
+
+  test("navigate may present the view as a sheet; a tool result may too", () => {
+    const sheet = ui.navigate("merge", { id: "1" }, { present: "sheet" });
+    expect(sheet).toEqual({ type: "navigate", view: "merge", params: { id: "1" }, present: "sheet" });
+    expect(toolResultSchema.parse({ navigate: sheet })).toEqual({ navigate: sheet });
+    expect(uiNodeSchema.safeParse({ type: "Button", label: "x", action: { ...sheet, present: "modal" } }).success).toBe(
+      false,
+    );
+  });
+
+  test("the app action leads to the dashboard and is read-only", () => {
+    const back = ui.button("Wróć do pulpitu", ui.app("dashboard"), "quiet");
+    expect(back.action).toEqual({ type: "app", screen: "dashboard" });
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [back])).success).toBe(true);
+    expect(uiNodeSchema.safeParse({ ...back, action: { type: "app", screen: "settings" } }).success).toBe(false);
+  });
+
+  test("a widget link may show a count; it still only navigates", () => {
+    const widget = ui.widget("Zgłoszenia", [], {
+      link: { label: "aktywnych", count: 12, action: ui.navigate("list") },
+    });
+    expect(dashboardWidgetSchema.parse(widget)).toEqual(widget);
+    expect(
+      dashboardWidgetSchema.safeParse({
+        ...widget,
+        link: { label: "aktywnych", count: -1, action: ui.navigate("list") },
+      }).success,
+    ).toBe(false);
   });
 });

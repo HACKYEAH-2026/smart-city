@@ -19,6 +19,7 @@ import {
   toolResultSchema,
   type UINode,
   type ViewParams,
+  type WidgetFrame,
 } from "@app/plugin-sdk";
 import { DbError } from "@app/plugin-sdk/engine";
 import { type GeometryPoint, type RecordId, surql } from "surrealdb";
@@ -166,7 +167,14 @@ export class PluginHost {
     return { ...community, location: row?.location ? fromGeoPoint(row.location) : null };
   }
 
-  async renderView(plugin: LoadedPlugin, view: string, ctx: Context, params: ViewParams): Promise<UINode> {
+  /** `installationId`: whose files the view may show (see signImages). */
+  async renderView(
+    plugin: LoadedPlugin,
+    installationId: string,
+    view: string,
+    ctx: Context,
+    params: ViewParams,
+  ): Promise<UINode> {
     const fn = plugin.definition.views[view];
     if (!fn) throw new PluginError(`view_not_found:${view}`);
     const out = await guard(plugin, `view ${view}`, () => fn(ctx, params));
@@ -176,21 +184,27 @@ export class PluginHost {
         `${plugin.manifest.id}: view "${view}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
       );
     }
-    return this.signImages(parsed.data);
+    return this.signImages(parsed.data, installationId, ctx.user.id);
   }
 
-  /** A dashboard widget (it always renders; null or invalid UI is a plugin error). */
-  async renderDashboardWidget(plugin: LoadedPlugin, name: string, ctx: Context): Promise<UINode> {
+  /** A dashboard widget drawn in `frame` (it always renders; null or invalid UI is a plugin error). */
+  async renderDashboardWidget(
+    plugin: LoadedPlugin,
+    installationId: string,
+    name: string,
+    ctx: Context,
+    frame: WidgetFrame,
+  ): Promise<UINode> {
     const widget = plugin.definition.dashboardWidgets?.[name];
     if (!widget) throw new PluginError(`dashboard_widget_not_found:${name}`);
-    const out = await guard(plugin, `dashboard widget ${name}`, () => widget.render(ctx));
+    const out = await guard(plugin, `dashboard widget ${name}`, () => widget.render(ctx, frame));
     const parsed = dashboardWidgetSchema.safeParse(out);
     if (!parsed.success) {
       throw new PluginError(
         `${plugin.manifest.id}: dashboard widget "${name}" returned invalid UI: ${z.prettifyError(parsed.error)}`,
       );
     }
-    return this.signImages(parsed.data);
+    return this.signImages(parsed.data, installationId, ctx.user.id);
   }
 
   /**
@@ -241,16 +255,37 @@ export class PluginHost {
     return parsed.data;
   }
 
-  /** Image nodes (and a highlight's thumbnail) get a signed, short-lived URL (the app needn't know how files work). */
-  private signImages(node: UINode): UINode {
-    if (node.type === "Image") return { ...node, url: this.services.files.signedUrl(node.file) };
-    if (node.type === "Highlight" && node.image) {
-      return { ...node, image: { ...node.image, url: this.services.files.signedUrl(node.image.file) } };
-    }
-    if ("children" in node && node.children) {
-      return { ...node, children: node.children.map((c) => this.signImages(c)) } as UINode;
-    }
-    return node;
+  /**
+   * Every photo in the tree gets a signed, short-lived URL (the app needn't know how files work): Image, Gallery
+   * items, a Card's thumbnail, an ImagePicker's prefilled photos and a Highlight's thumbnail. Only photos this user
+   * may see in this installation are signed (FileService.visible): a view can put any FileId in its tree, e.g. one
+   * from its params, and a signed URL serves the file to anyone. Others stay without `url` (the app's placeholder).
+   */
+  private async signImages(node: UINode, installationId: string, userId: string): Promise<UINode> {
+    const visible = await this.services.files.visible(installationId, userId, photosOf(node));
+    const sign = <T extends { file: string }>(photo: T): T =>
+      visible.has(photo.file) ? { ...photo, url: this.services.files.signedUrl(photo.file) } : photo;
+    const walk = (n: UINode): UINode => {
+      switch (n.type) {
+        case "Image":
+          return sign(n);
+        case "Gallery":
+          return { ...n, items: n.items.map(sign) };
+        case "ImagePicker":
+          return n.value ? { ...n, value: n.value.map(sign) } : n;
+        case "Highlight":
+          return n.image ? { ...n, image: sign(n.image) } : n;
+        case "Card":
+          return {
+            ...n,
+            ...(n.image ? { image: sign(n.image) } : {}),
+            ...(n.children ? { children: n.children.map(walk) } : {}),
+          };
+        default:
+          return "children" in n ? { ...n, children: n.children.map(walk) } : n;
+      }
+    };
+    return walk(node);
   }
 
   /**
@@ -286,6 +321,28 @@ export class PluginHost {
       throw new PluginError(`Plugin source does not compile: ${(err as Error).message}`);
     }
     return loadPlugin(mod.default);
+  }
+}
+
+/** Every FileId the tree shows as a photo (the nodes signImages signs). */
+const photosOf = (node: UINode): string[] => [
+  ...ownPhotos(node),
+  ...("children" in node && node.children ? node.children.flatMap(photosOf) : []),
+];
+
+function ownPhotos(node: UINode): string[] {
+  switch (node.type) {
+    case "Image":
+      return [node.file];
+    case "Gallery":
+      return node.items.map((item) => item.file);
+    case "ImagePicker":
+      return (node.value ?? []).map((photo) => photo.file);
+    case "Highlight":
+    case "Card":
+      return node.image ? [node.image.file] : [];
+    default:
+      return [];
   }
 }
 

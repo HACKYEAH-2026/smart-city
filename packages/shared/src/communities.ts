@@ -79,6 +79,8 @@ export type PlaceMember = {
  * one the AI wrote for this place (`madeByAi`, the plugin builder). A `draft` was never published: it cannot be
  * switched on, and its name and icon are those of its latest ready version (the first request while none is ready).
  * `working`: the AI is writing a version of it right now. `widgets`: how many dashboard widgets the plugin declares.
+ * `adminView`: the view its page in "Zarządzaj miejscem" shows (null = none, or a draft that is not loaded).
+ * `sizes`: the sizes an admin may give its widget, the default first (empty when it is not loaded).
  */
 export type PlacePlugin = PluginCatalogItem & {
   enabled: boolean;
@@ -86,6 +88,8 @@ export type PlacePlugin = PluginCatalogItem & {
   draft: boolean;
   working: boolean;
   widgets: number;
+  adminView: string | null;
+  sizes: DashboardWidgetSize[];
 };
 /** A place's admin switches one of its plugins on or off (PUT /api/communities/:slug/plugins/:pluginId). */
 export const pluginSwitchSchema = z.object({ enabled: z.boolean() });

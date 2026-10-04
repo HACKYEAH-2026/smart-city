@@ -1,4 +1,4 @@
-import { differenceInHours, differenceInMinutes, format, isSameDay, parseISO, subDays } from "date-fns";
+import { differenceInCalendarDays, differenceInHours, differenceInMinutes, format, parseISO } from "date-fns";
 import { pl } from "date-fns/locale/pl";
 import { t } from "../texts";
 
@@ -8,9 +8,13 @@ const WORDS = {
   short: { now: t.time_now, minutes: t.time_minutes, hours: t.time_hours, date: "d MMM" },
 } as const;
 
+/** Up to this many calendar days back, `long` counts days and weeks ("3 dni temu", "2 tyg. temu"); then a date. */
+const LONG_DAYS = 35;
+
 /**
- * When something happened, as the invitations show it: "przed chwilą", "5 min temu", "2 godz. temu", "wczoraj",
- * or the date for anything older. `short`: "teraz", "5 min", "2 godz.", "wczoraj", "1 paź".
+ * When something happened: "przed chwilą", "5 min temu", "2 godz. temu", "wczoraj", then (`long`) "3 dni temu",
+ * "1 tydz. temu", "2 tyg. temu", or the date for anything older. `short`: "teraz", "5 min", "2 godz.", "wczoraj",
+ * "1 paź".
  */
 export function relativeTime(iso: string, now: Date = new Date(), style: keyof typeof WORDS = "long"): string {
   const words = WORDS[style];
@@ -20,6 +24,15 @@ export function relativeTime(iso: string, now: Date = new Date(), style: keyof t
   if (minutes < 60) return `${minutes} ${words.minutes}`;
   const hours = differenceInHours(now, then);
   if (hours < 24) return `${hours} ${words.hours}`;
-  if (isSameDay(then, subDays(now, 1))) return t.time_yesterday;
+  const days = differenceInCalendarDays(now, then);
+  if (days === 1) return t.time_yesterday;
+  if (style === "long" && days < LONG_DAYS) return daysAgo(days);
   return format(then, words.date, { locale: pl });
+}
+
+/** 2–6 days: "3 dni temu"; a week or more: "1 tydz. temu", "2 tyg. temu" (whole weeks). */
+function daysAgo(days: number): string {
+  const weeks = Math.floor(days / 7);
+  if (weeks === 0) return `${days} ${t.time_days_ago}`;
+  return `${weeks} ${weeks === 1 ? t.time_week_ago : t.time_weeks_ago}`;
 }

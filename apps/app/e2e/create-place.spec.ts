@@ -46,9 +46,7 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await page.getByRole("button", { name: t.created_go_dashboard }).click();
 
   await expect(page.getByRole("heading", { name: "Kamienica Lipowa 12", level: 1 })).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia`, exact: true })).toBeVisible();
   // Every feature has its tile, announcements too before the first one.
   await expect(page.getByRole("link", { name: `${t.dashboard_open}: Ogłoszenia`, exact: true })).toBeVisible();
   // Discussions are off: no tile.

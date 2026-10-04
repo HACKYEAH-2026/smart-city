@@ -62,6 +62,8 @@ Jak pisać wtyczki: [docs/plugins.md](docs/plugins.md). Jak działa architektura
 
 ## HackYeah 2026
 
+- **Dodatkowy krój pisma (HackYeah):** `@expo-google-fonts/barlow-condensed` — Barlow Condensed 600 dla etykiet pól, nagłówków sekcji i ekranów rozszerzeń, zgodnie z projektem zgłoszeń.
+
 Projekt zgłaszamy do zadania otwartego **SMART CITY** na HackYeah 2026. Prace hackathonowe trwają od 3.10.2026, 23:00 do 4.10.2026, 23:00.
 
 - **Co istniało przed hackathonem:** platforma, czyli rdzeń społeczności, logowanie, SDK wtyczek, renderer Server-Driven UI i wtyczki `issues` i `benches` (`benches` usunęliśmy w trakcie HackYeah). Stan wyjściowy to commit `9533f98`, a wszystko po nim powstało w trakcie HackYeah.

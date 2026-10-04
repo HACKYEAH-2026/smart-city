@@ -13,6 +13,8 @@ const plugin = (overrides: Partial<PlacePlugin>): PlacePlugin => ({
   draft: false,
   working: false,
   widgets: 1,
+  adminView: null,
+  sizes: [{ w: 3, h: 3 }],
   ...overrides,
 });
 

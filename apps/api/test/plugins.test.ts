@@ -46,6 +46,12 @@ const upload = (headers: Record<string, string>, file: File, plugin = "issues") 
   return t.request(`${base}/plugins/${plugin}/files`, { method: "POST", headers, body: form });
 };
 const jpeg = () => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], "lamp.jpg", { type: "image/jpeg" });
+/** The id of the report a tool result opened (the "sent" screen). */
+const reportId = (result: ToolResult | undefined) => {
+  const id = result?.navigate?.params?.id;
+  if (!id) throw new Error(`no report id in ${JSON.stringify(result)}`);
+  return id;
+};
 
 describe("communities, navigation, roles", () => {
   test("no session 401; navigation from installed plugins; unknown resources 404", async () => {
@@ -76,11 +82,11 @@ describe("communities, navigation, roles", () => {
   test("requires: admin — user gets 403, admin is allowed; admin granted via the platform API", async () => {
     await start();
     const u = await t.signUp();
-    const { result } = await tool(u.headers, "issues/tools/report", { title: "Dziura w chodniku", category: "roads" });
-    const id = result!.navigate!.params!.id!;
+    const { result } = await tool(u.headers, "issues/tools/report", { title: "Dziura w chodniku" });
+    const id = reportId(result);
 
-    expect((await tool(u.headers, "issues/tools/setStatus", { id, status: "fixed" })).res.status).toBe(403);
-    expect((await tool(cityAdmin.headers, "issues/tools/setStatus", { id, status: "fixed" })).res.status).toBe(200);
+    expect((await tool(u.headers, "issues/tools/setClosed", { id, closed: true })).res.status).toBe(403);
+    expect((await tool(cityAdmin.headers, "issues/tools/setClosed", { id, closed: true })).res.status).toBe(200);
 
     const grant = await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/admins`, {
       method: "POST",
@@ -88,13 +94,13 @@ describe("communities, navigation, roles", () => {
       json: { email: u.email },
     });
     expect(grant.status).toBe(201);
-    expect((await tool(u.headers, "issues/tools/setStatus", { id, status: "open" })).res.status).toBe(200);
+    expect((await tool(u.headers, "issues/tools/setClosed", { id, closed: false })).res.status).toBe(200);
   });
 
   test("tool input validation: 400 with a list of issues", async () => {
     await start();
     const u = await t.signUp();
-    const { res } = await tool(u.headers, "issues/tools/report", { title: "x", category: "nie-ma" });
+    const { res } = await tool(u.headers, "issues/tools/report", { title: "x", photos: ["nie-plik"] });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toBe("invalid_input");
   });
@@ -108,11 +114,12 @@ describe("files", () => {
     expect(up.status).toBe(201);
     const { fileId } = (await up.json()) as { fileId: string };
 
-    const { result } = await tool(u.headers, "issues/tools/report", { title: "Zepsuta ławka", photo: fileId });
-    const { node } = await view(u.headers, `issues/views/detail?id=${result!.navigate!.params!.id}`);
-    const image = flat(node!).find((n) => n.type === "Image");
-    expect(image).toMatchObject({ type: "Image", file: fileId });
-    const url = new URL((image as { url: string }).url);
+    const { result } = await tool(u.headers, "issues/tools/report", { title: "Zepsuta ławka", photos: [fileId] });
+    const { node } = await view(u.headers, `issues/views/detail?id=${reportId(result)}`);
+    const [photo] = (node ? flat(node) : []).flatMap((n) => (n.type === "Gallery" ? n.items : []));
+    expect(photo?.file).toBe(fileId);
+    const url = new URL(photo?.url ?? "http://missing");
+    expect(url.pathname).toBe(`/api/files/${fileId}`);
 
     const file = await t.request(`${url.pathname}${url.search}`);
     expect(file.status).toBe(200);
@@ -122,7 +129,7 @@ describe("files", () => {
     expect((await t.request(`${url.pathname}?exp=${url.searchParams.get("exp")}&sig=zly`)).status).toBe(404);
   });
 
-  test("rejects: non-image (400), someone else's file (400), plugin without files permission (404)", async () => {
+  test("rejects: non-image (400), someone else's file (refused), plugin without files permission (404)", async () => {
     await start();
     const alice = await t.signUp();
     const bob = await t.signUp();
@@ -131,10 +138,11 @@ describe("files", () => {
     const { fileId } = (await (await upload(alice.headers, jpeg())).json()) as { fileId: string };
     const stolen = await tool(bob.headers, "issues/tools/report", {
       title: "Cudze zdjęcie",
-      photo: fileId,
+      photos: [fileId],
       force: true,
     });
-    expect(stolen.res.status).toBe(400);
+    // The issues plugin checks who uploaded each photo (ctx.files.info) before saving anything.
+    expect(stolen.result?.error).toBe("Nie można dodać tego zdjęcia. Dodaj je jeszcze raz.");
 
     await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: NOTES } });
     await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
@@ -169,31 +177,42 @@ describe("AI", () => {
     await start();
     const alice = await t.signUp();
     const bob = await t.signUp();
-    await tool(alice.headers, "issues/tools/report", { title: "Nie świeci latarnia na Długiej", category: "lighting" });
+    await tool(alice.headers, "issues/tools/report", { title: "Nie świeci latarnia na Długiej" });
     const { result } = await tool(bob.headers, "issues/tools/report", { title: "latarnia Długiej nie świeci" });
     expect(result?.navigate?.view).toBe("merge");
   });
 
-  test("with a model: findSimilar asks the model (with image) and returns its reason", async () => {
+  test("with a model: a new report gets its category (ctx.ai.call); findSimilar asks with the image", async () => {
     const seen: { prompt: string; images: number }[] = [];
+    // The issues plugin asks for a category after a report is saved, and findSimilar before the next one.
     const model: LanguageModel = {
       async generate(req) {
         seen.push({ prompt: req.prompt, images: req.images?.length ?? 0 });
-        return { matches: [{ index: 0, score: 0.95, reason: "Ta sama latarnia" }] };
+        return req.prompt.startsWith("Pick the category")
+          ? { category: "Oświetlenie" }
+          : { matches: [{ index: 0, score: 0.95, reason: "Ta sama latarnia" }] };
       },
     };
     await start({ ai: { language: model } });
     const alice = await t.signUp();
     const bob = await t.signUp();
-    await tool(alice.headers, "issues/tools/report", { title: "Ciemno przy przystanku", category: "lighting" });
+    const first = await tool(alice.headers, "issues/tools/report", { title: "Ciemno przy przystanku" });
     const { fileId } = (await (await upload(bob.headers, jpeg())).json()) as { fileId: string };
-    const { result } = await tool(bob.headers, "issues/tools/report", { title: "Lampa nie działa", photo: fileId });
+    const { result } = await tool(bob.headers, "issues/tools/report", { title: "Lampa nie działa", photos: [fileId] });
 
-    expect(result?.navigate?.view).toBe("merge");
-    expect(result?.navigate?.params?.reason).toBe("Ta sama latarnia");
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.prompt).toContain("Ciemno przy przystanku");
-    expect(seen[0]?.images).toBe(1);
+    expect(result?.navigate).toMatchObject({ view: "merge", present: "sheet" });
+    expect(result?.data).toMatchObject({ reason: "Ta sama latarnia" });
+    expect(seen.map((call) => call.prompt.split("\n")[0])).toEqual([
+      expect.stringContaining("Pick the category"),
+      expect.stringContaining("A resident is reporting a problem"),
+    ]);
+    expect(seen[1]?.prompt).toContain("Ciemno przy przystanku");
+    expect(seen[1]?.images).toBe(1);
+
+    // Only admins see the category: it is the selected option of the admin detail's menu.
+    const admin = await view(cityAdmin.headers, `issues/views/adminDetail?id=${reportId(first.result)}`);
+    const menu = (admin.node ? flat(admin.node) : []).find((n) => n.type === "Menu");
+    expect(menu?.type === "Menu" ? menu.options.find((o) => o.selected)?.label : undefined).toBe("Oświetlenie");
   });
 
   const startDedupe = async (embedding?: EmbeddingModel) => {
@@ -344,7 +363,7 @@ describe("isolation and plugins uploaded on the fly", () => {
 });
 
 describe("maps", () => {
-  test("ctx.community.location is the place's pin; a report placed on the map is on the issues map", async () => {
+  test("ctx.community.location is the place's pin; a report placed on the map shows its pin", async () => {
     await start();
     const u = await t.signUp();
     const located = NOTES.replace('id: "notes"', 'id: "located"').replace(
@@ -365,12 +384,18 @@ describe("maps", () => {
     );
 
     const where = { ...DEMO_LOCATION, address: DEMO_ADDRESS };
-    expect(
-      (await tool(u.headers, "issues/tools/report", { title: "Dziura w jezdni", location: where })).res.status,
-    ).toBe(200);
-    const map = flat((await view(u.headers, "issues/views/list")).node!).find((n) => n.type === "Map");
-    expect(map).toMatchObject({ label: "Mapa zgłoszeń" });
-    expect(textsOf(map!)).toContain("Dziura w jezdni");
+    const { result } = await tool(u.headers, "issues/tools/report", { title: "Dziura w jezdni", location: where });
+    const id = reportId(result);
+    const detail = (await view(u.headers, `issues/views/detail?id=${id}`)).node;
+    expect(detail ? flat(detail).filter((n) => n.type === "Map") : []).toHaveLength(0);
+    expect(detail ? flat(detail).find((n) => n.type === "Place") : undefined).toMatchObject({
+      text: DEMO_ADDRESS,
+      action: { type: "navigate", view: "map", params: { id } },
+    });
+    const { node } = await view(u.headers, `issues/views/map?id=${id}`);
+    const map = (node ? flat(node) : []).find((n) => n.type === "Map");
+    expect(map).toMatchObject({ label: "Miejsce zgłoszenia" });
+    expect(map ? textsOf(map) : []).toEqual(expect.arrayContaining(["Dziura w jezdni", DEMO_ADDRESS]));
   });
 });
 
@@ -419,7 +444,7 @@ describe("dashboard", () => {
 
     const before = await dashboard(u.headers);
     expect(before.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
-      { key: "issues/summary", size: { w: 3, h: 3 } },
+      { key: "issues/summary", size: { w: 3, h: 2 } },
       { key: "announcements/latest", size: { w: 3, h: 3 } },
       { key: "discussions/recent", size: { w: 3, h: 3 } },
     ]);
@@ -543,8 +568,8 @@ describe("dashboard", () => {
             pluginName: "Zgłoszenia",
             pluginIcon: "🛠️",
             title: "Zgłoszenia",
-            size: tall,
-            sizes: [tall, short],
+            size: short,
+            sizes: [short, tall],
           },
           {
             key: "announcements/latest",
@@ -660,5 +685,104 @@ describe("dashboard", () => {
       expect(layout.available.map((w) => w.key)).toEqual(["discussions/recent"]);
       expect((await dashboard(cityAdmin.headers)).keys).toEqual(["announcements/latest", "issues/summary", "tiles/w"]);
     });
+  });
+});
+
+describe("catalog on the host", () => {
+  const CATALOG = readFileSync(join(import.meta.dir, "fixtures/catalog-plugin.ts"), "utf8");
+  const installCatalog = async () => {
+    const up = await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source: CATALOG } });
+    expect(up.status).toBe(201);
+    await t.request(`/api/admin/communities/${DEMO_COMMUNITY.slug}/plugins`, {
+      method: "POST",
+      headers: platform,
+      json: { pluginId: "catalog" },
+    });
+  };
+
+  test("adminView: no session 401, a member 403, the place's admin 200; the other views as usual", async () => {
+    await start();
+    await installCatalog();
+    const u = await t.signUp();
+    expect((await t.request(`${base}/plugins/catalog/views/admin`)).status).toBe(401);
+    const denied = await view(u.headers, "catalog/views/admin");
+    expect(denied.res.status).toBe(403);
+    expect(await denied.res.json()).toEqual({ error: "forbidden" });
+    const allowed = await view(cityAdmin.headers, "catalog/views/admin");
+    expect(allowed.res.status).toBe(200);
+    expect(allowed.node ? textsOf(allowed.node) : []).toEqual(["Panel", "aktywnych", "8"]);
+    expect((await view(u.headers, "catalog/views/main")).res.status).toBe(200);
+  });
+
+  test("a widget renders at the size it has on this dashboard", async () => {
+    await start();
+    await installCatalog();
+    const texts = async () => {
+      const res = await t.request(`${base}/dashboard`, { headers: cityAdmin.headers });
+      const body = (await res.json()) as { widgets: { key: string; node: UINode }[] };
+      const tile = body.widgets.find((w) => w.key === "catalog/tile");
+      return tile ? textsOf(tile.node) : [];
+    };
+    expect(await texts()).toContain("Rozmiar 3x2");
+    const put = await t.request(`${base}/dashboard/layout`, {
+      method: "PUT",
+      headers: cityAdmin.headers,
+      json: { widgets: [{ key: "catalog/tile", size: { w: 3, h: 3 } }] },
+    });
+    expect(put.status).toBe(200);
+    expect(await texts()).toContain("Rozmiar 3x3");
+  });
+
+  test("photos in a Gallery, a Card's thumbnail and an ImagePicker's value get signed URLs", async () => {
+    await start();
+    await installCatalog();
+    const u = await t.signUp();
+    const { fileId } = (await (await upload(u.headers, jpeg(), "catalog")).json()) as { fileId: string };
+    const { node } = await view(u.headers, `catalog/views/main?photo=${fileId}`);
+    const nodes = node ? flat(node) : [];
+    const gallery = nodes.flatMap((n) => (n.type === "Gallery" ? n.items : []));
+    const thumbs = nodes.flatMap((n) => (n.type === "Card" && n.image ? [n.image] : []));
+    const prefilled = nodes.flatMap((n) => (n.type === "ImagePicker" ? (n.value ?? []) : []));
+    const signed = expect.stringContaining(`/api/files/${fileId}?exp=`);
+    expect([...gallery, ...thumbs, ...prefilled].map((photo) => photo.url)).toEqual([signed, signed, signed]);
+
+    // The signed address serves the photo.
+    const url = new URL(gallery[0]?.url ?? "http://missing");
+    expect((await t.request(`${url.pathname}${url.search}`)).status).toBe(200);
+  });
+
+  test("only photos the viewer may see here are signed: not another installation's, not someone's pending upload", async () => {
+    await start();
+    await installCatalog();
+    const alice = await t.signUp();
+    const bob = await t.signUp();
+    const fileOf = async (res: Response) => ((await res.json()) as { fileId: string }).fileId;
+    const elsewhere = await fileOf(await upload(alice.headers, jpeg(), "issues"));
+    const pending = await fileOf(await upload(alice.headers, jpeg(), "catalog"));
+    const urls = async (headers: Record<string, string>, file: string) => {
+      const { node } = await view(headers, `catalog/views/main?photo=${file}`);
+      return (node ? flat(node) : []).flatMap((n) => (n.type === "Gallery" ? n.items.map((item) => item.url) : []));
+    };
+    expect(await urls(alice.headers, elsewhere)).toEqual([undefined]);
+    expect(await urls(bob.headers, pending)).toEqual([undefined]);
+    expect(await urls(alice.headers, pending)).toEqual([expect.stringContaining(`/api/files/${pending}?exp=`)]);
+  });
+
+  test("issues: the form's photos param shows only the user's own uploads, never a signed foreign file", async () => {
+    await start();
+    await installCatalog();
+    const alice = await t.signUp();
+    const bob = await t.signUp();
+    const fileOf = async (res: Response) => ((await res.json()) as { fileId: string }).fileId;
+    const foreign = await fileOf(await upload(bob.headers, jpeg(), "issues"));
+    const elsewhere = await fileOf(await upload(alice.headers, jpeg(), "catalog"));
+    const own = await fileOf(await upload(alice.headers, jpeg(), "issues"));
+    const photos = encodeURIComponent(JSON.stringify([foreign, elsewhere, own]));
+    const { node } = await view(alice.headers, `issues/views/form?photos=${photos}`);
+    const prefilled = (node ? flat(node) : []).flatMap((n) => (n.type === "ImagePicker" ? (n.value ?? []) : []));
+    expect(prefilled.map((photo) => photo.file)).toEqual([own]);
+    expect(prefilled[0]?.url).toContain(`/api/files/${own}?exp=`);
+    expect(JSON.stringify(node)).not.toContain(foreign);
+    expect(JSON.stringify(node)).not.toContain(elsewhere);
   });
 });

@@ -6,6 +6,7 @@
  *   if (!loaded) return null;
  */
 
+import { BarlowCondensed_600SemiBold } from "@expo-google-fonts/barlow-condensed";
 import {
   SchibstedGrotesk_400Regular,
   SchibstedGrotesk_500Medium,
@@ -16,6 +17,7 @@ import { useFonts } from "expo-font";
 
 export function useAppFonts() {
   return useFonts({
+    BarlowCondensed_600SemiBold,
     SchibstedGrotesk_400Regular,
     SchibstedGrotesk_500Medium,
     SchibstedGrotesk_600SemiBold,

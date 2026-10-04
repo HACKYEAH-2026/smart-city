@@ -9,6 +9,7 @@ const UPPERCASE: ReadonlySet<TypographyToken> = new Set<TypographyToken>([
   "chip",
   "stepNumber",
   "abbr",
+  "sectionLabel",
 ]);
 
 export interface TextProps extends RNTextProps {

@@ -1,10 +1,17 @@
 import { DASHBOARD_COLUMNS } from "@app/plugin-sdk";
-import { formatInviteCode, type JoinRule, type LayoutWidget, type PlaceDetails, type PlaceKind } from "@app/shared";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  formatInviteCode,
+  type JoinRule,
+  type LayoutWidget,
+  type PlaceDetails,
+  type PlaceKind,
+  type PlacePlugin,
+} from "@app/shared";
+import { Link as RouterLink, useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
+import { ChevronRight, LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   Avatar,
   Badge,
@@ -34,14 +41,16 @@ import {
 } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
 import { gridRects } from "../lib/grid";
+import { tapFeedback } from "../lib/haptics";
 import { inviteLink, shareInvite } from "../lib/invite";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
 import { memberCounts, memberName, orderMembers } from "../lib/members";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { enabledPlugins, pluginSubtitle } from "../lib/placePlugins";
 import { countOf, widgetsCount } from "../lib/plural";
+import { usePressed } from "../lib/pressed";
 import { t } from "../texts";
-import { borders, colors, radii, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
 
 type Section = "invites" | "plugins" | "layout" | "members" | "settings";
 
@@ -142,8 +151,8 @@ function InvitesSection({ place, open, onToggle }: SectionProps & { place: Place
 }
 
 /**
- * The plugins that are on in the place (design: rows under the header, not tappable until a plugin has its own page),
- * then "Dodaj rozszerzenie", the catalog of the rest.
+ * The plugins that are on in the place (design: rows under the header, each opening the plugin's page), then "Dodaj
+ * rozszerzenie", the catalog of the rest.
  */
 function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
   const plugins = usePlacePlugins(slug);
@@ -162,16 +171,8 @@ function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string 
     >
       <View role="list" aria-label={t.manage_plugins_title}>
         {on.map((plugin) => (
-          <View key={plugin.id} role="listitem" style={styles.pluginRow}>
-            <IconBox icon={plugin.icon} size="sm" neutral />
-            <View style={styles.rowText}>
-              <Text variant="rowTitle" numberOfLines={1}>
-                {plugin.name}
-              </Text>
-              <Text variant="small" color="textSecondary" numberOfLines={1}>
-                {pluginSubtitle(plugin)}
-              </Text>
-            </View>
+          <View key={plugin.id} role="listitem">
+            <PluginRow slug={slug} plugin={plugin} />
           </View>
         ))}
       </View>
@@ -184,6 +185,32 @@ function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string 
         />
       </View>
     </DisclosureCard>
+  );
+}
+
+/** A plugin that is on: its emoji, name and subtitle; a link to its page (design Z-StronaPluginu). */
+function PluginRow({ slug, plugin }: { slug: string; plugin: PlacePlugin }) {
+  const press = usePressed(tapFeedback);
+  return (
+    <RouterLink href={{ pathname: "/app/c/[slug]/manage/[pluginId]", params: { slug, pluginId: plugin.id } }} asChild>
+      <Pressable
+        accessibilityRole="link"
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={StyleSheet.flatten([styles.pluginRow, press.pressed && styles.pressed])}
+      >
+        <IconBox icon={plugin.icon} size="sm" neutral />
+        <View style={styles.rowText}>
+          <Text variant="rowTitle" numberOfLines={1}>
+            {plugin.name}
+          </Text>
+          <Text variant="small" color="textSecondary" numberOfLines={1}>
+            {pluginSubtitle(plugin)}
+          </Text>
+        </View>
+        <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" strokeWidth={2} />
+      </Pressable>
+    </RouterLink>
   );
 }
 
@@ -372,6 +399,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: borders.hairline,
     borderBottomColor: colors.divider,
   },
+  pressed: { opacity: opacity.pressed },
   pluginAdd: { paddingTop: spacing[6], paddingHorizontal: spacing[8], paddingBottom: spacing[8] },
   // The rows above end with a divider, so the link needs no line of its own (design: centred, 48 high).
   membersAll: { alignItems: "center", paddingVertical: spacing[7] },

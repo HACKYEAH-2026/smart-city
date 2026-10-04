@@ -20,9 +20,16 @@ export type Permission = (typeof PLUGIN_PERMISSIONS)[number];
 export const ROLES = ["admin", "user"] as const;
 export type Role = (typeof ROLES)[number];
 
+/**
+ * Ids the app's routes use next to plugin ids: /app/c/<slug>/manage/<pluginId> would otherwise also read as view
+ * <pluginId> of a plugin "manage".
+ */
+export const RESERVED_PLUGIN_IDS = ["manage"] as const;
+
 const id = z
   .string()
-  .regex(/^[a-z][a-z0-9-]{1,39}$/, "Use 2-40 chars: lowercase letters, digits, hyphens; start with a letter");
+  .regex(/^[a-z][a-z0-9-]{1,39}$/, "Use 2-40 chars: lowercase letters, digits, hyphens; start with a letter")
+  .refine((value) => !RESERVED_PLUGIN_IDS.some((reserved) => reserved === value), "This id is reserved by the app");
 
 export const pluginManifestSchema = z.object({
   id,
@@ -33,6 +40,11 @@ export const pluginManifestSchema = z.object({
   permissions: z.array(z.enum(PLUGIN_PERMISSIONS)).default([]),
   /** Community navigation entries; each points to a plugin view. */
   nav: z.array(z.object({ view: z.string().min(1), label: z.string().min(1).max(40) })).min(1),
+  /**
+   * The view shown on the plugin's page in "Zarządzaj miejscem" (its admin part: stats, links to admin views). Only a
+   * place's admins may open it (the host answers 403 to others).
+   */
+  adminView: z.string().min(1).optional(),
 });
 export type PluginManifest = z.output<typeof pluginManifestSchema>;
 export type PluginManifestInput = z.input<typeof pluginManifestSchema>;
@@ -85,17 +97,21 @@ export const sameSize = (a: DashboardWidgetSize, b: DashboardWidgetSize): boolea
 /** At most this many extra sizes a widget may offer (`sizes`). */
 export const DASHBOARD_WIDGET_SIZES_MAX = 6;
 
+/** Where a widget is drawn: `size` = the size it has on this dashboard (its default or one an admin chose). */
+export type WidgetFrame = { size: DashboardWidgetSize };
+
 /**
  * Dashboard widget: a default size and `render` returning `ui.widget(...)` (read-only). It always renders (an empty
  * state rather than nothing): its tile is how residents open the plugin.
  * `title`: its name where admins arrange the dashboard (defaults to the plugin's name).
  * `sizes`: other sizes an admin may switch it to; `size` is always allowed.
+ * `render` gets the frame it is drawn in, e.g. to show more rows in a taller tile.
  */
 export type DashboardWidget<TT extends Tables = Tables> = {
   size: DashboardWidgetSize;
   title?: string;
   sizes?: DashboardWidgetSize[];
-  render: (ctx: Context<TT>) => UINode | Promise<UINode>;
+  render: (ctx: Context<TT>, frame: WidgetFrame) => UINode | Promise<UINode>;
 };
 
 export type Tool<S extends z.ZodType = z.ZodType, TT extends Tables = Tables> = {

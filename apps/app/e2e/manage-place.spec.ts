@@ -182,7 +182,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
 
   const grid = page.getByRole("list", { name: t.manage_layout_title });
   const tiles = grid.getByRole("listitem");
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
   const announcements = grid.getByRole("button", { name: /Ogłoszenia/ });
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "true");
@@ -190,7 +190,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await expect(sizes.getByRole("radio")).toHaveText(["3 × 3", "3 × 2"]);
   await sizes.getByRole("radio", { name: "3 × 2" }).click();
   await expect(sizes.getByRole("radio", { name: "3 × 2" })).toBeChecked();
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
   const up = page.getByRole("button", { name: t.manage_layout_up });
   const down = page.getByRole("button", { name: t.manage_layout_down });
   await up.click();
@@ -216,7 +216,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await up.click();
   await up.click();
   await sizes.getByRole("radio", { name: "3 × 2" }).click();
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
   // Tapping the selected tile again deselects it.
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "false");
@@ -233,7 +233,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
 
   await page.goto("/app/c/krakow/layout");
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {

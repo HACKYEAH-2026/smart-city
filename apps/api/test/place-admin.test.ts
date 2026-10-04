@@ -163,6 +163,15 @@ describe("plugins", () => {
       { id: "announcements", enabled: true, widgets: 1 },
       { id: "discussions", enabled: true, widgets: 1 },
     ]);
+    // The plugin's page: its admin view and the sizes its widget may have.
+    expect((await list()).find((p) => p.id === "issues")).toMatchObject({
+      adminView: "admin",
+      sizes: [
+        { w: 3, h: 2 },
+        { w: 3, h: 3 },
+      ],
+    });
+    expect((await list()).find((p) => p.id === "announcements")).toMatchObject({ adminView: null });
     const put = (pluginId: string, enabled: boolean) =>
       t.request(`${base}/plugins/${pluginId}`, { method: "PUT", headers: admin, json: { enabled } });
 

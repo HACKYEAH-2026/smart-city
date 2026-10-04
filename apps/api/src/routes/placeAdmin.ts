@@ -12,6 +12,7 @@ import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import { type Db, first, geoPoint, keyOf, memberRole, membershipRef, polishOrder, ref, rows, toCommunity } from "../db";
 import { requirePlaceAdmin, requireUser } from "../middleware";
+import type { LoadedPlugin, PluginHost } from "../plugins/host";
 
 /**
  * Managing a place, for its admins (the app's "Zarządzaj miejscem"): its settings, members (granting and revoking
@@ -95,16 +96,17 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     const builtin: PlacePlugin[] = c.var.plugins
       .list()
       .filter((plugin) => plugin.origin === "builtin")
-      .map(({ manifest: { id, name, icon, description }, definition }) => ({
-        id,
-        name,
-        icon,
-        description,
-        enabled: enabled.has(id),
+      .map((plugin) => ({
+        id: plugin.manifest.id,
+        name: plugin.manifest.name,
+        icon: plugin.manifest.icon,
+        description: plugin.manifest.description,
+        enabled: enabled.has(plugin.manifest.id),
         madeByAi: false,
         draft: false,
         working: false,
-        widgets: Object.keys(definition.dashboardWidgets ?? {}).length,
+        widgets: Object.keys(plugin.definition.dashboardWidgets ?? {}).length,
+        ...pageOf(c.var.plugins, plugin),
       }));
     const ai: PlacePlugin[] = (await c.var.builder.owned(place)).map(
       ({ id, published, outline, request, working }) => ({
@@ -117,6 +119,8 @@ export const placeAdminRoutes = new Hono<AppEnv>()
         draft: published === null,
         working,
         widgets: outline?.dashboardWidgets.length ?? 0,
+        // A published AI plugin runs in the host; a draft is not loaded, so its page has no admin part yet.
+        ...pageOf(c.var.plugins, published === null ? undefined : c.var.plugins.get(id)),
       }),
     );
     return c.json([...builtin, ...ai], 200);
@@ -143,6 +147,12 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     }
     return c.json({ ok: true }, 200);
   });
+
+/** What a plugin's page in "Zarządzaj miejscem" shows: its admin view and the sizes of its widget. */
+const pageOf = (host: PluginHost, plugin: LoadedPlugin | undefined): Pick<PlacePlugin, "adminView" | "sizes"> => ({
+  adminView: plugin?.manifest.adminView ?? null,
+  sizes: plugin ? host.dashboardWidgets(plugin).flatMap((widget) => widget.sizes) : [],
+});
 
 // Without it an admin could demote or remove themselves and leave the place with no admin.
 const OWN_MEMBERSHIP = "admins do not change their own membership";

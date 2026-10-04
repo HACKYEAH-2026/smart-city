@@ -9,9 +9,10 @@ import { Text } from "./Text";
 /**
  * square: bordered button on a surface (reorder on the dashboard) · plain: back or cancel without a background in
  * screen and step headers · round: bell or account avatar · roundSunken: close in a bottom sheet · roundOnDark: close
- * and torch on the dark QR scanner · floating: over a map (back, "my location"), with a shadow instead of a border.
+ * and torch on the dark QR scanner · roundDark: an admin's dark round button (a plugin screen's settings gear) ·
+ * floating: over a map (back, "my location"), with a shadow instead of a border.
  */
-export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "floating";
+export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "roundDark" | "floating";
 
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
@@ -19,6 +20,8 @@ export type IconButtonProps = {
   variant?: IconButtonVariant;
   /** Icon colour when it is not the variant's (e.g. the blue "my location" on a map). */
   color?: ColorToken;
+  /** Shown dimmed and not pressable (e.g. a sheet's close while its action runs). */
+  disabled?: boolean;
 } & (
   | { onPress: () => void; href?: undefined }
   /** A link to a route of the app instead of an action (role link), e.g. "Zarządzaj miejscem" on the dashboard. */
@@ -31,26 +34,42 @@ export type IconButtonProps = {
   );
 
 /** 44 × 44 icon button (COMPONENTS.md → IconButton). A press gives a light haptic tick. */
-export function IconButton({ label, onPress, href, variant = "square", icon, text, color }: IconButtonProps) {
+export function IconButton({
+  label,
+  onPress,
+  href,
+  variant = "square",
+  icon,
+  text,
+  color,
+  disabled = false,
+}: IconButtonProps) {
   const button = (
     <Pressable
       accessibilityRole={href ? "link" : "button"}
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       onPressIn={tapFeedback}
       // A link gets one flat style object: expo-router's Link (asChild) drops a style function and, on the web,
       // hands a style array to the DOM <a> as is (which throws).
       style={
         href
-          ? StyleSheet.flatten([styles.button, styles[variant]])
-          : ({ pressed }) => [styles.button, styles[variant], pressed && { opacity: opacity.pressed }]
+          ? StyleSheet.flatten([styles.button, styles[variant], disabled && styles.disabled])
+          : ({ pressed }) => [
+              styles.button,
+              styles[variant],
+              pressed && { opacity: opacity.pressed },
+              disabled && styles.disabled,
+            ]
       }
     >
       {icon ? (
         <Icon
           icon={icon}
           size={variant === "roundSunken" ? sizes.iconS : sizes.iconM}
-          color={color ?? (variant === "roundOnDark" ? "onPrimary" : "text")}
+          color={color ?? (variant === "roundOnDark" || variant === "roundDark" ? "onPrimary" : "text")}
         />
       ) : (
         <Text variant="buttonS">{text}</Text>
@@ -67,6 +86,7 @@ export function IconButton({ label, onPress, href, variant = "square", icon, tex
 }
 
 const styles = StyleSheet.create({
+  disabled: { opacity: opacity.disabled },
   button: {
     width: sizes.iconButton,
     height: sizes.iconButton,
@@ -90,5 +110,6 @@ const styles = StyleSheet.create({
   },
   roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
   roundOnDark: { borderRadius: radii.pill, backgroundColor: colors.onDarkOverlay },
+  roundDark: { borderRadius: radii.pill, backgroundColor: colors.text },
   floating: { borderRadius: radii.lg, backgroundColor: colors.surface, ...shadows.floating },
 });

@@ -179,6 +179,8 @@ describe("writing", () => {
       draft: true,
       working: false,
       widgets: 1,
+      adminView: null,
+      sizes: [],
     });
     // A draft: residents do not see it, and it cannot be switched on without publishing.
     expect((await nav(admin)).map((n) => n.pluginId)).not.toContain(created.id);
@@ -281,6 +283,9 @@ describe("publishing and changing", () => {
       enabled: true,
       madeByAi: true,
       draft: false,
+      // Published, it runs in the host: its page knows its widget.
+      adminView: null,
+      sizes: [{ w: 2, h: 1 }],
     });
     expect(plugins.find((p) => p.id === "issues")).toMatchObject({
       madeByAi: false,

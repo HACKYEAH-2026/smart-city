@@ -7,8 +7,8 @@ import type { z } from "zod";
 export type ModelImage = { mime: string; data: Uint8Array };
 
 export interface LanguageModel {
-  /** With a schema: the validated object; without: the response text. */
-  generate(req: { prompt: string; images?: ModelImage[]; schema?: z.ZodType }): Promise<unknown>;
+  /** With a schema: the validated object; without: the response text. `signal` aborts: stop and give up. */
+  generate(req: { prompt: string; images?: ModelImage[]; schema?: z.ZodType; signal?: AbortSignal }): Promise<unknown>;
 }
 
 export interface EmbeddingModel {

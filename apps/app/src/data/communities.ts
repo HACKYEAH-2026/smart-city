@@ -218,14 +218,19 @@ export function usePlacePlugins(slug: string) {
 
 /**
  * Switches one of the place's plugins on or off: a built-in one or a published AI one (a draft goes on by publishing);
- * the place's navigation, dashboard and views follow.
+ * the place's navigation, dashboard and views follow. `onSwitched` runs once the API has switched it, before that
+ * refetch: a screen that is about the plugin (its page) leaves before it shows the plugin gone. It is part of the
+ * mutation, so it runs even when the refetch unmounts the component that asked.
  */
-export function useSwitchPlugin(slug: string) {
+export function useSwitchPlugin(slug: string, options: { onSwitched?: () => void } = {}) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }) =>
       parseResponse(c[":slug"].plugins[":pluginId"].$put({ param: { slug, pluginId }, json: { enabled } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: communityKey(slug) }),
+    onSuccess: () => {
+      options.onSwitched?.();
+      return qc.invalidateQueries({ queryKey: communityKey(slug) });
+    },
   });
 }
 

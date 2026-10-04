@@ -11,9 +11,14 @@ test("recent times are counted in minutes and hours", () => {
   expect(relativeTime(ago(2 * 60 * 60_000), now)).toBe(`2 ${t.time_hours_ago}`);
 });
 
-test("the day before is named, older times are dates", () => {
+test("the day before is named, then days and weeks are counted, then older times are dates", () => {
   expect(relativeTime(new Date(2026, 9, 2, 8, 0).toISOString(), now)).toBe(t.time_yesterday);
-  expect(relativeTime(new Date(2026, 9, 1, 8, 0).toISOString(), now)).toBe("01.10.2026");
+  expect(relativeTime(new Date(2026, 9, 1, 8, 0).toISOString(), now)).toBe(`2 ${t.time_days_ago}`);
+  expect(relativeTime(new Date(2026, 8, 27, 8, 0).toISOString(), now)).toBe(`6 ${t.time_days_ago}`);
+  expect(relativeTime(new Date(2026, 8, 26, 8, 0).toISOString(), now)).toBe(`1 ${t.time_week_ago}`);
+  expect(relativeTime(new Date(2026, 8, 19, 8, 0).toISOString(), now)).toBe(`2 ${t.time_weeks_ago}`);
+  expect(relativeTime(new Date(2026, 7, 30, 8, 0).toISOString(), now)).toBe(`4 ${t.time_weeks_ago}`);
+  expect(relativeTime(new Date(2026, 7, 29, 8, 0).toISOString(), now)).toBe("29.08.2026");
 });
 
 test("the short style for tight rows drops 'temu' and the year", () => {

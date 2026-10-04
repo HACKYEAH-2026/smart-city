@@ -309,8 +309,18 @@ export const communitiesRoutes = new Hono<AppEnv>()
     if (!target) return c.json({ error: "not_found" }, 404);
     const view = c.req.param("view");
     if (typeof target.plugin.definition.views[view] !== "function") return c.json({ error: "not_found" }, 404);
+    // The plugin's page in "Zarządzaj miejscem" is for the place's admins; other admin views check the role themselves.
+    if (view === target.plugin.manifest.adminView && target.ctx.user.role !== "admin") {
+      return c.json({ error: "forbidden" }, 403);
+    }
     try {
-      const node = await c.var.plugins.renderView(target.plugin, view, target.ctx, c.req.valid("query"));
+      const node = await c.var.plugins.renderView(
+        target.plugin,
+        target.installationId,
+        view,
+        target.ctx,
+        c.req.valid("query"),
+      );
       await c.var.plugins.recordVisit(target.installationId, c.var.user.id);
       return c.json(node, 200);
     } catch (err) {
@@ -580,7 +590,9 @@ async function renderWidgets(
   const rendered = await Promise.all(
     widgets.map(async ({ key, pluginId, widget, size, installationId, plugin }) => {
       const ctx = await contexts.get(installationId);
-      const node = ctx ? await host.renderDashboardWidget(plugin, widget, ctx).catch(logWidgetFailure) : null;
+      const node = ctx
+        ? await host.renderDashboardWidget(plugin, installationId, widget, ctx, { size }).catch(logWidgetFailure)
+        : null;
       return node ? [{ key, pluginId, widget, size, node }] : [];
     }),
   );

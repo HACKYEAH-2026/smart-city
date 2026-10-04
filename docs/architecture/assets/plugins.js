@@ -248,10 +248,11 @@ RETURN $result;
     "app",
     "The app follows the result",
     `<p>The mutation invalidates every query of this plugin (the list refetches and shows the new announcement), the
-     toast becomes a flash message, and the renderer remounts so the form is empty again. Residents will see
+     toast becomes a flash message, and only the submitted form resets. Other forms keep their drafts; refreshed
+     server values synchronize only the fields that changed. Residents will see
      "1 nowe ogłoszenie od Twojej ostatniej wizyty" on their dashboard widget.</p>`,
     snippet(
-      "apps/app/src/screens/PluginView.tsx",
+      "apps/app/src/plugins/actions.ts",
       "ts",
       `onSuccess: (result) => {
   if (result.error) {
@@ -265,8 +266,10 @@ RETURN $result;
   }
   const next = result.navigate ? pluginHref(slug, plugin, result.navigate.view, result.navigate.params) : here;
   flash.show(result.toast ? { text: result.toast, href: next } : null);
-  setGeneration((g) => g + 1);
-  if (next !== here) router.push(next as never);
+  surface.onStay?.();
+  if (result.navigate && next !== surface.here) {
+    router.push(pluginRoute(slug, plugin, result.navigate.view, result.navigate.params));
+  }
 },`,
     ),
   );
@@ -913,20 +916,47 @@ RETURN $result;`,
 
   // ───────────────────────────── 6. Server-Driven UI simulator ─────────────────────────────
 
-  /** The SDK's builders (packages/sdk/src/ui.ts), producing the same JSON. */
+  /** The SDK's builders (packages/sdk/src/ui.ts, same signatures), producing the same JSON. */
   const ui = {
-    screen: (title, children) => ({ type: "Screen", title, children }),
-    widget: (title, children, onPress) => ({ type: "Widget", title, children, ...(onPress ? { onPress } : {}) }),
-    list: (label, children) => ({ type: "List", label, children }),
+    screen: (title, children, options = {}) => ({ type: "Screen", title, children, ...options }),
+    widget: (title, children, options = {}) => ({ type: "Widget", title, children, ...options }),
+    list: (label, children, options = {}) => ({ type: "List", label, children, ...options }),
     card: (props) => ({ type: "Card", ...props }),
     form: (props) => ({ type: "Form", ...props }),
+    heading: (text, level = 2) => ({ type: "Heading", text, level }),
     text: (text, tone) => ({ type: "Text", text, ...(tone ? { tone } : {}) }),
-    button: (label, action, variant) => ({ type: "Button", label, action, ...(variant ? { variant } : {}) }),
-    empty: (text) => ({ type: "Empty", text }),
+    meta: (items) => ({ type: "Meta", items }),
+    notice: (text, options = {}) => ({ type: "Notice", text, ...options }),
+    badge: (text, tone) => ({ type: "Badge", text, ...(tone ? { tone } : {}) }),
+    tags: (items) => ({ type: "Tags", items }),
+    stat: (label, value, tone) => ({ type: "Stat", label, value, ...(tone ? { tone } : {}) }),
+    button: (label, action, variant, icon, options = {}) => ({
+      type: "Button",
+      label,
+      action,
+      ...(variant ? { variant } : {}),
+      ...(icon ? { icon } : {}),
+      ...options,
+    }),
+    empty: (text, options = {}) => ({ type: "Empty", text, ...options }),
+    gallery: (items) => ({ type: "Gallery", items }),
+    menu: (props) => ({ type: "Menu", ...props }),
+    tabs: (props) => ({ type: "Tabs", ...props }),
+    share: (label, path, options = {}) => ({ type: "Share", label, path, ...options }),
     textInput: (props) => ({ type: "TextInput", ...props }),
-    navigate: (view, params) => ({ type: "navigate", view, ...(params ? { params } : {}) }),
+    navigate: (view, params, options = {}) => ({
+      type: "navigate",
+      view,
+      ...(params ? { params } : {}),
+      ...(options.replace ? { replace: true } : {}),
+      ...(options.present ? { present: options.present } : {}),
+    }),
     tool: (tool, args) => ({ type: "tool", tool, ...(args ? { args } : {}) }),
+    app: (screen) => ({ type: "app", screen }),
   };
+
+  /** A meta item as the app words it: a moment as a date (the app says "3 dni temu"), else its text. */
+  const metaText = (item) => ("at" in item ? new Date(item.at).toLocaleDateString("pl-PL") : item.text);
 
   /** "1 nowe ogłoszenie", "3 nowe ogłoszenia", "5 nowych ogłoszeń" (as in plugins/announcements/index.ts). */
   const newCount = (n) => {
@@ -1011,36 +1041,81 @@ RETURN $result;`,
     const render = (node, actions, inWidget) => {
       const act = (action) => actions.push(action) - 1;
       const kids = (nodes) => (nodes ?? []).map((n) => render(n, actions, inWidget)).join("");
+      const meta = (items) =>
+        items?.length ? `<span class="pv-meta">${items.map((i) => esc(metaText(i))).join(" · ")}</span>` : "";
+      const chip = (label, selected, action) =>
+        `<button type="button" class="pv-chip${selected ? " is-selected" : ""}" data-action="${act(action)}">${esc(label)}</button>`;
       switch (node.type) {
-        case "Screen":
-          return `<div class="pv-screen"><h3 class="pv-title">${esc(node.title)}</h3>${kids(node.children)}</div>`;
+        case "Screen": {
+          const head = node.eyebrow ? `<span class="pv-eyebrow">${esc(node.eyebrow)}</span>` : "";
+          const buttons = (node.actions ?? [])
+            .map((a) => `<button type="button" class="pv-pill" data-action="${act(a.action)}">${esc(a.label)}</button>`)
+            .join("");
+          return `<div class="pv-screen"><div class="pv-head"><div>${head}<h3 class="pv-title">${esc(node.title)}</h3></div>${buttons}</div>${kids(node.children.filter((n) => n.type !== "Fab"))}</div>`;
+        }
         case "Widget": {
-          const inner = `<div class="pv-widget-head"><strong>${esc(node.title)}</strong>${node.onPress ? "<span aria-hidden='true'>›</span>" : ""}</div>${node.children.map((n) => render(n, actions, true)).join("")}`;
+          const link = node.link
+            ? `<span>${node.link.count !== undefined ? `<strong>${node.link.count}</strong> ` : ""}${esc(node.link.label)} ›</span>`
+            : node.onPress
+              ? "<span aria-hidden='true'>›</span>"
+              : "";
+          const inner = `<div class="pv-widget-head"><strong>${esc(node.title)}</strong>${link}</div>${node.children.map((n) => render(n, actions, true)).join("")}`;
           return node.onPress
             ? `<div class="pv-widget is-pressable" data-action="${act(node.onPress)}" role="button" tabindex="0">${inner}</div>`
             : `<div class="pv-widget">${inner}</div>`;
         }
+        case "Stack":
+        case "Row":
+          return `<div class="pv-${node.type === "Row" ? "row-grow" : "stack"}">${kids(node.children)}</div>`;
         case "List":
-          return `<ul class="pv-list" aria-label="${esc(node.label)}">${node.children.map((n) => `<li>${render(n, actions, inWidget)}</li>`).join("")}</ul>`;
+          return `<ul class="pv-list${node.variant === "grouped" ? " is-grouped" : ""}" aria-label="${esc(node.label)}">${node.children.map((n) => `<li>${render(n, actions, inWidget)}</li>`).join("")}</ul>`;
         case "Card": {
-          const inner = `<span class="pv-card-title">${esc(node.title)}</span>${node.subtitle ? `<span class="pv-card-sub">${esc(node.subtitle)}</span>` : ""}${kids(node.children)}`;
+          const counter = node.counter
+            ? `<span class="pv-counter${node.counter.pressed ? " is-pressed" : ""}" aria-label="${esc(node.counter.label)}">↑ ${node.counter.value}</span>`
+            : "";
+          const count = node.count ? `<span class="pv-count">${node.count}</span>` : "";
+          const dot = node.unread ? `<span class="pv-dot" aria-label="Nowe"></span>` : "";
+          const inner = `<span class="pv-card-title">${dot}${esc(node.title)}</span>${node.subtitle ? `<span class="pv-card-sub">${esc(node.subtitle)}</span>` : ""}${meta(node.meta)}${counter}${count}${kids(node.children)}`;
           const cls = inWidget ? "pv-row" : "pv-card";
           return node.onPress
             ? `<button type="button" class="${cls} is-pressable" data-action="${act(node.onPress)}">${inner}</button>`
             : `<div class="${cls}">${inner}</div>`;
         }
+        case "Heading":
+          return `<h4 class="pv-heading">${esc(node.text)}</h4>`;
         case "Text":
           return `<p class="pv-text${node.tone === "soft" ? " is-soft" : ""}">${esc(node.text)}</p>`;
+        case "Meta":
+          return meta(node.items);
+        case "Notice":
+          return `<p class="pv-notice" role="note">${esc(node.text)}</p>`;
+        case "Badge":
+          return `<span class="pv-tag">${esc(node.text)}</span>`;
+        case "Tags":
+          return `<div class="pv-chips">${node.items.map((tag) => `<span class="pv-tag">${esc(tag.text)}${tag.onRemove ? ` <button type="button" class="pv-x" aria-label="Usuń: ${esc(tag.text)}" data-action="${act(tag.onRemove)}">×</button>` : ""}</span>`).join("")}</div>`;
+        case "Stat":
+          return `<div class="pv-stat is-${node.tone ?? "neutral"}"><strong>${esc(node.value)}</strong><span>${esc(node.label)}</span></div>`;
         case "Empty":
-          return `<p class="pv-empty">${esc(node.text)}</p>`;
-        case "Button":
-          return `<button type="button" class="pv-btn is-${node.variant ?? "primary"}" data-action="${act(node.action)}">${esc(node.label)}</button>`;
+          return `<div class="pv-empty">${node.title ? `<strong>${esc(node.title)}</strong>` : ""}<span>${esc(node.text)}</span></div>`;
+        case "Gallery":
+          return `<div class="pv-gallery" role="img" aria-label="${esc(node.items[0]?.alt ?? "")}"><span>1 / ${node.items.length}</span></div>`;
+        case "Tabs":
+          return `<div class="pv-chips" role="tablist" aria-label="${esc(node.label)}">${node.options.map((o) => chip(o.count !== undefined ? `${o.label} (${o.count})` : o.label, o.selected, o.action)).join("")}</div>`;
+        case "Menu":
+          return `<div class="pv-chips" role="radiogroup" aria-label="${esc(node.label)}">${node.options.map((o) => chip(o.label, o.selected, o.action)).join("")}</div>`;
+        case "Button": {
+          const look = node.pressed === undefined ? (node.variant ?? "primary") : node.pressed ? "primary" : "quiet";
+          const pressed = node.pressed === undefined ? "" : ` aria-pressed="${node.pressed}"`;
+          return `<button type="button" class="pv-btn is-${look}"${pressed} data-action="${act(node.action)}">${esc(node.label)}</button>`;
+        }
+        case "Share":
+          return `<button type="button" class="pv-btn is-quiet">${esc(node.label)}</button>`;
         case "TextInput":
           return `<label class="pv-field"><span>${esc(node.label)}</span>${
             node.multiline
               ? `<textarea name="${esc(node.name)}" rows="2"></textarea>`
               : `<input name="${esc(node.name)}" />`
-          }</label>`;
+          }${node.hint ? `<small>${esc(node.hint)}</small>` : ""}</label>`;
         case "Form":
           return `<form class="pv-form" data-submit="${act(node.submit)}">${kids(node.children)}<button type="submit" class="pv-btn is-primary">${esc(node.submitLabel)}</button></form>`;
         default:
@@ -1162,6 +1237,15 @@ RETURN $result;`,
       state.message = null;
       if (action.type === "navigate") {
         openView(action.view, action.params);
+        draw();
+        return;
+      }
+      if (action.type === "app") {
+        log("nav", 'router.dismissTo("/app")  (the app\'s dashboard)');
+        state.surface = "widget";
+        for (const b of $("sdui-surfaces").querySelectorAll("button")) {
+          b.setAttribute("aria-selected", String(b.dataset.surface === "widget"));
+        }
         draw();
         return;
       }

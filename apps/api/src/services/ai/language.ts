@@ -21,7 +21,7 @@ export class StrandsLanguageModel implements LanguageModel {
     this.model = openAIModel(config);
   }
 
-  async generate(req: { prompt: string; images?: ModelImage[]; schema?: ZodType }) {
+  async generate(req: { prompt: string; images?: ModelImage[]; schema?: ZodType; signal?: AbortSignal }) {
     const agent = new Agent({
       model: this.model,
       printer: false,
@@ -34,6 +34,7 @@ export class StrandsLanguageModel implements LanguageModel {
     });
     const result = await agent.invoke([{ text: req.prompt }, ...images], {
       ...(req.schema ? { structuredOutputSchema: req.schema } : {}),
+      ...(req.signal ? { cancelSignal: req.signal } : {}),
     });
     return req.schema ? result.structuredOutput : result.toString();
   }

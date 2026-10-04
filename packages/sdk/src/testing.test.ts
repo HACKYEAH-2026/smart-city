@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { deniedService } from "./denied";
 import type { PluginModule } from "./plugin";
 import type { Database } from "./services/db";
-import { testPlugin } from "./testing";
+import { testPlugin, textsOf } from "./testing";
 
 describe("undeclared permissions", () => {
   test("any use of a denied service rejects with the permission name, at any depth", async () => {
@@ -115,5 +115,118 @@ describe("ctx.ai.embed in the harness", () => {
     await expect(plugin.tool("embed", { text: "Latarnia" })).rejects.toThrow("t.ai.mockEmbed");
     plugin.ai.mockEmbed((text) => [text.length, 1]);
     expect((await plugin.tool("embed", { text: "Latarnia" })).data).toEqual({ vector: [8, 1] });
+  });
+});
+
+describe("dashboard widget frame in the harness", () => {
+  const sized: PluginModule = ({ definePlugin, ui }) =>
+    definePlugin({
+      id: "sized",
+      name: "Rozmiary",
+      version: "1.0.0",
+      nav: [{ view: "main", label: "Rozmiary" }],
+      views: { main: () => ui.screen("Rozmiary", []) },
+      dashboardWidgets: {
+        tile: {
+          size: { w: 3, h: 2 },
+          sizes: [{ w: 3, h: 3 }],
+          render: (_ctx, frame) => ui.widget("Rozmiary", [ui.text(`${frame.size.w}x${frame.size.h}`)]),
+        },
+      },
+    });
+
+  test("render gets the declared size by default, or a size the widget offers", async () => {
+    const plugin = await testPlugin(sized);
+    expect(textsOf(await plugin.dashboardWidget("tile"))).toContain("3x2");
+    expect(textsOf(await plugin.dashboardWidget("tile", { size: { w: 3, h: 3 } }))).toContain("3x3");
+  });
+
+  test("a size the widget does not offer is rejected, as an admin could not pick it", async () => {
+    const plugin = await testPlugin(sized);
+    await expect(plugin.dashboardWidget("tile", { size: { w: 1, h: 1 } })).rejects.toThrow("does not offer");
+  });
+});
+
+describe("ctx.ai.call timeoutMs in the harness", () => {
+  const asker: PluginModule = ({ definePlugin, ui, z }) =>
+    definePlugin({
+      id: "asker",
+      name: "Pytania",
+      version: "1.0.0",
+      permissions: ["ai"],
+      nav: [{ view: "main", label: "Pytania" }],
+      views: { main: () => ui.screen("Pytania", []) },
+      dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Pytania", []) } },
+      tools: {
+        ask: {
+          description: "Zapytaj model",
+          input: z.object({ timeoutMs: z.number().optional() }),
+          handler: async (ctx, input) => {
+            const answer = await ctx.ai
+              .call({ prompt: "Kategoria?", ...(input.timeoutMs ? { timeoutMs: input.timeoutMs } : {}) })
+              .catch((err: Error) => `błąd: ${err.message}`);
+            return { data: { answer } };
+          },
+        },
+      },
+    });
+
+  test("mockTimeout: a call with timeoutMs times out at once; one without it is reported as hanging", async () => {
+    const plugin = await testPlugin(asker);
+    plugin.ai.mockTimeout();
+    expect((await plugin.tool("ask", { timeoutMs: 3000 })).data).toEqual({
+      answer: "błąd: ctx.ai.call timed out after 3000 ms",
+    });
+    expect(JSON.stringify((await plugin.tool("ask")).data)).toContain("has no timeoutMs");
+  });
+
+  test("timeoutMs is enforced on a mock that answers late, as in the host", async () => {
+    const plugin = await testPlugin(asker);
+    plugin.ai.mockCall(() => new Promise((resolve) => setTimeout(() => resolve("późno"), 200)));
+    expect((await plugin.tool("ask", { timeoutMs: 10 })).data).toEqual({
+      answer: "błąd: ctx.ai.call timed out after 10 ms",
+    });
+    plugin.ai.mockCall(async () => "szybko");
+    expect((await plugin.tool("ask", { timeoutMs: 1000 })).data).toEqual({ answer: "szybko" });
+  });
+});
+
+describe("ctx.files.info in the harness", () => {
+  test("says who uploaded a file and whether a row keeps it, like the host", async () => {
+    const photos: PluginModule = ({ definePlugin, ui, z, t, fileRef }) =>
+      definePlugin({
+        id: "photos",
+        name: "Zdjęcia",
+        version: "1.0.0",
+        permissions: ["db", "files"],
+        nav: [{ view: "main", label: "Zdjęcia" }],
+        tables: { photos: t.table({ file: t.ref("file") }) },
+        views: { main: () => ui.screen("Zdjęcia", []) },
+        dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Zdjęcia", []) } },
+        tools: {
+          keep: {
+            description: "Zachowaj",
+            input: z.object({ file: fileRef() }),
+            handler: async (ctx, { file }) => {
+              await ctx.db.photos.insert({ file });
+            },
+          },
+          info: {
+            description: "Info",
+            input: z.object({ file: fileRef() }),
+            handler: async (ctx, { file }) => ({ data: await ctx.files.info(file) }),
+          },
+        },
+      });
+    const plugin = await testPlugin(photos, { user: { id: "anna", name: "Anna", role: "user" } });
+    const file = await plugin.files.fake("image/png");
+    expect((await plugin.tool("info", { file })).data).toEqual({
+      mime: "image/png",
+      size: 1024,
+      uploadedBy: "anna",
+      kept: false,
+    });
+    await plugin.tool("keep", { file });
+    expect((await plugin.tool("info", { file })).data).toMatchObject({ uploadedBy: "anna", kept: true });
   });
 });

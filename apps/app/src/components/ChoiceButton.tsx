@@ -10,21 +10,30 @@ export interface ChoiceButtonProps {
   icon?: LucideIcon;
   selected: boolean;
   onPress: () => void;
+  /** Shown dimmed and not pressable (e.g. while the choice is being saved). */
+  disabled?: boolean;
 }
 
 /**
  * One of two or more choices as a button: an optional icon and the label in one row (design: "Rodzaj" in the report
  * form). A radio: put the buttons in a View with role="radiogroup". Selection shows in the red border and the glow.
  */
-export function ChoiceButton({ label, icon, selected, onPress }: ChoiceButtonProps) {
+export function ChoiceButton({ label, icon, selected, onPress, disabled = false }: ChoiceButtonProps) {
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
       aria-checked={selected}
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, selected ? styles.selected : styles.idle, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.button,
+        selected ? styles.selected : styles.idle,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
       {icon ? <Icon icon={icon} size={sizes.iconS} color="text" strokeWidth={2} /> : null}
       <Text variant="buttonM">{label}</Text>
@@ -34,6 +43,7 @@ export function ChoiceButton({ label, icon, selected, onPress }: ChoiceButtonPro
 
 const styles = StyleSheet.create({
   pressed: { opacity: opacity.pressed },
+  disabled: { opacity: opacity.disabled },
   button: {
     flex: 1,
     height: sizes.choiceButton,

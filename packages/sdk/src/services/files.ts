@@ -9,7 +9,12 @@ export const fileRef = () =>
     .regex(FILE_ID, "Invalid file id")
     .transform((v) => v as FileId);
 
-export type FileInfo = { mime: string; size: number };
+/**
+ * `uploadedBy`: the id of the user who uploaded it (`null` for a file without one). `kept`: a row of the plugin references it
+ * (a pending upload is still the uploader's alone). A plugin attaching a photo the user just picked checks that
+ * `uploadedBy` is the user: the engine lets any row reference a kept file, e.g. a photo of someone else's report.
+ */
+export type FileInfo = { mime: string; size: number; uploadedBy: string | null; kept: boolean };
 
 /**
  * Files uploaded by the app for this plugin. Store a FileId in a `t.ref("file")` column: writing the reference

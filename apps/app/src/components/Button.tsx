@@ -15,7 +15,8 @@ export type ButtonVariant =
   | "onDark"
   | "ghost"
   | "ghostOnDark"
-  | "destructiveGhost";
+  | "destructiveGhost"
+  | "outline";
 type ButtonSize = "lg" | "md" | "sm" | "xs";
 
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
@@ -57,6 +58,7 @@ const VARIANT: Record<ButtonVariant, { bg: string; border?: string; fg: string; 
   ghost: { bg: "transparent", fg: colors.text, pressedBg: colors.surfaceSunken },
   ghostOnDark: { bg: colors.onDarkOverlay, fg: colors.onPrimary, pressedBg: colors.onPrimaryOverlay },
   destructiveGhost: { bg: "transparent", fg: colors.primaryPressed, pressedBg: colors.primaryTint },
+  outline: { bg: colors.surface, border: colors.primary, fg: colors.primary, pressedBg: colors.primaryTint },
 };
 
 /**

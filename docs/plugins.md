@@ -45,7 +45,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
 Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams, a widget
 of the latest activity),
 `plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
-`plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key). All three are built in; the smallest
+`plugins/issues` (photos, `ai.findSimilar` and `ai.call` with a schema, `upsert` on a unique key, per-place settings in
+its own table, `adminView`, `ctx.notify`, a bottom sheet, a widget that fits its size). All three are built in; the smallest
 plugin is the upload-test fixture `apps/api/test/fixtures/notes-plugin.ts`.
 
 ## Creating a plugin package
@@ -122,13 +123,14 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 
 | Field | Rule |
 |---|---|
-| `id` | `^[a-z][a-z0-9-]{1,39}$` (2–40 chars), unique |
+| `id` | `^[a-z][a-z0-9-]{1,39}$` (2–40 chars), unique; not `manage` (reserved by the app's routes) |
 | `name` | 1–60 chars, Polish, shown to residents |
 | `version` | semver `x.y.z` |
 | `icon` | ≤ 8 chars (emoji), default `🧩` |
 | `description` | ≤ 280 chars, default `""` |
 | `permissions` | subset of `"db"`, `"files"`, `"ai"`, `"notify"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
+| `adminView` | optional; a view of `views`: the admin part of the plugin's page in "Zarządzaj miejscem" (stats, links to admin views). Only the place's admins may open it: the host answers 403 to others; any other admin view checks `ctx.user.role` itself |
 | `tables` | optional, see [Tables](#tables) |
 | `views`, `dashboardWidgets` (exactly one, required), `tools`, `streams`, `onInstall` | see below |
 
@@ -348,7 +350,9 @@ await ctx.db.issues.deleteMany({ status: "fixed", updatedAt: { lt: ctx.now() } }
   value, `null` in a required column → `DbError`.
 - `updatedAt` is set on every update; `createdAt` / `createdBy` on insert.
 - A failed write leaves nothing behind (the write and its file confirmations run in one transaction).
-- `upsert` is "find by the unique columns, then update or insert" — pass **all** `on` columns explicitly
+- `upsert` is "find by the unique columns, then update or insert" and writes every column either way (an omitted
+  one gets its default or `null`): to change only some columns of an existing row use `update`/`updateMany`.
+  Pass **all** `on` columns explicitly
   (see [Known issues](#known-issues)).
 
 ### `watch()` — live queries
@@ -397,7 +401,8 @@ Photos are uploaded by the app, never by the plugin; a plugin only handles `File
 2. Validate it in the tool input with `fileRef()` (format `file_<uuid>`; typed as `FileId`).
 3. Store it in a `t.ref("file")` column → the write checks it belongs to this installation and **confirms**
    it (`kept`) in the same transaction. Unreferenced uploads are deleted after 24 h.
-4. Render it with `ui.image(fileId, alt)`; the host adds a signed, short-lived URL.
+4. Render it with `ui.image(fileId, alt)`; the host adds a signed, short-lived URL, but only to a file the viewer may
+   see in this installation (kept, or their own pending upload): any other FileId in a tree stays without a URL.
 
 Rules: a pending file can be referenced only by the user who uploaded it (`DbError: file was uploaded by
 another user`) — so the system user in `onInstall` cannot attach uploads; once kept, any row of the
@@ -413,7 +418,7 @@ handler: async (ctx, input) => {
 
 | Method | Returns |
 |---|---|
-| `ctx.files.info(id)` | `{ mime, size }` (throws for an unknown id) |
+| `ctx.files.info(id)` | `{ mime, size, uploadedBy, kept }` (throws for an unknown id): `uploadedBy` is the uploader's user id (`null` without one), `kept` whether a row references it. A kept file may be referenced by any row, so check `uploadedBy === ctx.user.id` before attaching a photo a user just "picked" (see `plugins/issues`) |
 | `ctx.files.remove(id)` | `void` — deletes the file; optional `t.ref("file")` columns pointing to it become `null`, rows with a **required** file ref are deleted (cascade) |
 
 ## `ctx.ai`
@@ -445,6 +450,16 @@ if (match) match.item.id; match?.score; match?.reason;   // item is your row typ
 
 Without a configured model, `findSimilar` works lexically (shared words) and so does the demo; with a
 model, the model decides (using the query image) and writes the `reason`.
+
+**Timeouts.** A plugin has no timers (`setTimeout` is rejected on upload), so a handler that must not wait long for
+the model passes `timeoutMs` (an integer, 1–60000): past it the call rejects with
+`ctx.ai.call timed out after <ms> ms` and the host stops the model. Catch it and carry on without the answer:
+
+```ts
+const answer = await ctx.ai
+  .call({ prompt, schema: z.object({ category: z.string() }), timeoutMs: 3000 })
+  .catch(() => null);                                          // timed out or failed: no category
+```
 
 ### Embeddings: `ctx.ai.embed`
 
@@ -552,7 +567,7 @@ put Polish messages in Zod for user input) → handler → result validated.
 |---|---|
 | `toast` | success message (Polish) |
 | `error` | message for the user (Polish); by convention nothing was saved |
-| `navigate` | `ui.navigate(view, params?)` — open a view of this plugin (params are strings) |
+| `navigate` | `ui.navigate(view, params?, { present? })` — open a view of this plugin (params are strings); `present: "sheet"` shows it as a bottom sheet over the current screen (from a sheet: in that sheet) |
 | `refresh` | re-render the current view |
 | `close` | close the current screen (go back) |
 | `data` | result for AI assistants / callers (e.g. `{ id }`); also how tests read results |
@@ -591,31 +606,84 @@ value for `t.ref("user")` columns or attach pending uploads. Use optional user r
 
 UI is secondary for now (the backend side comes first). A view `(ctx, params) => UINode` returns a tree of
 nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.screen`. Actions are data:
-`ui.navigate(view, params?)` or `ui.tool(name, args?)`.
+
+| Action | Builder |
+|---|---|
+| navigate | `ui.navigate(view, params?, { replace?, present? })` — open a view of this plugin. `replace: true` replaces the current view (sorting, filters); `present: "sheet"` opens it as a bottom sheet over the current screen, which stays as it is (a typed form included). In a sheet: a plain `navigate` closes it and opens the view; a tool result that presents a sheet shows that view in it; `close` or any other success closes it. Opened by its address, the view is a normal screen |
+| tool | `ui.tool(name, args?)` — call a tool; its result says what happens next ([ToolResult](#tools)) |
+| app | `ui.app("dashboard")` — the dashboard; `ui.app("pluginPage")` — this installation's host page at `/app/c/<slug>/manage/<pluginId>`; read-only, allowed in widgets |
+
+Icons (`icon` props, `UIIcon`): `alert`, `idea`, `camera`, `megaphone`, `share`, `send`, `pin`, `chat`, `plus`, `lock`,
+`shield`, `settings`, `sliders`, `check`, `refresh`, `info`, `arrowUp`, `sparkles`.
 
 | Node | Builder |
 |---|---|
-| Screen | `ui.screen(title, children, { eyebrow? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name) |
-| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`, `chat`, `plus`; Buttons and Select cards take the same set), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
-| Highlight | `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item: a thumbnail (`image`, a photo from `ctx.files`), a vote count with an up arrow |
+| Screen | `ui.screen(title, children, { eyebrow?, back?, chrome?, actions? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name), `back` (`ui.navigate(…)` or `ui.app(…)`) where the back button leads (default: the dashboard), `actions` up to 2 header buttons `{ label, icon?, variant?: "pill" \| "icon", action: ui.navigate(…) }` (`pill`, the default: icon and label; `icon`: a round icon-only button, `icon` required, `label` is its accessible name). A Gallery first in a screen is drawn across its full width at the top |
+| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon`, `subtitle` and `link` (`{ label, count?, action }`, e.g. "Wszystkie", or `count: 12, label: "aktywnych"` shown "**12** aktywnych") make the header |
+| Highlight | **Deprecated** (use a `List` of `Card`s): `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item |
 | Activity | `ui.activity({ title, text?, person?, at?, unread?, onPress? })` — something a person did and when: their initials (`person`), the title, a line of text and `at` (an ISO date, shown as "5 min temu"); `unread` marks it new. In a widget a compact row (e.g. a discussion's last message), on a screen a card with the text in full (e.g. a message) |
-| Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally) |
-| List | `ui.list(label, items)` |
-| Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, tags?, counter?, onPress?, children? })` — `tags`: `{ text, tone?, icon?, dot? }` (up to 4); `counter`: `{ label, value, pressed, action? }`, a button at the left (votes): pressed, or without `action`, it cannot be pressed |
+| Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally, e.g. two Stats) |
+| List | `ui.list(label, items, { variant? })` — `cards` (default): separate cards; `grouped`: one white group with the items as rows between hairlines (an admin's list, settings). In a widget: rows between hairlines |
+| Card | `ui.card({ title, subtitle?, badge?, tags?, image?, icon?, meta?, counter?, count?, unread?, onPress?, children? })` — see below |
 | Heading / Text | `ui.heading(text, 2 \| 3)`, `ui.text(text, "ink" \| "soft"?)` |
+| Meta | `ui.meta(items)` — a meta line on its own ("Anna N. · 3 dni temu"): 1–5 items, each `{ at }` (an ISO date; the app words it: "wczoraj", "3 dni temu", "2 tyg. temu") or `{ text, icon?, label? }` (`label`: the screen-reader name when the icon carries the meaning, "Komentarze: 8") |
+| Notice | `ui.notice(text, { icon?, tone? })` — an information banner, e.g. a lock and "Widzisz tylko swoje zgłoszenia" |
 | Badge | `ui.badge(text, tone?)` — `neutral`, `info`, `success`, `warning`, `danger` |
-| Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?, icon?)` |
-| Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips", options: [{ label, selected?, action }] })` — options only navigate (sorting, filters); `ui.navigate(view, params, { replace: true })` replaces the view instead of stacking one |
+| Button | `ui.button(label, action, variant?, icon?, { pressed? })` — `variant`: `primary` (default), `quiet`, `danger`, `ink` (dark); `pressed` makes it a toggle (a vote): pressed it is filled red, not pressed outlined red, and the state is announced; put a count in the label ("Podbij 24") |
+| Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips" \| "tiles", options: [{ label, selected?, count?, action }] })` — options only navigate (sorting, filters); `tiles` are big tiles with `count` over the label ("8" over "Aktywne") |
+| Menu | `ui.menu({ label, icon?, variant?: "text" \| "chip", options: [{ label, selected?, action }] })` — pick one option now (2–30): the trigger shows the selected option and opens a sheet with all of them; choosing one runs its action (`navigate`, e.g. a sort, or a `tool`, e.g. set a category). `chip`: a small outlined pill with `icon` |
 | Fab | `ui.fab({ label, icon?, action })` — a floating button over the screen (bottom right, outside its scroll), e.g. "Zgłoś"; navigates |
 | Timeline | `ui.timeline([{ title, at?, text?, tone? }])` — the steps of something that moves on (a report's progress): a dot per step (its tone), the date and an optional note |
-| Share | `ui.share(label, path)` — a button that shares a link to a place in the app (`path` starts with `/app/`); the app builds the full address |
-| Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` |
-| Empty | `ui.empty(text)` |
+| Share | `ui.share(label, path, { variant? })` — shares a link to a place in the app (`path` starts with `/app/`); the app builds the full address. `icon` (default): a square icon button; `button`: a full-width button with the label |
+| Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value, tone?)` — a Stat's number is green for `success`, red for `danger` |
+| Empty | `ui.empty(text, { title?, icon? })` — nothing yet: on a screen an icon in a box, the title and the text, centred; in a widget the title and the text in the rest of the tile |
 | Image | `ui.image(fileId, alt)` |
-| Form | `ui.form({ submitLabel, submit: ui.tool(name), children })` — field values become tool `args` |
-| TextInput / Select / ImagePicker | `ui.textInput({ name, label, multiline?, value? })`, `ui.select({ name, label, options, value? })`, `ui.imagePicker({ name, label })` — inside a Form |
-| LocationInput | `ui.locationInput({ name, label, value? })` — inside a Form: the app's location picker (address search, the user's position, a pin); the tool gets `{ lat, lng, address }`, validate it with `geoLocation()` |
+| Gallery | `ui.gallery([{ file, alt }])` — 1–10 photos to swipe through, with "1 / 2" |
+| Form | `ui.form({ submitLabel, submit: ui.tool(name), submitIcon?, inline?, children })` — field values become tool `args`; `submitIcon` adds a catalog icon to the full-width submit; `inline`: the submit is a circular send button beside the field (a comment box) |
+| TextInput | `ui.textInput({ name, label, multiline?, value?, hint?, placeholder? })` — `hint`: a line under the field (≤ 160) |
+| Select | `ui.select({ name, label, options: [{ value, label, hint?, icon? }], value?, variant?, action? })` — `variant`: `cards` (default), `chips`, `segmented` (2–3 options side by side), `radio` (radio cards with `hint` under each) |
+| Switch | `ui.switch({ name, label, hint?, value?, action? })` — the tool gets a boolean; in a grouped List a row of the group |
+| ImagePicker | `ui.imagePicker({ name, label, max?, value? })` — `max` 1 (default): the field is one FileId, left out of `args` when there is none; more (≤ 10): always an array of FileIds, empty when every photo was removed (`z.array(fileRef()).max(3).default([])`). `value`: photos already uploaded (`[{ file }]`, e.g. from a previous step), shown and kept unless removed |
+| LocationInput | `ui.locationInput({ name, label, value? })` — the app's location picker (address search, the user's position, a pin); the tool gets `{ lat, lng, address }`, validate it with `geoLocation()` |
+| Tags | `ui.tags([{ text, tone?, icon?, dot?, onRemove? }])` — 1–4 tags; `onRemove` (a tool) makes one a removable chip with an "X" ("Usuń: …") |
 | Map | `ui.map({ label, layers, center?, zoom? })` — see [Maps](#maps) |
+
+**Fields inside and outside a Form.** Inside a Form a field's value goes into the submit's `args`. A Switch or a Select
+outside a Form with an `action` (a tool) saves at once: every change calls it with `[name]: value` added to its args
+(disabled while a tool runs). It shows the change while the tool runs, then the value of the refreshed view: a change
+that failed (an HTTP error or the tool's `error`) rolls back. Use a `.partial()` input and return `{ refresh: true }` when the view depends on it
+(e.g. a setting that shows another one); keep it `requires: "admin"` when only admins may change it.
+
+**Screen and form presentation options.** `Screen.back` accepts `ui.navigate(…)` or `ui.app(…)`, never a tool.
+`Screen.chrome: false` omits its header for confirmations. `Heading` level 3 is a condensed uppercase section label.
+`Card.variant: "compact"` uses a 64 dp thumbnail and navigation chevron; `"featured"` uses a 96 dp thumbnail,
+17 px title and places a first Menu beside the photo. `Place.action` (`ui.place(text, ui.navigate(…))`) opens a map
+or another view from the compact address row. `Notice.variant: "plain"` omits its card background.
+`TextInput.variant: "muted"` draws a muted dashed field; `ImagePicker.hideLabel` hides its visual label.
+`Form.submitIcon` adds a catalog icon to its submit; inline forms hide visual field labels, retain accessible names
+and use pill inputs with circular send buttons. `Tags` items with `variant: "pill"` retain a white outlined pill
+without requiring a remove action.
+
+Refreshed trees retain form drafts. Pristine fields follow confirmed server changes; dirty fields keep their drafts
+(`syncFormValues` in `apps/app/src/plugins/state.ts`); only the successfully submitted form resets. Changing view identity remounts the
+tree. A category tool therefore cannot clear an unsaved reply in another form.
+
+**Card.** One node, laid out by where it is:
+
+- `image`: a thumbnail (`{ file, alt, more? }`, a photo from `ctx.files`; `more` = how many photos besides it, a "+N"
+  badge); `icon`: a leading icon in a box instead (menu rows).
+- `meta`: the small bottom line (1–4 items, as in Meta), e.g. `[{ at: report.createdAt }, { text: "8", icon: "chat",
+  label: "Komentarze: 8" }]`.
+- `counter`: `{ label, value, pressed?, action? }` (votes). With `action` (a tool) it is a toggle pill and `pressed`
+  says whether the viewer counted it; with `pressed` but no action a pill shown as it is; with neither a plain count (an
+  up arrow and the number: admin rows, widget rows). `label` is its accessible name ("Podbij zgłoszenie, 24 głosy").
+- `count`: a red number badge at the right (unread, pending); `unread`: a dot for "new for this viewer" (in a grouped
+  List, `unread: false` keeps the rows aligned).
+- `tags` (up to 4, as in Tags), `badge`, `subtitle`, `children` (shown under the card's head).
+- On a screen: a card with the thumbnail, the title (2 lines), the meta line and the counter pill at its right; a card
+  with none of image, icon, meta, counter, count, tags or unread is a plain card of text. In a grouped List: a row
+  (unread dot, a small thumbnail or the icon box, a plain count, the count badge, a chevron when it navigates). In a
+  widget: one compact row with the plain count in red.
 
 A new node = schema + builder in `ui.ts` + a branch in `apps/app/src/plugins/Renderer.tsx`.
 
@@ -661,14 +729,18 @@ Every plugin has **exactly one** widget on the community dashboard (`dashboardWi
 and upload): its tile is the only way residents open the plugin, the dashboard has no other list of features. The
 dashboard is a grid 3 columns wide (`DASHBOARD_COLUMNS`) in rows of fixed height. The widget declares:
 
+Grid rows are 96 dp with 12 dp gaps: a 3×2 widget is 204 dp tall, a 3×3 widget 312 dp. The shared renderer uses
+a small neutral icon, a gray 13 px title and 12–16 dp padding. Widget buttons are full-width dark 44 dp actions;
+list content shrinks and clips before the header or action can lose its space.
+
 | Field | Required | Meaning |
 |---|---|---|
 | `size` | yes | default size in grid cells: `w` 1-3 columns, `h` 1-3 rows (`{ w: 3, h: 3 }` = full width, 3 rows) |
 | `sizes` | no | up to 6 other sizes an admin may switch the widget to (same limits); `size` is always allowed |
 | `title` | no | 1-60 characters: the widget's name in the layout editor (defaults to the plugin's `name`) |
-| `render(ctx)` | yes | always returns `ui.widget(title, children, options?)`: with no data yet, an empty state (`ui.empty(…)`) and the way to start, never nothing |
+| `render(ctx, frame)` | yes | always returns `ui.widget(title, children, options?)`: with no data yet, an empty state (`ui.empty(…)`) and the way to start, never nothing. `frame.size` is the size the widget has on this dashboard (its `size` or the one an admin picked from `sizes`), e.g. to show more rows in a taller tile |
 
-Content beyond the size is clipped, so `render` must fit the smallest size the widget offers. With `onPress` (a
+Content beyond the size is clipped, so `render` must fit the size it gets in `frame` (`const rows = frame.size.h >= 3 ? 6 : 3`). With `onPress` (a
 `navigate` action, usually the plugin's main list) the whole tile is tappable and shows a chevron (or its `link`,
 when it has one); cards, buttons and links inside it keep their own actions.
 
@@ -724,14 +796,15 @@ No API, no AI model; connections close after each test.
 | `await testPlugin(mod, { user?, community? })` | loads, validates and syncs the schema. Default user `{ id: "u_test", role: "user" }` |
 | `.tool(name, args?)` | → `ToolResult`; rejects with `ForbiddenError` (requires) or a `ZodError` (input) |
 | `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions. Records a visit (`ctx.lastVisit`) like the host |
-| `.dashboardWidget(name)` | → validated widget `UINode` |
+| `.dashboardWidget(name, { size? })` | → validated widget `UINode`, rendered at `size` (default: its declared `size`; a size it does not offer throws) |
 | `.stream(name, args?)` | → `AsyncIterator`; read with `next()`, finish with `return()` |
 | `.invalidInput(name, args)` | Zod issues the host would answer 400 with, or `null` |
 | `.as(user)` | the same harness acting as another user (`.tool/.view/.dashboardWidget/.stream/.files.fake/.invalidInput/.ctx`) |
 | `.files.fake(mime?)` | a pending upload by the acting user → `FileId` |
 | `.files.isKept(id)` | `true` once a `t.ref("file")` column referenced it |
 | `.ai.mockSimilar((query, candidates) => matches)` | `findSimilar` result (default `[]`) |
-| `.ai.mockCall((req) => value)` | `call` result, parsed with `req.schema` if given (default: throws) |
+| `.ai.mockCall((req) => value)` | `call` result (a value or a promise), parsed with `req.schema` if given (default: throws); `req.timeoutMs` is enforced as in the host |
+| `.ai.mockTimeout()` | the model stops answering: a `call` with `timeoutMs` rejects as timed out at once (no waiting); one without `timeoutMs` rejects saying it would hang |
 | `.ai.mockEmbed((text) => vector)` | `embed` result (default: throws) |
 | `.notifications()` | what `ctx.notify` sent, validated like in the host, oldest first, each with `from` (sender id); recipients are resolved by the host only |
 | `.db` | the plugin database as the system user (assertions); untyped tables → `plugin.db.items!` |

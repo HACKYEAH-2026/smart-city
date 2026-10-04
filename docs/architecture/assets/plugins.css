@@ -542,6 +542,204 @@
   padding: 1rem 0;
 }
 
+.pv-empty strong {
+  display: block;
+  color: var(--pv-ink);
+}
+
+.pv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pv-eyebrow {
+  color: var(--pv-soft);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pv-pill {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--pv-ink);
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.pv-heading {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+}
+
+.pv-stack,
+.pv-row-grow {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pv-row-grow {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.pv-list.is-grouped {
+  gap: 0;
+  background: var(--pv-surface);
+  border: 1px solid var(--pv-line);
+  border-radius: 14px;
+}
+
+.pv-list.is-grouped .pv-card {
+  border: 0;
+  border-radius: 0;
+}
+
+.pv-list.is-grouped li + li {
+  border-top: 1px solid #eeebe4;
+}
+
+.pv-meta {
+  color: var(--pv-soft);
+  font-size: 0.75rem;
+}
+
+.pv-counter {
+  justify-self: end;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--pv-red);
+  border: 1px solid #ddd9cf;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.pv-counter.is-pressed {
+  color: #fff;
+  background: var(--pv-red);
+  border-color: var(--pv-red);
+}
+
+.pv-count {
+  justify-self: end;
+  min-width: 1.3rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--pv-red);
+  border-radius: 999px;
+}
+
+.pv-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: var(--pv-red);
+}
+
+.pv-notice {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  background: var(--pv-surface);
+  color: var(--pv-soft);
+}
+
+.pv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pv-chip,
+.pv-tag {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pv-ink);
+  background: var(--pv-surface);
+  border: 1px solid #ddd9cf;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+}
+
+.pv-chip {
+  cursor: pointer;
+}
+
+.pv-chip.is-selected {
+  color: #fff;
+  background: var(--pv-ink);
+  border-color: var(--pv-ink);
+}
+
+.pv-x {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--pv-soft);
+  cursor: pointer;
+}
+
+.pv-stat {
+  display: grid;
+  padding: 0.6rem 0.8rem;
+  border-radius: 14px;
+  background: var(--pv-surface);
+  color: var(--pv-soft);
+  font-size: 0.8rem;
+}
+
+.pv-stat strong {
+  font-size: 1.3rem;
+  color: var(--pv-ink);
+}
+
+.pv-stat.is-success strong {
+  color: #1e6b34;
+}
+
+.pv-stat.is-danger strong {
+  color: var(--pv-red);
+}
+
+.pv-gallery {
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  background: #ece9e1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0.5rem;
+}
+
+.pv-gallery span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(27, 27, 31, 0.72);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+.pv-btn.is-ink {
+  background: var(--pv-ink);
+  color: #fff;
+}
+
+.pv-field small {
+  font-size: 0.75rem;
+}
+
 .is-pressable {
   cursor: pointer;
 }

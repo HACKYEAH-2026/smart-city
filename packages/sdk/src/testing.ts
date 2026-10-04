@@ -7,13 +7,21 @@ import { createDatabase } from "./engine/client";
 import { PLATFORM_SCHEMA } from "./engine/platform";
 import { HOST, syncSchema } from "./engine/schema";
 import { loadPlugin } from "./load";
-import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin";
-import type { AI, AICall, SimilarMatch } from "./services/ai";
+import {
+  type Context,
+  type DashboardWidgetSize,
+  type Permission,
+  type PluginCommunity,
+  type PluginUser,
+  sameSize,
+} from "./plugin";
+import { type AI, type AICall, AITimeoutError, type SimilarMatch, withAITimeout } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
 import { type Notification, type Notify, parseNotification } from "./services/notify";
 import {
   dashboardWidgetSchema,
+  type MetaItem,
   screenSchema,
   type ToolResult,
   toolResultSchema,
@@ -29,6 +37,7 @@ import {
  *
  *   const t = await testPlugin(issues, { user: alice });
  *   t.ai.mockSimilar(() => []);
+ *   t.ai.mockTimeout(); // ctx.ai.call with timeoutMs rejects as timed out
  *   const photo = await t.files.fake();
  *   await t.tool("report", { title: "Latarnia", photo });
  *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
@@ -92,6 +101,14 @@ type CallMock = (req: AICall<z.ZodType | undefined>) => unknown;
 type SimilarMock = (query: { text: string; image?: FileId | null }, candidates: unknown[]) => SimilarMatch<unknown>[];
 type EmbedMock = (text: string) => number[];
 
+/** A mocked model that never answers: a call with `timeoutMs` times out at once, one without would hang forever. */
+const hangs = (req: AICall<z.ZodType | undefined>): Promise<never> =>
+  req.timeoutMs === undefined
+    ? Promise.reject(
+        new Error("ctx.ai.call: the model does not answer (t.ai.mockTimeout) and the call has no timeoutMs"),
+      )
+    : Promise.reject(new AITimeoutError(req.timeoutMs));
+
 function mockAI() {
   const mocks: { call: CallMock; similar: SimilarMock; embed: EmbedMock } = {
     call: () => {
@@ -103,8 +120,9 @@ function mockAI() {
     },
   };
   const api: AI = {
+    // Like the host: `timeoutMs` is enforced (a mock may answer later, with a promise).
     async call(req) {
-      const out = mocks.call(req as AICall<z.ZodType | undefined>);
+      const out = await withAITimeout(req.timeoutMs, async () => mocks.call(req as AICall<z.ZodType | undefined>));
       return (req.schema ? req.schema.parse(out) : String(out)) as never;
     },
     async findSimilar(query, candidates) {
@@ -118,6 +136,10 @@ function mockAI() {
     api,
     mockCall: (fn: CallMock) => {
       mocks.call = fn;
+    },
+    /** The model stops answering: a ctx.ai.call with `timeoutMs` rejects as timed out right away (no waiting). */
+    mockTimeout: () => {
+      mocks.call = hangs;
     },
     mockSimilar: (fn: SimilarMock) => {
       mocks.similar = fn;
@@ -160,8 +182,8 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
   const fileRow = async (id: string) => {
     const [rows] = await surreal.query(
       surql<
-        [{ mime: string; size: number; status: string }[]]
-      >`SELECT mime, size, status FROM ${new RecordId(HOST.file, id)};`,
+        [{ mime: string; size: number; status: string; uploaded_by?: RecordId }[]]
+      >`SELECT mime, size, status, uploaded_by FROM ${new RecordId(HOST.file, id)};`,
     );
     return rows[0];
   };
@@ -169,7 +191,12 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     async info(id) {
       const row = await fileRow(id);
       if (!row) throw new Error(`Unknown file ${id}`);
-      return { mime: row.mime, size: row.size };
+      return {
+        mime: row.mime,
+        size: row.size,
+        uploadedBy: row.uploaded_by ? String(row.uploaded_by.id) : null,
+        kept: row.status === "kept",
+      };
     },
     async remove(id) {
       await surreal.query(surql`DELETE ${new RecordId(HOST.file, id)};`);
@@ -224,11 +251,18 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       visits.set(user.id, now());
       return node;
     },
-    /** The dashboard widget (validated like in the host). */
-    async dashboardWidget(name: string): Promise<UINode> {
-      const fn = definition.dashboardWidgets?.[name];
-      if (!fn) throw new Error(`no dashboard widget ${name}`);
-      return dashboardWidgetSchema.parse(await fn.render(await ctxFor(user)));
+    /**
+     * The dashboard widget (validated like in the host), drawn at `options.size`: its declared `size` by default; a
+     * size it does not offer (`size` or `sizes`) throws, as an admin could not pick it.
+     */
+    async dashboardWidget(name: string, options: { size?: DashboardWidgetSize } = {}): Promise<UINode> {
+      const widget = definition.dashboardWidgets?.[name];
+      if (!widget) throw new Error(`no dashboard widget ${name}`);
+      const size = options.size ?? widget.size;
+      if (![widget.size, ...(widget.sizes ?? [])].some((offered) => sameSize(offered, size))) {
+        throw new Error(`dashboard widget ${name} does not offer the size ${size.w}x${size.h}`);
+      }
+      return dashboardWidgetSchema.parse(await widget.render(await ctxFor(user), { size }));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];
@@ -272,7 +306,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       fake: (mime?: string) => fakeFile(main, mime),
       isKept: async (id: FileId) => (await fileRow(id))?.status === "kept",
     },
-    ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar, mockEmbed: ai.mockEmbed },
+    ai: { mockCall: ai.mockCall, mockTimeout: ai.mockTimeout, mockSimilar: ai.mockSimilar, mockEmbed: ai.mockEmbed },
     /** Notifications sent with ctx.notify, oldest first (`from` = the acting user's id). */
     notifications: () => [...sent],
     setNow: (date: Date) => {
@@ -291,14 +325,32 @@ export function textsOf(node: UINode): string[] {
   return [...own, ...children, ...mapTexts(node), ...itemTexts(node)];
 }
 
-/** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
-const itemTexts = (node: UINode): string[] =>
-  node.type === "Tags"
-    ? node.items.map((tag) => tag.text)
-    : node.type === "Timeline"
-      ? node.items.flatMap((step) => [step.title, ...(step.text ? [step.text] : [])])
-      : [];
+const metaTexts = (items: MetaItem[] | undefined): string[] =>
+  (items ?? []).flatMap((item) => ("text" in item ? [item.text] : []));
 
+/** Texts a node keeps outside the common keys: its items, options, meta line and header actions. */
+function itemTexts(node: UINode): string[] {
+  switch (node.type) {
+    case "Tags":
+      return node.items.map((tag) => tag.text);
+    case "Timeline":
+      return node.items.flatMap((step) => [step.title, ...(step.text ? [step.text] : [])]);
+    case "Meta":
+      return metaTexts(node.items);
+    case "Card":
+      return metaTexts(node.meta);
+    case "Menu":
+      return node.options.map((option) => option.label);
+    case "Gallery":
+      return node.items.map((item) => item.alt);
+    case "Screen":
+      return (node.actions ?? []).map((action) => action.label);
+    default:
+      return [];
+  }
+}
+
+/** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
 const mapTexts = (node: UINode): string[] =>
   node.type === "Map"
     ? node.layers.flatMap((layer) => [

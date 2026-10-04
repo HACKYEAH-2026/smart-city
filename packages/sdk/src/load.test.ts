@@ -37,3 +37,23 @@ describe("dashboard widgets", () => {
     rejects({ size: { w: 1, h: 1 }, sizes: Array.from({ length: 7 }, () => ({ w: 1, h: 1 })) });
   });
 });
+
+describe("adminView", () => {
+  const withAdminView = (adminView: string) => (sdk: PluginSdk) => ({
+    id: "panel",
+    name: "Panel",
+    version: "1.0.0",
+    nav: [{ view: "main", label: "Panel" }],
+    adminView,
+    views: { main: () => sdk.ui.screen("Panel", []), admin: () => sdk.ui.screen("Obsługa", []) },
+    dashboardWidgets: { w: { size: { w: 1, h: 1 }, render: () => sdk.ui.widget("Panel", []) } },
+  });
+
+  test("names an existing view", () => {
+    expect(loadPlugin(withAdminView("admin")).manifest.adminView).toBe("admin");
+  });
+
+  test("a missing view is rejected like a nav entry", () => {
+    expect(() => loadPlugin(withAdminView("missing"))).toThrow('adminView points to missing view "missing"');
+  });
+});
