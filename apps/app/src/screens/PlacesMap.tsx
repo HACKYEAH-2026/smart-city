@@ -140,11 +140,11 @@ function MapPlaceRow({ place, onPress }: { place: MapPlace; onPress: () => void 
   );
 }
 
-/** The selected place: name, kind, address; members open it (it becomes their current place), others see how to join. */
+/**
+ * The selected place: name, kind, address; members open it (it becomes their current place), others join an open
+ * place through its preview (as with a scanned code) or see how to join.
+ */
 function PlaceCard({ place, onClose }: { place: MapPlace; onClose: () => void }) {
-  const router = useRouter();
-  const visit = useVisitPlace();
-  const open = (slug: string) => visit.mutate(slug, { onSuccess: () => router.replace("/app") });
   return (
     <View role="region" aria-label={place.name} style={styles.card}>
       <View style={styles.cardHead}>
@@ -160,14 +160,27 @@ function PlaceCard({ place, onClose }: { place: MapPlace; onClose: () => void })
         <IconButton icon={X} label={t.close} variant="roundSunken" onPress={onClose} />
       </View>
       {place.address ? <Text variant="bodyL">{place.address}</Text> : null}
-      {place.slug ? (
-        <Button label={t.map_open_place} disabled={visit.isPending} onPress={() => open(place.slug ?? "")} />
-      ) : (
-        <Text variant="caption" color="textSecondary">
-          {t.map_join_hint}
-        </Text>
-      )}
+      <PlaceAction place={place} />
     </View>
+  );
+}
+
+function PlaceAction({ place }: { place: MapPlace }) {
+  const router = useRouter();
+  const visit = useVisitPlace();
+  const { slug, inviteCode } = place;
+  if (slug) {
+    const open = () => visit.mutate(slug, { onSuccess: () => router.replace("/app") });
+    return <Button label={t.map_open_place} disabled={visit.isPending} onPress={open} />;
+  }
+  if (inviteCode) {
+    const join = () => router.push({ pathname: "/app/preview", params: { code: inviteCode } } as never);
+    return <Button label={t.map_join_place} onPress={join} />;
+  }
+  return (
+    <Text variant="caption" color="textSecondary">
+      {t.map_join_hint}
+    </Text>
   );
 }
 

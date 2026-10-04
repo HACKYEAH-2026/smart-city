@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { surql } from "surrealdb";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_RESIDENT, seedDemoResident } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
@@ -302,7 +303,12 @@ describe("local dev seed", () => {
     await t.seed();
     const deps = { db: t.db, auth: t.auth, plugins: t.plugins };
     await seedDemoResident(deps);
-    await seedDemoResident(deps); // a restart of the dev API seeds again
+    // A restart of the dev API seeds again; the places go back on the map and open (a dev database had the
+    // cooperative members-only).
+    await t.db.query(
+      surql`UPDATE community SET on_map = false, join_rule = "approval" WHERE slug = "spoldzielnia-sloneczna";`,
+    );
+    await seedDemoResident(deps);
     const resident = await t.signIn(DEMO_RESIDENT);
 
     expect((await myPlaces(resident)).map((p) => [p.slug, p.kind, p.role, p.isDefault])).toEqual([
@@ -319,10 +325,14 @@ describe("local dev seed", () => {
     expect(await nav("kampus-glowny")).toEqual(["announcements", "discussions"]);
     expect(await nav("spoldzielnia-sloneczna")).toEqual(["issues", "announcements"]);
 
-    // The campus is on the map of places for everyone, the cooperative only for its members; both open to a code.
+    // Both are on the map of places for everyone, with their codes: anyone can join them from there.
     const stranger = await t.signUp({ place: null });
     const map = await (await t.request("/api/geo/places", { headers: stranger.headers })).json();
-    expect((map as { name: string }[]).map((p) => p.name)).toEqual(["Kampus Główny", "Kraków"]);
+    expect((map as { name: string; inviteCode: string }[]).map((p) => [p.name, p.inviteCode])).toEqual([
+      ["Kampus Główny", "KMPGLW"],
+      ["Kraków", "KRKMST"],
+      ["Spółdzielnia Słoneczna", "SLNCZN"],
+    ]);
     for (const code of ["KMP-GLW", "SLN-CZN"]) {
       const joined = await t.request("/api/communities/join", {
         method: "POST",

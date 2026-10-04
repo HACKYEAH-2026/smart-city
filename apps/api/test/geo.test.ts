@@ -116,6 +116,22 @@ describe("the map of places", () => {
     expect(await mapOf(member)).toContainEqual(expect.objectContaining({ ...demo, slug: "krakow" }));
   });
 
+  test("a non-member gets the invite code of an open public place, to join it from the map; nobody else does", async () => {
+    t = await setup();
+    await t.seed();
+    const owner = await t.signUp({ place: null });
+    const stranger = await t.signUp({ place: null });
+    await create(owner, { name: "Biuro", location: FLORIANSKA, onMap: true, joinRule: "approval" });
+    const { slug: open } = await create(owner, { name: "Klub", location: FLORIANSKA, onMap: true, joinRule: "open" });
+    const code = (await detailsOf(owner, open)).inviteCode;
+    expect(code).toEqual(expect.any(String));
+
+    const codes = (places: MapPlace[]) => Object.fromEntries(places.map((p) => [p.name, p.inviteCode]));
+    expect(codes(await mapOf(stranger))).toEqual({ Biuro: null, Klub: code, Kraków: "KRKMST" });
+    expect(codes(await mapOf(owner))).toEqual({ Biuro: null, Klub: null, Kraków: "KRKMST" });
+    expect(codes(await mapOf(await t.signUp()))).toEqual({ Biuro: null, Klub: code, Kraków: null });
+  });
+
   test("local dev seeds public places of Kraków: replaces the ones nobody belongs to, keeps the rest", async () => {
     t = await setup();
     const owner = await t.signUp({ place: null });

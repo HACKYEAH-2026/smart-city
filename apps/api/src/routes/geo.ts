@@ -21,6 +21,7 @@ type MapRow = {
   kind: PlaceKind | null;
   address: string | null;
   join_rule: JoinRule | null;
+  invite_code: string | null;
   location: GeometryPoint;
   member: boolean;
 };
@@ -45,12 +46,14 @@ const toMapPlace = (row: MapRow): MapPlace => ({
   joinRule: row.join_rule ?? "approval",
   ...fromGeoPoint(row.location),
   slug: row.member ? row.slug : null,
+  inviteCode: !row.member && row.join_rule === "open" ? (row.invite_code ?? null) : null,
 });
 
 /**
  * Maps for signed-in users: finding addresses for a place's pin (search and the address at a point, via the
  * geocoder) and the map of places. The map shows the places their admins put on it and the user's own places that
- * have a location; only members learn a place's slug (non-members get 404 inside it anyway).
+ * have a location; only members learn a place's slug (non-members get 404 inside it anyway), and only non-members
+ * the invite code of an open place (to join it from the map; its admins find the code in the place's settings).
  */
 export const geoRoutes = new Hono<AppEnv>()
   .use(requireUser)
@@ -70,7 +73,7 @@ export const geoRoutes = new Hono<AppEnv>()
     const found = await rows<MapRow>(
       c.var.db,
       surql`LET $mine = (SELECT VALUE community FROM membership WHERE user = ${ref("user", c.var.user.id)});
-            SELECT id, slug, name, kind, address, join_rule, location, id INSIDE $mine AS member FROM community
+            SELECT id, slug, name, kind, address, join_rule, invite_code, location, id INSIDE $mine AS member FROM community
              WHERE location IS NOT NONE AND (on_map OR id INSIDE $mine) ORDER BY name;`,
     );
     return c.json(found.map(toMapPlace), 200);

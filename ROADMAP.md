@@ -8,7 +8,7 @@ Co działa w demo na HackYeah 2026 (v1), a co planujemy po hackathonie (v2). Fun
 | ------------------------------------------------------------ | -------------------- |
 | Generator wtyczek AI: opis → szkic → publikacja              | v1, w demo           |
 | Wtyczki: zgłoszenia usterek, ogłoszenia, dyskusje            | v1, w demo           |
-| Dołączanie kodem, linkiem, kodem QR albo z zaproszenia       | v1, w demo           |
+| Dołączanie kodem, linkiem, QR, z mapy albo z zaproszenia      | v1, w demo           |
 | [Asystenci AI przez MCP](#asystenci-ai-przez-mcp)            | v2                   |
 | [Sandbox dla wtyczek](#sandbox-dla-wtyczek)                  | v2                   |
 | [Weryfikacja mieszkańców (mObywatel)](#weryfikacja-mieszkańców-mobywatel) | v2      |
@@ -22,7 +22,7 @@ Co działa w demo na HackYeah 2026 (v1), a co planujemy po hackathonie (v2). Fun
 
 - **Miejsca:** miasto, uczelnia, spółdzielnia. Każde ma własny pulpit z widżetami wtyczek; administrator miejsca
   włącza funkcje i układa pulpit.
-- **Dołączanie:** kodem, linkiem albo kodem QR (miejsca otwarte) oraz z zaproszenia administratora.
+- **Dołączanie:** kodem, linkiem, kodem QR albo z mapy miejsc (miejsca otwarte) oraz z zaproszenia administratora.
 - **Konto:** logowanie e-mailem i hasłem albo przez Google.
 - **Wtyczki wbudowane:** zgłoszenia usterek (zdjęcie, miejsce na mapie, statusy, AI łączy zgłoszenia tego samego
   problemu), ogłoszenia, dyskusje.
@@ -61,7 +61,7 @@ Do miasta dołączają tylko jego mieszkańcy. Platforma dostaje jeden fakt, np.
 PESEL-u i innych danych osobowych. Kolejni dostawcy tożsamości działają jako adaptery.
 
 - **Dziś:** w demo nie ma weryfikacji tożsamości, ani prawdziwej, ani udawanej. Do miejsca dołącza się kodem,
-  linkiem, kodem QR albo z zaproszenia.
+  linkiem, kodem QR, z mapy miejsc albo z zaproszenia.
 - **Zależą od niej:** funkcje, w których liczy się, kto jest mieszkańcem, np. głosowania i podpisy pod inicjatywą
   ([niżej](#gotowe-wtyczki-dla-miast-uczelni-i-osiedli)).
 

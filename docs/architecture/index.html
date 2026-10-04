@@ -841,8 +841,8 @@
                     <dt>address, description</dt><dd>answers of the "new place" wizard</dd>
                     <dt>join_rule</dt><dd><code>open | approval | invite</code>, default <code>approval</code></dd>
                     <dt>location</dt><dd><code>option&lt;geometry&lt;point&gt;&gt;</code> — the place's pin (also <code>ctx.community.location</code>)</dd>
-                    <dt>on_map</dt><dd>every signed-in user sees it on the map of places</dd>
-                    <dt>invite_code</dt><dd>for joining by code, link or QR; kept unique by the API</dd>
+                    <dt>on_map</dt><dd>every signed-in user sees it on the map of places (and joins it from there when it is open)</dd>
+                    <dt>invite_code</dt><dd>for joining by code, link or QR; kept unique by the API; the map hands it to non-members of an open place</dd>
                   </dl>
                 </div>
                 <div class="detail" data-pane="membership" hidden>

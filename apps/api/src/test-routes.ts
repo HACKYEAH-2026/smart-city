@@ -1,5 +1,5 @@
 import type { NavigateAction } from "@app/plugin-sdk";
-import type { JoinRule, PlaceKind } from "@app/shared";
+import type { PlaceKind } from "@app/shared";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { Auth } from "./auth";
@@ -206,18 +206,18 @@ type ResidentPlace = {
   kind: PlaceKind;
   address: string;
   description: string;
-  join_rule: JoinRule;
   invite_code: string;
-  on_map: boolean;
   lat: number;
   lng: number;
   /** Built-in plugins enabled in the place, in this order (its navigation). */
   pluginIds: string[];
 };
+/** On the map of places for everyone signed in, and joined by anyone (from the map, or with the code). */
+const PUBLIC_AND_OPEN = { on_map: true, join_rule: "open" } as const;
 /**
  * DEMO_RESIDENT's places besides Kraków: the campus and the housing cooperative of the demo video's ads, each with
- * only the plugins it needs. Made-up places on real addresses (points from Nominatim). The campus is on the map of
- * places for everyone; the cooperative only for its members.
+ * only the plugins it needs. Made-up places on real addresses (points from Nominatim). Like Kraków, both are on the
+ * map of places and open (PUBLIC_AND_OPEN): anyone signed in can tap one there and join it.
  */
 export const DEMO_RESIDENT_PLACES: ResidentPlace[] = [
   {
@@ -226,9 +226,7 @@ export const DEMO_RESIDENT_PLACES: ResidentPlace[] = [
     kind: "school",
     address: "prof. Stanisława Łojasiewicza 11, 30-348 Kraków",
     description: "Ogłoszenia uczelni i dyskusje studentów.",
-    join_rule: "open",
     invite_code: "KMPGLW",
-    on_map: true,
     lat: 50.02907,
     lng: 19.90491,
     pluginIds: ["announcements", "discussions"],
@@ -239,9 +237,7 @@ export const DEMO_RESIDENT_PLACES: ResidentPlace[] = [
     kind: "estate",
     address: "os. Słoneczne 1, 31-956 Kraków",
     description: "Zgłoszenia usterek w budynkach i ogłoszenia administracji osiedla.",
-    join_rule: "open",
     invite_code: "SLNCZN",
-    on_map: false,
     lat: 50.07679,
     lng: 20.03974,
     pluginIds: ["issues", "announcements"],
@@ -304,9 +300,15 @@ export async function seedDemoResident(deps: Deps) {
   const { db, plugins } = deps;
   const places = DEMO_RESIDENT_PLACES.map(({ lat, lng, pluginIds: _, ...place }) => ({
     ...place,
+    ...PUBLIC_AND_OPEN,
     location: geoPoint({ lat, lng }),
   }));
-  await db.query(surql`INSERT IGNORE INTO community ${places};`);
+  // Also for a dev database seeded while the cooperative was members-only.
+  const slugs = DEMO_RESIDENT_PLACES.map((p) => p.slug);
+  await db.query(
+    surql`INSERT IGNORE INTO community ${places};
+          UPDATE community MERGE ${PUBLIC_AND_OPEN} WHERE slug INSIDE ${slugs};`,
+  );
   await plugins.ready();
   for (const place of DEMO_RESIDENT_PLACES) {
     const community = await seededCommunity(db, place.slug);
@@ -315,8 +317,7 @@ export async function seedDemoResident(deps: Deps) {
   }
 
   const residentId = await seedAccount(deps, DEMO_RESIDENT);
-  const slugs = [DEMO_COMMUNITY.slug, ...DEMO_RESIDENT_PLACES.map((p) => p.slug)];
-  const communities = await Promise.all(slugs.map((slug) => seededCommunity(db, slug)));
+  const communities = await Promise.all([DEMO_COMMUNITY.slug, ...slugs].map((slug) => seededCommunity(db, slug)));
   const memberships = communities.map((community) => ({
     id: membershipRef(community.id, residentId),
     community: ref("community", community.id),

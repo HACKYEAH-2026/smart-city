@@ -26,7 +26,8 @@ export type GeoAddress = z.infer<typeof geoAddressSchema>;
 
 /**
  * A place on the map of places (GET /api/geo/places): public places and the user's own. `slug` only for its members
- * (they can open it); others learn its name, kind, address and join rule.
+ * (they can open it); others learn its name, kind, address and join rule, and the invite code of an open one (anyone
+ * may join it anyway), so they can join it from the map.
  */
 export type MapPlace = {
   id: string;
@@ -37,4 +38,6 @@ export type MapPlace = {
   lat: number;
   lng: number;
   slug: string | null;
+  /** Only for a non-member of an open place: joining it from the map goes through the code's preview. */
+  inviteCode: string | null;
 };

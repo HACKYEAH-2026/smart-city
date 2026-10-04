@@ -76,7 +76,8 @@ export const t = {
   badge_recommended: "Polecane",
   create_make_default: "Ustaw jako domyślne miejsce",
   create_on_map: "Pokaż na mapie miejsc",
-  create_on_map_hint: "Każdy zalogowany użytkownik zobaczy nazwę, rodzaj i adres miejsca. Członkowie widzą je zawsze.",
+  create_on_map_hint:
+    "Każdy zalogowany użytkownik zobaczy nazwę, rodzaj i adres miejsca, a do otwartego miejsca dołączy prosto z mapy. Członkowie widzą je zawsze.",
   create_admin_note_before: "Zostaniesz ",
   create_admin_note_role: "administratorem",
   create_admin_note_after: " tego miejsca. Później możesz nadać te uprawnienia innym osobom.",
@@ -154,6 +155,8 @@ export const t = {
   map_error: "Nie udało się pobrać mapy miejsc.",
   map_member: "Twoje",
   map_open_place: "Otwórz miejsce",
+  /** On the card of an open place for a non-member: opens its preview, where they join. */
+  map_join_place: "Dołącz",
   map_join_hint: "Aby dołączyć, poproś administratora o kod zaproszenia.",
   place_preview_title: "Podgląd miejsca",
   place_preview_code: "Kod miejsca",
