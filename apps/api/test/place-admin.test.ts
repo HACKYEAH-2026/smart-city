@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CommunityNavItem, PlaceMember, PlacePlugin } from "@app/shared";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_COMMUNITY } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
+
+// Uploading a plugin type-checks it (~1 s on an idle machine, more when verify runs builds in parallel).
+setDefaultTimeout(30_000);
 
 /**
  * Managing a place (routes/placeAdmin.ts): settings, members, built-in plugins on and off, deleting. Only the

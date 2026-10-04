@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DashboardWidgetSize, ToolResult, UINode } from "@app/plugin-sdk";
@@ -10,6 +10,9 @@ import type { EmbeddingModel, LanguageModel } from "../src/services/ai/types";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_ADDRESS, DEMO_COMMUNITY, DEMO_LOCATION } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
+
+// Uploading a plugin type-checks it (~1 s on an idle machine, more when verify runs builds in parallel).
+setDefaultTimeout(30_000);
 
 /**
  * Plugin host: routing, roles, files, AI, isolation, admin API.
