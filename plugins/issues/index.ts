@@ -386,20 +386,24 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
         const issue = params.id ? await ctx.db.issues.get(params.id) : null;
         if (!issue) return ui.screen("Nie znaleziono", [ui.button("Wróć do listy", ui.navigate("list"))]);
         const status = STATUS[issue.status];
-        return ui.screen("Zgłoszenie wysłane", [
-          ui.hero({
-            title: "Dziękujemy za zgłoszenie",
-            text: "Administratorzy miejsca już je widzą.",
-          }),
-          ui.card({
-            title: issue.title,
-            subtitle: categoryLabel(issue.category),
-            badge: status,
-            onPress: ui.navigate("detail", { id: issue.id }),
-            ...(issue.photo ? { children: [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] } : {}),
-          }),
-          ui.button("Wróć do listy", ui.navigate("list")),
-        ]);
+        return ui.screen(
+          "Zgłoszenie wysłane",
+          [
+            ui.hero({
+              title: "Dziękujemy za zgłoszenie",
+              text: "Administratorzy miejsca już je widzą.",
+            }),
+            ui.card({
+              title: issue.title,
+              subtitle: categoryLabel(issue.category),
+              badge: status,
+              onPress: ui.navigate("detail", { id: issue.id }),
+              ...(issue.photo ? { children: [ui.image(issue.photo, `Zdjęcie: ${issue.title}`)] } : {}),
+            }),
+            ui.button("Wróć do listy", ui.navigate("list")),
+          ],
+          { back: ui.navigate("list") },
+        );
       },
 
       /** Question before merging: the form data comes in the `draft` param. */
@@ -606,11 +610,11 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
           });
           if (match) {
             return {
-              navigate: ui.navigate("merge", {
-                target: match.item.id,
-                draft: JSON.stringify(draft),
-                reason: match.reason,
-              }),
+              navigate: ui.navigate(
+                "merge",
+                { target: match.item.id, draft: JSON.stringify(draft), reason: match.reason },
+                { replace: true },
+              ),
               data: { similar: match.item.id, reason: match.reason },
             };
           }
@@ -626,7 +630,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
           });
           await addReport(ctx, issue.id, draft);
           return {
-            navigate: ui.navigate("sent", { id: issue.id }),
+            navigate: ui.navigate("sent", { id: issue.id }, { replace: true }),
             data: { id: issue.id },
           };
         },
@@ -642,7 +646,7 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
           await addReport(ctx, target, parsed);
           return {
             toast: "Dołączyliśmy Twoje zgłoszenie. Dzięki!",
-            navigate: ui.navigate("detail", { id: target }),
+            navigate: ui.navigate("detail", { id: target }, { replace: true }),
             data: { id: target },
           };
         },

@@ -44,7 +44,7 @@ describe("issues: reporting", () => {
       description: "Długa 12",
       photo,
     });
-    expect(res.navigate?.view).toBe("sent");
+    expect(res.navigate).toMatchObject({ view: "sent", replace: true });
     expect(await t.files.isKept(photo)).toBe(true);
 
     const sent = await t.view("sent", res.navigate!.params);

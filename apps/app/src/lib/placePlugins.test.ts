@@ -44,12 +44,12 @@ describe("catalogPlugins", () => {
 
 describe("pluginSubtitle", () => {
   test("widgets and the description", () => {
-    expect(pluginSubtitle(plugin({ widgets: 3 }))).toBe("3 widżety · Usterki i sugestie mieszkańców.");
+    expect(pluginSubtitle(plugin({ widgets: 3 }))).toBe("3 rozszerzenia · Usterki i sugestie mieszkańców.");
   });
 
   test("an AI plugin is marked; an empty description is left out", () => {
     expect(pluginSubtitle(plugin({ madeByAi: true, description: "", widgets: 2 }))).toBe(
-      `${t.build_made_by_ai} · 2 widżety`,
+      `${t.build_made_by_ai} · 2 rozszerzenia`,
     );
   });
 

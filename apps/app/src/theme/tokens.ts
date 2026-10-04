@@ -7,77 +7,77 @@
 
 export const colors = {
   // Brand
-  primary: "#E50101", // primary CTA, active elements, links, accent icons
-  primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
-  primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
-  primaryTintPressed: "#FAD9D9", // pressed state of an accent button on primaryTint (outside the design)
+  primary: '#E50101', // primary CTA, active elements, links, accent icons
+  primaryPressed: '#B30000', // pressed state, text on primaryTint (contrast), destructive text
+  primaryTint: '#FDECEC', // icon/avatar/badge background, success ring
+  primaryTintPressed: '#FAD9D9', // pressed state of an accent button on primaryTint (outside the design)
   // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
-  neutralTint: "#ECEAE5",
-  neutralText: "#3E3E46",
-  infoTint: "#E8EEF8",
-  infoText: "#1F4E8C",
-  warningTint: "#FFF1D6",
-  warningText: "#7A4F00",
-  successTint: "#E3F1E6",
-  successText: "#1E6B34",
-  onPrimary: "#FFFFFF",
+  neutralTint: '#ECEAE5',
+  neutralText: '#3E3E46',
+  infoTint: '#E8EEF8',
+  infoText: '#1F4E8C',
+  warningTint: '#FFF1D6',
+  warningText: '#7A4F00',
+  successTint: '#E3F1E6',
+  successText: '#1E6B34',
+  onPrimary: '#FFFFFF',
 
   // Text
-  text: "#1B1B1F", // main text, headings, "dark" button
-  textBody: "#3E3E46", // longer descriptions
-  textSecondary: "#5E5E66", // captions, labels, helper text
-  iconMuted: "#8A919C", // chevrons in list rows
-  placeholder: "#8A8A92", // input placeholder
+  text: '#1B1B1F', // main text, headings, "dark" button
+  textBody: '#3E3E46', // longer descriptions
+  textSecondary: '#5E5E66', // captions, labels, helper text
+  iconMuted: '#8A919C', // chevrons in list rows
+  placeholder: '#8A8A92', // input placeholder
 
   // Backgrounds and surfaces
-  background: "#F5F3EE", // screen background (warm off-white)
-  surface: "#FFFFFF", // cards, fields, list rows, tab bar
-  surfaceSunken: "#EAE7E0", // segmented control background, close button in sheet
-  surfaceMuted: "#F0EEE9", // neutral avatars/badges (member)
-  surfaceDisabled: "#FAF9F7", // empty code cells
-  mapBase: "#ECE9E1", // map / photo placeholder
+  background: '#F5F3EE', // screen background (warm off-white)
+  surface: '#FFFFFF', // cards, fields, list rows, tab bar
+  surfaceSunken: '#EAE7E0', // segmented control background, close button in sheet
+  surfaceMuted: '#F0EEE9', // neutral avatars/badges (member)
+  surfaceDisabled: '#FAF9F7', // empty code cells
+  mapBase: '#ECE9E1', // map / photo placeholder
 
   // Borders
-  border: "#DDD9CF", // fields, secondary buttons
-  borderSubtle: "#E3E0D8", // icon buttons, tab bar top edge
-  borderEmpty: "#E6E3DC", // empty code cells
-  divider: "#EEEBE4", // separators inside cards/lists
-  dashed: "#D3CEC2", // dashed frames, bottom sheet handle
-  dashedStrong: "#B9B4A9", // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
-  dot: "#B5B2AA", // dash in the ABC-DEF code
+  border: '#DDD9CF', // fields, secondary buttons
+  borderSubtle: '#E3E0D8', // icon buttons, tab bar top edge
+  borderEmpty: '#E6E3DC', // empty code cells
+  divider: '#EEEBE4', // separators inside cards/lists
+  dashed: '#D3CEC2', // dashed frames, bottom sheet handle
+  dashedStrong: '#B9B4A9', // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
+  dot: '#B5B2AA', // dash in the ABC-DEF code
 
   // Dark mode (QR scanner only)
-  scannerBg: "#17171A",
-  scannerText: "#C8C8CC",
-  scannerHint: "#707078",
-  onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
-  onPrimaryOverlay: "rgba(255,255,255,0.18)", // icon on a red card
+  scannerBg: '#17171A',
+  scannerText: '#C8C8CC',
+  scannerHint: '#707078',
+  onDarkOverlay: 'rgba(255,255,255,0.10)', // buttons on dark background
+  onPrimaryOverlay: 'rgba(255,255,255,0.18)', // icon on a red card
 
   // Layers
-  scrim: "#5F646C", // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
-  focusRing: "rgba(229,1,1,0.10)", // field focus glow
-  focusRingStrong: "rgba(229,1,1,0.12)", // code cell / selected card glow
+  scrim: '#5F646C', // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
+  focusRing: 'rgba(229,1,1,0.10)', // field focus glow
+  focusRingStrong: 'rgba(229,1,1,0.12)', // code cell / selected card glow
 
   // Map decorations (illustrations on login and dashboard screens)
-  mapPark: "#E4EBDD",
-  mapWater: "#E4EAF3",
-  mapRoad: "#E6E2D8",
-  mapRoadMinor: "#ECE8DF",
+  mapPark: '#E4EBDD',
+  mapWater: '#E4EAF3',
+  mapRoad: '#E6E2D8',
+  mapRoadMinor: '#ECE8DF',
   // Live maps (OpenFreeMap base recoloured to the tokens above, src/lib/map/spec.ts)
-  mapBuilding: "#E3DFD5", // buildings, a shade darker than mapBase
-  mapMe: "#3D6AE0", // the user's own position (blue dot with a halo)
+  mapBuilding: '#E3DFD5', // buildings, a shade darker than mapBase
+  mapMe: '#3D6AE0', // the user's own position (blue dot with a halo)
   // What plugin maps mean by a tone (ui.map: pins, routes, areas). The app's UI shows only danger in colour, but on a
   // map colour is how layers tell apart; danger is the brand red, and info stays clear of the blue "me" dot.
-  mapNeutral: "#5E5E66",
-  mapInfo: "#1F6FA8",
-  mapSuccess: "#2E7D32",
-  mapWarning: "#C26A00",
+  mapNeutral: '#5E5E66',
+  mapInfo: '#1F6FA8',
+  mapSuccess: '#2E7D32',
+  mapWarning: '#C26A00',
 
   // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
-  googleBlue: "#4285F4",
-  googleGreen: "#34A853",
-  googleYellow: "#FBBC05",
-  googleRed: "#EA4335",
+  googleBlue: '#4285F4',
+  googleGreen: '#34A853',
+  googleYellow: '#FBBC05',
+  googleRed: '#EA4335',
 } as const;
 
 export const spacing = {
@@ -122,9 +122,9 @@ export const radii = {
   md: 12, // icon box, 46 px button, segment
   lg: 14, // fields, main buttons, back button
   xl: 16, // list rows, small cards
-  "2xl": 18, // list groups, SelectableCard
-  "3xl": 20, // dashboard cards, dashboard tiles
-  "4xl": 22, // banner/hero, success card, the layout editor's grid
+  '2xl': 18, // list groups, SelectableCard
+  '3xl': 20, // dashboard cards, dashboard tiles
+  '4xl': 22, // banner/hero, success card, the layout editor's grid
   panel: 24, // top corners of a non-modal panel at the bottom of a screen (layout editor)
   mini: 8, // tiles of the dashboard layout preview
   outline: 3, // the outline rectangle of a widget size choice ("3 × 2")
@@ -200,15 +200,19 @@ export const sizes = {
   /** Login screen: height of the map illustration at the top. */
   authMap: 300,
   /** Dashboard header: height of the map decoration. */
-  dashboardMap: 230,
+  dashboardMap: 330,
   /** Dashboard header: the map fades into the screen over this height at its lower edge. */
-  dashboardMapFade: 120,
+  dashboardMapFade: 160,
   /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
   dashboardMapCrop: 48,
   /** Dashboard header: the tip of the place's pin, this far below the top of the content (beside the place's name). */
-  dashboardPinTop: 104,
+  dashboardPinTop: 154,
   /** Dashboard header: the place's pin across the screen, a fraction of its width (between the name and the gear). */
   dashboardPinX: 0.64,
+  /** Dashboard header: the backdrop (map and pin) moves up this much, so the pin lines up with the header. */
+  dashboardMapLift: 16,
+  /** Dashboard header: scrolling this far (dp) blurs the backdrop fully; it starts blurring at the first scroll. */
+  dashboardBlurRange: 200,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
@@ -254,10 +258,10 @@ export const sizes = {
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */
 export const fontFamily = {
   // Schibsted Grotesk — text, headings, buttons, labels, codes
-  regular: "SchibstedGrotesk_400Regular",
-  medium: "SchibstedGrotesk_500Medium",
-  semibold: "SchibstedGrotesk_600SemiBold",
-  bold: "SchibstedGrotesk_700Bold",
+  regular: 'SchibstedGrotesk_400Regular',
+  medium: 'SchibstedGrotesk_500Medium',
+  semibold: 'SchibstedGrotesk_600SemiBold',
+  bold: 'SchibstedGrotesk_700Bold',
 } as const;
 
 /**
@@ -266,23 +270,61 @@ export const fontFamily = {
  */
 export const typography = {
   // Headings
-  titleXL: { fontFamily: fontFamily.bold, fontSize: 32, lineHeight: 35, letterSpacing: -0.8 }, // login
-  title: { fontFamily: fontFamily.bold, fontSize: 30, lineHeight: 34, letterSpacing: -0.75 }, // screen title
-  heading: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 31, letterSpacing: -0.7 }, // place name, success screen
-  headingM: { fontFamily: fontFamily.bold, fontSize: 26, lineHeight: 30, letterSpacing: -0.52 }, // hero, place preview
-  headingS: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 29, letterSpacing: -0.48 }, // bottom sheet, management
-  brand: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 }, // wordmark
+  titleXL: {
+    fontFamily: fontFamily.bold,
+    fontSize: 32,
+    lineHeight: 35,
+    letterSpacing: -0.8,
+  }, // login
+  title: {
+    fontFamily: fontFamily.bold,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.75,
+  }, // screen title
+  heading: {
+    fontFamily: fontFamily.bold,
+    fontSize: 28,
+    lineHeight: 31,
+    letterSpacing: -0.7,
+  }, // place name, success screen
+  headingM: {
+    fontFamily: fontFamily.bold,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.52,
+  }, // hero, place preview
+  headingS: {
+    fontFamily: fontFamily.bold,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.48,
+  }, // bottom sheet, management
+  brand: {
+    fontFamily: fontFamily.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.17,
+  }, // wordmark
 
   // Body copy
   bodyL: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 24 }, // lead under a title
   body: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 22 },
   caption: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
-  captionRelaxed: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20.3 }, // descriptions in cards (1.45)
+  captionRelaxed: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    lineHeight: 20.3,
+  }, // descriptions in cards (1.45)
   cardTitle: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20 }, // titles in cards and list rows (16/600)
   cardTitleL: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 }, // a plugin's name on its catalog card (17/700)
   rowTitle: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 20 }, // titles in flush rows inside a card (15/600)
   small: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
-  smallStrong: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 18 }, // group headers in a sheet (13/600)
+  smallStrong: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+  }, // group headers in a sheet (13/600)
   tileTitle: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 15 }, // a widget's name on a layout tile
   tab: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   tabActive: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
@@ -295,20 +337,70 @@ export const typography = {
   link: { fontFamily: fontFamily.medium, fontSize: 14, lineHeight: 20 },
 
   // Labels — always UPPERCASE (textTransform: 'uppercase'), tracked out
-  label: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 }, // 0.06em
-  labelL: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 17, letterSpacing: 0.78 },
-  labelHero: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96 }, // 0.08em on the red banner
-  chip: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 15, letterSpacing: 0.55 }, // 0.05em
+  label: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.72,
+  }, // 0.06em
+  labelL: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: 0.78,
+  },
+  labelHero: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.96,
+  }, // 0.08em on the red banner
+  chip: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.55,
+  }, // 0.05em
   /** Tags on list cards: sentence case, unlike the uppercase chip. */
   tag: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
-  stepNumber: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 },
-  abbr: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 20, letterSpacing: 0 }, // place abbreviation (e.g. "OS")
-  codeInline: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20, letterSpacing: 1.28 }, // K7M-4QX in a row
+  stepNumber: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.72,
+  },
+  abbr: {
+    fontFamily: fontFamily.bold,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0,
+  }, // place abbreviation (e.g. "OS")
+  codeInline: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 1.28,
+  }, // K7M-4QX in a row
 
   // Codes
-  codeXL: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 32, letterSpacing: 1.68 }, // "place created" screen
-  codeM: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 26, letterSpacing: 1.32 }, // management
-  codeS: { fontFamily: fontFamily.bold, fontSize: 15, lineHeight: 20, letterSpacing: 0.9 }, // "Code, link or QR" row
+  codeXL: {
+    fontFamily: fontFamily.bold,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: 1.68,
+  }, // "place created" screen
+  codeM: {
+    fontFamily: fontFamily.bold,
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: 1.32,
+  }, // management
+  codeS: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0.9,
+  }, // "Code, link or QR" row
   otp: { fontFamily: fontFamily.semibold, fontSize: 26, lineHeight: 30 }, // code cell
 
   // Emoji in an icon box (a plugin's icon), the size of the line icon it stands in for
@@ -321,7 +413,7 @@ export const shadows = {
   none: {},
   /** Default card / list row (0 1 2 rgba .06) */
   card: {
-    shadowColor: "#1B1B1F",
+    shadowColor: '#1B1B1F',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
@@ -329,7 +421,7 @@ export const shadows = {
   },
   /** Dashboard / success card (0 1 2 + 0 8 24 rgba .05) */
   cardRaised: {
-    shadowColor: "#1B1B1F",
+    shadowColor: '#1B1B1F',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
     shadowRadius: 12,
@@ -337,7 +429,7 @@ export const shadows = {
   },
   /** Selected card / row (red glow 0 6 18 .12) */
   selected: {
-    shadowColor: "#E50101",
+    shadowColor: '#E50101',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 9,
@@ -345,7 +437,7 @@ export const shadows = {
   },
   /** Small floating button on the map / active segment (0 2 8 .12) */
   floating: {
-    shadowColor: "#1B1B1F",
+    shadowColor: '#1B1B1F',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -353,7 +445,7 @@ export const shadows = {
   },
   /** A panel at the bottom of a screen, over the content (0 -8 28 rgba .10) */
   panel: {
-    shadowColor: "#1B1B1F",
+    shadowColor: '#1B1B1F',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.1,
     shadowRadius: 14,
@@ -361,7 +453,7 @@ export const shadows = {
   },
   /** Focus glow of a text field (COMPONENTS.md → TextField: 4 dp, primary at .10) */
   focusRing: {
-    shadowColor: "#E50101",
+    shadowColor: '#E50101',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

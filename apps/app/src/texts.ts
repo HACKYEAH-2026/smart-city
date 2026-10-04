@@ -399,7 +399,7 @@ export const t = {
   count_people: ["osoba", "osoby", "osób"],
   count_admins: ["administrator", "administratorów", "administratorów"],
   count_plugins: ["rozszerzenie", "rozszerzenia", "rozszerzeń"],
-  count_widgets: ["widżet", "widżety", "widżetów"],
+  count_widgets: ["rozszerzenie", "rozszerzenia", "rozszerzeń"],
   count_places: ["miejsce", "miejsca", "miejsc"],
   count_unread: ["nieprzeczytane", "nieprzeczytane", "nieprzeczytanych"],
   // Android notification channels (shown in the system notification settings)

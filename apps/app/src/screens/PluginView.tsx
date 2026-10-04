@@ -61,7 +61,10 @@ export default function PluginView() {
           const next = result.navigate ? pluginHref(slug, plugin, result.navigate.view, result.navigate.params) : here;
           flash.show(result.toast ? { text: result.toast, href: next } : null);
           setGeneration((g) => g + 1);
-          if (next !== here) router.push(next as never);
+          if (next === here) return;
+          // A form that finished (a report, a merge) is replaced, so back never returns to the filled-in form.
+          if (result.navigate?.replace) router.replace(next as never);
+          else router.push(next as never);
         },
       },
     );
