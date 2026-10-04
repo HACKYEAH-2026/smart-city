@@ -199,15 +199,15 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
 
   const grid = page.getByRole("list", { name: t.manage_layout_title });
   const tiles = grid.getByRole("listitem");
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
   const announcements = grid.getByRole("button", { name: /Ogłoszenia/ });
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "true");
   const sizes = page.getByRole("radiogroup", { name: t.manage_layout_size_group });
-  await expect(sizes.getByRole("radio")).toHaveText(["3 × 3", "3 × 2"]);
-  await sizes.getByRole("radio", { name: "3 × 2" }).click();
-  await expect(sizes.getByRole("radio", { name: "3 × 2" })).toBeChecked();
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  await expect(sizes.getByRole("radio")).toHaveText(["3 × 2", "3 × 3"]);
+  await sizes.getByRole("radio", { name: "3 × 3" }).click();
+  await expect(sizes.getByRole("radio", { name: "3 × 3" })).toBeChecked();
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 2/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
   const up = page.getByRole("button", { name: t.manage_layout_up });
   const down = page.getByRole("button", { name: t.manage_layout_down });
   await up.click();
@@ -223,17 +223,17 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
 
   await page.getByRole("button", { name: t.manage_layout_add }).click();
   const sheet = page.getByRole("dialog", { name: t.manage_layout_add });
-  await expect(sheet.getByText(`${t.manage_layout_sizes} 3×3, 3×2`)).toBeVisible();
+  await expect(sheet.getByText(`${t.manage_layout_sizes} 3×2, 3×3`)).toBeVisible();
   await expect(sheet.getByRole("link", { name: t.manage_layout_more })).toBeVisible();
   await sheet.getByRole("button", { name: `${t.manage_layout_add_one}: Ogłoszenia` }).click();
   await expect(sheet).toHaveCount(0);
   // Added back at the end with its default size, and selected.
-  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia.*3 × 2/]);
   await expect(announcements).toHaveAttribute("aria-pressed", "true");
   await up.click();
   await up.click();
-  await sizes.getByRole("radio", { name: "3 × 2" }).click();
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  await sizes.getByRole("radio", { name: "3 × 3" }).click();
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 3/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
   // Tapping the selected tile again deselects it.
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "false");
@@ -254,7 +254,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
 
   await page.goto("/app/c/krakow/layout");
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 3/, /Zgłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {

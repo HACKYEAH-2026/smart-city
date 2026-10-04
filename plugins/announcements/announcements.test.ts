@@ -38,6 +38,10 @@ describe("announcements", () => {
       "Zebranie użytkowników",
       "Wszystkie ogłoszenia",
     ]);
+    // The count is the tile's subtitle (one short line under the title), so two rows fit two announcements.
+    expect(await t.dashboardWidget("latest")).toMatchObject({
+      subtitle: "1 nowe ogłoszenie od Twojej ostatniej wizyty",
+    });
 
     t.setNow(at(2));
     await t.view("list");
