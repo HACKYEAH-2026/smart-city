@@ -13,18 +13,19 @@ import {
   BUILT_BOOKING,
   BuildScreen,
   type BuildStage,
+  bookingDoneView,
   bookingFormView,
-  bookingListView,
   bookingScheduleView,
   bookingWidget,
   budgetView,
-  budgetVotedView,
   budgetWidget,
+  COOP_ISSUE,
   DashboardScreen,
-  detailView,
+  discussionsWidget,
   IssueFormScreen,
+  issueFormView,
   issuesWidget,
-  ManageScreen,
+  joinedView,
   mergeView,
   PluginScreen,
   PreviewScreen,
@@ -37,7 +38,7 @@ import { Center, ClipVideo, Counter, Flash, Light, NIGHT, PhoneAt, Pop, Pushed, 
 const PHONE = { x: 1290, y: 545, rotY: -10 };
 const REQUEST = "Rezerwacja sal: studenci wybierają salę i godzinę, a dziekanat widzi grafik wszystkich sal.";
 
-/** The shot a community's scene opens on: its clip, full frame, with its name. */
+/** The shot a community's scene opens on while the narrator names it: its clip, full frame, with its name. */
 const Establishing = ({ id, from, label, until }: { id: MediaId; from: number; label: string; until: number }) => (
   <AbsoluteFill style={{ background: NIGHT }}>
     <ClipVideo id={id} from={from} at={0} until={until} />
@@ -76,7 +77,30 @@ const Column = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-/* ── 1 · intro: a city, a campus, a housing cooperative — each needs something else ─────────────────── */
+/** A line under the headline, rising in at `at`. */
+const Sub = ({ at, children }: { at: number; children: ReactNode }) => {
+  const frame = useCurrentFrame();
+  return (
+    <div
+      style={{
+        fontFamily: FONT.semibold,
+        fontSize: 40,
+        color: colors.textSecondary,
+        ...rise(
+          keys(frame, [
+            [at - 4, 0],
+            [at + 8, 1],
+          ]),
+          16,
+        ),
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/* ── 1 · intro: a city, a campus, a housing cooperative — each has its own needs ────────────────────── */
 
 const TRIO = [
   { id: "miasto", label: "Miasto", cue: "miasto", from: 1 },
@@ -84,30 +108,37 @@ const TRIO = [
   { id: "spoldzielnia", label: "Spółdzielnia", cue: "spółdzielnia", from: 1 },
 ] as const;
 
-/** The campus clip runs into its sequel (kampus-qr opens on its frame at 6.5 s): the student walks to a QR code. */
-const CAMPUS_HANDOFF = 6.5;
-const QR_SPAN = 7.4;
+/** Where the campus panel cuts to the QR clip: she is at the poster, about to raise her phone to its code. */
+const QR_FROM = 4;
+/** The QR clip's second her phone is up against the code: the scene ends there and the app's scanner takes over. */
+const QR_SCAN = 7.4;
 
-const IntroPanel = ({ id, label, cue, from, grow, dim }: (typeof TRIO)[number] & { grow: number; dim: number }) => {
+const IntroPanel = ({
+  id,
+  label,
+  cue,
+  from,
+  grow,
+  dim,
+  handoff,
+}: (typeof TRIO)[number] & { grow: number; dim: number; handoff: number }) => {
   const frame = useCurrentFrame();
   const { duration } = useScene();
   const at = useCue(cue);
   const middle = id === "kampus";
-  // The campus clip plays at its own pace and hands over to its sequel on their shared frame.
-  const handoff = at + CAMPUS_HANDOFF * 30;
   const flex = middle ? 1 + 2 * grow : 1 - grow;
   if (frame < at) return <div style={{ flex }} />;
   return (
     <div style={{ flex, position: "relative", overflow: "hidden" }}>
       {middle && frame >= handoff ? (
-        <ClipVideo id="kampus-qr" from={0} at={handoff} until={duration} span={QR_SPAN} />
+        <ClipVideo id="kampus-qr" from={QR_FROM} at={handoff} until={duration} span={QR_SCAN - QR_FROM} />
       ) : (
         <ClipVideo id={id} from={from} at={at} until={middle ? handoff : duration} />
       )}
       <AbsoluteFill
         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0) 45%)", opacity: 1 - grow }}
       />
-      <AbsoluteFill style={{ background: "rgba(10,10,12,0.6)", opacity: dim }} />
+      <AbsoluteFill style={{ background: "rgba(10,10,12,0.55)", opacity: dim }} />
       <Headline
         text={label}
         at={at}
@@ -120,8 +151,9 @@ const IntroPanel = ({ id, label, cue, from, grow, dim }: (typeof TRIO)[number] &
 };
 
 /**
- * Three communities side by side. With „Każda społeczność…” the campus opens up to the whole frame, the line stays
- * on it to its end, then its student walks to a QR code and scans it: the next scene cuts to the app's scanner.
+ * Three communities side by side, each as the narrator names it. With „Każda społeczność…” the line comes up over
+ * them and the campus opens up to the whole frame; its student reaches a QR code and raises her phone to it: the
+ * next scene is the app's scanner.
  */
 export const IntroScene = () => {
   const frame = useCurrentFrame();
@@ -129,6 +161,7 @@ export const IntroScene = () => {
   const each = useCue("każda");
   const end = scene.words.at(-1)?.to ?? 0;
   const expandAt = each + 24;
+  const handoff = expandAt + 22;
   const grow = keys(frame, [
     [expandAt, 0],
     [expandAt + 18, 1],
@@ -142,19 +175,19 @@ export const IntroScene = () => {
     <AbsoluteFill style={{ background: NIGHT }}>
       <div style={{ position: "absolute", inset: 0, display: "flex", gap: 6 * (1 - grow) }}>
         {TRIO.map((panel) => (
-          <IntroPanel key={panel.id} {...panel} grow={grow} dim={dim} />
+          <IntroPanel key={panel.id} {...panel} grow={grow} dim={dim} handoff={handoff} />
         ))}
       </div>
       {frame >= each ? (
         <Center style={{ opacity: 1 - lineOut }}>
           <Headline
-            text={"Każda społeczność\npotrzebuje innych narzędzi."}
+            text={"Każda społeczność\nma swoje potrzeby."}
             at={each}
             spoken
             variant="snap"
             size={96}
             align="center"
-            accent={["innych"]}
+            accent={["swoje"]}
             style={{ color: "#FFFFFF", textShadow: "0 6px 40px rgba(0,0,0,0.5)" }}
           />
         </Center>
@@ -163,7 +196,12 @@ export const IntroScene = () => {
   );
 };
 
-/* ── 2 · promise: one app that fits each place ──────────────────────────────────────────────────────── */
+/* ── 2 · promise: one app that fits each of them ────────────────────────────────────────────────────── */
+
+const CAMPUS_WIDGETS = [
+  bookingWidget(),
+  announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji", "Dzień otwarty wydziału w czwartek"),
+];
 
 const PLACES = [
   {
@@ -174,32 +212,25 @@ const PLACES = [
     x: 520,
     widgets: [budgetWidget(), issuesWidget(REPORTERS)],
   },
-  {
-    key: "campus",
-    place: "Kampus Główny",
-    label: "Uczelnia",
-    icon: GraduationCap,
-    x: 960,
-    widgets: [bookingWidget(), announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji")],
-  },
+  { key: "campus", place: "Kampus Główny", label: "Uczelnia", icon: GraduationCap, x: 960, widgets: CAMPUS_WIDGETS },
   {
     key: "coop",
     place: "Spółdzielnia Słoneczna",
     label: "Spółdzielnia",
     icon: Building2,
     x: 1400,
-    widgets: [issuesWidget(REPORTERS), announcementsWidget("Przegląd instalacji gazowej w czwartek")],
+    widgets: [issuesWidget(REPORTERS, "open", COOP_ISSUE), discussionsWidget()],
   },
 ] as const;
 
-/** Picked up from the intro's last shot: the student's scan, now in the app — the campus, joined, its dashboard. */
+/** Picked up from the intro's last shot: her phone's scanner reads the code, she joins the campus, its dashboard. */
 const CampusJoin = () => {
   const frame = useCurrentFrame();
   const name = useCue("twoje");
   const one = useCue("jedna");
   const lock = 8;
   const preview = lock + 6;
-  const join = one + 22;
+  const join = one - 4;
   return (
     <Light drift={0.6}>
       <Column>
@@ -222,33 +253,21 @@ const CampusJoin = () => {
             Twoje Miejsce
           </div>
         </div>
-        <Headline
-          text={"Jedna aplikacja,\ndopasowana do miejsca."}
-          at={one - 2}
-          spoken
-          variant="snap"
-          size={88}
-          accent={["dopasowana"]}
-        />
+        <Headline text="Jedna aplikacja." at={one - 2} spoken variant="snap" size={110} accent={["jedna"]} />
       </Column>
       <PhoneAt pose={PHONE} dark={frame < preview}>
         <Pushed
           screens={[
             { at: 0, node: <ScannerScreen seen={1} line={frame < lock ? (Math.sin(frame / 3) + 1) / 2 : 0.5} /> },
-            { at: preview, node: <PreviewScreen place="Kampus Główny" address="" code="KMP-GLW" /> },
             {
-              at: join + 6,
-              node: (
-                <DashboardScreen
-                  place="Kampus Główny"
-                  widgets={[bookingWidget(), announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji")]}
-                />
-              ),
+              at: preview,
+              node: <PreviewScreen place="Kampus Główny" address="ul. Akademicka 1, Kraków" code="KMP-GLW" />,
             },
+            { at: join + 6, node: <DashboardScreen place="Kampus Główny" widgets={CAMPUS_WIDGETS} /> },
           ]}
         />
         <Flash at={lock} />
-        <Tap x={195} y={751} at={join} />
+        <Tap x={195} y={752} at={join} />
       </PhoneAt>
     </Light>
   );
@@ -256,19 +275,19 @@ const CampusJoin = () => {
 
 export const PromiseScene = () => {
   const frame = useCurrentFrame();
-  const _one = useCue("jedna");
-  const each = useCue("każde");
-  if (frame < each - 2) return <CampusJoin />;
+  const fits = useCue("dopasowuje") - 3;
+  const each = useCue("każdej");
+  if (frame < fits) return <CampusJoin />;
   return (
     <Light drift={0.8}>
       <Headline
-        text={"Każde miejsce po swojemu."}
-        at={each - 2}
+        text="Dopasowuje się do każdej."
+        at={fits}
         spoken
         variant="snap"
         size={72}
         align="center"
-        accent={["swojemu."]}
+        accent={["każdej."]}
         style={{ position: "absolute", left: 0, right: 0, top: 60 }}
       />
       {PLACES.map((p, i) => (
@@ -277,7 +296,7 @@ export const PromiseScene = () => {
             <DashboardScreen place={p.place} widgets={[...p.widgets]} />
           </PhoneAt>
           <div style={{ position: "absolute", left: p.x, top: 990, transform: "translateX(-50%)" }}>
-            <Pop at={each + i * 6} style={{ background: "#FFFFFF", color: colors.text }}>
+            <Pop at={each + i * 5} style={{ background: "#FFFFFF", color: colors.text }}>
               <View>
                 <Icon icon={p.icon} size={34} color="primary" strokeWidth={2} />
               </View>
@@ -290,14 +309,13 @@ export const PromiseScene = () => {
   );
 };
 
-/* ── 3 · city: a civic budget — residents vote, the results show on the dashboard ──────────────────── */
+/* ── 3 · city: a civic budget — residents vote in the app ─────────────────────────────────────────── */
 
 export const CityScene = () => {
   const frame = useCurrentFrame();
   const budget = useCue("budżet");
   const vote = useCue("głosują");
-  const results = useCue("wyniki");
-  const board = useCue("pulpicie");
+  const voted = frame >= vote + 4;
   if (frame < budget - 2) return <Establishing id="miasto" from={1} label="Miasto" until={budget - 2} />;
   return (
     <Light drift={0.6}>
@@ -311,31 +329,11 @@ export const CityScene = () => {
           size={110}
           accent={["obywatelski."]}
         />
-        <div
-          style={{
-            fontFamily: FONT.semibold,
-            fontSize: 40,
-            color: colors.textSecondary,
-            ...rise(
-              keys(frame, [
-                [results - 4, 0],
-                [results + 8, 1],
-              ]),
-              16,
-            ),
-          }}
-        >
-          Wyniki od razu na pulpicie.
-        </div>
+        <Sub at={vote}>Głosowanie w aplikacji.</Sub>
       </Column>
       <PhoneAt pose={PHONE}>
-        <Pushed
-          screens={[
-            { at: 0, node: <PluginScreen node={frame >= vote + 4 ? budgetVotedView() : budgetView()} /> },
-            { at: board, node: <DashboardScreen widgets={[budgetWidget(), issuesWidget(REPORTERS)]} /> },
-          ]}
-        />
-        <Tap x={195} y={399} at={vote} />
+        <PluginScreen node={budgetView(voted)} toast={voted ? "Dziękujemy za głos!" : undefined} />
+        <Tap x={318} y={330} at={vote} />
       </PhoneAt>
     </Light>
   );
@@ -345,13 +343,13 @@ export const CityScene = () => {
 
 export const CampusScene = () => {
   const frame = useCurrentFrame();
+  const offer = useCue("udostępnić");
   const booking = useCue("rezerwację");
-  const room = useCue("salę");
-  const hour = useCue("godzinę");
   const office = useCue("dziekanat");
-  const form = room + 4;
-  const book = office - 10;
-  if (frame < booking - 2) return <Establishing id="kampus" from={4} label="Uczelnia" until={booking - 2} />;
+  const hour = booking + 10;
+  const book = office - 14;
+  const picked = frame >= hour + 2;
+  if (frame < offer - 2) return <Establishing id="kampus" from={4} label="Uczelnia" until={offer - 2} />;
   if (frame >= office - 2) {
     return (
       <Light drift={0.6}>
@@ -366,7 +364,7 @@ export const CampusScene = () => {
           style={{ position: "absolute", left: 0, right: 0, top: 54 }}
         />
         <PhoneAt pose={{ x: 690, y: 640, scale: 0.8, rotY: 18 }}>
-          <DashboardScreen place="Kampus Główny" widgets={[bookingWidget()]} />
+          <PluginScreen node={bookingDoneView()} />
         </PhoneAt>
         <PhoneAt pose={{ x: 1230, y: 640, scale: 0.8, rotY: -18 }}>
           <PluginScreen node={bookingScheduleView()} />
@@ -389,38 +387,40 @@ export const CampusScene = () => {
       <PhoneAt pose={PHONE}>
         <Pushed
           screens={[
-            { at: 0, node: <PluginScreen node={bookingListView()} /> },
             {
-              at: form,
-              node: (
-                <PluginScreen
-                  // A new tree per pick: the renderer's form takes its values from the tree when it mounts.
-                  key={frame >= hour + 2 ? "picked" : "empty"}
-                  node={bookingFormView(frame >= hour + 2 ? "12:00" : "")}
-                />
-              ),
+              at: 0,
+              // A new tree per pick: the renderer's form takes its values from the tree when it mounts.
+              node: <PluginScreen key={picked ? "picked" : "empty"} node={bookingFormView(picked ? "12:00" : "")} />,
             },
+            { at: book + 4, node: <PluginScreen node={bookingDoneView()} /> },
           ]}
         />
-        <Tap x={195} y={552} at={room} />
-        <Tap x={212} y={349} at={hour} />
-        <Tap x={195} y={462} at={book} />
+        <Tap x={205} y={612} at={hour} />
+        <Tap x={195} y={752} at={book} />
       </PhoneAt>
     </Light>
   );
 };
 
-/* ── 5 · housing cooperative: issue reports with a photo, duplicates merged by the AI ─────────────── */
+/* ── 5 · housing cooperative: issue reports; the AI joins duplicates ──────────────────────────────── */
 
 export const CoopScene = () => {
   const frame = useCurrentFrame();
+  const collects = useCue("zbiera");
   const reports = useCue("zgłoszenia");
-  const photo = useCue("zdjęciem");
   const ai = useCue("ai");
-  const same = useCue("problemu");
-  const merge = ai - 2;
-  const joined = same - 6;
-  if (frame < reports - 2) return <Establishing id="spoldzielnia" from={1} label="Spółdzielnia" until={reports - 2} />;
+  const joins = useCue("łączy");
+  const duplicates = useCue("duplikaty");
+  const send = ai - 8;
+  const sheetAt = send + 4;
+  const join = joins + 2;
+  const open = keys(frame, [
+    [sheetAt, 0],
+    [sheetAt + 10, 1],
+  ]);
+  const sheet = frame < sheetAt ? undefined : frame >= join + 4 ? joinedView(REPORTERS + 1) : mergeView(COOP_ISSUE);
+  if (frame < collects - 2)
+    return <Establishing id="spoldzielnia" from={1} label="Spółdzielnia" until={collects - 2} />;
   return (
     <Light drift={0.6}>
       <Column>
@@ -435,51 +435,24 @@ export const CoopScene = () => {
         />
         <Pop at={ai} style={{ background: colors.text, color: "#FFFFFF", alignSelf: "flex-start" }}>
           <WhiteIcon icon={Sparkles} />
-          AI łączy te same zgłoszenia
+          AI łączy duplikaty
         </Pop>
-        {frame >= joined + 8 ? <Counter at={joined + 8} to={REPORTERS + 1} /> : null}
+        {frame >= duplicates ? <Counter at={duplicates} to={REPORTERS + 1} /> : null}
       </Column>
       <PhoneAt pose={PHONE}>
-        <Pushed
-          screens={[
-            {
-              at: 0,
-              node: (
-                <IssueFormScreen
-                  title={typed("Latarnia przy przystanku nie działa", frame, photo + 4, 2.4)}
-                  category={frame >= photo + 4 ? "Oświetlenie" : "Inne"}
-                  withPhoto={frame >= photo + 2}
-                  scroll={keys(frame, [
-                    [merge - 16, 0],
-                    [merge - 8, 420],
-                  ])}
-                />
-              ),
-            },
-            { at: merge, node: <PluginScreen node={mergeView()} /> },
-            {
-              at: joined + 6,
-              node: (
-                <PluginScreen
-                  node={detailView({
-                    support: frame >= joined + 10 ? REPORTERS + 1 : REPORTERS,
-                    status: "open",
-                    admin: false,
-                  })}
-                />
-              ),
-            },
-          ]}
-        />
-        <Tap x={67} y={247} at={photo} />
-        <Tap x={195} y={549} at={merge - 4} />
-        <Tap x={195} y={739} at={joined} />
+        {sheet ? (
+          <PluginScreen node={issueFormView(COOP_ISSUE.title, COOP_ISSUE)} sheet={{ node: sheet, open }} />
+        ) : (
+          <IssueFormScreen title={typed(COOP_ISSUE.title, frame, collects + 4, 0.9)} issue={COOP_ISSUE} />
+        )}
+        <Tap x={195} y={752} at={send} />
+        <Tap x={195} y={596} at={join} />
       </PhoneAt>
     </Light>
   );
 };
 
-/* ── 6 · builder: what is missing, described in the app; the AI writes it and checks it ───────────── */
+/* ── 6 · builder: what is missing, described in the app; the AI writes it ─────────────────────────── */
 
 export const BuilderScene = () => {
   const frame = useCurrentFrame();
@@ -488,10 +461,10 @@ export const BuilderScene = () => {
   const admin = useCue("administrator");
   const describes = useCue("opisuje");
   const ai = useCue("ai");
-  const checks = useCue("sprawdza");
-  const ready = duration - 22;
-  const create = ai - 4;
-  const stage: BuildStage = frame >= ready ? "ready" : frame >= create ? "working" : "typing";
+  const writes = useCue("pisze");
+  const ready = duration - 30;
+  const create = ai - 6;
+  const stage: BuildStage = frame >= ready ? "ready" : frame >= create + 4 ? "working" : "typing";
   if (frame < admin - 4) {
     return (
       <Light drift={0.9}>
@@ -516,7 +489,7 @@ export const BuilderScene = () => {
           <Eyebrow>{`${t.manage_title} → ${t.build_title}`}</Eyebrow>
           <Headline
             text={"Opisz funkcję\nwłasnymi słowami."}
-            at={describes}
+            at={describes - 2}
             spoken
             variant="snap"
             size={100}
@@ -526,7 +499,7 @@ export const BuilderScene = () => {
       ) : frame < ready ? (
         <div style={{ position: "absolute", left: 120, top: 150, display: "flex", flexDirection: "column", gap: 30 }}>
           <CodePanel at={ai} code={BOOKING_CODE} file="sale/index.ts" />
-          <Checks from={checks - 6} to={ready - 4} />
+          <Checks from={writes - 4} to={ready - 4} />
         </div>
       ) : (
         <Column>
@@ -534,24 +507,13 @@ export const BuilderScene = () => {
         </Column>
       )}
       <PhoneAt pose={PHONE}>
-        <Pushed
-          screens={[
-            { at: 0, node: <ManageScreen /> },
-            {
-              at: describes - 2,
-              node: (
-                <BuildScreen
-                  request={typed(REQUEST, frame, describes + 6, 2.4)}
-                  stage={stage}
-                  attempt={frame >= checks + 10 ? 1 : 0}
-                  built={BUILT_BOOKING}
-                />
-              ),
-            },
-          ]}
+        <BuildScreen
+          request={typed(REQUEST, frame, admin + 2, 1.6)}
+          stage={stage}
+          built={BUILT_BOOKING}
+          place="Kampus Główny"
         />
-        <Tap x={195} y={717} at={describes - 8} />
-        <Tap x={195} y={461} at={create - 2} />
+        <Tap x={195} y={752} at={create} />
       </PhoneAt>
     </Light>
   );

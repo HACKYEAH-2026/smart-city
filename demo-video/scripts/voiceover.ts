@@ -1,6 +1,6 @@
 /**
  * Voice-over for an ad (src/ads/<ad>/script.ts) from ElevenLabs: the whole script in one take with character
- * timestamps, split into beats. Writes public/ads/<ad>/vo.mp3 and src/ads/<ad>/vo.json (beat and word times that
+ * timestamps, split into beats. Writes public/ad/voice/<ad>.mp3 and src/ads/<ad>/vo.json (beat and word times that
  * time the video), then transcribes the take back (Scribe) and lists the words the narrator dropped or added.
  * Skips the API when the script and the voice are unchanged. Paid per character: run it on purpose.
  * Needs ELEVEN_LABS_API_KEY (repo .env).
@@ -24,7 +24,7 @@ const API = "https://api.elevenlabs.io/v1";
 const ROOT = join(import.meta.dir, "..");
 const ADS = ["problems", "needs"] as const;
 type AdName = (typeof ADS)[number];
-const mp3Of = (ad: AdName) => join(ROOT, `public/ads/${ad}/vo.mp3`);
+const mp3Of = (ad: AdName) => join(ROOT, `public/ad/voice/${ad}.mp3`);
 const timingOf = (ad: AdName) => join(ROOT, `src/ads/${ad}/vo.json`);
 const beatsOf = async (ad: AdName) =>
   ((await import(`../src/ads/${ad}/script.ts`)) as { BEATS: readonly ScriptBeat[] }).BEATS;
@@ -141,7 +141,7 @@ const take = async (ad: AdName, force: boolean) => {
   await mkdir(dirname(mp3), { recursive: true });
   await Bun.write(mp3, audio);
   await Bun.write(timing, `${JSON.stringify({ key, voiceId: VOICE.voiceId, duration, beats, heard }, null, 2)}\n`);
-  console.log(`vo: ${ad}: ${duration.toFixed(1)} s → public/ads/${ad}/vo.mp3, src/ads/${ad}/vo.json`);
+  console.log(`vo: ${ad}: ${duration.toFixed(1)} s → public/ad/voice/${ad}.mp3, src/ads/${ad}/vo.json`);
   report("transcript check", script, heard);
 };
 

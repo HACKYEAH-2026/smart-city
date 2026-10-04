@@ -15,6 +15,7 @@
   "dependencies": {
     "@app/app": "workspace:*",
     "@app/plugin-sdk": "workspace:*",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
     "@expo-google-fonts/schibsted-grotesk": "^0.4.2",
     "@remotion/bundler": "4.0.532",
     "@remotion/cli": "4.0.532",

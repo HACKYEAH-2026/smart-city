@@ -1,6 +1,6 @@
 import { type AdProps, AdSequence } from "../shared/Ad";
 import { BuilderScene, CampusScene, CityScene, CoopScene, IntroScene, OutroScene, PromiseScene } from "./scenes";
-import { SCENES } from "./timing";
+import { SCENES, VOICE_FILE } from "./timing";
 
 /**
  * The "needs" ad: a city, a campus and a housing cooperative need different things; one app fits each, and what
@@ -10,6 +10,7 @@ export const AdNeeds = ({ captions }: AdProps) => (
   <AdSequence
     scenes={SCENES}
     captions={captions}
+    voice={VOICE_FILE}
     components={{
       intro: IntroScene,
       promise: PromiseScene,

@@ -139,16 +139,19 @@ export const Phone = ({
 
 /**
  * The app's screen shell (components/Screen) without its scroll view: background, an optional backdrop, content
- * padded by the insets, and the bottom tab bar. `scroll` moves the content up by that many points.
+ * padded by the insets, the bottom tab bar, and an `overlay` over everything (floating buttons, a sheet). `scroll`
+ * moves the content up by that many points.
  */
 export const AppScreen = ({
   children,
   backdrop,
+  overlay,
   tabBar = false,
   scroll = 0,
 }: {
   children: ReactNode;
   backdrop?: ReactNode;
+  overlay?: ReactNode;
   tabBar?: boolean;
   scroll?: number;
 }) => (
@@ -167,5 +170,10 @@ export const AppScreen = ({
       {children}
     </View>
     {tabBar ? <BottomTabBar /> : null}
+    {overlay ? (
+      <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+        {overlay}
+      </View>
+    ) : null}
   </View>
 );

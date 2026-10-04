@@ -6,7 +6,7 @@ import { colors, Icon } from "../../app-ui";
 import { FONT, ramp, rise, useSpring } from "./kit";
 import { CLIP_SECONDS, type MediaId, mediaUrl } from "./media";
 import { Phone, SCREEN } from "./Phone";
-import { supporters } from "./screens";
+import { votesText } from "./screens";
 
 /**
  * Pieces every ad's scenes are built from: the city map backdrop, a phone placed in 3D, the app's screen pushes,
@@ -209,11 +209,11 @@ export const LeftShade = () => (
   />
 );
 
-/** The big count of residents reporting one issue: it rolls up from 1 to `to`, worded like the issues plugin. */
-export const Counter = ({ at, to }: { at: number; to: number }) => {
+/** The big count of votes under one report: it rolls up from 1 to `to`, worded like the issues plugin, with `note`. */
+export const Counter = ({ at, to, note = "w jednym zgłoszeniu" }: { at: number; to: number; note?: string }) => {
   const frame = useCurrentFrame();
   const n = Math.max(1, Math.min(to, 1 + Math.round(ramp(frame, at, at + 24) * (to - 1))));
-  const [count, ...words] = supporters(n).split(" ");
+  const [count, ...words] = [...votesText(n).split(" "), note];
   const p = useSpring(at, 12);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 30, ...rise(p, 40) }}>

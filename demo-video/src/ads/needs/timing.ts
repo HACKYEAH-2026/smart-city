@@ -1,14 +1,22 @@
-import { timeline } from "../shared/timing";
+import { type Take, timeline } from "../shared/timing";
 import { BEATS } from "./script";
+import take from "./vo.json";
+
+/** The recorded take (public/ad/voice/needs.mp3); its word times time the scenes. */
+export const VOICE_FILE = "ad/voice/needs.mp3";
 
 /** Frames of picture before the first word and after the last one, per scene. */
-export const { scenes: SCENES, duration: DURATION } = timeline(BEATS, {
-  // After the line: the campus opens up and its student walks to a QR code and scans it (kampus-qr).
-  intro: { lead: 10, tail: 165 },
-  promise: { lead: 10, tail: 16 },
-  city: { lead: 30, tail: 20 },
-  campus: { lead: 30, tail: 20 },
-  coop: { lead: 30, tail: 24 },
-  builder: { lead: 10, tail: 30 },
-  outro: { lead: 8, tail: 90 },
-});
+export const { scenes: SCENES, duration: DURATION } = timeline(
+  BEATS,
+  {
+    // After the line: the campus opens up and its student scans a QR code (kampus-qr).
+    intro: { lead: 6, tail: 62 },
+    promise: { lead: 4, tail: 14 },
+    city: { lead: 10, tail: 14 },
+    campus: { lead: 10, tail: 16 },
+    coop: { lead: 10, tail: 18 },
+    builder: { lead: 6, tail: 36 },
+    outro: { lead: 6, tail: 45 },
+  },
+  take as Take,
+);

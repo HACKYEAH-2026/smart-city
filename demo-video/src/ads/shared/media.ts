@@ -6,6 +6,8 @@ import { getStaticFiles, staticFile } from "remotion";
  * disclose how. While a file is missing, its scene shows a stand-in.
  */
 export type Still = { kind: "image"; file: string; prompt: string; edit?: string };
+/** A still taken from a generated clip at `second` (no API call): a photo in the app's screens, e.g. a project's. */
+export type Grab = { kind: "frame"; file: string; clip: string; second: number };
 /**
  * `start`: the clip opens on this frame of another clip (Veo image-to-video), so one shot continues the other.
  * `first`: it opens on this still instead; `last`: it ends on this still (Veo first and last frame).
@@ -89,7 +91,13 @@ export const MEDIA = {
     file: "ad/images/sala.jpg",
     prompt: `An empty modern seminar room at a Polish university: rows of desks, a whiteboard, a projector screen, large windows with daylight. ${LOOK}`,
   },
-} as const satisfies Record<string, Still | Clip>;
+  // The estate's playground, the photo of a civic budget project.
+  "plac-zabaw": { kind: "frame", file: "ad/images/plac-zabaw.jpg", clip: "osiedle", second: 0.5 },
+  // Benches and lawns by the blocks of flats, the photo of a civic budget project.
+  lawki: { kind: "frame", file: "ad/images/lawki.jpg", clip: "spoldzielnia", second: 0.5 },
+  // The campus poster with the QR code, as the app's scanner sees it.
+  "kamera-qr": { kind: "frame", file: "ad/images/kamera-qr.jpg", clip: "kampus-qr", second: 3.9 },
+} as const satisfies Record<string, Still | Clip | Grab>;
 
 export type MediaId = keyof typeof MEDIA;
 

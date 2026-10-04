@@ -6,20 +6,7 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { BrandMark, colors, Icon } from "../../app-ui";
 import { Checks, CodePanel, Ring } from "../shared/builder";
 import { Finale } from "../shared/finale";
-import {
-  Eyebrow,
-  FONT,
-  Headline,
-  keys,
-  ramp,
-  rise,
-  shake,
-  Tap,
-  typed,
-  useCue,
-  useScene,
-  useSpring,
-} from "../shared/kit";
+import { Eyebrow, FONT, Headline, ramp, rise, shake, Tap, typed, useCue, useScene, useSpring } from "../shared/kit";
 import { mediaUrl } from "../shared/media";
 import { SCREEN } from "../shared/Phone";
 import {
@@ -435,11 +422,6 @@ export const ReportScene = () => {
   const send = ai - 10;
   const merge = ai - 2;
   const joined = one - 4;
-  // The form opens on its photo row; it scrolls to „Wyślij zgłoszenie” only after the photo and the title.
-  const scroll = keys(frame, [
-    [send - 10, 0],
-    [send - 2, 420],
-  ]);
   const pose: Pose = {
     x: 620,
     y: 545,
@@ -455,14 +437,7 @@ export const ReportScene = () => {
             { at: 0, node: <DashboardScreen widgets={[issuesWidget(REPORTERS)]} /> },
             {
               at: form,
-              node: (
-                <IssueFormScreen
-                  title={typed("Nie świeci latarnia", frame, photo + 6, 1.4)}
-                  category={frame >= report + 4 ? "Oświetlenie" : "Inne"}
-                  withPhoto={frame >= photo + 2}
-                  scroll={scroll}
-                />
-              ),
+              node: <IssueFormScreen title={typed("Nie świeci latarnia", frame, photo + 6, 1.4)} />,
             },
             { at: merge, node: <PluginScreen node={mergeView()} /> },
             {
@@ -701,7 +676,7 @@ export const BuilderScene = () => {
 
       <PhoneAt pose={main}>
         {inGrid ? (
-          <DashboardScreen name="Anna" widgets={residents} arrive={ramp(frame, works - 2, works + 12)} />
+          <DashboardScreen widgets={residents} arrive={ramp(frame, works - 2, works + 12)} />
         ) : (
           <>
             <Pushed

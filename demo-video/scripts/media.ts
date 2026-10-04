@@ -2,14 +2,15 @@
  * The generated media of the ads (src/ads/shared/media.ts) and the login loop (src/login/media.ts) from the Gemini
  * API: stills with the Gemini image model (an `edit` still starts from another still, so both show the same scene),
  * clips with Veo (a `start` clip opens on a frame of another clip, so it continues that shot; a `first` clip opens on
- * a still, a `last` clip ends on one). Makes only the files missing in public/, each after what it starts from.
- * Paid per image and per second of video, so run it on purpose. Needs GEMINI_API_KEY (repo .env).
+ * a still, a `last` clip ends on one); a `frame` is a still taken from a clip, without the API. Makes only the files
+ * missing in public/, each after what it starts from. Paid per image and per second of video, so run it on purpose.
+ * Needs GEMINI_API_KEY (repo .env).
  *   bun run media                 everything missing
  *   bun run media --only dom,miasto   just these (also when they exist)
  */
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { CLIP_SECONDS, type Clip, MEDIA, type Still } from "../src/ads/shared/media";
+import { CLIP_SECONDS, type Clip, type Grab, MEDIA, type Still } from "../src/ads/shared/media";
 import { LOGIN_MEDIA } from "../src/login/media";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -21,7 +22,7 @@ const POLL_MS = 10_000;
 const RETRY_MS = 30_000;
 const RETRIES = 6;
 
-const CATALOG: Record<string, Still | Clip> = { ...MEDIA, ...LOGIN_MEDIA };
+const CATALOG: Record<string, Still | Clip | Grab> = { ...MEDIA, ...LOGIN_MEDIA };
 const entry = (id: string) => {
   const item = CATALOG[id];
   if (!item) throw new Error(`Unknown media: ${id}`);
@@ -171,27 +172,32 @@ const startOf = (clip: Clip) =>
       ? stillFrame(clip.first)
       : undefined;
 
-const generate = async (item: Still | Clip) =>
-  item.kind === "image"
-    ? image(item.prompt, item.edit ? (await stillFrame(item.edit)).bytes : undefined)
-    : video(item.prompt, await startOf(item), item.last ? await stillFrame(item.last) : undefined);
+const generate = async (item: Still | Clip | Grab) =>
+  item.kind === "frame"
+    ? (await frameOf(entry(item.clip).file, item.second)).bytes
+    : item.kind === "image"
+      ? image(item.prompt, item.edit ? (await stillFrame(item.edit)).bytes : undefined)
+      : video(item.prompt, await startOf(item), item.last ? await stillFrame(item.last) : undefined);
 
 const make = async (id: string) => {
   const item = entry(id);
   const bytes = await generate(item);
   const out = join(PUBLIC, item.file);
-  const raw = `${out}.raw${item.kind === "image" ? ".jpg" : ".mp4"}`;
+  const raw = `${out}.raw${{ image: ".jpg", frame: ".png", video: ".mp4" }[item.kind]}`;
   await mkdir(dirname(out), { recursive: true });
   await Bun.write(raw, bytes);
-  await shrink(raw, out, item.kind);
+  await shrink(raw, out, item.kind === "video" ? "video" : "image");
   console.log(`media: ${id} → public/${item.file} (${(Bun.file(out).size / 1024).toFixed(0)} kB)`);
 };
 
 /** What a file is made from (a still to edit, a clip or still to open on, a still to end on). */
-const sources = (item: Still | Clip) =>
-  (item.kind === "image" ? [item.edit] : [item.start?.clip, item.first, item.last]).filter(
-    (id): id is string => id !== undefined,
-  );
+const sources = (item: Still | Clip | Grab) =>
+  (item.kind === "frame"
+    ? [item.clip]
+    : item.kind === "image"
+      ? [item.edit]
+      : [item.start?.clip, item.first, item.last]
+  ).filter((id): id is string => id !== undefined);
 
 /** How many files must be made before this one: 0 for a file made from a prompt alone. */
 const depth = (id: string): number => Math.max(0, ...sources(entry(id)).map((source) => depth(source) + 1));

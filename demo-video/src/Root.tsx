@@ -9,13 +9,28 @@ import { FPS as LOOP_FPS, SIZE as LOOP_SIZE, LoginLoop, loopFrames, VARIANTS } f
 import { AppUi } from "./scenes/AppUi";
 import { DURATION, Video } from "./Video";
 
-/** The ads are variants developed side by side (src/ads/<variant>); render each and pick the best. */
-const AD = { fps: FPS, width: 1920, height: 1080, defaultProps: { captions: true } };
+/**
+ * The ads are variants developed side by side (src/ads/<variant>); render each and pick the best. An ad with a
+ * recorded voice-over plays it without captions; a draft shows its narration as captions.
+ */
+const AD = { fps: FPS, width: 1920, height: 1080 };
 
 export const Root: React.FC = () => (
   <>
-    <Composition id="AdProblems" component={AdProblems} durationInFrames={PROBLEMS_DURATION} {...AD} />
-    <Composition id="AdNeeds" component={AdNeeds} durationInFrames={NEEDS_DURATION} {...AD} />
+    <Composition
+      id="AdProblems"
+      component={AdProblems}
+      durationInFrames={PROBLEMS_DURATION}
+      defaultProps={{ captions: true }}
+      {...AD}
+    />
+    <Composition
+      id="AdNeeds"
+      component={AdNeeds}
+      durationInFrames={NEEDS_DURATION}
+      defaultProps={{ captions: false }}
+      {...AD}
+    />
     <Composition
       id="TwojeMiejsceDemo"
       component={Video}
