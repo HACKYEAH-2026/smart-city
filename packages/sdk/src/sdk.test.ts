@@ -517,7 +517,7 @@ describe("photos, settings that save at once", () => {
 });
 
 describe("screen header actions, sheets, app actions, widget link count", () => {
-  test("a screen has up to 2 header actions that navigate; an icon-only one needs an icon", () => {
+  test("a screen has up to 2 header actions that navigate or run a tool; an icon-only one needs an icon", () => {
     const panel: ScreenAction = { label: "Panel", icon: "shield", action: ui.navigate("admin") };
     const screen = ui.screen("Zgłoszenia", [], { actions: [panel] });
     expect(screenSchema.parse(screen)).toEqual(screen);
@@ -526,7 +526,8 @@ describe("screen header actions, sheets, app actions, widget link count", () => 
       true,
     );
     expect(parse([{ label: "Ustawienia", variant: "icon", action: ui.navigate("settings") }])).toBe(false);
-    expect(parse([{ ...panel, action: ui.tool("remove") }])).toBe(false);
+    expect(parse([{ ...panel, action: ui.tool("remove") }])).toBe(true);
+    expect(parse([{ ...panel, action: ui.app("dashboard") }])).toBe(false);
     expect(parse([panel, panel, panel])).toBe(false);
   });
 
@@ -557,5 +558,52 @@ describe("screen header actions, sheets, app actions, widget link count", () => 
         link: { label: "aktywnych", count: -1, action: ui.navigate("list") },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("chat screen", () => {
+  const message = { id: "m1", person: "Anna Nowak", text: "Proponuję lipy", at: "2026-10-04T08:30:00.000Z" };
+
+  test("a chat of messages, a composer and a confirmed tool action in the header make a valid screen", () => {
+    const screen = ui.screen(
+      "Zieleń przy Rondzie",
+      [
+        ui.chat({ label: "Wiadomości", messages: [message, { ...message, id: "m2", mine: true, note: "edytowano" }] }),
+        ui.composer({
+          name: "text",
+          label: "Twoja wiadomość",
+          placeholder: "Napisz wiadomość…",
+          sendLabel: "Wyślij",
+          submit: ui.tool("sendMessage", { discussion: "d1" }),
+        }),
+      ],
+      {
+        actions: [
+          {
+            label: "Zamknij dyskusję",
+            icon: "lock",
+            variant: "icon",
+            action: ui.tool("lockDiscussion", { id: "d1", locked: true }),
+            confirm: {
+              title: "Zamknąć dyskusję?",
+              message: "Pisać będą mogli tylko moderatorzy.",
+              confirmLabel: "Zamknij",
+            },
+          },
+        ],
+      },
+    );
+    expect(screenSchema.parse(screen)).toEqual(screen);
+  });
+
+  test("messages need an ISO time; a composer is not for widgets", () => {
+    expect(uiNodeSchema.safeParse(ui.chat({ label: "x", messages: [{ ...message, at: "wczoraj" }] })).success).toBe(
+      false,
+    );
+    const composer = ui.composer({ name: "text", label: "x", sendLabel: "Wyślij", submit: ui.tool("send") });
+    expect(dashboardWidgetSchema.safeParse(ui.widget("x", [composer])).success).toBe(false);
+    expect(
+      dashboardWidgetSchema.safeParse(ui.widget("x", [ui.chat({ label: "x", messages: [message] })])).success,
+    ).toBe(true);
   });
 });

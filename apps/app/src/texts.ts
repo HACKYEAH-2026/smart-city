@@ -263,6 +263,8 @@ export const t = {
   plugin_action_error: "Coś poszło nie tak. Sprawdź formularz i spróbuj ponownie.",
   plugin_unsupported: "Ten element wymaga nowszej wersji aplikacji.",
   plugin_activity_new: "Nowe",
+  plugin_chat_you: "Ty",
+  cancel: "Anuluj",
   plugin_photo_camera: "Aparat",
   plugin_photo_gallery: "Galeria",
   plugin_photo_add: "Dodaj",
@@ -324,10 +326,6 @@ export const t = {
   add_plugin_all_added: "Wszystkie rozszerzenia są już w tym miejscu.",
   add_plugin_no_results: "Żadne rozszerzenie nie pasuje do wyszukiwania.",
   manage_layout_title: "Układ pulpitu",
-  manage_layout_empty: "Włączone rozszerzenia nie mają widżetów do pokazania.",
-  /** The layout card's summary: "3 widżety · siatka 3 kolumn" (the number of columns comes from the API). */
-  manage_layout_grid: "siatka",
-  manage_layout_columns: "kolumn",
   manage_layout_edit: "Edytuj układ pulpitu",
   // The dashboard layout editor (design E-UkladPulpitu)
   manage_layout_hint: "Dotknij widżetu, aby zmienić rozmiar lub kolejność.",

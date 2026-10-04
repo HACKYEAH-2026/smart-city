@@ -82,7 +82,8 @@ export const useCommunities = () =>
   code with the iPhone camera. Guest/hackathon Wi-Fi usually isolates devices: use the cable.
 - Dev login: `EXPO_PUBLIC_DEV_LOGIN=true` in the repo-root `.env` (the app's dev script loads it with `--env-file`;
   restart the `app` proc) adds buttons at the bottom of the login screen that sign in as the demo admin
-  (`admin@krakow.test`) or the demo resident (`anna@krakow.test`), both seeded by the dev API. Off by default; read
+  (`admin@krakow.test`), the demo resident (`anna@krakow.test`), the Tauron Arena's admin (`admin@arena.test`) or
+  another resident with reports of his own (`piotr@krakow.test`), all seeded by the dev API. Off by default; read
   only in `src/lib/config.ts` (`devLoginAccounts`).
 - Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
 - Keyboard: `Screen` scrolls with `KeyboardAwareScrollView` (react-native-keyboard-controller, also in Expo Go), so a

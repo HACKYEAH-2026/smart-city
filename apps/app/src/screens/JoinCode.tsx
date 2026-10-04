@@ -1,11 +1,10 @@
 import { parseInviteCode } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft } from "lucide-react-native";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { Button, IconButton, OtpInput, Screen, SegmentedControl, Text, TextField } from "../components";
+import { BackButton, Button, OtpInput, Screen, SegmentedControl, Text, TextField } from "../components";
 import { useFindPlace } from "../data/communities";
 import { inviteCodeFromScan } from "../lib/inviteScan";
 import { sectionEntering } from "../lib/motion";
@@ -47,7 +46,7 @@ export default function JoinCode() {
       <Head>
         <title>{t.join_code_title}</title>
       </Head>
-      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={() => goBack(router, "/app/join-place")} />
+      <BackButton onPress={() => goBack(router, "/app/join-place")} />
       <View style={styles.intro}>
         <Text role="heading" aria-level={1} variant="titleXL">
           {t.join_code_title}

@@ -4,6 +4,7 @@ export { ActionRow } from "./ActionRow";
 export { AppHeader } from "./AppHeader";
 export type { AvatarProps, AvatarTone } from "./Avatar";
 export { Avatar } from "./Avatar";
+export { BackButton } from "./BackButton";
 export type { BadgeProps, BadgeTone } from "./Badge";
 export { Badge } from "./Badge";
 export type { BottomSheetProps } from "./BottomSheet";

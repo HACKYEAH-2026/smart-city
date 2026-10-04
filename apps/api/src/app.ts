@@ -153,7 +153,7 @@ export function createApp({
     .route("/api/plugins", pluginsRoutes)
     .route("/api/admin", createAdminRoutes(env.PLUGIN_ADMIN_TOKEN));
 
-  return { app: routes, auth, plugins, notifications, builder };
+  return { app: routes, auth, plugins, notifications, builder, files };
 }
 
 export type AppType = ReturnType<typeof createApp>["app"];

@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { surql } from "surrealdb";
 import { TEST_ENV } from "../src/test-env";
 import { DEMO_RESIDENT, seedDemoResident } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
+
+// Uploading a plugin type-checks it (~1 s on an idle machine, more when verify runs builds in parallel).
+setDefaultTimeout(30_000);
 
 /**
  * Membership: a user sees and opens only the places they belong to; creating a place makes its creator an admin.

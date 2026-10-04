@@ -1,9 +1,10 @@
 import type { NavigateAction } from "@app/plugin-sdk";
-import type { PlaceKind } from "@app/shared";
+import { INVITE_CODE_ALPHABET, INVITE_CODE_LENGTH, type PlaceKind } from "@app/shared";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { Auth } from "./auth";
 import {
+  type CommunityRow,
   communityBySlug,
   DATABASE,
   type Db,
@@ -14,6 +15,7 @@ import {
   migrate,
   NAMESPACE,
   ref,
+  rows,
   toCommunity,
 } from "./db";
 import type { PluginHost } from "./plugins/host";
@@ -40,8 +42,9 @@ const mapPlace = (slug: string, name: string, kind: PlaceKind, address: string, 
 });
 /**
  * Public places of Kraków for the map of places in local dev, so it is not a single pin: universities, offices,
- * libraries, culture, parks, hospitals… (40 pins with the demo place at the city hall). No members and no plugins: a
- * pin with a card. Names, addresses and points from OpenStreetMap (looked up once with Photon and Nominatim).
+ * libraries, culture, parks, hospitals… (40 pins with the demo place at the city hall and the Tauron Arena, a place
+ * of the demo in test-demo.ts). No members: a pin with a card, open to join (seedDemoMap). Names, addresses and points
+ * from OpenStreetMap (looked up once with Photon and Nominatim).
  */
 export const DEMO_MAP_PLACES = [
   mapPlace("uj", "Uniwersytet Jagielloński", "school", "Gołębia 24, 31-007 Kraków", 50.06086, 19.93324),
@@ -183,7 +186,6 @@ export const DEMO_MAP_PLACES = [
     50.06842,
     19.94789,
   ),
-  mapPlace("tauron-arena", "Tauron Arena Kraków", "other", "Stanisława Lema 7, 31-571 Kraków", 50.06772, 19.99155),
   mapPlace("stary-kleparz", "Stary Kleparz", "other", "Rynek Kleparski 20, 31-150 Kraków", 50.06738, 19.94109),
   mapPlace("park-wodny", "Park Wodny", "other", "Dobrego Pasterza 126, 31-478 Kraków", 50.08889, 19.98279),
   mapPlace(
@@ -213,7 +215,7 @@ type ResidentPlace = {
   pluginIds: string[];
 };
 /** On the map of places for everyone signed in, and joined by anyone (from the map, or with the code). */
-const PUBLIC_AND_OPEN = { on_map: true, join_rule: "open" } as const;
+export const PUBLIC_AND_OPEN = { on_map: true, join_rule: "open" } as const;
 /**
  * DEMO_RESIDENT's places besides Kraków: the campus and the housing cooperative of the demo video's ads, each with
  * only the plugins it needs. Made-up places on real addresses (points from Nominatim). Like Kraków, both are on the
@@ -255,13 +257,13 @@ async function seedAccount({ db, auth }: Deps, account: { email: string; passwor
   return existing ? keyOf(existing) : (await auth.api.signUpEmail({ body: { ...account } })).user.id;
 }
 
-async function seededCommunity(db: Db, slug: string) {
+export async function seededCommunity(db: Db, slug: string) {
   const row = await communityBySlug(db, slug);
   if (!row) throw new Error(`seed: community ${slug} missing`);
   return toCommunity(row);
 }
 
-function builtinPlugin(plugins: PluginHost, id: string) {
+export function builtinPlugin(plugins: PluginHost, id: string) {
   const plugin = plugins.get(id);
   if (plugin?.origin !== "builtin") throw new Error(`seed: no built-in plugin ${id}`);
   return plugin;
@@ -328,22 +330,38 @@ export async function seedDemoResident(deps: Deps) {
   await db.query(surql`INSERT IGNORE INTO membership ${memberships};`);
 }
 
+/** A pin's invite code, from its slug: the same after every restart, so a code taken from the map keeps working. */
+const pinInviteCode = (slug: string) => {
+  const hash = BigInt(Bun.hash(slug));
+  const char = (i: number) => INVITE_CODE_ALPHABET[Number((hash >> BigInt(5 * i)) & 31n)];
+  return Array.from({ length: INVITE_CODE_LENGTH }, (_, i) => char(i)).join("");
+};
+
 /**
- * Local dev only (idempotent): the public places of DEMO_MAP_PLACES. Not part of seedDemo, so /__test/reset (E2E)
- * and t.seed() keep the demo place alone on the map.
+ * Local dev only (idempotent): the public places of DEMO_MAP_PLACES, open to anyone from the map (PUBLIC_AND_OPEN,
+ * a fixed code each) and with the built-in plugins, like Kraków. Not part of seedDemo, so /__test/reset (E2E) and
+ * t.seed() keep the demo place alone on the map.
  */
-export async function seedDemoMap(db: Db) {
+export async function seedDemoMap({ db, plugins }: Pick<Deps, "db" | "plugins">) {
   const places = DEMO_MAP_PLACES.map(({ lat, lng, ...place }) => ({
     ...place,
+    ...PUBLIC_AND_OPEN,
+    invite_code: pinInviteCode(place.slug),
     location: geoPoint({ lat, lng }),
-    on_map: true,
   }));
   // The seed owns the public places nobody belongs to: it replaces them, so a changed list moves or drops old pins.
-  // Places with members are never touched (and keep their slug if the list has it too).
-  await db.query(
+  // Places with members are never touched (and keep their slug if the list has it too): only new rows get plugins.
+  const created = await rows<CommunityRow>(
+    db,
     surql`DELETE community WHERE on_map AND id NOT IN (SELECT VALUE community FROM membership);
-          INSERT IGNORE INTO community ${places};`,
+          INSERT IGNORE INTO community ${places} RETURN id, slug, name;`,
   );
+  await plugins.ready();
+  const builtins = plugins.list().filter((p) => p.origin === "builtin");
+  for (const row of created) {
+    // One after another: the place's navigation lists plugins in the order they were enabled.
+    for (const plugin of builtins) await plugins.enable(plugin, toCommunity(row));
+  }
 }
 
 /**

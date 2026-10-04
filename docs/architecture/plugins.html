@@ -998,7 +998,7 @@ RETURN $result;</code></pre>
                 </tr>
                 <tr>
                   <td>Content</td>
-                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.meta</code>, <code>ui.notice</code>, <code>ui.badge</code>, <code>ui.tags</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty(text, { title?, icon? })</code>, <code>ui.image(fileId, alt)</code>, <code>ui.gallery</code>, <code>ui.timeline</code>, <code>ui.activity({ title, text?, person?, at?, unread? })</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code>; <code>ui.highlight</code> is deprecated</td>
+                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.meta</code>, <code>ui.notice</code>, <code>ui.badge</code>, <code>ui.tags</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty(text, { title?, icon? })</code>, <code>ui.image(fileId, alt)</code>, <code>ui.gallery</code>, <code>ui.timeline</code>, <code>ui.activity({ title, text?, person?, at?, unread? })</code>, <code>ui.chat({ label, messages })</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code>; <code>ui.highlight</code> is deprecated</td>
                 </tr>
                 <tr>
                   <td>Actions</td>
@@ -1006,7 +1006,7 @@ RETURN $result;</code></pre>
                 </tr>
                 <tr>
                   <td>Forms</td>
-                  <td><code>ui.form({ submitLabel, submit: ui.tool(…), children })</code> with <code>ui.textInput</code>, <code>ui.select</code>, <code>ui.switch</code>, <code>ui.imagePicker({ max?, value? })</code>, <code>ui.locationInput</code>; field values become the tool's <code>args</code>. A Switch or Select outside a Form with an <code>action</code> saves on every change</td>
+                  <td><code>ui.composer({ name, label, sendLabel, submit })</code> (a pinned message field), <code>ui.form({ submitLabel, submit: ui.tool(…), children })</code> with <code>ui.textInput</code>, <code>ui.select</code>, <code>ui.switch</code>, <code>ui.imagePicker({ max?, value? })</code>, <code>ui.locationInput</code>; field values become the tool's <code>args</code>. A Switch or Select outside a Form with an <code>action</code> saves on every change</td>
                 </tr>
               </tbody>
             </table>

@@ -1,11 +1,12 @@
 import type { GeoPoint } from "@app/plugin-sdk";
 import type { GeoAddress } from "@app/shared";
 import Head from "expo-router/head";
-import { ChevronLeft, LocateFixed, type LucideIcon, MapPin } from "lucide-react-native";
+import { LocateFixed, type LucideIcon, MapPin } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  BackButton,
   Button,
   Card,
   Icon,
@@ -120,7 +121,7 @@ export default function LocationPicker({
       </View>
       <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + layout.screenTopOffset }]}>
         <View style={styles.searchRow}>
-          <IconButton icon={ChevronLeft} label={t.back} variant="roundOnImage" onPress={onCancel} />
+          <BackButton onPress={onCancel} />
           <SearchField
             label={t.location_search}
             value={query}

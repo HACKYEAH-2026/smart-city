@@ -1,7 +1,7 @@
 /**
  * Server for E2E and local dev: applies the schema to the database (DATABASE_URL, in-memory by default),
- * seeds the demo place, a resident of three places and more public places around Kraków (test-routes.ts) and adds
- * /__test/reset.
+ * seeds the demo place, a resident of three places and more public places around Kraków (test-routes.ts), the demo's
+ * people and the content of Kraków and the Tauron Arena (test-demo.ts), and adds /__test/reset.
  * Refuses to start outside NODE_ENV=test.
  * Google sign-in: with the test client ID (E2E) it accepts fake ID tokens (test-google.ts); with a real
  * GOOGLE_CLIENT_ID (local dev with a phone, the repo-root .env) it checks real tokens like production.
@@ -11,6 +11,7 @@ import { createDb, migrate } from "./db";
 import { loadEnv } from "./env";
 import { logger } from "./log";
 import { TestPluginAuthor } from "./test-author";
+import { createDemoRoutes, seedDemoContent } from "./test-demo";
 import { TEST_ENV } from "./test-env";
 import { TestGeocoder } from "./test-geocoder";
 import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "./test-google";
@@ -32,7 +33,7 @@ if (env.NODE_ENV !== "test") {
 
 const handle = await createDb(env.DATABASE_URL);
 await migrate(handle.db);
-const { app, auth, plugins } = createApp({
+const { app, auth, plugins, files } = createApp({
   db: handle.db,
   env,
   ...(env.GOOGLE_CLIENT_ID === TEST_GOOGLE_CLIENT_ID ? { verifyGoogleIdToken: verifyTestGoogleIdToken } : {}),
@@ -41,13 +42,17 @@ const { app, auth, plugins } = createApp({
   // E2E (PLUGIN_AUTHOR=test): the plugin builder writes a fixed plugin, no model; local dev uses the env's model.
   ...(process.env.PLUGIN_AUTHOR === "test" ? { author: new TestPluginAuthor() } : {}),
 });
-const deps = { db: handle.db, auth, plugins };
+const deps = { db: handle.db, auth, plugins, files };
 await seedDemo(deps);
 // A resident of Kraków, a campus and a cooperative for local dev; /__test/reset (E2E) starts without them.
 await seedDemoResident(deps);
+// The demo's people, the Tauron Arena and what they wrote in it and in Kraków; /__test/reset starts without them too.
+// A dev database the seed does not expect (e.g. an old plugin's data) only loses the demo content, not the API.
+await seedDemoContent(deps).catch((err: unknown) => log.error("demo content not seeded", { err }));
 // More pins on the map of places for local dev; /__test/reset (E2E) starts from the demo place alone.
-await seedDemoMap(handle.db);
+await seedDemoMap(deps);
 app.route("/", createTestRoutes(deps));
+app.route("/", createDemoRoutes(deps));
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
 log.info(`listening on :${server.port} (test server)`, { db: env.DATABASE_URL });

@@ -1,7 +1,7 @@
-import type { Action, UINode } from "@app/plugin-sdk";
-import { ChevronLeft } from "lucide-react-native";
+import type { Action, ScreenAction, UINode } from "@app/plugin-sdk";
 import { StyleSheet, View } from "react-native";
-import { Button, Heading, Icon, IconButton, Text } from "../components";
+import { BackButton, Button, Heading, Icon, IconButton, Text } from "../components";
+import { confirmDestructive } from "../lib/confirm";
 import { t } from "../texts";
 import { radii, sizes, spacing } from "../theme";
 import { UI_ICON } from "./icons";
@@ -11,7 +11,8 @@ type ScreenNode = Extract<UINode, { type: "Screen" }>;
 /**
  * A plugin screen's header (designs Z-Lista, Z-AdminPanel): the back button (none when the screen floats it over a
  * photo), the eyebrow over the title, and the screen's actions at the right: a dark pill with an icon and the label,
- * or a dark round icon button named by its label.
+ * or a dark round icon button named by its label. An action with `confirm` (e.g. closing a discussion) asks first, in
+ * the system dialog.
  */
 export function PluginScreenHeader({
   node,
@@ -22,9 +23,20 @@ export function PluginScreenHeader({
   backHref: string | null;
   onAction: (action: Action) => void;
 }) {
+  const run = async (action: ScreenAction) => {
+    const confirmed = action.confirm
+      ? await confirmDestructive({
+          title: action.confirm.title,
+          message: action.confirm.message,
+          confirm: action.confirm.confirmLabel,
+          cancel: t.cancel,
+        })
+      : true;
+    if (confirmed) onAction(action.action);
+  };
   return (
     <View style={styles.row}>
-      {backHref ? <IconButton icon={ChevronLeft} label={t.back} variant="plain" href={backHref} /> : null}
+      {backHref ? <BackButton href={backHref} /> : null}
       <View style={styles.text}>
         {node.eyebrow ? (
           <Text variant="sectionLabel" color="textSecondary" numberOfLines={1}>
@@ -42,7 +54,7 @@ export function PluginScreenHeader({
             icon={UI_ICON[action.icon]}
             label={action.label}
             variant="roundDark"
-            onPress={() => onAction(action.action)}
+            onPress={() => run(action)}
           />
         ) : (
           <Button
@@ -58,7 +70,7 @@ export function PluginScreenHeader({
             }
             style={styles.pill}
             hitSlop={spacing[1]}
-            onPress={() => onAction(action.action)}
+            onPress={() => run(action)}
           />
         ),
       )}

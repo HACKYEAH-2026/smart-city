@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { t } from "../texts";
-import { relativeTime } from "./relativeTime";
+import { messageTime, relativeTime } from "./relativeTime";
 
 const now = new Date(2026, 9, 3, 10, 0); // local time, so the calendar days are the same on every machine
 const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -27,4 +27,11 @@ test("the short style for tight rows drops 'temu' and the year", () => {
   expect(relativeTime(ago(2 * 60 * 60_000), now, "short")).toBe(`2 ${t.time_hours}`);
   expect(relativeTime(new Date(2026, 9, 2, 8, 0).toISOString(), now, "short")).toBe(t.time_yesterday);
   expect(relativeTime(new Date(2026, 9, 1, 8, 0).toISOString(), now, "short")).toBe("1 paź");
+});
+
+test("a chat message shows its clock time, with the day when it was not today", () => {
+  expect(messageTime(new Date(2026, 9, 3, 9, 5).toISOString(), now)).toBe("09:05");
+  expect(messageTime(new Date(2026, 9, 2, 21, 30).toISOString(), now)).toBe(`${t.time_yesterday}, 21:30`);
+  expect(messageTime(new Date(2026, 8, 28, 8, 0).toISOString(), now)).toBe("28 wrz, 08:00");
+  expect(messageTime(new Date(2025, 11, 31, 23, 59).toISOString(), now)).toBe("31 gru 2025, 23:59");
 });

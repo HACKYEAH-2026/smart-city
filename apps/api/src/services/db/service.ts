@@ -7,14 +7,22 @@ import type { LoadedPlugin } from "../../plugins/host";
  * `ctx.db`: the plugin's declared tables in the app database (`src/db`), via the engine from
  * `@app/plugin-sdk/engine` (same code as the test harness). Tables are named `p_<plugin>__<table>`,
  * every row is scoped to one installation, and references point to platform tables (user, plugin_file).
+ * `now` stamps createdAt/updatedAt (the dev demo seed writes rows dated in the past); the clock by default.
  */
-export function createPluginDb(db: Db, plugin: LoadedPlugin, installationId: string, userId: string | null): Database {
+export function createPluginDb(
+  db: Db,
+  plugin: LoadedPlugin,
+  installationId: string,
+  userId: string | null,
+  now?: () => Date,
+): Database {
   return createDatabase({
     surreal: db,
     pluginId: plugin.manifest.id,
     tables: plugin.definition.tables ?? {},
     installationId,
     userId,
+    now,
   });
 }
 

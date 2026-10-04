@@ -1,10 +1,9 @@
 import type { PlacePlugin } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { Badge, Button, Feedback, Heading, IconBox, IconButton, NoticeScreen, Screen, Text } from "../components";
+import { BackButton, Badge, Button, Feedback, Heading, IconBox, NoticeScreen, Screen, Text } from "../components";
 import { useCommunity, useDashboardLayout, usePlacePlugins, usePluginView, useSwitchPlugin } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
 import { useFlash } from "../lib/flash";
@@ -44,7 +43,7 @@ export default function PluginPage() {
 function PageHeader({ plugin, onBack }: { plugin: PlacePlugin | undefined; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <IconButton icon={ChevronLeft} label={t.back} variant="plain" onPress={onBack} />
+      <BackButton onPress={onBack} />
       {plugin ? <IconBox icon={plugin.icon} size="xl" neutral /> : null}
       <View style={styles.headerText}>
         <Text variant="label" color="textSecondary">

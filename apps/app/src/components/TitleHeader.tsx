@@ -1,9 +1,7 @@
-import { ChevronLeft } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
-import { t } from "../texts";
 import { spacing } from "../theme";
+import { BackButton } from "./BackButton";
 import { Heading } from "./Heading";
-import { IconButton } from "./IconButton";
 import { Text } from "./Text";
 
 export interface TitleHeaderProps {
@@ -21,7 +19,7 @@ export interface TitleHeaderProps {
 export function TitleHeader({ eyebrow, title, onBack }: TitleHeaderProps) {
   return (
     <View style={styles.row}>
-      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={onBack} />
+      <BackButton onPress={onBack} />
       <View style={styles.text}>
         <Text variant="label" color="textSecondary" numberOfLines={1}>
           {eyebrow}

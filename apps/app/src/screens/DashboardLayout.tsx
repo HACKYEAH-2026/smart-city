@@ -26,10 +26,10 @@ import { t } from "../texts";
 import { borders, colors, layout, opacity, radii, shadows, sizes, spacing } from "../theme";
 
 /**
- * The dashboard layout editor (design E-UkladPulpitu; Zarządzaj miejscem → Układ pulpitu → "Edytuj układ pulpitu"), for
- * a place's admins: the dashboard's grid with every widget on it. Tapping a widget selects it and opens a panel to
- * pick one of the sizes its plugin allows, move it earlier or later, or remove it; "Dodaj widżet" puts a removed one
- * back. Every change stays a draft until "Zapisz" saves it for everyone; leaving without saving drops it.
+ * The dashboard layout editor (design E-UkladPulpitu; "Edytuj układ pulpitu" on a plugin's page in Zarządzaj
+ * miejscem), for a place's admins: the dashboard's grid with every widget on it. Tapping a widget selects it and opens
+ * a panel to pick one of the sizes its plugin allows, move it earlier or later, or remove it; "Dodaj widżet" puts a
+ * removed one back. Every change stays a draft until "Zapisz" saves it for everyone; leaving without saving drops it.
  */
 export default function DashboardLayout() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
