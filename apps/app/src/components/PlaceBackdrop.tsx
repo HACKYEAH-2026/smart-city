@@ -1,30 +1,19 @@
-import type { PlaceDetails } from '@app/shared';
-import { BlurTargetView, BlurView } from 'expo-blur';
-import { useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  RadialGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
-import { STREET_ZOOM } from '../lib/map/spec';
-import { t } from '../texts';
-import { colors, layout, opacity, sizes } from '../theme';
-import { DashboardMap } from './DashboardMap';
-import { MapView } from './MapView';
-import { useScrollY } from './Screen';
+import type { PlaceDetails } from "@app/shared";
+import { BlurTargetView, BlurView } from "expo-blur";
+import { useRef } from "react";
+import { StyleSheet, View } from "react-native";
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
+import { STREET_ZOOM } from "../lib/map/spec";
+import { t } from "../texts";
+import { colors, layout, opacity, sizes } from "../theme";
+import { DashboardMap } from "./DashboardMap";
+import { MapView } from "./MapView";
+import { useScrollY } from "./Screen";
 
 export interface PlaceBackdropProps {
-  location: PlaceDetails['location'];
+  location: PlaceDetails["location"];
 }
 
 /**
@@ -40,12 +29,7 @@ export function PlaceBackdrop({ location }: PlaceBackdropProps) {
   const scrollY = useScrollY();
   // Blurs in as the content scrolls under the header (the screen's scroll position, read on the UI thread).
   const blur = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [0, sizes.dashboardBlurRange],
-      [0, 1],
-      Extrapolation.CLAMP,
-    ),
+    opacity: interpolate(scrollY.value, [0, sizes.dashboardBlurRange], [0, 1], Extrapolation.CLAMP),
   }));
   // Android blurs only what is drawn in the blur target (expo-blur): the artwork and pin live inside it.
   const blurTarget = useRef<View>(null);
@@ -58,16 +42,12 @@ export function PlaceBackdrop({ location }: PlaceBackdropProps) {
         height={sizes.dashboardGlow * 2}
       >
         <Defs>
-          <RadialGradient id='glow' cx='50%' cy='50%' r='50%'>
-            <Stop
-              offset='0'
-              stopColor={colors.primary}
-              stopOpacity={opacity.dashboardGlow / 3}
-            />
-            <Stop offset='1' stopColor={colors.primary} stopOpacity='0' />
+          <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor={colors.primary} stopOpacity={opacity.dashboardGlow / 3} />
+            <Stop offset="1" stopColor={colors.primary} stopOpacity="0" />
           </RadialGradient>
         </Defs>
-        <Circle cx='50%' cy='50%' r='50%' fill='url(#glow)' />
+        <Circle cx="50%" cy="50%" r="50%" fill="url(#glow)" />
       </Svg>
     </View>
   );
@@ -91,27 +71,24 @@ export function PlaceBackdrop({ location }: PlaceBackdropProps) {
         {artwork}
         {glow}
       </BlurTargetView>
-      <Animated.View
-        pointerEvents='none'
-        style={[StyleSheet.absoluteFill, blur]}
-      >
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, blur]}>
         <BlurView
           blurTarget={blurTarget}
-          blurMethod='dimezisBlurViewSdk31Plus'
+          blurMethod="dimezisBlurViewSdk31Plus"
           intensity={BLUR_INTENSITY}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
       {location ? (
         // Drawn over the blur as well, so the blurred map still fades into the screen at its lower edge.
-        <Svg style={styles.fade} width='100%' height={sizes.dashboardMapFade}>
+        <Svg style={styles.fade} width="100%" height={sizes.dashboardMapFade}>
           <Defs>
-            <LinearGradient id='fade' x1='0' y1='0' x2='0' y2='1'>
-              <Stop offset='0' stopColor={colors.background} stopOpacity='0' />
-              <Stop offset='1' stopColor={colors.background} stopOpacity='1' />
+            <LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={colors.background} stopOpacity="0" />
+              <Stop offset="1" stopColor={colors.background} stopOpacity="1" />
             </LinearGradient>
           </Defs>
-          <Rect x='0' y='0' width='100%' height='100%' fill='url(#fade)' />
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#fade)" />
         </Svg>
       ) : null}
     </View>
@@ -125,15 +102,15 @@ const styles = StyleSheet.create({
   // The whole backdrop (map, fade, marker) sits higher, so the marker lines up with the header's name.
   wrap: {
     height: sizes.dashboardMap,
-    overflow: 'hidden',
+    overflow: "hidden",
     top: -sizes.dashboardMapLift,
   },
   map: { height: MAP_HEIGHT },
-  fade: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  glow: { alignSelf: 'center' },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  glow: { alignSelf: "center" },
   // The box ends at the marker's centre: its width puts that centre at the pin's x, its height at twice pinTop.
   pin: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     width: `${200 * sizes.dashboardPinX}%`,
