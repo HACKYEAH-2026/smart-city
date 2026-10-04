@@ -1,4 +1,4 @@
-import { Link as RouterLink, usePathname } from "expo-router";
+import { Link as RouterLink, usePathname, useRouter } from "expo-router";
 import { LayoutDashboard, type LucideIcon, Map as MapIcon, MapPin, User } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,17 +16,32 @@ import { Text } from "./Text";
  */
 export function BottomTabBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  // On the dashboard, the switcher only sets its URL param: the dashboard stays mounted (its map is not reloaded and
+  // the screen does not fade through the background). From other sections it is a normal replace.
+  const openSwitcher = (event: { preventDefault(): void }) => {
+    if (pathname !== "/app") return;
+    event.preventDefault();
+    router.setParams({ places: "1" });
+  };
   const tabs = [
-    { href: "/app", label: t.tab_dashboard, icon: LayoutDashboard },
-    { href: "/app?places=1", label: t.tab_places, icon: MapPin },
-    { href: "/app/map", label: t.tab_map, icon: MapIcon },
-    { href: "/app/account", label: t.tab_account, icon: User },
+    { href: "/app", label: t.tab_dashboard, icon: LayoutDashboard, onPress: undefined },
+    { href: "/app?places=1", label: t.tab_places, icon: MapPin, onPress: openSwitcher },
+    { href: "/app/map", label: t.tab_map, icon: MapIcon, onPress: undefined },
+    { href: "/app/account", label: t.tab_account, icon: User, onPress: undefined },
   ] as const;
   return (
     <View role="navigation" aria-label={t.nav_main} style={[styles.bar, { paddingBottom: insets.bottom + spacing[4] }]}>
       {tabs.map((tab) => (
-        <TabLink key={tab.href} href={tab.href} label={tab.label} icon={tab.icon} active={pathname === tab.href} />
+        <TabLink
+          key={tab.href}
+          href={tab.href}
+          label={tab.label}
+          icon={tab.icon}
+          active={pathname === tab.href}
+          onPress={tab.onPress}
+        />
       ))}
     </View>
   );
@@ -36,10 +51,23 @@ export function BottomTabBar() {
  * One section of the bar: a link that replaces the current one (no stack growth), so the new section fades in and
  * back works as expected. The pressed state is an object style, since Slot (asChild) drops style functions.
  */
-function TabLink({ href, label, icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
+function TabLink({
+  href,
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  /** Runs instead of the navigation when it calls preventDefault. */
+  onPress?: (event: { preventDefault(): void }) => void;
+}) {
   const press = usePressed(tapFeedback);
   return (
-    <RouterLink href={href as never} replace asChild>
+    <RouterLink href={href as never} replace asChild onPress={onPress}>
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
