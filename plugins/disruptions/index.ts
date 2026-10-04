@@ -9,9 +9,8 @@ import type { Context, PluginModule } from "@app/plugin-sdk";
  * Geometry is stored as GeoJSON (LineString / Polygon, [longitude, latitude]) and validated here.
  * Dates are typed as "RRRR-MM-DD GG:MM" in TIME_ZONE; full ISO with an offset also works (AI tools).
  *
- * MAP ADAPTER: the map is drawn by `mapOf` and edited by `geometryField` below. They assume
- * `ui.map({ label, features })` and `ui.mapInput({ name, label, draw, value })` returning GeoJSON.
- * If the SDK's map component looks different, only these two helpers need to change.
+ * MAP ADAPTER: the map is drawn by `mapOf` (routes and areas layers, coloured by tone) and the admin's geometry is a
+ * GeoJSON text field (`geometryField`): the SDK has no drawing input. Only these two helpers change with the SDK.
  * The module imports nothing at runtime (only `import type`); the host provides the SDK.
  */
 const TIME_ZONE = "Europe/Warsaw";
@@ -20,7 +19,8 @@ const FOREVER = new Date("2100-01-01T00:00:00Z");
 const MAX_POINTS = 500;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const COLORS = { current: "#D32F2F", planned: "#F9A825" } as const;
+/** The map tones: a current disruption is danger (red), a planned one warning (yellow). */
+export const TONES = { current: "danger", planned: "warning" } as const;
 
 const KIND_VALUES = ["closure", "limited", "inconvenience"] as const;
 type Kind = (typeof KIND_VALUES)[number];
@@ -38,7 +38,20 @@ type Status = keyof typeof STATUS;
 const SHAPES = { line: "Odcinek drogi", area: "Obszar" } as const;
 
 // ---- Dates in the community time zone (same helpers as the events plugin) ----
-const MONTHS_GENITIVE = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
+const MONTHS_GENITIVE = [
+  "stycznia",
+  "lutego",
+  "marca",
+  "kwietnia",
+  "maja",
+  "czerwca",
+  "lipca",
+  "sierpnia",
+  "września",
+  "października",
+  "listopada",
+  "grudnia",
+];
 const WEEKDAYS = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
 const zoneFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: TIME_ZONE,
@@ -134,14 +147,15 @@ const parseGeometry = (value: unknown): Geometry | string => {
     const coords = Array.isArray(outer) ? outer.map(toPosition) : [];
     if (coords.some((c) => !c)) return "Nieprawidłowe współrzędne na mapie";
     const ring = coords as Position[];
-    if (ring.length > 1 && samePoint(ring[0]!, ring[ring.length - 1]!)) ring.pop();
+    const [first, last] = [ring[0], ring[ring.length - 1]];
+    if (ring.length > 1 && first && last && samePoint(first, last)) ring.pop();
     if (ring.length < 3) return "Obszar musi mieć co najmniej 3 punkty";
     if (ring.length > MAX_POINTS) return "Zbyt wiele punktów na mapie";
-    return { type: "Polygon", coordinates: [[...ring, ring[0]!]] };
+    return { type: "Polygon", coordinates: [[...ring, ...ring.slice(0, 1)]] };
   }
   return NO_GEOMETRY;
 };
-const pointsOf = (g: Geometry) => (g.type === "LineString" ? g.coordinates : g.coordinates[0]!);
+const pointsOf = (g: Geometry) => (g.type === "LineString" ? g.coordinates : (g.coordinates[0] ?? []));
 const centerOf = (g: Geometry) => {
   const pts = pointsOf(g);
   const lngs = pts.map((p) => p[0]);
@@ -172,18 +186,30 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
     ),
   };
   type Ctx = Context<typeof tables>;
-  type Row = { id: string; title: string; kind: Kind; shape: "line" | "area"; geometry: string; startsAt: Date; endsAt: Date | null; activeUntil: Date };
+  type Row = {
+    id: string;
+    title: string;
+    kind: Kind;
+    shape: "line" | "area";
+    geometry: string;
+    startsAt: Date;
+    endsAt: Date | null;
+    activeUntil: Date;
+  };
 
   const id = z.string().min(1);
   const dateField = (message: string) =>
-    z.string().trim().transform((s, c) => {
-      const date = parseWhen(s);
-      if (!date) {
-        c.addIssue({ code: "custom", message });
-        return z.NEVER;
-      }
-      return date;
-    });
+    z
+      .string()
+      .trim()
+      .transform((s, c) => {
+        const date = parseWhen(s);
+        if (!date) {
+          c.addIssue({ code: "custom", message });
+          return z.NEVER;
+        }
+        return date;
+      });
   const input = {
     title: z.string().trim().min(3, "Nazwa jest za krótka").max(120, "Nazwa jest za długa"),
     kind: z.enum(KIND_VALUES),
@@ -212,7 +238,15 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
     description: z.string().trim().max(3000, "Opis jest za długi").default(""),
     detour: z.string().trim().max(1000, "Opis objazdu jest za długi").default(""),
   };
-  type Input = { title: string; kind: Kind; geometry: Geometry; startsAt: Date; endsAt: Date | null; description: string; detour: string };
+  type Input = {
+    title: string;
+    kind: Kind;
+    geometry: Geometry;
+    startsAt: Date;
+    endsAt: Date | null;
+    description: string;
+    detour: string;
+  };
 
   const isAdmin = (ctx: Ctx) => ctx.user.role === "admin";
   const statusOf = (d: Pick<Row, "startsAt" | "activeUntil">, now: Date): Status =>
@@ -240,28 +274,37 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
     ctx.db.disruptions.findMany({ where: { startsAt: { gt: now } }, orderBy: { startsAt: "asc" }, limit });
 
   // ---- MAP ADAPTER ----
-  const mapOf = (label: string, items: Row[], now: Date) =>
-    ui.map({
-      label,
-      features: items.map((d) => ({
-        id: d.id,
-        geometry: JSON.parse(d.geometry) as Geometry,
-        color: statusOf(d, now) === "planned" ? COLORS.planned : COLORS.current,
-        title: d.title,
-        onPress: ui.navigate("detail", { id: d.id }),
-      })),
+  /** GeoJSON points to the map's points: [longitude, latitude] to { lat, lng }; a polygon's ring is not closed again. */
+  const toPoints = (g: Geometry) =>
+    (g.type === "LineString" ? g.coordinates : (g.coordinates[0] ?? []).slice(0, -1)).map(([lng, lat]) => ({
+      lat,
+      lng,
+    }));
+  const mapOf = (label: string, items: Row[], now: Date) => {
+    const shown = (d: Row) => ({
+      id: d.id,
+      title: d.title,
+      tone: statusOf(d, now) === "planned" ? TONES.planned : TONES.current,
+      onPress: ui.navigate("detail", { id: d.id }),
     });
+    const geometryOf = (d: Row) => JSON.parse(d.geometry) as Geometry;
+    const routes = items.filter((d) => d.shape === "line").map((d) => ({ ...shown(d), path: toPoints(geometryOf(d)) }));
+    const areas = items
+      .filter((d) => d.shape === "area")
+      .map((d) => ({ ...shown(d), polygon: toPoints(geometryOf(d)) }));
+    return ui.map({ label, layers: [ui.map.routes("Odcinki dróg", routes), ui.map.areas("Obszary", areas)] });
+  };
   const geometryField = (value?: string) =>
-    ui.mapInput({
+    ui.textInput({
       name: "geometry",
-      label: "Zaznacz odcinek drogi (linia) albo obszar (wielokąt)",
-      draw: ["line", "polygon"],
-      ...(value ? { value: JSON.parse(value) as Geometry } : {}),
+      label: "Geometria (GeoJSON)",
+      multiline: true,
+      hint: "Odcinek drogi jako LineString, obszar jako Polygon; współrzędne [długość, szerokość].",
+      ...(value ? { value } : {}),
     });
   // ---------------------
 
-  const legend = () =>
-    ui.row([ui.badge("Czerwony – trwające", "warning"), ui.badge("Żółty – planowane", "info")]);
+  const legend = () => ui.row([ui.badge("Czerwony – trwające", "warning"), ui.badge("Żółty – planowane", "info")]);
   const card = (d: Row) =>
     ui.card({
       title: d.title,
@@ -282,7 +325,11 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
           value: d?.kind ?? "inconvenience",
         }),
         geometryField(d?.geometry),
-        ui.textInput({ name: "startsAt", label: "Początek (RRRR-MM-DD GG:MM)", value: d ? fmtInput(d.startsAt) : undefined }),
+        ui.textInput({
+          name: "startsAt",
+          label: "Początek (RRRR-MM-DD GG:MM)",
+          value: d ? fmtInput(d.startsAt) : undefined,
+        }),
         ui.textInput({
           name: "endsAt",
           label: "Koniec (puste = do odwołania)",
@@ -293,7 +340,10 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
       ],
     });
   const notFound = () =>
-    ui.screen("Nie znaleziono", [ui.empty("To utrudnienie nie istnieje."), ui.button("Mapa utrudnień", ui.navigate("map"), "quiet")]);
+    ui.screen("Nie znaleziono", [
+      ui.empty("To utrudnienie nie istnieje."),
+      ui.button("Mapa utrudnień", ui.navigate("map"), "quiet"),
+    ]);
   const adminOnly = (message: string) => ui.screen("Brak dostępu", [ui.empty(message)]);
 
   return definePlugin({
@@ -340,7 +390,10 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
             limit: 50,
           });
           return ui.screen("Zakończone utrudnienia", [
-            ui.list("Zakończone utrudnienia", ended.length ? ended.map(card) : [ui.empty("Brak zakończonych utrudnień.")]),
+            ui.list(
+              "Zakończone utrudnienia",
+              ended.length ? ended.map(card) : [ui.empty("Brak zakończonych utrudnień.")],
+            ),
             ui.button("Aktualne utrudnienia", ui.navigate("list"), "quiet"),
           ]);
         }
@@ -349,7 +402,10 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
         return ui.screen("Utrudnienia", [
           ...(isAdmin(ctx) ? [ui.button("Dodaj utrudnienie", ui.navigate("new"))] : []),
           ui.heading(`Trwające utrudnienia (${active.length})`, 3),
-          ui.list("Trwające utrudnienia", active.length ? active.map(card) : [ui.empty("Teraz nic nie utrudnia przejazdu.")]),
+          ui.list(
+            "Trwające utrudnienia",
+            active.length ? active.map(card) : [ui.empty("Teraz nic nie utrudnia przejazdu.")],
+          ),
           ui.heading(`Planowane utrudnienia (${next.length})`, 3),
           ui.list("Planowane utrudnienia", next.length ? next.map(card) : [ui.empty("Brak zaplanowanych utrudnień.")]),
           ui.row([
@@ -379,7 +435,9 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
             ? [
                 ui.row([
                   ui.button("Edytuj", ui.navigate("edit", { id: d.id }), "quiet"),
-                  ...(status !== "ended" ? [ui.button("Zakończ teraz", ui.tool("endDisruption", { id: d.id }), "quiet")] : []),
+                  ...(status !== "ended"
+                    ? [ui.button("Zakończ teraz", ui.tool("endDisruption", { id: d.id }), "quiet")]
+                    : []),
                   ui.button("Usuń", ui.tool("deleteDisruption", { id: d.id }), "danger"),
                 ]),
               ]
@@ -393,7 +451,10 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
 
       new: (ctx) =>
         isAdmin(ctx)
-          ? ui.screen("Nowe utrudnienie", [form(ui.tool("createDisruption"), "Opublikuj utrudnienie"), ui.button("Anuluj", ui.navigate("map"), "quiet")])
+          ? ui.screen("Nowe utrudnienie", [
+              form(ui.tool("createDisruption"), "Opublikuj utrudnienie"),
+              ui.button("Anuluj", ui.navigate("map"), "quiet"),
+            ])
           : adminOnly("Utrudnienia dodają administratorzy."),
 
       edit: async (ctx, params) => {
@@ -409,21 +470,24 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       now: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const now = ctx.now();
           const active = await current(ctx, now, 3);
-          const activeCount = await ctx.db.disruptions.count({ where: { startsAt: { lte: now }, activeUntil: { gt: now } } });
+          const activeCount = await ctx.db.disruptions.count({
+            where: { startsAt: { lte: now }, activeUntil: { gt: now } },
+          });
           const soon = await ctx.db.disruptions.count({
             where: { startsAt: { gt: now, lte: new Date(now.getTime() + 7 * DAY_MS) } },
           });
-          if (!activeCount && !soon) return null;
+          // Always drawn: with nothing going on, the empty state and the map.
           return ui.widget("Utrudnienia", [
             ui.text(activeCount ? `Trwające utrudnienia: ${activeCount}` : "Teraz nic nie utrudnia przejazdu.", "soft"),
             ...active.map((d) =>
               ui.card({ title: d.title, subtitle: KINDS[d.kind].label, onPress: ui.navigate("detail", { id: d.id }) }),
             ),
             ...(soon ? [ui.text(`Planowane w ciągu 7 dni: ${soon}`, "soft")] : []),
+            ...(activeCount || soon ? [] : [ui.empty("Nic nie utrudnia przejazdu w ciągu 7 dni.")]),
             ui.button("Mapa utrudnień", ui.navigate("map"), "quiet"),
           ]);
         },
@@ -440,7 +504,11 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
           const error = checkDates(i);
           if (error) return { error };
           const d = await ctx.db.disruptions.insert(toRow(i));
-          return { toast: "Utrudnienie opublikowane.", navigate: ui.navigate("detail", { id: d.id }), data: { id: d.id } };
+          return {
+            toast: "Utrudnienie opublikowane.",
+            navigate: ui.navigate("detail", { id: d.id }),
+            data: { id: d.id },
+          };
         },
       },
 
@@ -451,8 +519,13 @@ const disruptions: PluginModule = ({ definePlugin, ui, z, t }) => {
         handler: async (ctx, { id: disruptionId, ...i }) => {
           const error = checkDates(i);
           if (error) return { error };
-          if (!(await ctx.db.disruptions.update(disruptionId, toRow(i)))) return { error: "To utrudnienie nie istnieje." };
-          return { toast: "Zmiany zapisane.", navigate: ui.navigate("detail", { id: disruptionId }), data: { id: disruptionId } };
+          if (!(await ctx.db.disruptions.update(disruptionId, toRow(i))))
+            return { error: "To utrudnienie nie istnieje." };
+          return {
+            toast: "Zmiany zapisane.",
+            navigate: ui.navigate("detail", { id: disruptionId }),
+            data: { id: disruptionId },
+          };
         },
       },
 

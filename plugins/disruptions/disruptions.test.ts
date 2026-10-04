@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { PluginUser } from "@app/plugin-sdk";
 import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
-import disruptions, { COLORS } from "./index";
+import disruptions, { TONES } from "./index";
 
 const city = { id: "city", name: "Urząd", role: "admin" } as const;
 const anna = { id: "anna", name: "Anna", role: "user" } as const;
@@ -10,8 +10,24 @@ type T = Awaited<ReturnType<typeof testPlugin>>;
 /** Sunday 4 October 2026, 10:00 in Warsaw. */
 const NOW = new Date("2026-10-04T08:00:00Z");
 
-const ROAD = { type: "LineString", coordinates: [[17.0301, 51.1079], [17.0402, 51.1101]] };
-const SQUARE = { type: "Polygon", coordinates: [[[17.02, 51.1], [17.03, 51.1], [17.03, 51.11], [17.02, 51.11]]] };
+const ROAD = {
+  type: "LineString",
+  coordinates: [
+    [17.0301, 51.1079],
+    [17.0402, 51.1101],
+  ],
+};
+const SQUARE = {
+  type: "Polygon",
+  coordinates: [
+    [
+      [17.02, 51.1],
+      [17.03, 51.1],
+      [17.03, 51.11],
+      [17.02, 51.11],
+    ],
+  ],
+};
 
 const start = async () => {
   const t = await testPlugin(disruptions, { user: anna });
@@ -38,23 +54,28 @@ const seed = async (t: T) => ({
     startsAt: "2026-10-10 06:00",
     endsAt: "2026-10-11 22:00",
   }),
-  old: await add(t, { title: "Malowanie pasów", kind: "inconvenience", geometry: ROAD, startsAt: "2026-09-01 07:00", endsAt: "2026-09-05 18:00" }),
+  old: await add(t, {
+    title: "Malowanie pasów",
+    kind: "inconvenience",
+    geometry: ROAD,
+    startsAt: "2026-09-01 07:00",
+    endsAt: "2026-09-05 18:00",
+  }),
 });
 const seen = async (t: T, user: PluginUser, view: string, params: Record<string, string> = {}) =>
   textsOf(await t.as(user).view(view, params)).join("\n");
 
-/** Map features anywhere in a view tree (see the MAP ADAPTER in index.ts). */
-type Feature = { id: string; title: string; color: string; geometry: { type: string } };
-const featuresOf = (node: unknown): Feature[] => {
+/** Map items (routes and areas) anywhere in a view tree, with their tones (see the MAP ADAPTER in index.ts). */
+type MapItem = { id: string; title: string; tone?: string };
+const itemsOf = (node: unknown): MapItem[] => {
   if (!node || typeof node !== "object") return [];
-  if (Array.isArray(node)) return node.flatMap(featuresOf);
+  if (Array.isArray(node)) return node.flatMap(itemsOf);
   const o = node as Record<string, unknown>;
-  if (Array.isArray(o.features) && o.features.every((f) => f && typeof f === "object" && "color" in f))
-    return o.features as Feature[];
-  return Object.values(o).flatMap(featuresOf);
+  if (o.type === "Map") return (o.layers as { items: MapItem[] }[]).flatMap((layer) => layer.items);
+  return Object.values(o).flatMap(itemsOf);
 };
 const colors = async (t: T, params: Record<string, string> = {}) =>
-  Object.fromEntries(featuresOf(await t.view("map", params)).map((f) => [f.title, f.color]));
+  Object.fromEntries(itemsOf(await t.view("map", params)).map((i) => [i.title, i.tone]));
 
 describe("disruptions: admins mark them on the map", () => {
   test("roads and areas with time, kind and description; residents cannot publish", async () => {
@@ -64,11 +85,11 @@ describe("disruptions: admins mark them on the map", () => {
     expect(road).toMatchObject({ shape: "line", kind: "closure" });
     expect(road?.startsAt).toEqual(new Date("2026-10-01T05:00:00Z"));
     const area = await t.db.disruptions!.get(market);
-    expect(JSON.parse(area!.geometry).coordinates[0]).toHaveLength(5); // the ring was closed
+    expect(JSON.parse(String(area?.geometry)).coordinates[0]).toHaveLength(5); // the ring was closed
 
-    await expect(t.tool("createDisruption", { title: "Moje", kind: "closure", geometry: ROAD, startsAt: "2026-10-05 10:00" })).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
+    await expect(
+      t.tool("createDisruption", { title: "Moje", kind: "closure", geometry: ROAD, startsAt: "2026-10-05 10:00" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
     expect(await seen(t, anna, "new")).toContain("Utrudnienia dodają administratorzy.");
     expect(await seen(t, anna, "map")).not.toContain("Dodaj utrudnienie");
     expect(await seen(t, city, "map")).toContain("Dodaj utrudnienie");
@@ -79,13 +100,36 @@ describe("disruptions: admins mark them on the map", () => {
     const base = { title: "Remont", kind: "closure", startsAt: "2026-10-05 10:00" };
     expect(t.invalidInput("createDisruption", base)?.[0]?.message).toBe("Zaznacz odcinek drogi albo obszar na mapie");
     expect(
-      t.invalidInput("createDisruption", { ...base, geometry: { type: "LineString", coordinates: [[17.03, 51.1]] } })?.[0]?.message,
+      t.invalidInput("createDisruption", {
+        ...base,
+        geometry: { type: "LineString", coordinates: [[17.03, 51.1]] },
+      })?.[0]?.message,
     ).toBe("Odcinek drogi musi mieć co najmniej 2 punkty");
     expect(
-      t.invalidInput("createDisruption", { ...base, geometry: { type: "Polygon", coordinates: [[[17, 51], [17.1, 51]]] } })?.[0]?.message,
+      t.invalidInput("createDisruption", {
+        ...base,
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [17, 51],
+              [17.1, 51],
+            ],
+          ],
+        },
+      })?.[0]?.message,
     ).toBe("Obszar musi mieć co najmniej 3 punkty");
     expect(
-      t.invalidInput("createDisruption", { ...base, geometry: { type: "LineString", coordinates: [[17, 51], [200, 51]] } })?.[0]?.message,
+      t.invalidInput("createDisruption", {
+        ...base,
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [17, 51],
+            [200, 51],
+          ],
+        },
+      })?.[0]?.message,
     ).toBe("Nieprawidłowe współrzędne na mapie");
     // GeoJSON as text and as a Feature (what a map widget may send) are accepted.
     expect(t.invalidInput("createDisruption", { ...base, geometry: JSON.stringify(ROAD) })).toBeNull();
@@ -101,16 +145,16 @@ describe("disruptions: residents see the map and the list", () => {
   test("map: current in red, planned in yellow, ended not shown", async () => {
     const t = await start();
     await seed(t);
-    expect(await colors(t)).toEqual({ "Remont ul. Długiej": COLORS.current, "Jarmark na placu": COLORS.planned });
-    expect(await colors(t, { show: "current" })).toEqual({ "Remont ul. Długiej": COLORS.current });
-    expect(await colors(t, { show: "planned" })).toEqual({ "Jarmark na placu": COLORS.planned });
-    expect(COLORS).toEqual({ current: "#D32F2F", planned: "#F9A825" });
+    expect(await colors(t)).toEqual({ "Remont ul. Długiej": TONES.current, "Jarmark na placu": TONES.planned });
+    expect(await colors(t, { show: "current" })).toEqual({ "Remont ul. Długiej": TONES.current });
+    expect(await colors(t, { show: "planned" })).toEqual({ "Jarmark na placu": TONES.planned });
+    expect(TONES).toEqual({ current: "danger", planned: "warning" });
     const map = await seen(t, anna, "map");
     expect(map).toContain("Czerwony – trwające");
     expect(map).toContain("Żółty – planowane");
 
     t.setNow(new Date("2026-10-10T06:00:00Z")); // the market has started
-    expect(await colors(t)).toEqual({ "Remont ul. Długiej": COLORS.current, "Jarmark na placu": COLORS.current });
+    expect(await colors(t)).toEqual({ "Remont ul. Długiej": TONES.current, "Jarmark na placu": TONES.current });
   });
 
   test("list: current and planned sections; ended ones on their own list", async () => {
@@ -141,11 +185,16 @@ describe("disruptions: residents see the map and the list", () => {
       expect(detail).toContain(s);
     expect(detail).not.toContain("Zakończ teraz");
     expect(await seen(t, anna, "detail", { id: market })).toContain("Planowane");
-    expect(featuresOf(await t.view("detail", { id: market }))).toEqual([
-      expect.objectContaining({ title: "Jarmark na placu", color: COLORS.planned, geometry: expect.objectContaining({ type: "Polygon" }) }),
+    expect(itemsOf(await t.view("detail", { id: market }))).toEqual([
+      expect.objectContaining({ title: "Jarmark na placu", tone: TONES.planned }),
     ]);
 
-    const open = await add(t, { title: "Budowa ronda", kind: "inconvenience", geometry: SQUARE, startsAt: "2026-10-02 08:00" });
+    const open = await add(t, {
+      title: "Budowa ronda",
+      kind: "inconvenience",
+      geometry: SQUARE,
+      startsAt: "2026-10-02 08:00",
+    });
     expect(await seen(t, anna, "detail", { id: open })).toContain("do: odwołania");
   });
 });
@@ -167,8 +216,10 @@ describe("disruptions: managing", () => {
 
     await expect(t.tool("endDisruption", { id: roadworks })).rejects.toBeInstanceOf(ForbiddenError);
     expect((await t.as(city).tool("endDisruption", { id: roadworks })).toast).toBe("Utrudnienie zakończone.");
-    expect((await t.as(city).tool("endDisruption", { id: roadworks })).error).toBe("To utrudnienie już się zakończyło.");
-    expect(await colors(t)).toEqual({ "Jarmark na placu": COLORS.planned });
+    expect((await t.as(city).tool("endDisruption", { id: roadworks })).error).toBe(
+      "To utrudnienie już się zakończyło.",
+    );
+    expect(await colors(t)).toEqual({ "Jarmark na placu": TONES.planned });
 
     // Cancelling a planned one: it never shows up as current.
     await t.as(city).tool("endDisruption", { id: market });
@@ -185,15 +236,27 @@ describe("disruptions: managing", () => {
     const { roadworks, market } = await seed(t);
     const { data } = await t.tool("listDisruptions");
     expect(data).toEqual([
-      expect.objectContaining({ id: roadworks, status: "current", kindLabel: "Zamknięcie", center: { lng: 17.03515, lat: 51.109 } }),
+      expect.objectContaining({
+        id: roadworks,
+        status: "current",
+        kindLabel: "Zamknięcie",
+        center: { lng: 17.03515, lat: 51.109 },
+      }),
       expect.objectContaining({ id: market, status: "planned", shape: "area", center: { lng: 17.025, lat: 51.105 } }),
     ]);
-    expect((await t.tool("listDisruptions", { status: "planned" })).data).toEqual([expect.objectContaining({ id: market })]);
+    expect((await t.tool("listDisruptions", { status: "planned" })).data).toEqual([
+      expect.objectContaining({ id: market }),
+    ]);
   });
 
-  test("widget: hidden when nothing is going on; current disruptions and what is coming this week", async () => {
+  test("widget: an empty state when nothing is going on; current disruptions and what is coming this week", async () => {
     const t = await start();
-    expect(await t.dashboardWidget("now")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("now"))!)).toEqual([
+      "Utrudnienia",
+      "Teraz nic nie utrudnia przejazdu.",
+      "Nic nie utrudnia przejazdu w ciągu 7 dni.",
+      "Mapa utrudnień",
+    ]);
     await seed(t);
     expect(textsOf((await t.dashboardWidget("now"))!)).toEqual([
       "Utrudnienia",

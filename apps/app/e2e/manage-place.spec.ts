@@ -1,7 +1,18 @@
 import type { Page } from "@playwright/test";
 import { widgetsCount } from "../src/lib/plural";
 import { t } from "../src/texts";
-import { adminHeaders, DEMO_ADMIN_NAME, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
+import {
+  adminHeaders,
+  DEMO_ADMIN_NAME,
+  expect,
+  joinKrakow,
+  loginAdmin,
+  OTHER_BUILTIN_PLUGINS,
+  register,
+  signOut,
+  switchPluginsOff,
+  test,
+} from "./fixtures";
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
@@ -54,7 +65,18 @@ test("plugins: the section lists the place's plugins that are on and leads to ad
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
   const plugins = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
-  await expect(plugins).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
+  await expect(plugins).toHaveText([
+    /Zgłoszenia/,
+    /Ogłoszenia/,
+    /Dyskusje/,
+    /Utrudnienia/,
+    /Wydarzenia/,
+    /FAQ/,
+    /Grupy/,
+    /Pomoc sąsiedzka/,
+    /Giełda sąsiedzka/,
+    /Pytania i odpowiedzi/,
+  ]);
   // The line under a name counts the plugin's widgets.
   await expect(plugins.filter({ hasText: "Zgłoszenia" })).toContainText(widgetsCount(1));
   await expect(page.getByRole("link", { name: t.add_plugin_title })).toBeVisible();
@@ -101,7 +123,17 @@ test("plugins: the catalog lists the ones that are off; adding one puts it in th
   await expect(page.getByRole("heading", { name: t.add_plugin_title, level: 1 })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
   const enabled = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
-  await expect(enabled).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
+  await expect(enabled).toHaveText([
+    /Zgłoszenia/,
+    /Ogłoszenia/,
+    /Utrudnienia/,
+    /Wydarzenia/,
+    /FAQ/,
+    /Grupy/,
+    /Pomoc sąsiedzka/,
+    /Giełda sąsiedzka/,
+    /Pytania i odpowiedzi/,
+  ]);
   await page.getByRole("button", { name: t.back }).click();
   await expect(issuesTile).toBeVisible();
 });
@@ -183,7 +215,9 @@ test("invitations: the code with its QR; inviting someone by the email of their 
 
 test("dashboard layout: the editor changes sizes, order and widgets; saving changes the dashboard", async ({
   page,
+  api,
 }) => {
+  await switchPluginsOff(api.url, OTHER_BUILTIN_PLUGINS);
   const pluginHeading = page.getByRole("heading", { name: "Ogłoszenia", level: 1 });
   await loginAdmin(page);
   await openManage(page);

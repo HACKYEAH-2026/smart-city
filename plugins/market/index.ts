@@ -180,9 +180,19 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
           l.status === "active" || !l.partner
             ? []
             : isAuthor
-              ? [ui.text(`${l.status === "reserved" ? "Zarezerwowane dla" : "Transakcja z"}: ${l.partner.name}`, "soft")]
+              ? [
+                  ui.text(
+                    `${l.status === "reserved" ? "Zarezerwowane dla" : "Transakcja z"}: ${l.partner.name}`,
+                    "soft",
+                  ),
+                ]
               : l.partner.id === ctx.user.id
-                ? [ui.text(l.status === "reserved" ? "Zarezerwowane dla Ciebie." : "Transakcja zawarta z Tobą.", "soft")]
+                ? [
+                    ui.text(
+                      l.status === "reserved" ? "Zarezerwowane dla Ciebie." : "Transakcja zawarta z Tobą.",
+                      "soft",
+                    ),
+                  ]
                 : [];
 
         const authorSection = [
@@ -215,7 +225,13 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             ? [
                 ui.row([
                   ...(l.status !== "active"
-                    ? [ui.button("Przywróć jako aktywne", ui.tool("setStatus", { id: l.id, status: "active" }), "quiet")]
+                    ? [
+                        ui.button(
+                          "Przywróć jako aktywne",
+                          ui.tool("setStatus", { id: l.id, status: "active" }),
+                          "quiet",
+                        ),
+                      ]
                     : [ui.button("Zarezerwuj", ui.tool("setStatus", { id: l.id, status: "reserved" }), "quiet")]),
                   ...(l.status !== "closed"
                     ? [ui.button("Zakończ", ui.tool("setStatus", { id: l.id, status: "closed" }), "quiet")]
@@ -236,7 +252,10 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
       },
 
       mine: async (ctx) => {
-        const items = await ctx.db.listings.findMany({ where: { author: ctx.user.id }, orderBy: { createdAt: "desc" } });
+        const items = await ctx.db.listings.findMany({
+          where: { author: ctx.user.id },
+          orderBy: { createdAt: "desc" },
+        });
         return ui.screen("Moje ogłoszenia", [
           ui.list(
             "Moje ogłoszenia",
@@ -272,7 +291,12 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             })
           : [];
         const rows = [
-          ...asBuyer.map((c) => ({ id: c.id, at: c.lastMessageAt, title: c.listing.title, who: "Z autorem ogłoszenia" })),
+          ...asBuyer.map((c) => ({
+            id: c.id,
+            at: c.lastMessageAt,
+            title: c.listing.title,
+            who: "Z autorem ogłoszenia",
+          })),
           ...asSeller.map((c) => ({
             id: c.id,
             at: c.lastMessageAt,
@@ -347,10 +371,19 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
       moderation: async (ctx) => {
         if (!isAdmin(ctx)) return noAccess("Moderacja jest dostępna tylko dla administratorów.");
-        const flags = await ctx.db.flags.findMany({ orderBy: { createdAt: "desc" }, with: { listing: true }, limit: 1000 });
+        const flags = await ctx.db.flags.findMany({
+          orderBy: { createdAt: "desc" },
+          with: { listing: true },
+          limit: 1000,
+        });
         const byListing = new Map<string, { id: string; title: string; count: number; reasons: string[] }>();
         for (const f of flags) {
-          const row = byListing.get(f.listing.id) ?? { id: f.listing.id, title: f.listing.title, count: 0, reasons: [] };
+          const row = byListing.get(f.listing.id) ?? {
+            id: f.listing.id,
+            title: f.listing.title,
+            count: 0,
+            reasons: [],
+          };
           row.count += 1;
           if (f.reason) row.reasons.push(f.reason);
           byListing.set(row.id, row);
@@ -382,14 +415,19 @@ const market: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
     dashboardWidgets: {
       latest: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const latest = await ctx.db.listings.findMany({
             where: { status: "active" },
             orderBy: { createdAt: "desc" },
             limit: 3,
           });
-          if (!latest.length) return null;
+          // Always drawn: with nothing listed, an empty state and the way to the market.
+          if (!latest.length)
+            return ui.widget("Giełda sąsiedzka", [
+              ui.empty("Nic jeszcze nie wystawiono."),
+              ui.button("Zobacz wszystkie", ui.navigate("list"), "quiet"),
+            ]);
           const flagged = isAdmin(ctx) ? await ctx.db.flags.count() : 0;
           return ui.widget("Giełda sąsiedzka", [
             ...(flagged ? [ui.text(`Zgłoszenia do moderacji: ${flagged}`, "soft")] : []),

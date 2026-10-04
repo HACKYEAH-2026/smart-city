@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PluginUser } from "@app/plugin-sdk";
+import type { PluginUser, UINode } from "@app/plugin-sdk";
 import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import questions from "./index";
 
@@ -8,6 +8,13 @@ const anna = { id: "anna", name: "Anna", role: "user" } as const;
 const bartek = { id: "bartek", name: "Bartek", role: "user" } as const;
 
 type T = Awaited<ReturnType<typeof testPlugin>>;
+/** The labels of the forms' submit buttons in a view (textsOf reads only the texts). */
+const submitLabels = (node: UINode): string[] => {
+  const own = node.type === "Form" ? [node.submitLabel] : [];
+  const children = "children" in node && node.children ? (node.children as UINode[]) : [];
+  return [...own, ...children.flatMap(submitLabels)];
+};
+
 const ask = async (t: T, user: PluginUser, title: string, details?: string) =>
   ((await t.as(user).tool("ask", { title, ...(details ? { details } : {}) })).data as { id: string }).id;
 
@@ -36,13 +43,13 @@ describe("questions", () => {
 
     await expect(t.tool("answer", { id, answer: "Jutro" })).rejects.toBeInstanceOf(ForbiddenError);
     expect(textsOf(await t.view("item", { id }))).not.toContain("Odpowiedz");
-    expect(textsOf(await t.as(city).view("item", { id }))).toContain("Odpowiedz");
+    expect(submitLabels(await t.as(city).view("item", { id }))).toContain("Odpowiedz");
 
     expect((await t.as(city).tool("answer", { id, answer: "W najbliższą sobotę." })).toast).toBe("Odpowiedź zapisana.");
     expect(textsOf(await t.view("item", { id }))).toEqual(
       expect.arrayContaining(["Odpowiedziano", "W najbliższą sobotę."]),
     );
-    expect(textsOf(await t.as(city).view("item", { id }))).toContain("Zmień odpowiedź");
+    expect(submitLabels(await t.as(city).view("item", { id }))).toContain("Zmień odpowiedź");
 
     await t.as(city).tool("answer", { id, answer: "Przełożone na niedzielę." });
     const texts = textsOf(await t.view("item", { id }));
@@ -94,13 +101,21 @@ describe("questions", () => {
 });
 
 describe("questions: dashboard", () => {
-  test("admins see how many questions wait for an answer; residents see nothing", async () => {
+  test("admins see how many questions wait for an answer; residents see how to ask", async () => {
     const t = await testPlugin(questions, { user: anna });
-    expect(await t.as(city).dashboardWidget("pending")).toBeNull();
+    expect(textsOf((await t.as(city).dashboardWidget("pending"))!)).toEqual([
+      "Pytania mieszkańców",
+      "Nie czeka żadne pytanie.",
+      "Odpowiedz na pytania",
+    ]);
 
     const first = await ask(t, anna, "Kiedy wywóz gabarytów?");
     await ask(t, bartek, "Czy będzie nowy plac zabaw?");
-    expect(await t.dashboardWidget("pending")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("pending"))!)).toEqual([
+      "Pytania mieszkańców",
+      "Zadaj pytanie administratorowi.",
+      "Zobacz pytania",
+    ]);
     expect(textsOf((await t.as(city).dashboardWidget("pending"))!)).toEqual([
       "Pytania mieszkańców",
       "2 pytania czekają na odpowiedź",

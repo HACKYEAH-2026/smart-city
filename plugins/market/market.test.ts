@@ -19,7 +19,12 @@ const seen = async (t: T, user: PluginUser, view: string, params: Record<string,
 
 const start = async () => {
   const t = await testPlugin(market, { user: anna });
-  const bike = await post(t, anna, { kind: "sell", title: "Rower dziecięcy", price: "150 zł", description: "Mało używany." });
+  const bike = await post(t, anna, {
+    kind: "sell",
+    title: "Rower dziecięcy",
+    price: "150 zł",
+    description: "Mało używany.",
+  });
   return { t, bike };
 };
 
@@ -80,7 +85,9 @@ describe("market: listings", () => {
     expect(await seen(t, celina, "list")).not.toContain("Rower dziecięcy");
     expect(await seen(t, anna, "mine")).toContain("Rower dziecięcy");
     expect((await t.as(dawid).tool("startChat", { listing: bike })).error).toBe("To ogłoszenie jest już zakończone.");
-    expect((await t.as(celina).tool("sendMessage", { conversation: withCelina, text: "Szkoda!" })).error).toBeUndefined();
+    expect(
+      (await t.as(celina).tool("sendMessage", { conversation: withCelina, text: "Szkoda!" })).error,
+    ).toBeUndefined();
 
     await t.tool("setStatus", { id: bike, status: "active" });
     expect((await t.db.listings!.get(bike))?.partner ?? null).toBeNull();
@@ -168,9 +175,13 @@ describe("market: moderation", () => {
 });
 
 describe("market: dashboard", () => {
-  test("widget shows the newest active listings; hidden when there are none", async () => {
+  test("widget shows the newest active listings; an empty state when there are none", async () => {
     const t = await testPlugin(market, { user: bartek });
-    expect(await t.dashboardWidget("latest")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("latest"))!)).toEqual([
+      "Giełda sąsiedzka",
+      "Nic jeszcze nie wystawiono.",
+      "Zobacz wszystkie",
+    ]);
     await post(t, anna, { kind: "give", title: "Oddam meble" });
     const texts = textsOf((await t.dashboardWidget("latest"))!);
     expect(texts).toEqual(expect.arrayContaining(["Giełda sąsiedzka", "Oddam meble", "Zobacz wszystkie"]));

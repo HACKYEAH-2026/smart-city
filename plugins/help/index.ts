@@ -307,7 +307,9 @@ const help: PluginModule = ({ definePlugin, ui, z, t }) => {
           ...contact,
           ...(isAuthor ? authorSection : volunteerSection),
           ...(groupOpen ? [ui.button("Czat grupowy", ui.navigate("group", { id: r.id }))] : []),
-          ...(isAuthor || isAdmin(ctx) ? [ui.button("Usuń prośbę", ui.tool("deleteRequest", { id: r.id }), "danger")] : []),
+          ...(isAuthor || isAdmin(ctx)
+            ? [ui.button("Usuń prośbę", ui.tool("deleteRequest", { id: r.id }), "danger")]
+            : []),
           ui.button("Wszystkie prośby", ui.navigate("list"), "quiet"),
         ]);
       },
@@ -389,7 +391,7 @@ const help: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       open: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const where = { status: "open" as const, author: { ne: ctx.user.id } };
           const latest = await ctx.db.requests.findMany({ where, orderBy: { createdAt: "desc" }, limit: 2 });
@@ -469,8 +471,9 @@ const help: PluginModule = ({ definePlugin, ui, z, t }) => {
           if (existing && existing.status !== "asking")
             return { toast: "Twoja oferta pomocy jest już wysłana.", data: { id: existing.id } };
           const helper = existing
-            ? (await ctx.db.helpers.update(existing.id, { status: "offered" }))!
+            ? await ctx.db.helpers.update(existing.id, { status: "offered" })
             : await ctx.db.helpers.insert({ request: r.id, volunteer: ctx.user.id, status: "offered" });
+          if (!helper) return { error: "Ta oferta pomocy już nie istnieje." };
           return { toast: "Oferta pomocy wysłana. Autor da Ci znać.", refresh: true, data: { id: helper.id } };
         },
       },

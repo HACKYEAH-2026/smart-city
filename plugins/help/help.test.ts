@@ -70,7 +70,9 @@ describe("help: volunteering", () => {
     expect(thread).toContain("Około 15 kg.");
 
     expect(await seen(t, dawid, "thread", helper)).toContain("Nie masz dostępu do tej rozmowy.");
-    expect((await t.as(dawid).tool("sendMessage", { helper, text: "?" })).error).toBe("Nie masz dostępu do tej rozmowy.");
+    expect((await t.as(dawid).tool("sendMessage", { helper, text: "?" })).error).toBe(
+      "Nie masz dostępu do tej rozmowy.",
+    );
 
     expect(await offer(t, bartek, request)).toBe(helper);
     expect((await t.db.helpers!.get(helper))?.status).toBe("offered");
@@ -100,8 +102,12 @@ describe("help: volunteering", () => {
 
   test("the author accepts several volunteers; only they share the group chat", async () => {
     const { t, request } = await start();
+    // Volunteers are listed in the order they offered: each offer gets its own time.
+    t.setNow(new Date(Date.UTC(2026, 0, 1, 10, 1)));
     const b = await offer(t, bartek, request);
+    t.setNow(new Date(Date.UTC(2026, 0, 1, 10, 2)));
     const c = await offer(t, celina, request);
+    t.setNow(new Date(Date.UTC(2026, 0, 1, 10, 3)));
     const d = await offer(t, dawid, request);
 
     expect((await t.as(bartek).tool("respond", { helper: c, accept: true })).error).toBe(

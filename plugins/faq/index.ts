@@ -12,10 +12,7 @@ const WIDGET_ITEMS = 3;
 
 const faq: PluginModule = ({ definePlugin, ui, z, t }) => {
   const tables = {
-    entries: t.table(
-      { question: t.text(), answer: t.text(), position: t.timestamp() },
-      { indexes: [["position"]] },
-    ),
+    entries: t.table({ question: t.text(), answer: t.text(), position: t.timestamp() }, { indexes: [["position"]] }),
   };
   type Ctx = Context<typeof tables>;
 
@@ -34,7 +31,11 @@ const faq: PluginModule = ({ definePlugin, ui, z, t }) => {
     return last && last.position.getTime() >= now.getTime() ? new Date(last.position.getTime() + 1) : now;
   };
 
-  const entryForm = (submit: ReturnType<typeof ui.tool>, label: string, values?: { question: string; answer: string }) =>
+  const entryForm = (
+    submit: ReturnType<typeof ui.tool>,
+    label: string,
+    values?: { question: string; answer: string },
+  ) =>
     ui.form({
       submitLabel: label,
       submit,
@@ -102,7 +103,10 @@ const faq: PluginModule = ({ definePlugin, ui, z, t }) => {
 
       edit: async (ctx, params) => {
         if (!isAdmin(ctx))
-          return ui.screen("Brak dostępu", [ui.empty("FAQ edytują tylko administratorzy."), ui.button("Całe FAQ", ui.navigate("list"), "quiet")]);
+          return ui.screen("Brak dostępu", [
+            ui.empty("FAQ edytują tylko administratorzy."),
+            ui.button("Całe FAQ", ui.navigate("list"), "quiet"),
+          ]);
         const e = params.id ? await ctx.db.entries.get(params.id) : null;
         if (!e) return ui.screen("Nie znaleziono", [ui.empty("Tego pytania nie ma w FAQ.")]);
         return ui.screen("Edycja pytania", [
@@ -114,10 +118,14 @@ const faq: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       top: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const total = await ctx.db.entries.count();
-          if (!total) return null;
+          if (!total)
+            return ui.widget("FAQ", [
+              ui.empty("Nie ma jeszcze pytań."),
+              ui.button("Całe FAQ", ui.navigate("list"), "quiet"),
+            ]);
           const first = await ctx.db.entries.findMany({ orderBy: { position: "asc" }, limit: WIDGET_ITEMS });
           return ui.widget("FAQ", [
             ...first.map((e) => ui.card({ title: e.question, onPress: ui.navigate("entry", { id: e.id }) })),
@@ -158,7 +166,8 @@ const faq: PluginModule = ({ definePlugin, ui, z, t }) => {
           if (i < 0) return { error: "Tego pytania nie ma w FAQ." };
           const other = entries[input.direction === "up" ? i - 1 : i + 1];
           if (!other) return { refresh: true };
-          const current = entries[i]!;
+          const current = entries[i];
+          if (!current) return { error: "Tego pytania nie ma w FAQ." };
           await ctx.db.entries.update(current.id, { position: other.position });
           await ctx.db.entries.update(other.id, { position: current.position });
           return { refresh: true };

@@ -1,4 +1,4 @@
-import type { Context, PluginModule } from "@app/plugin-sdk";
+import type { Context, FileId, PluginModule } from "@app/plugin-sdk";
 
 /**
  * Event calendar of the community.
@@ -15,8 +15,34 @@ const TIME_ZONE = "Europe/Warsaw";
 const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000;
 const GENERAL = "general";
 
-const MONTHS_GENITIVE = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
-const MONTHS = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
+const MONTHS_GENITIVE = [
+  "stycznia",
+  "lutego",
+  "marca",
+  "kwietnia",
+  "maja",
+  "czerwca",
+  "lipca",
+  "sierpnia",
+  "września",
+  "października",
+  "listopada",
+  "grudnia",
+];
+const MONTHS = [
+  "Styczeń",
+  "Luty",
+  "Marzec",
+  "Kwiecień",
+  "Maj",
+  "Czerwiec",
+  "Lipiec",
+  "Sierpień",
+  "Wrzesień",
+  "Październik",
+  "Listopad",
+  "Grudzień",
+];
 const WEEKDAYS = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
 
 // ---- Dates in the community time zone (no runtime imports, so plain Intl) ----
@@ -120,14 +146,17 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
   const id = z.string().min(1);
   const when = (message: string) =>
-    z.string().trim().transform((s, c) => {
-      const date = parseWhen(s);
-      if (!date) {
-        c.addIssue({ code: "custom", message });
-        return z.NEVER;
-      }
-      return date;
-    });
+    z
+      .string()
+      .trim()
+      .transform((s, c) => {
+        const date = parseWhen(s);
+        if (!date) {
+          c.addIssue({ code: "custom", message });
+          return z.NEVER;
+        }
+        return date;
+      });
   const eventInput = {
     title: z.string().trim().min(3, "Tytuł jest za krótki").max(120, "Tytuł jest za długi"),
     startsAt: when("Podaj datę i godzinę w formacie RRRR-MM-DD GG:MM"),
@@ -151,7 +180,7 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
   const text = z.string().trim().min(1, "Wiadomość nie może być pusta").max(2000, "Wiadomość jest za długa");
   const isAdmin = (ctx: Ctx) => ctx.user.role === "admin";
 
-  const toRow = (input: { startsAt: Date; endsAt: Date | null; photo?: string | null }) => ({
+  const toRow = (input: { startsAt: Date; endsAt: Date | null; photo?: FileId | null }) => ({
     endsAt: input.endsAt,
     visibleUntil: input.endsAt ?? new Date(input.startsAt.getTime() + DEFAULT_DURATION_MS),
     photo: input.photo ?? null,
@@ -173,14 +202,26 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
       subtitle: [fmtWhen(e.startsAt, e.endsAt), e.location].filter(Boolean).join(" · "),
       onPress: ui.navigate("event", { id: e.id }),
     });
-  const eventForm = (submit: ReturnType<typeof ui.tool>, label: string, e?: { title: string; startsAt: Date; endsAt: Date | null; location: string; description: string }) =>
+  const eventForm = (
+    submit: ReturnType<typeof ui.tool>,
+    label: string,
+    e?: { title: string; startsAt: Date; endsAt: Date | null; location: string; description: string },
+  ) =>
     ui.form({
       submitLabel: label,
       submit,
       children: [
         ui.textInput({ name: "title", label: "Nazwa wydarzenia", value: e?.title }),
-        ui.textInput({ name: "startsAt", label: "Początek (RRRR-MM-DD GG:MM)", value: e ? fmtInput(e.startsAt) : undefined }),
-        ui.textInput({ name: "endsAt", label: "Koniec (opcjonalnie)", value: e?.endsAt ? fmtInput(e.endsAt) : undefined }),
+        ui.textInput({
+          name: "startsAt",
+          label: "Początek (RRRR-MM-DD GG:MM)",
+          value: e ? fmtInput(e.startsAt) : undefined,
+        }),
+        ui.textInput({
+          name: "endsAt",
+          label: "Koniec (opcjonalnie)",
+          value: e?.endsAt ? fmtInput(e.endsAt) : undefined,
+        }),
         ui.textInput({ name: "location", label: "Miejsce", value: e?.location }),
         ui.textInput({ name: "description", label: "Opis", multiline: true, value: e?.description }),
         ui.imagePicker({ name: "photo", label: "Zdjęcie (opcjonalnie)" }),
@@ -205,8 +246,16 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         const past = params.past === "1";
         const now = ctx.now();
         const items = past
-          ? await ctx.db.events.findMany({ where: { visibleUntil: { lte: now } }, orderBy: { startsAt: "desc" }, limit: 50 })
-          : await ctx.db.events.findMany({ where: { visibleUntil: { gt: now } }, orderBy: { startsAt: "asc" }, limit: 100 });
+          ? await ctx.db.events.findMany({
+              where: { visibleUntil: { lte: now } },
+              orderBy: { startsAt: "desc" },
+              limit: 50,
+            })
+          : await ctx.db.events.findMany({
+              where: { visibleUntil: { gt: now } },
+              orderBy: { startsAt: "asc" },
+              limit: 100,
+            });
         const months = new Map<string, typeof items>();
         for (const e of items) months.set(monthOf(e.startsAt), [...(months.get(monthOf(e.startsAt)) ?? []), e]);
         const unread = await unreadCount(ctx);
@@ -229,7 +278,11 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
       event: async (ctx, params) => {
         const e = params.id ? await ctx.db.events.get(params.id) : null;
-        if (!e) return ui.screen("Nie znaleziono", [ui.empty(NOT_FOUND), ui.button("Wszystkie wydarzenia", ui.navigate("list"), "quiet")]);
+        if (!e)
+          return ui.screen("Nie znaleziono", [
+            ui.empty(NOT_FOUND),
+            ui.button("Wszystkie wydarzenia", ui.navigate("list"), "quiet"),
+          ]);
         const admin = isAdmin(ctx);
         const questions = admin
           ? await ctx.db.conversations.findMany({
@@ -318,8 +371,13 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
       conversation: async (ctx, params) => {
         const found = params.id ? await loadConversation(ctx, params.id) : null;
-        if (!found) return ui.screen("Brak dostępu", [ui.empty(NO_ACCESS), ui.button("Wszystkie wydarzenia", ui.navigate("list"), "quiet")]);
-        const c = (await ctx.db.conversations.get(found.id, { with: { resident: true, event: true } }))!;
+        if (!found)
+          return ui.screen("Brak dostępu", [
+            ui.empty(NO_ACCESS),
+            ui.button("Wszystkie wydarzenia", ui.navigate("list"), "quiet"),
+          ]);
+        const c = await ctx.db.conversations.get(found.id, { with: { resident: true, event: true } });
+        if (!c) return ui.screen("Brak dostępu", [ui.empty(NO_ACCESS)]);
         const admin = isAdmin(ctx);
         // Opening the conversation marks it as read for this side.
         if (admin && c.unreadByAdmin) await ctx.db.conversations.update(c.id, { unreadByAdmin: false });
@@ -351,7 +409,7 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
     dashboardWidgets: {
       upcoming: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const next = await ctx.db.events.findMany({
             where: { visibleUntil: { gt: ctx.now() } },
@@ -359,7 +417,7 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             limit: 3,
           });
           const unread = await unreadCount(ctx);
-          if (!next.length && !unread) return null;
+          // Always drawn: with nothing planned, the empty state and the calendar.
           return ui.widget("Wydarzenia", [
             ...(unread ? [ui.text(`Nowe wiadomości: ${unread}`, "soft")] : []),
             ...(next.length ? next.map(eventCard) : [ui.text("Nie ma zaplanowanych wydarzeń.", "soft")]),
@@ -371,7 +429,8 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
     tools: {
       createEvent: {
-        description: "Dodaj wydarzenie do kalendarza (tylko administrator). Daty: RRRR-MM-DD GG:MM lub ISO z przesunięciem.",
+        description:
+          "Dodaj wydarzenie do kalendarza (tylko administrator). Daty: RRRR-MM-DD GG:MM lub ISO z przesunięciem.",
         input: z.object(eventInput),
         requires: "admin",
         handler: async (ctx, input) => {
@@ -451,8 +510,16 @@ const events: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         handler: async (ctx, input) => {
           const now = ctx.now();
           const items = input.past
-            ? await ctx.db.events.findMany({ where: { visibleUntil: { lte: now } }, orderBy: { startsAt: "desc" }, limit: 50 })
-            : await ctx.db.events.findMany({ where: { visibleUntil: { gt: now } }, orderBy: { startsAt: "asc" }, limit: 100 });
+            ? await ctx.db.events.findMany({
+                where: { visibleUntil: { lte: now } },
+                orderBy: { startsAt: "desc" },
+                limit: 50,
+              })
+            : await ctx.db.events.findMany({
+                where: { visibleUntil: { gt: now } },
+                orderBy: { startsAt: "asc" },
+                limit: 100,
+              });
           return {
             data: items.map((e) => ({
               id: e.id,

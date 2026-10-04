@@ -1,4 +1,4 @@
-import type { Context, PluginModule } from "@app/plugin-sdk";
+import type { Context, PluginModule, UINode } from "@app/plugin-sdk";
 
 /**
  * Community groups, similar to groups on Facebook.
@@ -54,7 +54,13 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         role: t.enum(["owner", "moderator", "member"]).default("member"),
         status: t.enum(["pending", "member", "banned"]).default("member"),
       },
-      { unique: [["group", "user"]], indexes: [["user", "status"], ["group", "status"]] },
+      {
+        unique: [["group", "user"]],
+        indexes: [
+          ["user", "status"],
+          ["group", "status"],
+        ],
+      },
     ),
     posts: t.table(
       {
@@ -127,7 +133,10 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
   const notFound = (message: string) =>
     ui.screen("Nie znaleziono", [ui.empty(message), ui.button("Wszystkie grupy", ui.navigate("list"), "quiet")]);
   const noAccess = (message: string, groupId?: string) =>
-    ui.screen("Brak dostępu", [ui.empty(message), groupId ? back(groupId) : ui.button("Wszystkie grupy", ui.navigate("list"), "quiet")]);
+    ui.screen("Brak dostępu", [
+      ui.empty(message),
+      groupId ? back(groupId) : ui.button("Wszystkie grupy", ui.navigate("list"), "quiet"),
+    ]);
 
   return definePlugin({
     id: "groups",
@@ -154,7 +163,7 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
               ? joined.map((g) =>
                   ui.card({
                     title: g.name,
-                    subtitle: ROLE[statusOf.get(g.id)!.role].text,
+                    subtitle: ROLE[statusOf.get(g.id)?.role ?? "member"].text,
                     badge: VISIBILITY[g.visibility],
                     onPress: ui.navigate("group", { id: g.id }),
                   }),
@@ -207,7 +216,9 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         if (!a) return notFound(NOT_FOUND);
         const { group, me } = a;
         const memberCount = await ctx.db.members.count({ where: { group: group.id, status: "member" } });
-        const pending = a.canModerate ? await ctx.db.members.count({ where: { group: group.id, status: "pending" } }) : 0;
+        const pending = a.canModerate
+          ? await ctx.db.members.count({ where: { group: group.id, status: "pending" } })
+          : 0;
 
         const membershipActions =
           me?.status === "banned"
@@ -230,12 +241,18 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
         const management = [
           ...(a.canModerate
-            ? [ui.button(pending ? `Członkowie (prośby: ${pending})` : "Członkowie", ui.navigate("members", { id: group.id }), "quiet")]
+            ? [
+                ui.button(
+                  pending ? `Członkowie (prośby: ${pending})` : "Członkowie",
+                  ui.navigate("members", { id: group.id }),
+                  "quiet",
+                ),
+              ]
             : []),
           ...(a.canManage ? [ui.button("Ustawienia grupy", ui.navigate("settings", { id: group.id }), "quiet")] : []),
         ];
 
-        let content;
+        let content: UINode[];
         if (!a.canRead) content = [ui.empty(PRIVATE)];
         else {
           const pinned = await ctx.db.posts.findMany({
@@ -280,7 +297,7 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
                       onPress: ui.navigate("post", { id: p.id }),
                       children: [
                         ...(p.photo ? [ui.image(p.photo, `Zdjęcie od: ${p.author.name}`)] : []),
-                        ui.text(`Polubienia: ${stats[i]!.likes} · Komentarze: ${stats[i]!.comments}`, "soft"),
+                        ui.text(`Polubienia: ${stats[i]?.likes ?? 0} · Komentarze: ${stats[i]?.comments ?? 0}`, "soft"),
                       ],
                     }),
                   )
@@ -290,7 +307,10 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         }
 
         return ui.screen(group.name, [
-          ui.row([ui.badge(VISIBILITY[group.visibility].text, VISIBILITY[group.visibility].tone), ui.badge(`Członkowie: ${memberCount}`)]),
+          ui.row([
+            ui.badge(VISIBILITY[group.visibility].text, VISIBILITY[group.visibility].tone),
+            ui.badge(`Członkowie: ${memberCount}`),
+          ]),
           ...(group.description ? [ui.text(group.description, "soft")] : []),
           ...membershipActions,
           ...(management.length ? [ui.row(management)] : []),
@@ -319,7 +339,13 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
           ...(p.photo ? [ui.image(p.photo, `Zdjęcie od: ${p.author.name}`)] : []),
           ui.text(`Polubienia: ${likes}`, "soft"),
           ...(a.canPost
-            ? [ui.button(liked ? "Cofnij polubienie" : "Lubię to", ui.tool("like", { post: p.id }), liked ? "quiet" : undefined)]
+            ? [
+                ui.button(
+                  liked ? "Cofnij polubienie" : "Lubię to",
+                  ui.tool("like", { post: p.id }),
+                  liked ? "quiet" : undefined,
+                ),
+              ]
             : []),
           ...(isAuthor
             ? [
@@ -334,7 +360,13 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             ? [
                 ui.row([
                   ...(a.canModerate
-                    ? [ui.button(p.pinned ? "Odepnij" : "Przypnij", ui.tool("pinPost", { id: p.id, pinned: !p.pinned }), "quiet")]
+                    ? [
+                        ui.button(
+                          p.pinned ? "Odepnij" : "Przypnij",
+                          ui.tool("pinPost", { id: p.id, pinned: !p.pinned }),
+                          "quiet",
+                        ),
+                      ]
                     : []),
                   ui.button("Usuń post", ui.tool("deletePost", { id: p.id }), "danger"),
                 ]),
@@ -393,7 +425,9 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
                 ]
               : [];
           return [
-            ...(a.canManage ? [ui.button("Mianuj moderatorem", ui.tool("setRole", { member: m.id, role: "moderator" }), "quiet")] : []),
+            ...(a.canManage
+              ? [ui.button("Mianuj moderatorem", ui.tool("setRole", { member: m.id, role: "moderator" }), "quiet")]
+              : []),
             ui.button("Usuń z grupy", ui.tool("removeMember", { member: m.id }), "quiet"),
             ui.button("Zablokuj", ui.tool("removeMember", { member: m.id, ban: true }), "danger"),
           ];
@@ -478,10 +512,14 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
 
     dashboardWidgets: {
       feed: {
-        size: { w: 2, h: 3 },
+        size: { w: 3, h: 3 },
         render: async (ctx) => {
           const mine = await ctx.db.members.findMany({ where: { user: ctx.user.id, status: "member" }, limit: 500 });
-          if (!mine.length) return null;
+          if (!mine.length)
+            return ui.widget("Grupy", [
+              ui.empty("Nie należysz jeszcze do żadnej grupy."),
+              ui.button("Moje grupy", ui.navigate("list"), "quiet"),
+            ]);
           const latest = await ctx.db.posts.findMany({
             where: { group: { in: mine.map((m) => m.group) } },
             orderBy: { lastActivityAt: "desc" },
@@ -530,10 +568,17 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
           if (!a.canManage) return { error: OWNER_ONLY };
           await ctx.db.groups.update(groupId, input);
           if (input.visibility === "public") {
-            const pending = await ctx.db.members.findMany({ where: { group: groupId, status: "pending" }, limit: 1000 });
+            const pending = await ctx.db.members.findMany({
+              where: { group: groupId, status: "pending" },
+              limit: 1000,
+            });
             for (const m of pending) await ctx.db.members.update(m.id, { status: "member" });
           }
-          return { toast: "Ustawienia zapisane.", navigate: ui.navigate("group", { id: groupId }), data: { id: groupId } };
+          return {
+            toast: "Ustawienia zapisane.",
+            navigate: ui.navigate("group", { id: groupId }),
+            data: { id: groupId },
+          };
         },
       },
 
@@ -591,7 +636,7 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         input: z.object({ member: id, accept: z.boolean() }),
         handler: async (ctx, input) => {
           const found = await loadMember(ctx, input.member);
-          if (!found || found.m.status !== "pending") return { error: "Ta prośba nie istnieje." };
+          if (found?.m.status !== "pending") return { error: "Ta prośba nie istnieje." };
           if (!found.a.canModerate) return { error: MODERATORS_ONLY };
           if (input.accept) await ctx.db.members.update(found.m.id, { status: "member" });
           else await ctx.db.members.delete(found.m.id);
@@ -604,11 +649,14 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         input: z.object({ member: id, role: z.enum(["moderator", "member"]) }),
         handler: async (ctx, input) => {
           const found = await loadMember(ctx, input.member);
-          if (!found || found.m.status !== "member") return { error: MEMBER_NOT_FOUND };
+          if (found?.m.status !== "member") return { error: MEMBER_NOT_FOUND };
           if (!found.a.canManage) return { error: OWNER_ONLY };
           if (found.m.role === "owner") return { error: "Nie można zmienić roli właściciela." };
           await ctx.db.members.update(found.m.id, { role: input.role });
-          return { toast: input.role === "moderator" ? "Mianowano moderatora." : "Odebrano uprawnienia moderatora.", refresh: true };
+          return {
+            toast: input.role === "moderator" ? "Mianowano moderatora." : "Odebrano uprawnienia moderatora.",
+            refresh: true,
+          };
         },
       },
 
@@ -622,7 +670,8 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
           const { m, a } = found;
           if (!a.canModerate) return { error: MODERATORS_ONLY };
           if (m.role === "owner") return { error: "Nie można usunąć właściciela grupy." };
-          if (m.role === "moderator" && !a.canManage) return { error: "Moderatora może usunąć tylko właściciel grupy." };
+          if (m.role === "moderator" && !a.canManage)
+            return { error: "Moderatora może usunąć tylko właściciel grupy." };
           if (input.ban) await ctx.db.members.update(m.id, { status: "banned", role: "member" });
           else await ctx.db.members.delete(m.id);
           return { toast: input.ban ? "Użytkownik zablokowany." : "Usunięto z grupy.", refresh: true };
@@ -634,7 +683,7 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         input: z.object({ member: id }),
         handler: async (ctx, input) => {
           const found = await loadMember(ctx, input.member);
-          if (!found || found.m.status !== "banned") return { error: MEMBER_NOT_FOUND };
+          if (found?.m.status !== "banned") return { error: MEMBER_NOT_FOUND };
           if (!found.a.canModerate) return { error: MODERATORS_ONLY };
           await ctx.db.members.delete(found.m.id);
           return { toast: "Blokada zdjęta.", refresh: true };
@@ -678,9 +727,14 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
         handler: async (ctx, input) => {
           const found = await loadPost(ctx, input.id);
           if (!found) return { error: POST_NOT_FOUND };
-          if (found.post.author !== ctx.user.id && !found.a.canModerate) return { error: "Możesz usuwać tylko swoje posty." };
+          if (found.post.author !== ctx.user.id && !found.a.canModerate)
+            return { error: "Możesz usuwać tylko swoje posty." };
           await ctx.db.posts.delete(found.post.id);
-          return { toast: "Post usunięty.", navigate: ui.navigate("group", { id: found.post.group }), data: { id: input.id } };
+          return {
+            toast: "Post usunięty.",
+            navigate: ui.navigate("group", { id: found.post.group }),
+            data: { id: input.id },
+          };
         },
       },
 
@@ -716,7 +770,8 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
           const c = await ctx.db.comments.get(input.id);
           const found = c ? await loadPost(ctx, c.post) : null;
           if (!c || !found) return { error: "Ten komentarz nie istnieje." };
-          if (c.author !== ctx.user.id && !found.a.canModerate) return { error: "Możesz usuwać tylko swoje komentarze." };
+          if (c.author !== ctx.user.id && !found.a.canModerate)
+            return { error: "Możesz usuwać tylko swoje komentarze." };
           await ctx.db.comments.delete(c.id);
           return { toast: "Komentarz usunięty.", refresh: true };
         },
@@ -772,7 +827,13 @@ const groups: PluginModule = ({ definePlugin, ui, z, fileRef, t }) => {
             limit: 50,
           });
           return {
-            data: posts.map((p) => ({ id: p.id, author: p.author.name, text: p.text, pinned: p.pinned, createdAt: p.createdAt })),
+            data: posts.map((p) => ({
+              id: p.id,
+              author: p.author.name,
+              text: p.text,
+              pinned: p.pinned,
+              createdAt: p.createdAt,
+            })),
           };
         },
       },

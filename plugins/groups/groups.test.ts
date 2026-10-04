@@ -69,9 +69,10 @@ describe("groups: private", () => {
     expect((await t.as(bartek).tool("createPost", { group: g, text: "Hej" })).error).toBeDefined();
     expect(await seen(t, ola, "group", g)).toContain("Członkowie (prośby: 1)");
     expect(await seen(t, ola, "members", g)).toContain("Bartek");
-    expect((await t.as(celina).tool("respondRequest", { member: (await memberRow(t, g, "bartek"))!.id, accept: true })).error).toBe(
-      "To mogą zrobić tylko moderatorzy grupy.",
-    );
+    expect(
+      (await t.as(celina).tool("respondRequest", { member: (await memberRow(t, g, "bartek"))!.id, accept: true }))
+        .error,
+    ).toBe("To mogą zrobić tylko moderatorzy grupy.");
 
     await t.tool("respondRequest", { member: (await memberRow(t, g, "bartek"))!.id, accept: true });
     expect(await seen(t, bartek, "group", g)).toContain("Budżet na przyszły rok");
@@ -121,7 +122,9 @@ describe("groups: roles and moderation", () => {
       "To może zrobić tylko właściciel grupy.",
     );
     const owner = (await memberRow(t, g, "ola"))!.id;
-    expect((await t.as(bartek).tool("removeMember", { member: owner })).error).toBe("Nie można usunąć właściciela grupy.");
+    expect((await t.as(bartek).tool("removeMember", { member: owner })).error).toBe(
+      "Nie można usunąć właściciela grupy.",
+    );
     expect((await t.tool("leave", { group: g })).error).toBe("Właściciel nie może opuścić grupy. Może ją usunąć.");
 
     const spam = (await post(t, dawid, g, "Spam"))!;
@@ -134,7 +137,9 @@ describe("groups: roles and moderation", () => {
     expect((await t.as(dawid).tool("join", { group: g })).data).toEqual({ status: "member" });
 
     expect(await seen(t, dawid, "members", g)).toContain("Członkami zarządzają moderatorzy grupy.");
-    expect((await t.as(dawid).tool("removeMember", { member: b })).error).toBe("To mogą zrobić tylko moderatorzy grupy.");
+    expect((await t.as(dawid).tool("removeMember", { member: b })).error).toBe(
+      "To mogą zrobić tylko moderatorzy grupy.",
+    );
   });
 
   test("authors edit and delete their own posts and comments; moderators delete and pin anything", async () => {
@@ -144,14 +149,20 @@ describe("groups: roles and moderation", () => {
     await t.as(celina).tool("join", { group: g });
     const p = (await post(t, bartek, g, "Zgubiłem klucze"))!;
 
-    expect((await t.as(celina).tool("editPost", { id: p, text: "hack" })).error).toBe("Możesz edytować tylko swoje posty.");
+    expect((await t.as(celina).tool("editPost", { id: p, text: "hack" })).error).toBe(
+      "Możesz edytować tylko swoje posty.",
+    );
     await t.as(bartek).tool("editPost", { id: p, text: "Zgubiłem klucze przy sklepie" });
     expect(await seen(t, celina, "post", p)).toContain("Zgubiłem klucze przy sklepie (edytowano)");
     expect((await t.as(celina).tool("deletePost", { id: p })).error).toBe("Możesz usuwać tylko swoje posty.");
-    expect((await t.as(celina).tool("pinPost", { id: p, pinned: true })).error).toBe("To mogą zrobić tylko moderatorzy grupy.");
+    expect((await t.as(celina).tool("pinPost", { id: p, pinned: true })).error).toBe(
+      "To mogą zrobić tylko moderatorzy grupy.",
+    );
 
     const comment = (await t.as(celina).tool("comment", { post: p, text: "Mam je!" })).data as { id: string };
-    expect((await t.as(bartek).tool("deleteComment", { id: comment.id })).error).toBe("Możesz usuwać tylko swoje komentarze.");
+    expect((await t.as(bartek).tool("deleteComment", { id: comment.id })).error).toBe(
+      "Możesz usuwać tylko swoje komentarze.",
+    );
     expect((await t.tool("deleteComment", { id: comment.id })).toast).toBe("Komentarz usunięty.");
 
     await t.tool("pinPost", { id: p, pinned: true });
@@ -184,9 +195,9 @@ describe("groups: app admins", () => {
     await t.as(city).tool("pinPost", { id: p, pinned: true });
     expect((await t.as(city).tool("deleteComment", { id: comment.id })).toast).toBe("Komentarz usunięty.");
     expect((await t.as(city).tool("deletePost", { id: p })).toast).toBe("Post usunięty.");
-    expect((await t.as(city).tool("removeMember", { member: (await memberRow(t, g, "bartek"))!.id, ban: true })).toast).toBe(
-      "Użytkownik zablokowany.",
-    );
+    expect(
+      (await t.as(city).tool("removeMember", { member: (await memberRow(t, g, "bartek"))!.id, ban: true })).toast,
+    ).toBe("Użytkownik zablokowany.");
 
     await post(t, ola, g, "Zostanie usunięte z grupą");
     expect((await t.as(city).tool("deleteGroup", { id: g })).toast).toBe("Grupa usunięta.");
@@ -218,15 +229,21 @@ describe("groups: live and dashboard", () => {
     await live.return?.();
   });
 
-  test("widget: hidden without groups; latest posts and join requests for moderators", async () => {
+  test("widget: an empty state without groups; latest posts and join requests for moderators", async () => {
     const t = await testPlugin(groups, { user: ola });
-    expect(await t.dashboardWidget("feed")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("feed"))!)).toEqual([
+      "Grupy",
+      "Nie należysz jeszcze do żadnej grupy.",
+      "Moje grupy",
+    ]);
     const g = await create(t, ola, "Rada osiedla", "private");
     expect(textsOf((await t.dashboardWidget("feed"))!)).toContain("Nic nowego w Twoich grupach.");
     await post(t, ola, g, "Zebranie we wtorek");
     await t.as(bartek).tool("join", { group: g });
     const texts = textsOf((await t.dashboardWidget("feed"))!);
-    expect(texts).toEqual(expect.arrayContaining(["Prośby o dołączenie: 1", "Rada osiedla", "Ola: Zebranie we wtorek"]));
-    expect(await t.as(bartek).dashboardWidget("feed")).toBeNull();
+    expect(texts).toEqual(
+      expect.arrayContaining(["Prośby o dołączenie: 1", "Rada osiedla", "Ola: Zebranie we wtorek"]),
+    );
+    expect(textsOf((await t.as(bartek).dashboardWidget("feed"))!)).toContain("Nie należysz jeszcze do żadnej grupy.");
   });
 });

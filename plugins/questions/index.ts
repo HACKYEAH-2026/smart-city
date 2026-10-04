@@ -111,13 +111,17 @@ const questions: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       pending: {
-        size: { w: 2, h: 2 },
+        size: { w: 3, h: 2 },
+        // Always drawn: the admins see what waits for an answer, residents see how to ask.
         render: async (ctx) => {
-          if (!isAdmin(ctx)) return null;
+          if (!isAdmin(ctx))
+            return ui.widget("Pytania mieszkańców", [
+              ui.text("Zadaj pytanie administratorowi.", "soft"),
+              ui.button("Zobacz pytania", ui.navigate("list")),
+            ]);
           const waiting = await ctx.db.questions.count({ where: { status: "pending" } });
-          if (!waiting) return null;
           return ui.widget("Pytania mieszkańców", [
-            ui.text(pendingCount(waiting), "soft"),
+            ui.text(waiting ? pendingCount(waiting) : "Nie czeka żadne pytanie.", "soft"),
             ui.button("Odpowiedz na pytania", ui.navigate("list")),
           ]);
         },

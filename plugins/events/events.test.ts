@@ -65,7 +65,9 @@ describe("events: calendar", () => {
 
   test("residents cannot manage events; validation of dates", async () => {
     const t = await start();
-    await expect(t.tool("createEvent", { title: "Moje", startsAt: "2026-10-12 18:00" })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(t.tool("createEvent", { title: "Moje", startsAt: "2026-10-12 18:00" })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     expect(await seen(t, anna, "new")).toContain("Wydarzenia dodają administratorzy.");
     expect(t.invalidInput("createEvent", { title: "Festyn", startsAt: "12.10.2026" })?.[0]?.message).toBe(
       "Podaj datę i godzinę w formacie RRRR-MM-DD GG:MM",
@@ -73,7 +75,11 @@ describe("events: calendar", () => {
     expect(t.invalidInput("createEvent", { title: "Festyn", startsAt: "2026-02-30 10:00" })).not.toBeNull();
     expect(t.invalidInput("createEvent", { title: "Festyn", startsAt: "2026-10-12T16:00:00Z" })).toBeNull();
     expect(
-      (await t.as(city).tool("createEvent", { title: "Festyn", startsAt: "2026-10-12 18:00", endsAt: "2026-10-12 17:00" })).error,
+      (
+        await t
+          .as(city)
+          .tool("createEvent", { title: "Festyn", startsAt: "2026-10-12 18:00", endsAt: "2026-10-12 17:00" })
+      ).error,
     ).toBe("Koniec musi być po rozpoczęciu.");
   });
 
@@ -89,13 +95,17 @@ describe("events: calendar", () => {
     const past = await seen(t, anna, "list", { past: "1" });
     expect(past).toContain("Sprzątanie parku");
     expect(past).not.toContain("Festyn sąsiedzki");
-    expect((await t.tool("listEvents", { past: true })).data).toEqual([expect.objectContaining({ title: "Sprzątanie parku" })]);
+    expect((await t.tool("listEvents", { past: true })).data).toEqual([
+      expect.objectContaining({ title: "Sprzątanie parku" }),
+    ]);
   });
 
   test("admins edit and delete events", async () => {
     const t = await start();
     const id = await festyn(t);
-    await t.as(city).tool("updateEvent", { id, title: "Festyn jesienny", startsAt: "2026-10-13 17:30", location: "Rynek" });
+    await t
+      .as(city)
+      .tool("updateEvent", { id, title: "Festyn jesienny", startsAt: "2026-10-13 17:30", location: "Rynek" });
     const detail = await seen(t, anna, "event", { id });
     expect(detail).toContain("Festyn jesienny");
     expect(detail).toContain("wtorek, 13 października 2026, 17:30");
@@ -168,9 +178,9 @@ describe("events: contacting the admin", () => {
 });
 
 describe("events: dashboard", () => {
-  test("widget: hidden with nothing to show; next events and unread messages", async () => {
+  test("widget: an empty state with nothing planned; next events and unread messages", async () => {
     const t = await start();
-    expect(await t.dashboardWidget("upcoming")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("upcoming"))!)).toContain("Nie ma zaplanowanych wydarzeń.");
     await festyn(t);
     expect(textsOf((await t.dashboardWidget("upcoming"))!)).toEqual(
       expect.arrayContaining(["Wydarzenia", "Festyn sąsiedzki", "Kalendarz wydarzeń"]),

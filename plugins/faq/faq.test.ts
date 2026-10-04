@@ -28,8 +28,12 @@ describe("faq", () => {
   test("residents cannot change the FAQ", async () => {
     const t = await testPlugin(faq, { user: anna });
     const id = await add(t, "Kiedy jest wywóz śmieci?");
-    await expect(t.tool("addEntry", { question: "Moje pytanie", answer: "Tak" })).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(t.tool("updateEntry", { id, question: "Zmienione", answer: "Tak" })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(t.tool("addEntry", { question: "Moje pytanie", answer: "Tak" })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(t.tool("updateEntry", { id, question: "Zmienione", answer: "Tak" })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     await expect(t.tool("moveEntry", { id, direction: "up" })).rejects.toBeInstanceOf(ForbiddenError);
     await expect(t.tool("removeEntry", { id })).rejects.toBeInstanceOf(ForbiddenError);
   });
@@ -48,10 +52,12 @@ describe("faq", () => {
     await t.as(city).tool("moveEntry", { id: c, direction: "up" });
     expect(await questions(t)).toEqual(["Trzecie pytanie", "Pierwsze pytanie", "Drugie pytanie"]);
 
-    expect((await t.as(city).tool("updateEntry", { id: a, question: "Pierwsze (poprawione)", answer: "Nowa." })).toast).toBe(
-      "Zmiany zapisane.",
+    expect(
+      (await t.as(city).tool("updateEntry", { id: a, question: "Pierwsze (poprawione)", answer: "Nowa." })).toast,
+    ).toBe("Zmiany zapisane.");
+    expect(textsOf(await t.view("entry", { id: a }))).toEqual(
+      expect.arrayContaining(["Pierwsze (poprawione)", "Nowa."]),
     );
-    expect(textsOf(await t.view("entry", { id: a }))).toEqual(expect.arrayContaining(["Pierwsze (poprawione)", "Nowa."]));
 
     expect((await t.as(city).tool("removeEntry", { id: a })).toast).toBe("Pytanie usunięte z FAQ.");
     expect((await t.as(city).tool("removeEntry", { id: a })).error).toBe("Tego pytania nie ma w FAQ.");
@@ -69,9 +75,9 @@ describe("faq", () => {
     ]);
   });
 
-  test("widget: hidden while the FAQ is empty, then shows the first questions", async () => {
+  test("widget: an empty state while the FAQ is empty, then the first questions", async () => {
     const t = await testPlugin(faq, { user: anna });
-    expect(await t.dashboardWidget("top")).toBeNull();
+    expect(textsOf((await t.dashboardWidget("top"))!)).toEqual(["FAQ", "Nie ma jeszcze pytań.", "Całe FAQ"]);
     for (const q of ["Pytanie 1", "Pytanie 2", "Pytanie 3", "Pytanie 4"]) await add(t, q);
     expect(textsOf((await t.dashboardWidget("top"))!)).toEqual([
       "FAQ",
