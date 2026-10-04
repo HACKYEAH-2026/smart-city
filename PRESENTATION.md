@@ -170,7 +170,8 @@ style: |
     /* Keeps the text clear of the phones, which are positioned absolutely. */
     padding-right: 620px;
   }
-  /* The image is the screen; its border is the device body. */
+  /* The image is the screen; its border is the device body. The soft shadows are filter: drop-shadow, not a blurred
+     box-shadow: Chrome prints a blurred box-shadow into the PDF as a grey box in Preview and Acrobat. */
   section.phones img {
     position: absolute;
     box-sizing: content-box;
@@ -184,14 +185,16 @@ style: |
     left: 690px;
     width: 236px;
     height: 511px;
-    box-shadow: 0 0 0 1.5px #E4E4E4, -70px 40px 110px rgba(27, 27, 31, 0.16);
+    box-shadow: 0 0 0 1.5px #E4E4E4;
+    filter: drop-shadow(-70px 40px 110px rgba(27, 27, 31, 0.16));
   }
   section.phones img:last-of-type {
     top: 52px;
     right: 100px;
     width: 268px;
     height: 580px;
-    box-shadow: 0 0 0 1.5px #E4E4E4, -60px 40px 90px rgba(27, 27, 31, 0.28);
+    box-shadow: 0 0 0 1.5px #E4E4E4;
+    filter: drop-shadow(-60px 40px 90px rgba(27, 27, 31, 0.28));
   }
   /* 3px shorter than the screenshot's ratio: cover + bottom crops the dark line the video leaves at its top. */
   section.phones img[src$="login.png"] { height: 508px; object-position: bottom; }
@@ -210,7 +213,8 @@ style: |
   section.phone img {
     background: #F6F6F6;
     object-fit: cover;
-    box-shadow: 0 0 0 1.5px #E4E4E4, -80px 40px 120px rgba(27, 27, 31, 0.3);
+    box-shadow: 0 0 0 1.5px #E4E4E4;
+    filter: drop-shadow(-80px 40px 120px rgba(27, 27, 31, 0.3));
   }
   /* The screenshot slot until the screenshot exists: the phone's outline, dashed. */
   section.phone blockquote { box-sizing: border-box; width: 294px; height: 606px; border: 2px dashed #D3CEC2; }
@@ -341,8 +345,6 @@ z zapisanym miejscem w pobliżu) pokazuje ostrzeżenie.
 
 <!-- _class: statement phone -->
 
-> Zrzut: ostrzeżenie „Uwaga, dzik!” na telefonie mieszkańca w pobliżu
-
 ## Efekt
 
 # Kilkanaście sekund później działa u mieszkańców
@@ -353,8 +355,13 @@ z zapisanym miejscem w pobliżu) pokazuje ostrzeżenie.
 
 ### Rozszerzenie nie zna niczyjej lokalizacji.
 
+![Uwaga, dzik!: zgłoszenie z mapą i strefą ostrzeżenia 500 m](docs/presentation/boar-sighting.png)
+
 <!--
-Notatki: to wynik prośby ze slajdu „Innowacja”. Rozwinięcie na głos:
+Notatki: to wynik prośby ze slajdu „Innowacja”. Na zrzucie: zgłoszenie dzika z mapą i strefą ostrzeżenia 500 m, tak jak
+widzi je mieszkanka (anna@krakow.test). Uczciwie: rozszerzenie na zrzucie (plugins/boars) napisał zespół, jako przykład
+tego, co powstaje z takiej prośby; działa na tym samym SDK i przeszło te same automatyczne sprawdzenia co kod od AI.
+Rozwinięcie na głos:
 - „Kilkanaście sekund”: otwarty pulpit odświeża się co 15 s, więc nowy widżet pojawia się bez aktualizacji w sklepie
   i bez restartu serwera.
 - Ostrzeżenie dostają mieszkańcy z zapisanym miejscem w promieniu 500 m albo z pozycją udostępnioną w ciągu ostatnich

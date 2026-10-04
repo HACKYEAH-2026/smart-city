@@ -1,0 +1,14 @@
+{
+  "name": "@plugins/boars",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --incremental"
+  },
+  "dependencies": {
+    "@app/plugin-sdk": "workspace:*"
+  }
+}
