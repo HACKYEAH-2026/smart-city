@@ -26,9 +26,7 @@ const WEEK = [
 
 const NEW_BOOKING = ui.card({
   title: "Sala 3.05 · 14:00",
-  meta: [{ text: "Koło naukowe robotyki" }],
-  tags: [{ text: "Nowa", tone: "info", dot: true }],
-  unread: true,
+  meta: [{ text: "Koło naukowe robotyki" }, { text: "przed chwilą" }],
 });
 
 const BOOKINGS = [

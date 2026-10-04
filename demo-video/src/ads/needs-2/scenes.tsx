@@ -406,13 +406,13 @@ const Exchange = ({
   const dim = until === undefined ? 0 : ramp(frame, until - 2, until + 8);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, opacity: 1 - dim * 0.65 }}>
-      <Headline text={ask} at={at} spoken variant="snap" size={72} />
+      <Headline text={ask} at={at} spoken variant="snap" size={80} />
       <div
         style={{
           fontFamily: FONT.bold,
-          fontSize: 72,
+          fontSize: 80,
           lineHeight: 1.04,
-          letterSpacing: -72 * 0.03,
+          letterSpacing: -80 * 0.03,
           color: colors.primary,
           transformOrigin: "left center",
           opacity: frame < answerAt ? 0 : Math.min(1, p * 2),
@@ -456,14 +456,7 @@ export const CityScene = () => {
       >
         <Eyebrow>Miasto</Eyebrow>
         {asks.map((a, i) => (
-          <Exchange
-            key={a.ask}
-            ask={a.ask}
-            at={a.at}
-            answer={a.answer}
-            answerAt={a.answerAt}
-            until={asks[i + 1]?.at}
-          />
+          <Exchange key={a.ask} ask={a.ask} at={a.at} answer={a.answer} answerAt={a.answerAt} until={asks[i + 1]?.at} />
         ))}
       </div>
       <PhoneAt pose={PHONE}>
@@ -672,10 +665,10 @@ const CAMPUS_BEFORE: Tile[] = [
 const campusWith = (live: boolean): Tile[] => [{ node: bookingCalendarWidget(live), w: 3, h: 3 }, ...CAMPUS_BEFORE];
 
 /** Once the camera pulls back: the admin's phone in the middle, two members' phones beside it. */
-const ADMIN_PHONE: Pose = { x: 960, y: 640, scale: 0.7, rotY: 0 };
+const ADMIN_PHONE: Pose = { x: 960, y: 600, scale: 0.9, rotY: 0 };
 const MEMBERS: { pose: Pose; from: number }[] = [
-  { pose: { x: 500, y: 660, scale: 0.62, rotY: 16 }, from: -1 },
-  { pose: { x: 1420, y: 660, scale: 0.62, rotY: -16 }, from: 1 },
+  { pose: { x: 490, y: 615, scale: 0.8, rotY: 16 }, from: -1 },
+  { pose: { x: 1430, y: 615, scale: 0.8, rotY: -16 }, from: 1 },
 ];
 
 /** The pose `p` of the way from `a` to `b`. */
