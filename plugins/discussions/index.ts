@@ -30,6 +30,8 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
         text: t.text(),
         replyTo: t.ref("messages").optional(),
         editedAt: t.timestamp().optional(),
+        // Written by a place's administrator: the chat shows it in the accent colour.
+        byAdmin: t.boolean().default(false),
       },
       { indexes: [["discussion", "createdAt"]] },
     ),
@@ -213,6 +215,7 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
                     text: m.text,
                     at: m.createdAt.toISOString(),
                     ...(m.author.id === ctx.user.id ? { mine: true } : {}),
+                    ...(m.byAdmin ? { admin: true } : {}),
                     ...(m.editedAt ? { note: "edytowano" } : {}),
                   })),
                 })
@@ -318,6 +321,7 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
             author: ctx.user.id,
             text: input.text,
             replyTo: parent?.id ?? null,
+            byAdmin: isModerator(ctx),
           });
           await touch(ctx, discussion.id);
           return { refresh: true, data: { id: message.id } };

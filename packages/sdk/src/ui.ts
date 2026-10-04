@@ -423,6 +423,8 @@ const leafSchemas = [
           text: z.string().max(5000),
           at: z.iso.datetime({ offset: true }),
           mine: z.boolean().optional(),
+          /** The place's administrator's message: the bubble is in the accent colour. */
+          admin: z.boolean().optional(),
           note: z.string().max(40).optional(),
         }),
       )

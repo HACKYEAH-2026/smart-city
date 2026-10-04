@@ -264,6 +264,7 @@ export const t = {
   plugin_unsupported: "Ten element wymaga nowszej wersji aplikacji.",
   plugin_activity_new: "Nowe",
   plugin_chat_you: "Ty",
+  plugin_chat_admin: "Administrator miejsca",
   cancel: "Anuluj",
   plugin_photo_camera: "Aparat",
   plugin_photo_gallery: "Galeria",

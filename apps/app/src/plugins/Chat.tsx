@@ -36,6 +36,8 @@ export function ChatThread({ node }: { node: ChatNode }) {
 function ChatBubble({ message, first, last }: { message: ChatMessage; first: boolean; last: boolean }) {
   const mine = Boolean(message.mine);
   const who = mine ? t.plugin_chat_you : message.person;
+  // The administrator's message (not mine) is the accent: a tinted bubble with the role over the text.
+  const admin = Boolean(message.admin) && !mine;
   const note = message.note ? ` (${message.note})` : "";
   // The joined corners of a block are tighter, like in a messenger.
   const corners = mine
@@ -45,7 +47,7 @@ function ChatBubble({ message, first, last }: { message: ChatMessage; first: boo
     <View
       role="listitem"
       accessible
-      accessibilityLabel={`${who}, ${messageTime(message.at)}: ${message.text}${note}`}
+      accessibilityLabel={`${who}${admin ? `, ${t.plugin_chat_admin}` : ""}, ${messageTime(message.at)}: ${message.text}${note}`}
       style={first ? styles.blockStart : undefined}
     >
       <View style={[styles.row, mine && styles.rowMine]}>
@@ -64,7 +66,18 @@ function ChatBubble({ message, first, last }: { message: ChatMessage; first: boo
               {message.person}
             </Text>
           ) : null}
-          <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, corners]}>
+          <View
+            style={[
+              styles.bubble,
+              mine ? styles.bubbleMine : admin ? styles.bubbleAdmin : styles.bubbleTheirs,
+              corners,
+            ]}
+          >
+            {admin ? (
+              <Text variant="label" color="primaryPressed">
+                {t.plugin_chat_admin}
+              </Text>
+            ) : null}
             <Text variant="body" color={mine ? "onPrimary" : "text"}>
               {message.text}
             </Text>
@@ -128,5 +141,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: borders.hairline,
     borderColor: colors.borderSubtle,
+  },
+  bubbleAdmin: {
+    backgroundColor: colors.primaryTint,
+    borderWidth: borders.hairline,
+    borderColor: colors.primary,
   },
 });

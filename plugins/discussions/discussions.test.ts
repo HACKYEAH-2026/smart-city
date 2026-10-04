@@ -168,6 +168,25 @@ describe("discussions: dashboard widget and views", () => {
     ]);
   });
 
+  test("an administrator's message is marked for the accent colour in the chat", async () => {
+    const { t, discussion } = await start();
+    t.setNow(at(1));
+    await send(t, bartek, discussion, "Posadzimy w jesieni");
+    t.setNow(at(2));
+    await t.as(moderator).tool("sendMessage", { discussion, text: "Dziękujemy, sadzonki są zamówione." });
+    const thread = await t.view("thread", { id: discussion });
+    expect(nodesOf(thread, "Chat")[0]?.messages).toEqual([
+      { id: expect.any(String), person: "Bartek", text: "Posadzimy w jesieni", at: at(1).toISOString() },
+      {
+        id: expect.any(String),
+        person: "Urząd",
+        text: "Dziękujemy, sadzonki są zamówione.",
+        at: at(2).toISOString(),
+        admin: true,
+      },
+    ]);
+  });
+
   test("thread: the opening post, a chat with my messages marked, the message field; locking from the header", async () => {
     const { t, discussion } = await start();
     t.setNow(at(1));

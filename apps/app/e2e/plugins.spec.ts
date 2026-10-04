@@ -2,7 +2,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, joinKrakow, TEST_ADMIN_TOKEN, test } from "./fixtures";
+import {
+  DEMO_ADMIN_NAME,
+  DEMO_RESIDENT,
+  expect,
+  joinKrakow,
+  loginAdmin,
+  seedDemoContent,
+  TEST_ADMIN_TOKEN,
+  test,
+} from "./fixtures";
 
 /**
  * Plugin system acceptance criteria: a built-in plugin works end to end, and a plugin uploaded
@@ -607,4 +616,27 @@ test("discussions: a moderator closes one from the header after confirming; resi
   await expect(page.getByText("Dyskusja jest zamknięta")).toBeVisible();
   await expect(page.getByLabel("Twoja wiadomość")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Otwórz dyskusję" })).toHaveCount(0);
+});
+
+test("discussions: the place's administrator's message is marked in the accent colour", async ({ page, api }) => {
+  await seedDemoContent(api.url);
+  await loginAdmin(page);
+  const widget = page.getByRole("region", { name: "Dyskusje" });
+  await page.goto("/app");
+  await widget.getByRole("button", { name: "Nowa dyskusja" }).click();
+  await page.getByLabel("Temat").fill("Ławki przy Rynku");
+  await page.getByRole("button", { name: "Załóż dyskusję" }).click();
+  await page.getByLabel("Twoja wiadomość").fill("Ławki wrócą w maju.");
+  await page.getByRole("button", { name: "Wyślij" }).click();
+  await expect(page.getByRole("list", { name: "Wiadomości" }).getByText("Ławki wrócą w maju.")).toBeVisible();
+
+  await signOut(page);
+  await login(page, DEMO_RESIDENT.email);
+  await page.goto("/app");
+  await widget.getByRole("button", { name: /Ławki przy Rynku/ }).click();
+  const admin = page
+    .getByRole("list", { name: "Wiadomości" })
+    .getByRole("listitem", { name: new RegExp(`${t.plugin_chat_admin}`) });
+  await expect(admin).toContainText("Ławki wrócą w maju.");
+  await expect(admin).toContainText(DEMO_ADMIN_NAME);
 });
