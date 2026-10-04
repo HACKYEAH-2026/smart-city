@@ -9,6 +9,7 @@ import {
   screenSchema,
   toolResultSchema,
   UI_ICONS,
+  type UINode,
   ui,
   uiNodeSchema,
 } from "./ui";
@@ -277,7 +278,7 @@ describe("issue details", () => {
 });
 
 describe("square controls", () => {
-  test("a form may be inline: its submit is a square send button beside the field", () => {
+  test("a form may be inline: a message box, one text field with a send icon", () => {
     const composer = ui.form({
       submitLabel: "Wyślij",
       submit: ui.tool("comment", { id: "1" }),
@@ -285,6 +286,16 @@ describe("square controls", () => {
       children: [ui.textInput({ name: "text", label: "Dodaj komentarz" })],
     });
     expect(uiNodeSchema.parse(composer)).toEqual(composer);
+  });
+
+  test("an inline form holds exactly one text field", () => {
+    const field = ui.textInput({ name: "text", label: "Dodaj komentarz" });
+    const inline = (children: UINode[]) =>
+      uiNodeSchema.safeParse(ui.form({ submitLabel: "Wyślij", submit: ui.tool("comment"), inline: true, children }));
+    expect(inline([]).success).toBe(false);
+    expect(inline([field, field]).success).toBe(false);
+    expect(inline([ui.text("Dodaj komentarz")]).success).toBe(false);
+    expect(inline([field]).success).toBe(true);
   });
 
   test("a square icon set includes send and share", () => {

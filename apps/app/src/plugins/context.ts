@@ -7,7 +7,6 @@ export type UploadImage = (asset: ImagePickerAsset) => Promise<string>;
 
 /** `onSettled`: the tool call this action started has finished, failed or not (its view is already refreshed). */
 export type ActionOptions = { onSettled?: () => void; onSuccess?: () => void };
-export const InlineFormContext = createContext(false);
 
 /**
  * What the plugin's nodes can do, provided by the screen that renders them. `onLongPress`: holding anything pressable

@@ -137,6 +137,7 @@ export const radii = {
   mini: 8, // tiles of the dashboard layout preview
   outline: 3, // the outline rectangle of a widget size choice ("3 × 2")
   sheet: 28, // top corners of the bottom sheet
+  message: 22, // the message box: round at one line, a rounded box as it grows
   pill: 999,
 } as const;
 
@@ -165,6 +166,8 @@ export const sizes = {
   pluginSuccessIcon: 34,
   heroTitleWidth: 240,
   input: 52,
+  /** The message box at most: 5 lines of `typography.input` with its padding and border (it scrolls beyond). */
+  messageInputMax: 132,
   /** A search field above a list (design "Dodaj rozszerzenie": 50). */
   inputS: 50,
   otpCell: 64,

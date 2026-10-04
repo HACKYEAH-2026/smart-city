@@ -633,7 +633,7 @@ Icons (`icon` props, `UIIcon`): `alert`, `idea`, `camera`, `megaphone`, `share`,
 | Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips" \| "tiles", options: [{ label, selected?, count?, action }] })` — options only navigate (sorting, filters); `tiles` are big tiles with `count` over the label ("8" over "Aktywne") |
 | Menu | `ui.menu({ label, icon?, variant?: "text" \| "chip", options: [{ label, selected?, action }] })` — pick one option now (2–30): the trigger shows the selected option and opens a sheet with all of them; choosing one runs its action (`navigate`, e.g. a sort, or a `tool`, e.g. set a category). `chip`: a small outlined pill with `icon` |
 | Chat | `ui.chat({ label, messages: [{ id, person, text, at, mine?, note? }] })` — a messenger-like conversation: the viewer's own messages (`mine`) on the right in the brand colour, the others' on the left with the author's initials, consecutive messages of one person make one block (their name and initials once), no clock times on screen; `note` e.g. "edytowano" |
-| Composer | `ui.composer({ name, label, placeholder?, sendLabel, submit })` — a message field with a send button pinned to the bottom of the screen above the keyboard; sending runs the `submit` tool with `{ [name]: text }` added to its args. One per screen, not in widgets |
+| Composer | `ui.composer({ name, label, placeholder?, sendLabel, submit })` — a message field (the app's `MessageInput`: its send icon shows up once there is text) pinned to the bottom of the screen above the keyboard; sending runs the `submit` tool with `{ [name]: text }` added to its args. One per screen, not in widgets |
 | Fab | `ui.fab({ label, icon?, action })` — a floating button over the screen (bottom right, outside its scroll), e.g. "Zgłoś"; navigates |
 | Timeline | `ui.timeline([{ title, at?, text?, tone? }])` — the steps of something that moves on (a report's progress): a dot per step (its tone), the date and an optional note |
 | Share | `ui.share(label, path, { variant? })` — shares a link to a place in the app (`path` starts with `/app/`); the app builds the full address. `icon` (default): a square icon button; `button`: a full-width button with the label |
@@ -641,7 +641,7 @@ Icons (`icon` props, `UIIcon`): `alert`, `idea`, `camera`, `megaphone`, `share`,
 | Empty | `ui.empty(text, { title?, icon? })` — nothing yet: on a screen an icon in a box, the title and the text, centred; in a widget the title and the text in the rest of the tile |
 | Image | `ui.image(fileId, alt)` |
 | Gallery | `ui.gallery([{ file, alt }])` — 1–10 photos to swipe through, with "1 / 2" |
-| Form | `ui.form({ submitLabel, submit: ui.tool(name), submitIcon?, inline?, children })` — field values become tool `args`; `submitIcon` adds a catalog icon to the full-width submit; `inline`: the submit is a circular send button beside the field (a comment box) |
+| Form | `ui.form({ submitLabel, submit: ui.tool(name), submitIcon?, inline?, children })` — field values become tool `args`; `submitIcon` adds a catalog icon to the submit; `inline`: a message box (a comment): exactly one TextInput, the submit a send icon that shows up once there is text |
 | TextInput | `ui.textInput({ name, label, multiline?, value?, hint?, placeholder? })` — `hint`: a line under the field (≤ 160) |
 | Select | `ui.select({ name, label, options: [{ value, label, hint?, icon? }], value?, variant?, action? })` — `variant`: `cards` (default), `chips`, `segmented` (2–3 options side by side), `radio` (radio cards with `hint` under each) |
 | Switch | `ui.switch({ name, label, hint?, value?, action? })` — the tool gets a boolean; in a grouped List a row of the group |
@@ -669,8 +669,10 @@ screen's main action last. A `Composer` is pinned under the content instead (`Pl
 17 px title and places a first Menu beside the photo. `Place.action` (`ui.place(text, ui.navigate(…))`) opens a map
 or another view from the compact address row. `Notice.variant: "plain"` omits its card background.
 `TextInput.variant: "muted"` draws a muted dashed field; `ImagePicker.hideLabel` hides its visual label.
-`Form.submitIcon` adds a catalog icon to its submit; inline forms hide visual field labels, retain accessible names
-and use pill inputs with circular send buttons. `Tags` items with `variant: "pill"` retain a white outlined pill
+`Form.submitIcon` adds a catalog icon to its submit (inline: replaces the paper plane). An inline form is the app's
+message box (`MessageInput`): its TextInput's label is the accessible name and the placeholder, `multiline` lets it
+grow with the text (single-line: Enter sends), and the submit is a send icon without a background that appears only
+once the field has text. `Tags` items with `variant: "pill"` retain a white outlined pill
 without requiring a remove action.
 
 Refreshed trees retain form drafts. Pristine fields follow confirmed server changes; dirty fields keep their drafts

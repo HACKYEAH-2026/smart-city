@@ -10,6 +10,7 @@ import {
   ChoiceButton,
   Icon,
   MapView,
+  MessageInput,
   RadioCard,
   SegmentedControl,
   SwitchRow,
@@ -22,7 +23,7 @@ import { photoLibraryOnly } from "../lib/photoPicker";
 import LocationPicker from "../screens/LocationPicker";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
-import { ActionsContext, FormContext, type FormValue, InGroupContext, InlineFormContext } from "./context";
+import { ActionsContext, FormContext, type FormValue, InGroupContext } from "./context";
 import { UI_ICON } from "./icons";
 import { type Pending, photoValue, saveAction, shownValue } from "./state";
 
@@ -75,17 +76,39 @@ function useChoice<T extends string | boolean>(name: string, value: T | undefine
 
 export function FormTextInput({ node }: { node: Of<"TextInput"> }) {
   const form = useContext(FormContext);
-  const inline = useContext(InlineFormContext);
   return (
     <TextField
       label={node.label}
-      hideLabel={inline}
-      variant={inline ? "pill" : node.variant}
+      variant={node.variant}
       multiline={node.multiline}
       helper={node.hint}
       placeholder={node.placeholder}
       value={text(form?.values[node.name])}
       onChangeText={(v) => form?.set(node.name, v)}
+    />
+  );
+}
+
+/**
+ * An inline Form: its one TextInput as a message box, the submit as the send icon that shows up with the text
+ * (`submitIcon` replaces the paper plane). The SDK lets an inline Form hold only that field.
+ */
+export function FormMessageInput({ form, onSend }: { form: Of<"Form">; onSend: () => void }) {
+  const values = useContext(FormContext);
+  const { busy } = useContext(ActionsContext);
+  const field = form.children.find((n): n is Of<"TextInput"> => n.type === "TextInput");
+  if (!field) return null;
+  return (
+    <MessageInput
+      label={field.label}
+      placeholder={field.placeholder}
+      value={text(values?.values[field.name])}
+      onChangeText={(v) => values?.set(field.name, v)}
+      multiline={field.multiline}
+      sendLabel={form.submitLabel}
+      sendIcon={form.submitIcon ? UI_ICON[form.submitIcon] : undefined}
+      busy={busy}
+      onSend={onSend}
     />
   );
 }

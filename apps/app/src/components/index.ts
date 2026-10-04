@@ -48,6 +48,8 @@ export { Link } from "./Link";
 export { MapDecoration } from "./MapDecoration";
 export type { MapViewHandle, MapViewProps } from "./MapView";
 export { MapView } from "./MapView";
+export type { MessageInputProps } from "./MessageInput";
+export { MessageInput } from "./MessageInput";
 export type { NoticeScreenProps } from "./NoticeScreen";
 export { NoticeScreen } from "./NoticeScreen";
 export { OtpInput } from "./OtpInput";

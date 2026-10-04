@@ -532,6 +532,38 @@ test("discussions widget: latest activity first, a tap opens the discussion, the
   await expect(page.getByRole("heading", { name: "Nowa dyskusja", level: 1 })).toBeVisible();
 });
 
+test("discussion chat: send shows up only with a message; sending empties the field and keeps it focused", async ({
+  page,
+  api,
+}) => {
+  await register(page, "anna@example.test", api.url);
+  await page.getByRole("region", { name: "Dyskusje" }).getByRole("button", { name: "Nowa dyskusja" }).click();
+  await page.getByLabel("Temat").fill("Ławki na Plantach");
+  await page.getByRole("button", { name: "Załóż dyskusję" }).click();
+  await expect(page.getByRole("heading", { name: "Ławki na Plantach", level: 1 })).toBeVisible();
+
+  const box = page.getByLabel("Twoja wiadomość");
+  const send = page.getByRole("button", { name: "Wyślij", exact: true });
+  const chat = page.getByRole("list", { name: "Wiadomości" });
+  await expect(box).toBeVisible();
+  await expect(send).toHaveCount(0);
+  await box.fill("   ");
+  await expect(send).toHaveCount(0);
+
+  await box.fill("Brakuje ławek przy Wawelu");
+  await expect(send).toBeVisible();
+  await send.click();
+  await expect(chat.getByText("Brakuje ławek przy Wawelu")).toBeVisible();
+  await expect(box).toHaveValue("");
+  await expect(send).toHaveCount(0);
+
+  await box.fill("I przy Barbakanie");
+  await box.press("Enter");
+  await expect(chat.getByText("I przy Barbakanie")).toBeVisible();
+  await expect(box).toHaveValue("");
+  await expect(box).toBeFocused();
+});
+
 test("issues: after a report is sent, back does not return to the filled-in form", async ({ page, api }) => {
   await register(page, "wyslane@example.test", api.url);
   await openNewIssueForm(page);

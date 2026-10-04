@@ -429,7 +429,8 @@ const leafSchemas = [
       .max(1000),
   }),
   /**
-   * A message field with a send button, pinned to the bottom of the screen above the keyboard (like a messenger).
+   * A message field whose send icon shows up once there is text, pinned to the bottom of the screen above the
+   * keyboard (like a messenger).
    * Sending runs `submit` with its args plus `{ [name]: text }`; an empty field is not sent. One per screen; not in
    * widgets.
    */
@@ -542,7 +543,10 @@ export type UINode =
       onPress?: Action;
       children?: UINode[];
     }
-  /** `inline`: the submit is a square send button beside the fields (a comment box), not a full-width button. */
+  /**
+   * `inline`: a message box (a comment on a report): its one TextInput with the submit as a send icon
+   * that shows up once there is text, not a full-width button.
+   */
   | {
       type: "Form";
       submitLabel: string;
@@ -600,14 +604,19 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
       onPress: actionSchema.optional(),
       children: z.array(uiNodeSchema).optional(),
     }),
-    z.object({
-      type: z.literal("Form"),
-      submitLabel: z.string(),
-      submit: toolActionSchema,
-      submitIcon: uiIconSchema.optional(),
-      inline: z.boolean().optional(),
-      children: z.array(uiNodeSchema),
-    }),
+    z
+      .object({
+        type: z.literal("Form"),
+        submitLabel: z.string(),
+        submit: toolActionSchema,
+        submitIcon: uiIconSchema.optional(),
+        inline: z.boolean().optional(),
+        children: z.array(uiNodeSchema),
+      })
+      .refine(
+        (form) => !form.inline || (form.children.length === 1 && form.children[0]?.type === "TextInput"),
+        "An inline Form holds exactly one TextInput (the message box)",
+      ),
   ]),
 );
 

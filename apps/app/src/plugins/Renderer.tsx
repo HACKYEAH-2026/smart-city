@@ -1,5 +1,5 @@
 import type { Action, Tone, ToolAction, UINode, WidgetLink } from "@app/plugin-sdk";
-import { ArrowUp, ChevronRight, MapPin, Send, Share2 } from "lucide-react-native";
+import { ArrowUp, ChevronRight, MapPin, Share2 } from "lucide-react-native";
 import { type ReactNode, useContext, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,12 +41,19 @@ import {
   ActionsContext,
   FormContext,
   InGroupContext,
-  InlineFormContext,
   InSheetContext,
   InWidgetContext,
   type UploadImage,
 } from "./context";
-import { FormImagePicker, FormLocationInput, FormSelect, FormSwitch, FormTextInput, initialValues } from "./Fields";
+import {
+  FormImagePicker,
+  FormLocationInput,
+  FormMessageInput,
+  FormSelect,
+  FormSwitch,
+  FormTextInput,
+  initialValues,
+} from "./Fields";
 import { PluginGallery } from "./Gallery";
 import { UI_ICON } from "./icons";
 import { PluginMenu } from "./Menu";
@@ -832,34 +839,7 @@ function PluginForm({ node, closing }: { node: Extract<UINode, { type: "Form" }>
       }}
     >
       {node.inline ? (
-        <View style={styles.composer}>
-          <View style={styles.composerField}>
-            <InlineFormContext.Provider value={true}>
-              <Children nodes={node.children} />
-            </InlineFormContext.Provider>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={node.submitLabel}
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            onPressIn={tapFeedback}
-            onPress={send}
-            style={({ pressed }) => [
-              styles.sendButton,
-              styles.squarePrimary,
-              pressed && styles.pressed,
-              busy && styles.disabled,
-            ]}
-          >
-            {({ pressed }) => (
-              <>
-                {pressed ? null : <AccentGradient style={[StyleSheet.absoluteFill, styles.sendButton]} />}
-                <Icon icon={Send} size={sizes.iconS} color="onPrimary" strokeWidth={2} />
-              </>
-            )}
-          </Pressable>
-        </View>
+        <FormMessageInput form={node} onSend={send} />
       ) : (
         <View style={[styles.stack, closing && styles.fillScreen]}>
           <Children nodes={node.children} />
@@ -1033,16 +1013,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   squareOutline: { backgroundColor: colors.surface, borderWidth: borders.hairline, borderColor: colors.border },
-  squarePrimary: { backgroundColor: colors.primary },
-  sendButton: {
-    width: sizes.iconButton,
-    height: sizes.iconButton,
-    borderRadius: radii.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  composer: { flexDirection: "row", alignItems: "flex-end", gap: spacing[4] },
-  composerField: { flex: 1, minWidth: 0 },
   growCell: { flex: 1, minWidth: 0 },
   highlight: {
     flexDirection: "row",

@@ -10,14 +10,13 @@
 ## Issues design alignment (2026-10-04)
 
 - Plugin section labels and screen eyebrows use `sectionLabel`: Barlow Condensed 600, 14/18, uppercase.
-- `TextField`: section label; `hideLabel` keeps the accessible name, `variant="pill"` is a 44 dp composer input,
-  `variant="muted"` has a muted surface and dashed border.
+- `TextField`: section label; `variant="muted"` has a muted surface and dashed border.
 - `SegmentedControl`: 48 dp track (4 dp padding), 40 dp segments.
 - `SwitchRow`: semantic switch row with a drawn 52×32 dp track and white 26 dp knob on every platform.
 - Dashboard grid unit: 96 dp, gap 12; 3×2 = 204 dp, 3×3 = 312 dp. Widget header: neutral 15 dp icon,
   gray 13 px title, 14/16 dp padding, light card shadow, compact 32 dp rows, dark 44 dp CTA.
 - Plugin FAB: 32 dp above the safe bottom inset, `shadows.redGlow`. List cards: gap 10 dp.
-- Plugin comments: 32 dp avatar outside a compact white bubble; inline composer uses a circular 44 dp send button.
+- Plugin comments: 32 dp avatar outside a compact white bubble; the comment box is a `MessageInput`.
 - Plugin location field: bordered card, 72 dp map preview, pin/address and accent change link.
 - `SuccessMark large`: 72 dp red circle, 92 dp ring and 34 dp check; plugin Hero uses a centered 28 px title.
 - Plugin sheets: sentence-case red eyebrow with sparkle, lighter 0.4 backdrop and 10 dp content gaps.
@@ -99,6 +98,10 @@ Fokus: border 2 `primary` + poświata 4 dp `focusRing` (RN: dodatkowy `View` pod
 Struktura: `Label` → pole → opcjonalny `helper` (`typography.small`, `textSecondary`; prop `helper` w `TextField`). Wiersz label + link (np. „Nie pamiętasz hasła?") — `justifyContent: space-between`, `alignItems: baseline`.
 Warianty: `email`, `password` (maska + przełącznik), `url` + przycisk „Wklej" (46–52 dp, secondary, tekst `primary`), `multiline` (textarea: min 3 wiersze, padding 14/16, lineHeight 21.75, bez resize).
 Pole z mapą (Adres): kontener radius 14, border `border`, `overflow:hidden`; u góry wiersz 52 dp z polem i separatorem `divider`, pod nim blok mapy 120 dp `mapBase` z pływającym przyciskiem „Popraw pinezkę" (36 dp, radius 10, `shadows.floating`, right/bottom 10).
+
+### MessageInput ✅ (`src/components/MessageInput.tsx`)
+
+Pole wiadomości w stylu komunikatora (czat dyskusji, komentarz do zgłoszenia; w pluginach: `ui.composer` i `Form inline`). Pole: min. 44 dp (`sizes.iconButton`), radius `radii.message` (22: przy jednej linii pigułka, wyższe ma zaokrąglone rogi), tło `surface`, ramka 1 `border` (fokus: ramka `primary`, bez poświaty), padding 10/16, tekst `typography.input`, placeholder = etykieta dostępności (bez etykiety nad polem). Ikona wysyłania (`SendHorizontal` 22, `primary`, bez tła, pole dotyku 44) pojawia się po prawej dopiero, gdy w polu jest tekst (nie same spacje): wskakuje (`ZoomIn`, `motion.fast`), a pole robi jej miejsce. Wysyłanie trwa: ikona przygaszona i nieaktywna. `multiline`: pole rośnie z tekstem do `sizes.messageInputMax` (5 linii, dalej przewija), po wysłaniu wraca do jednej linii; bez `multiline` Enter wysyła, a pole zostaje aktywne (klawiatura nie znika).
 
 ### OtpInput (kod zaproszeniowy 6 znaków: `ABC-DEF`)
 
@@ -229,7 +232,7 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 
 ### Czat (wtyczki: `ui.chat` + `ui.composer`)
 
-Jak w komunikatorze: moje dymki po prawej (`primary`, tekst `onPrimary`), cudze po lewej (`surface` + ramka `borderSubtle`) z inicjałami autora (koło 28 dp `primaryTint`, `chip` `primary`) przy ostatnim dymku bloku i imieniem (`small` `textSecondary`) nad pierwszym. Dymek: radius 18, w środku bloku narożniki od strony autora 6; padding 8/12, tekst `body`, maks. 78% szerokości. Blok = kolejne wiadomości jednej osoby, bez względu na przerwy; bez godzin na ekranie (czytnik ekranu podaje godzinę wiadomości). Pole wiadomości przypięte na dole nad klawiaturą (pasek `background` z górną linią `borderSubtle`): pigułka 44 dp (`surface`, ramka `border`, `input`) + okrągły przycisk 44 dp `primary` z `SendHorizontal`, wyszarzony przy pustym polu; Enter wysyła, pole czyści się od razu. Akcja moderatora (np. zamknięcie dyskusji) to `IconButton round` w prawym górnym rogu, z potwierdzeniem.
+Jak w komunikatorze: moje dymki po prawej (`primary`, tekst `onPrimary`), cudze po lewej (`surface` + ramka `borderSubtle`) z inicjałami autora (koło 28 dp `primaryTint`, `chip` `primary`) przy ostatnim dymku bloku i imieniem (`small` `textSecondary`) nad pierwszym. Dymek: radius 18, w środku bloku narożniki od strony autora 6; padding 8/12, tekst `body`, maks. 78% szerokości. Blok = kolejne wiadomości jednej osoby, bez względu na przerwy; bez godzin na ekranie (czytnik ekranu podaje godzinę wiadomości). Pole wiadomości przypięte na dole nad klawiaturą (pasek `background` z górną linią `borderSubtle`): `MessageInput` (ikona wysyłania pojawia się dopiero przy treści); Enter wysyła, pole czyści się od razu i zostaje aktywne. Akcja moderatora (np. zamknięcie dyskusji) to `IconButton round` w prawym górnym rogu, z potwierdzeniem.
 
 ### HeroBanner
 
