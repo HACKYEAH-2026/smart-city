@@ -178,7 +178,9 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
+  // The plugin's one widget is its way in: its tile appears once the plugin is installed.
+  const notesTile = page.getByRole("link", { name: `${t.dashboard_open}: Notatki`, exact: true });
+  await expect(notesTile).toHaveCount(0);
 
   const headers = {
     authorization: `Bearer ${TEST_ADMIN_TOKEN}`,
@@ -197,7 +199,7 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
   });
   expect(inst.status).toBe(201);
 
-  await page.getByRole("link", { name: "Notatki" }).click({ timeout: 15_000 });
+  await notesTile.click({ timeout: 20_000 }); // the dashboard refetches every 15 s
   await expect(page.getByRole("heading", { name: "Tablica notatek" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze notatek.")).toBeVisible();
 

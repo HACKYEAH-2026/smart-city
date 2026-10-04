@@ -24,15 +24,6 @@ export function useCommunity(slug: string) {
   return useQuery({ queryKey: communityKey(slug), queryFn: () => parseResponse(c[":slug"].$get({ param: { slug } })) });
 }
 
-/** Navigation polled every few seconds: a newly installed plugin appears without a reload. */
-export function useCommunityNav(slug: string) {
-  return useQuery({
-    queryKey: [...communityKey(slug), "nav"],
-    queryFn: () => parseResponse(c[":slug"].nav.$get({ param: { slug } })),
-    refetchInterval: 5000,
-  });
-}
-
 /** Dashboard (widgets rendered for this user, in the community's order); refetched on every visit and periodically. */
 export function useDashboard(slug: string) {
   return useQuery({

@@ -223,8 +223,9 @@ export const communitiesRoutes = new Hono<AppEnv>()
   })
   /**
    * Dashboard: widgets of the enabled plugins, rendered for this user, in the order set by the community admins
-   * (widgets not in it follow in the default order). A widget that fails or returns null is left out, so one
-   * broken plugin never breaks the dashboard. `canEdit` = the user may reorder it.
+   * (widgets not in it follow in the default order). Every plugin has one widget and it always renders; one that
+   * fails (throws, null or invalid UI) is left out and logged, so a broken plugin never breaks the dashboard.
+   * `canEdit` = the user may reorder it.
    */
   .get("/:slug/dashboard", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));

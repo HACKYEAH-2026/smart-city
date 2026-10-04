@@ -11,26 +11,17 @@ import {
   Heading,
   Icon,
   IconButton,
-  Link,
   PlaceBackdrop,
   PlaceRow,
   Screen,
   Text,
 } from "../components";
-import {
-  useCommunities,
-  useCommunity,
-  useCommunityNav,
-  useDashboard,
-  useSetDefaultPlace,
-  useVisitPlace,
-} from "../data/communities";
+import { useCommunities, useCommunity, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { useSession } from "../data/session";
 import { tapFeedback } from "../lib/haptics";
 import { currentPlace } from "../lib/places";
 import { widgetsCount } from "../lib/plural";
 import { Dashboard as DashboardWidgets } from "../plugins/Dashboard";
-import { pluginHref } from "../plugins/href";
 import { t } from "../texts";
 import { colors, opacity, radii, sizes, spacing } from "../theme";
 import JoinPlace from "./JoinPlace";
@@ -158,34 +149,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
         </View>
         {widgets.isPending ? null : widgetList.length ? <DashboardWidgets slug={place.slug} /> : <EmptyDashboard />}
       </View>
-
-      {widgets.isPending ? null : <MoreFeatures slug={place.slug} tiles={widgetList.map((w) => w.pluginId)} />}
     </Screen>
-  );
-}
-
-/**
- * The place's features without a tile on the dashboard (a plugin with no widget, or one whose widget has nothing to
- * show yet, e.g. announcements before the first one): without this list nothing would lead to them.
- */
-function MoreFeatures({ slug, tiles }: { slug: string; tiles: string[] }) {
-  const nav = useCommunityNav(slug);
-  const rest = (nav.data ?? []).filter((n) => !tiles.includes(n.pluginId));
-  if (!rest.length) return null;
-  return (
-    <View style={styles.section}>
-      <Text variant="label" color="textSecondary">
-        {t.community_features_label}
-      </Text>
-      {rest.map((n) => (
-        <Card key={`${n.pluginId}/${n.view}`} style={styles.feature}>
-          <Text variant="headingS" aria-hidden>
-            {n.icon}
-          </Text>
-          <Link href={pluginHref(slug, n.pluginId, n.view)}>{n.label}</Link>
-        </Card>
-      ))}
-    </View>
   );
 }
 
@@ -243,7 +207,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyText: { flex: 1, gap: spacing[2] },
-  feature: { flexDirection: "row", alignItems: "center" },
   sheetList: { gap: spacing[4] },
   sheetActions: { flexDirection: "row", gap: spacing[5] },
   sheetAction: { flex: 1 },

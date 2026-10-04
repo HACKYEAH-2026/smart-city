@@ -16,6 +16,9 @@ const notes: PluginModule = ({ definePlugin, ui, z, t }) =>
     tables: {
       notes: t.table({ title: t.text(), body: t.text().default(""), author: t.ref("user").optional() }),
     },
+    dashboardWidgets: {
+      main: { size: { w: 2, h: 1 }, render: () => ui.widget("Notatki", [], { onPress: ui.navigate("main") }) },
+    },
     views: {
       main: async (ctx) => {
         const items = await ctx.db.notes.findMany();

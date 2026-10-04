@@ -327,7 +327,7 @@ describe("issues: dashboard", () => {
 
   test("summary widget: the open issue most residents support, with its photo and a way to report", async () => {
     const t = await testPlugin(issues, { user: alice });
-    const empty = (await t.dashboardWidget("summary"))!;
+    const empty = await t.dashboardWidget("summary");
     expect(textsOf(empty)).toEqual([
       "Zgłoszenia i sugestie",
       "0 otwartych · 0 w realizacji",
@@ -355,7 +355,7 @@ describe("issues: dashboard", () => {
     await support(bench, bob, carol, dave);
     await t.as(admin).tool("setStatus", { id: bench, status: "fixed" });
 
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(textsOf(widget)).toEqual([
       "Zgłoszenia i sugestie",
       "4 otwarte · 0 w realizacji",
@@ -375,7 +375,7 @@ describe("issues: dashboard", () => {
 
   test('summary widget: "Sugestia" opens the form with the suggestion kind picked', async () => {
     const t = await testPlugin(issues, { user: alice });
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(JSON.stringify(widget)).toContain(
       JSON.stringify({
         type: "navigate",

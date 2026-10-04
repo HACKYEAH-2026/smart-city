@@ -393,19 +393,21 @@ describe("dashboard", () => {
       json: { pluginId },
     });
   };
-  const withWidget = (id: string, widget: string) =>
+  /** The notes fixture with its one widget replaced by `widgets` (the body of `dashboardWidgets: { … }`). */
+  const withWidgets = (id: string, widgets: string) =>
     NOTES.replace('id: "notes"', `id: "${id}"`).replace(
-      "    views: {",
-      `    dashboardWidgets: { w: ${widget} },\n    views: {`,
+      / {4}dashboardWidgets: \{\n[\s\S]*?\n {4}\},\n/,
+      `    dashboardWidgets: { ${widgets} },\n`,
     );
+  const withWidget = (id: string, widget: string) => withWidgets(id, `w: ${widget}`);
 
-  test("no session 401, unknown community 404; a widget with nothing to show is left out", async () => {
+  test("no session 401, unknown community 404; every plugin's widget shows, even without data", async () => {
     await start();
     expect((await t.request(`${base}/dashboard`)).status).toBe(401);
     const u = await t.signUp();
     expect((await t.request("/api/communities/nie-ma/dashboard", { headers: u.headers })).status).toBe(404);
     const d = await dashboard(u.headers);
-    expect(d.keys).toEqual(["issues/summary", "discussions/recent"]);
+    expect(d.keys).toEqual(["issues/summary", "announcements/latest", "discussions/recent"]);
     expect(d.canEdit).toBe(false);
     expect((await dashboard(cityAdmin.headers)).canEdit).toBe(true);
   });
@@ -477,13 +479,25 @@ describe("dashboard", () => {
     );
     const d = await dashboard(u.headers);
     expect(d.res.status).toBe(200);
-    expect(d.keys).toEqual(["issues/summary", "discussions/recent"]);
+    expect(d.keys).toEqual(["issues/summary", "announcements/latest", "discussions/recent"]);
   });
 
   test("a widget without a valid size is rejected on upload", async () => {
     await start();
-    const source = withWidget("huge", "{ size: { w: 3, h: 1 }, render: () => null }");
+    const source = withWidget("huge", "{ size: { w: 3, h: 1 }, render: () => ui.widget('x', []) }");
     const res = await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source } });
     expect(res.status).toBe(400);
+  });
+
+  test("a plugin needs exactly one widget: none or two are rejected on upload", async () => {
+    await start();
+    const upload = async (source: string) => {
+      const res = await t.request("/api/admin/plugins", { method: "POST", headers: platform, json: { source } });
+      expect(res.status).toBe(400);
+      return ((await res.json()) as { message: string }).message;
+    };
+    const tile = "{ size: { w: 1, h: 1 }, render: () => ui.widget('x', []) }";
+    expect(await upload(withWidgets("none", ""))).toContain("exactly one dashboard widget");
+    expect(await upload(withWidgets("two", `a: ${tile}, b: ${tile}`))).toContain("exactly one dashboard widget");
   });
 });

@@ -242,8 +242,6 @@ export const t = {
   notfound_body: "Link może być błędny albo strona została usunięta.",
   notfound_home: "Przejdź na stronę główną",
   meta_notfound_title: "Nie znaleziono strony — Twoje Miejsce",
-  community_features_label: "Funkcje",
-  community_features_empty: "Ta społeczność nie ma jeszcze żadnych funkcji.",
   community_dashboard_label: "Pulpit miejsca",
   /** Screen-reader action on a widget tile (sighted admins long-press the tile). */
   dashboard_edit: "Edytuj pulpit",

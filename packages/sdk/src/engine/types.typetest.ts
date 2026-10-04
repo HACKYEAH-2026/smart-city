@@ -45,4 +45,10 @@ definePlugin({
       return ui.screen(`${status} ${reporterName} ${photoId} ${issueTitle}`, []);
     },
   },
+  dashboardWidgets: {
+    summary: {
+      size: { w: 2, h: 1 },
+      render: async (ctx) => ui.widget(`${await ctx.db.issues.count()}`, [], { onPress: ui.navigate("main") }),
+    },
+  },
 });
