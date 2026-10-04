@@ -363,6 +363,11 @@ export function createTestRoutes(deps: Deps) {
         await seedDemo(deps);
         return c.json({ ok: true });
       })
+      /** The demo resident with her campus and cooperative, as the dev API seeds them on start (dev login E2E). */
+      .post("/__test/resident", async (c) => {
+        await seedDemoResident(deps);
+        return c.json({ ok: true });
+      })
       /** Invites an existing user to Kraków from its admin (the invitations screen shows it). */
       .post("/__test/invitation", async (c) => {
         const { email, slug } = await c.req.json<{ email: string; slug: string }>();

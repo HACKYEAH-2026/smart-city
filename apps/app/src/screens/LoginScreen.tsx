@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
 import { Brand, Button, GoogleLogo, Heading, Link, MapDecoration, Screen, Text, TextField } from "../components";
 import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
-import { devLoginAccount } from "../lib/config";
+import { devLoginAccounts } from "../lib/config";
 import { t } from "../texts";
 import { layout, spacing } from "../theme";
 
@@ -19,13 +19,13 @@ const GOOGLE_ERROR: Record<Exclude<GoogleSignInResult, "ok" | "cancelled">, stri
  * Login (design E-Logowanie): map illustration, brand, welcome copy, email and password, Google, sign-up link.
  * Google signs in and signs up in one step (the account is created at the first sign-in); the button shows only
  * where the native account picker exists (not in Expo Go) and the API has a Google client.
- * With the dev login flag (src/lib/config.ts), a button at the very bottom signs in as the demo admin.
+ * With the dev login flag (src/lib/config.ts), buttons at the very bottom sign in as the demo admin or resident.
  */
 export default function LoginScreen() {
   const router = useRouter();
   const auth = useAuthActions();
   const googleIds = useGoogleClientIds().data;
-  const devAccount = devLoginAccount();
+  const devAccounts = devLoginAccounts();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -112,14 +112,20 @@ export default function LoginScreen() {
       <Text variant="body" color="textSecondary" style={styles.center}>
         {t.auth_no_account} <Link href="/register">{t.auth_goto_register}</Link>
       </Text>
-      {devAccount ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          label={`${t.auth_dev_login} ${devAccount.email}`}
-          onPress={() => signIn(devAccount)}
-          disabled={pending}
-        />
+      {devAccounts.length > 0 ? (
+        <View style={styles.dev}>
+          {devAccounts.map((account) => (
+            <Button
+              key={account.email}
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              label={`${t.auth_dev_login} ${account.email}`}
+              onPress={() => signIn(account)}
+              disabled={pending}
+            />
+          ))}
+        </View>
       ) : null}
     </Screen>
   );
@@ -133,5 +139,7 @@ const styles = StyleSheet.create({
   // Design: social sign-in buttons sit in a grid with gap 10 under the main button.
   social: { gap: spacing[5] },
   grow: { flex: 1 },
+  // Side by side when they fit, else one under the other.
+  dev: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   center: { textAlign: "center" },
 });
