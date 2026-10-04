@@ -8,6 +8,7 @@ import { DASHBOARD_COLUMNS, type UINode, ui } from "@app/plugin-sdk";
 import {
   ChevronDown,
   ChevronRight,
+  CircleCheck,
   Flashlight,
   Link2,
   type LucideIcon,
@@ -71,6 +72,8 @@ const PHOTO = {
   benches: staticFile(MEDIA.lawki.file),
   room: staticFile(MEDIA.sala.file),
   poster: staticFile(MEDIA["kamera-qr"].file),
+  cityAtNight: staticFile(MEDIA["miasto-noc"].file),
+  mural: staticFile(MEDIA.mural.file),
 };
 type PhotoId = keyof typeof PHOTO;
 
@@ -505,6 +508,43 @@ export const budgetWidget = () =>
     },
   );
 
+/* ── A calendar and a picture (plugins a place could add) ─────────────────────────────────────────────── */
+
+const WEEK = [
+  { day: "pt", date: 17 },
+  { day: "sob", date: 18 },
+  { day: "pon", date: 20 },
+  { day: "wt", date: 21 },
+];
+
+/** Widget of a calendar: this week's days with events as date tiles, the chosen day's events under them. */
+export const calendarWidget = () =>
+  ui.widget(
+    "Kalendarz",
+    [
+      ui.tabs({
+        label: "Dni z wydarzeniami",
+        variant: "tiles",
+        options: WEEK.map((w, i) => ({
+          label: w.day,
+          count: w.date,
+          selected: i === 0,
+          action: ui.navigate("day", { date: String(w.date) }),
+        })),
+      }),
+      ui.list("Piątek, 17 października", [
+        ui.card({ title: "Dzień otwarty wydziału", meta: [{ text: "10:00" }, { text: "Aula A" }] }),
+        ui.card({ title: "Spotkanie koła naukowego robotyki", meta: [{ text: "16:00" }, { text: "Sala 3.05" }] }),
+        ui.card({ title: "Juwenalia: koncert na błoniach", meta: [{ text: "18:00" }] }),
+      ]),
+    ],
+    { subtitle: "5 wydarzeń w tym tygodniu", link: { label: "Wszystkie", action: ui.navigate("list") } },
+  );
+
+/** A picture widget: only a photo on the dashboard, with the tiles' rounded corners (drawn in DashboardScreen). */
+export type PhotoTile = { photo: PhotoId; alt: string };
+export const photoWidget = (photo: PhotoId, alt: string): PhotoTile => ({ photo, alt });
+
 /* ── Room booking (a plugin a campus could add) ───────────────────────────────────────────────────────── */
 
 const DAYS = [
@@ -650,8 +690,34 @@ const Sheet = ({ node, open }: { node: UINode; open: number }) => {
 };
 
 /**
- * A plugin view as the app shows it (screens/PluginView): a lead photo, the plugin's header, a toast after an
- * action, the content with its closing actions at the bottom edge, floating buttons, and a view open as a sheet.
+ * A tool's confirmation as components/Toast draws it: a dark bubble floating over the bottom of the screen, above a
+ * floating button; `shown` 0 → 1 slides it up (the app's own component animates on its own clock).
+ */
+const FloatingToast = ({ text, shown, lift }: { text: string; shown: number; lift: number }) => (
+  <View
+    pointerEvents="none"
+    style={[
+      styles.toastLayer,
+      {
+        bottom: SCREEN.bottom + spacing[12] + lift,
+        opacity: Math.min(1, shown * 1.5),
+        transform: [{ translateY: (1 - shown) * 90 }],
+      },
+    ]}
+  >
+    <View role="status" style={styles.toast}>
+      <Icon icon={CircleCheck} size={sizes.iconS} color="onPrimary" strokeWidth={2.2} />
+      <Text variant="button" color="onPrimary" style={styles.toastText}>
+        {text}
+      </Text>
+    </View>
+  </View>
+);
+
+/**
+ * A plugin view as the app shows it (screens/PluginView): a lead photo, the plugin's header, the content with its
+ * closing actions at the bottom edge, floating buttons, a tool's confirmation floating over the bottom, and a view
+ * open as a sheet.
  */
 export const PluginScreen = ({
   node,
@@ -661,21 +727,23 @@ export const PluginScreen = ({
 }: {
   node: UINode;
   scroll?: number;
-  toast?: string;
+  toast?: { text: string; shown: number };
   sheet?: { node: UINode; open: number };
 }) => {
   const screen = screenOf(node);
   const first = screen.children[0];
   const lead = first?.type === "Gallery" ? first : undefined;
   const content = lead ? { ...screen, children: screen.children.slice(1) } : screen;
+  const floating = screen.children.filter(isFloating);
   return (
     <AppScreen
       scroll={scroll}
       overlay={
         <>
-          {screen.children.filter(isFloating).map((floating) => (
-            <Plugin key={floating.type} node={floating} />
+          {floating.map((button) => (
+            <Plugin key={button.type} node={button} />
           ))}
+          {toast ? <FloatingToast {...toast} lift={floating.length ? sizes.fab + spacing[6] : 0} /> : null}
           {sheet ? <Sheet {...sheet} /> : null}
         </>
       }
@@ -684,13 +752,6 @@ export const PluginScreen = ({
       {screen.chrome === false ? null : (
         <PluginScreenHeader node={screen} backHref={lead ? null : "/app"} onAction={nothing} />
       )}
-      {toast ? (
-        <View role="status" style={styles.toast}>
-          <Text variant="bodyL" color="primaryPressed">
-            {toast}
-          </Text>
-        </View>
-      ) : null}
       <View style={[styles.content, lead && styles.afterLead]}>
         <Plugin node={content} />
       </View>
@@ -728,9 +789,15 @@ const DashboardBackdrop = () => {
   );
 };
 
-/** The plugins' declared widget sizes (plugins/*: `size`); the discussions widget is a row taller. */
-const sizeOf = (node: UINode) =>
-  node.type === "Widget" && node.title === "Dyskusje" ? { w: 3, h: 3 } : { w: 3, h: 2 };
+/** A dashboard tile: a plugin's widget, or a picture widget's photo. */
+type Tile = UINode | PhotoTile;
+const isPhoto = (tile: Tile): tile is PhotoTile => "photo" in tile;
+
+/** The plugins' declared widget sizes (plugins/*: `size`); the discussions and calendar widgets are a row taller. */
+const sizeOf = (tile: Tile) =>
+  !isPhoto(tile) && tile.type === "Widget" && ["Dyskusje", "Kalendarz"].includes(tile.title)
+    ? { w: 3, h: 3 }
+    : { w: 3, h: 2 };
 
 const GRID_GAP = spacing[6];
 
@@ -746,14 +813,14 @@ export const DashboardScreen = ({
   place = "Kraków",
   arrive = 1,
 }: {
-  widgets: UINode[];
+  widgets: Tile[];
   admin?: boolean;
   scroll?: number;
   place?: string;
   arrive?: number;
 }) => {
   const grid = gridRects(
-    widgets.map((node) => ({ node, size: sizeOf(node) })),
+    widgets.map((tile) => ({ tile, size: sizeOf(tile) })),
     {
       width: SCREEN.width - 2 * layout.screenPaddingX,
       columns: DASHBOARD_COLUMNS,
@@ -793,7 +860,13 @@ export const DashboardScreen = ({
                   : { transform: [{ translateY: -room }] },
               ]}
             >
-              <Plugin node={item.node} />
+              {isPhoto(item.tile) ? (
+                <View role="img" aria-label={item.tile.alt} style={[styles.photoTile, StyleSheet.absoluteFill]}>
+                  <Image source={{ uri: PHOTO[item.tile.photo] }} style={styles.fill} resizeMode="cover" />
+                </View>
+              ) : (
+                <Plugin node={item.tile} />
+              )}
             </View>
           ))}
         </View>
@@ -1109,7 +1182,20 @@ const styles = StyleSheet.create({
   bleed: { marginHorizontal: -layout.screenPaddingX },
   leadPhoto: { width: "100%", aspectRatio: 4 / 3, backgroundColor: colors.mapBase },
   floatingBack: { position: "absolute", left: layout.screenPaddingX },
-  toast: { backgroundColor: colors.primaryTint, borderRadius: radii.md, padding: spacing[8] },
+  toastLayer: { position: "absolute", left: layout.screenPaddingX, right: layout.screenPaddingX, alignItems: "center" },
+  toast: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[4],
+    minHeight: sizes.fab,
+    paddingHorizontal: spacing[9],
+    paddingVertical: spacing[5],
+    borderRadius: radii.pill,
+    backgroundColor: colors.text,
+    ...shadows.floating,
+  },
+  toastText: { flexShrink: 1 },
+  photoTile: { borderRadius: radii["3xl"], overflow: "hidden", backgroundColor: colors.mapBase, ...shadows.card },
   sheet: {
     position: "absolute",
     left: 0,
@@ -1157,6 +1243,7 @@ const styles = StyleSheet.create({
   details: { gap: spacing[2] },
   codeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   grow: { flex: 1, gap: spacing[1] },
+  fill: { width: "100%", height: "100%" },
   sections: { gap: spacing[7] },
   pluginRow: {
     flexDirection: "row",

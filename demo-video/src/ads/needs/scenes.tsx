@@ -20,6 +20,7 @@ import {
   budgetView,
   budgetWidget,
   COOP_ISSUE,
+  calendarWidget,
   DashboardScreen,
   discussionsWidget,
   IssueFormScreen,
@@ -29,6 +30,7 @@ import {
   mergeView,
   PluginScreen,
   PreviewScreen,
+  photoWidget,
   REPORTERS,
   ScannerScreen,
 } from "../shared/screens";
@@ -211,6 +213,7 @@ export const IntroScene = () => {
 /* ── 2 · promise: one app that fits each of them ────────────────────────────────────────────────────── */
 
 const CAMPUS_WIDGETS = [
+  calendarWidget(),
   bookingWidget(),
   announcementsWidget("Biblioteka otwarta do 22:00 w czasie sesji", "Dzień otwarty wydziału w czwartek"),
 ];
@@ -222,7 +225,7 @@ const PLACES = [
     label: "Miasto",
     icon: Landmark,
     x: 520,
-    widgets: [budgetWidget(), issuesWidget(REPORTERS)],
+    widgets: [photoWidget("cityAtNight", "Kraków o zmierzchu"), budgetWidget(), issuesWidget(REPORTERS)],
   },
   { key: "campus", place: "Kampus Główny", label: "Uczelnia", icon: GraduationCap, x: 960, widgets: CAMPUS_WIDGETS },
   {
@@ -231,7 +234,11 @@ const PLACES = [
     label: "Spółdzielnia",
     icon: Building2,
     x: 1400,
-    widgets: [issuesWidget(REPORTERS, "open", COOP_ISSUE), discussionsWidget()],
+    widgets: [
+      issuesWidget(REPORTERS, "open", COOP_ISSUE),
+      photoWidget("mural", "Mural na bloku przy ul. Słonecznej"),
+      discussionsWidget(),
+    ],
   },
 ] as const;
 
@@ -344,7 +351,20 @@ export const CityScene = () => {
         <Sub at={vote}>Głosowanie w aplikacji.</Sub>
       </Column>
       <PhoneAt pose={PHONE}>
-        <PluginScreen node={budgetView(voted)} toast={voted ? "Dziękujemy za głos!" : undefined} />
+        <PluginScreen
+          node={budgetView(voted)}
+          toast={
+            voted
+              ? {
+                  text: "Dziękujemy za głos!",
+                  shown: keys(frame, [
+                    [vote + 6, 0],
+                    [vote + 16, 1],
+                  ]),
+                }
+              : undefined
+          }
+        />
         <Tap x={318} y={330} at={vote} />
       </PhoneAt>
     </Light>

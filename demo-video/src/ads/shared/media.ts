@@ -95,6 +95,9 @@ export const MEDIA = {
   "plac-zabaw": { kind: "frame", file: "ad/images/plac-zabaw.jpg", clip: "osiedle", second: 0.5 },
   // Benches and lawns by the blocks of flats, the photo of a civic budget project.
   lawki: { kind: "frame", file: "ad/images/lawki.jpg", clip: "spoldzielnia", second: 0.5 },
+  // The city at dusk from the air, and the cooperative's block with its mural: the photo widgets' pictures.
+  "miasto-noc": { kind: "frame", file: "ad/images/miasto-noc.jpg", clip: "miasto", second: 4 },
+  mural: { kind: "frame", file: "ad/images/mural.jpg", clip: "spoldzielnia", second: 3.5 },
   // The campus poster with the QR code, as the app's scanner sees it.
   "kamera-qr": { kind: "frame", file: "ad/images/kamera-qr.jpg", clip: "kampus-qr", second: 3.9 },
 } as const satisfies Record<string, Still | Clip | Grab>;
