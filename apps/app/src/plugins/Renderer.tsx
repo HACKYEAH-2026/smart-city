@@ -813,13 +813,9 @@ function FormImagePicker({ node }: { node: Extract<UINode, { type: "ImagePicker"
       <View role="group" aria-label={node.label} style={styles.photoRow}>
         {preview ? (
           <View style={styles.photoTile}>
-            <Image
-              source={{ uri: preview }}
-              style={styles.photoImage}
-              accessible
-              accessibilityRole="image"
-              accessibilityLabel={t.plugin_photo_preview}
-            />
+            <View role="img" aria-label={t.plugin_photo_preview} style={styles.photoImage}>
+              <Image source={{ uri: preview }} style={styles.photoImage} />
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t.plugin_photo_remove}
@@ -1082,7 +1078,8 @@ const styles = StyleSheet.create({
   heroText: { textAlign: "center", maxWidth: sizes.heroTextWidth },
   /** Fills the dashboard tile (fixed size from the plugin); content beyond it is clipped. */
   widget: { flex: 1, overflow: "hidden" },
-  widgetBody: { gap: spacing[6] },
+  // Fills the widget: the content spreads from the header to the actions, so the frame is never half empty.
+  widgetBody: { flex: 1, gap: spacing[6], justifyContent: "space-between" },
   widgetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[4] },
   placeRow: {
     flexDirection: "row",

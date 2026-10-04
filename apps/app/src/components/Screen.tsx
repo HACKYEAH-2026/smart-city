@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 import { StyleSheet, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, layout } from "../theme";
 import { AppFooter, AppHeader } from "./AppHeader";
@@ -18,6 +19,16 @@ export interface ScreenProps {
   overlay?: ReactNode;
 }
 
+/** How far the content has scrolled (dp), shared with the backdrop, which reacts to it on the UI thread. */
+const ScrollYContext = createContext<SharedValue<number> | null>(null);
+
+/** The scroll position of the screen whose backdrop is rendering (see Screen). */
+export function useScrollY(): SharedValue<number> {
+  const scrollY = useContext(ScrollYContext);
+  if (!scrollY) throw new Error("useScrollY is used outside Screen's backdrop");
+  return scrollY;
+}
+
 /**
  * Screen shell (COMPONENTS.md → Screen): background, safe-area insets, scrolling content,
  * optional app header and footer. Dedicated CTA buttons go last in `children`.
@@ -26,15 +37,22 @@ export interface ScreenProps {
  */
 export function Screen({ children, chrome = true, backdrop, tabBar = false, overlay }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const scrollY = useSharedValue(0);
   return (
     <View style={styles.root}>
       {backdrop ? (
-        <View pointerEvents="none" style={styles.backdrop}>
-          {backdrop}
-        </View>
+        <ScrollYContext.Provider value={scrollY}>
+          <View pointerEvents="none" style={styles.backdrop}>
+            {backdrop}
+          </View>
+        </ScrollYContext.Provider>
       ) : null}
       <KeyboardAwareScrollView
         style={styles.scroll}
+        onScroll={(e) => {
+          scrollY.value = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         bottomOffset={layout.keyboardBottomOffset}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[

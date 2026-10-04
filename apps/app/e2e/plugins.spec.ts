@@ -407,3 +407,16 @@ test("discussions widget: latest activity first, a tap opens the discussion, the
   await expect(page.getByRole("heading", { name: "Dyskusje", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: /Parking pod blokiem/ })).toBeVisible();
 });
+
+test("issues: after a report is sent, back does not return to the filled-in form", async ({ page, api }) => {
+  await register(page, "wyslane@example.test", api.url);
+  await openNewIssueForm(page);
+  await page.getByLabel("Tytuł").fill("Dziura w chodniku");
+  await page.getByLabel("Opis").fill("Przy wejściu do parku");
+  await page.getByRole("button", { name: "Wyślij zgłoszenie" }).click();
+  await expect(page.getByRole("heading", { name: "Dziękujemy za zgłoszenie" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/issues\/list$/);
+  await expect(page.getByRole("button", { name: "Wyślij zgłoszenie" })).toHaveCount(0);
+});
