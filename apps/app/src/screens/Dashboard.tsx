@@ -1,9 +1,9 @@
 import type { MyPlace } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronDown, LayoutDashboard, LogIn, Plus, Settings } from "lucide-react-native";
+import { LayoutDashboard, LogIn, Plus, Settings } from "lucide-react-native";
 import { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   BottomSheet,
   Button,
@@ -17,18 +17,16 @@ import {
   Text,
 } from "../components";
 import { useCommunities, useCommunity, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
-import { useSession } from "../data/session";
-import { tapFeedback } from "../lib/haptics";
 import { currentPlace } from "../lib/places";
 import { widgetsCount } from "../lib/plural";
 import { Dashboard as DashboardWidgets } from "../plugins/Dashboard";
 import { t } from "../texts";
-import { colors, opacity, radii, sizes, spacing } from "../theme";
+import { colors, radii, sizes, spacing } from "../theme";
 import JoinPlace from "./JoinPlace";
 
 /**
- * Dashboard after sign-in (design E-Dashboard): greeting, the current place, its widgets, the place switcher and the
- * bottom bar. Without places: the ways to join a place and creating one (design E-BrakMiejsc).
+ * Dashboard after sign-in (design E-Dashboard): the current place, its widgets, the place switcher (opened only from
+ * the Places tab) and the bottom bar. Without places: the ways to join a place and creating one (design E-BrakMiejsc).
  */
 export default function Dashboard() {
   const places = useCommunities();
@@ -46,16 +44,6 @@ export default function Dashboard() {
   return current ? <PlaceDashboard place={current} places={list} /> : <JoinPlace />;
 }
 
-/** "Dzień dobry, <name>" — the signed-in user's name from the session. */
-function Greeting() {
-  const session = useSession();
-  return (
-    <Text variant="body" color="textSecondary">
-      {session.data?.name ? `${t.dashboard_greeting}, ${session.data.name}` : t.dashboard_greeting}
-    </Text>
-  );
-}
-
 function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }) {
   const router = useRouter();
   const visit = useVisitPlace();
@@ -66,7 +54,6 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
   // The switcher is part of the URL (/app?places=1), so the "Miejsca" tab can open it from any screen.
   const { places: switcherParam } = useLocalSearchParams<{ places?: string }>();
   const switching = switcherParam === "1";
-  const openSwitcher = () => router.setParams({ places: "1" });
   const closeSwitcher = () => router.setParams({ places: undefined });
 
   // Showing a place remembers it as the last visited one; the dashboard opens on it next time.
@@ -111,30 +98,14 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
       <Head>
         <title>{place.name}</title>
       </Head>
-      <View style={styles.top}>
-        <Greeting />
-      </View>
-
       <View style={styles.place}>
         <Text variant="label" color="textSecondary">
           {t.place_current_label}
         </Text>
         <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t.place_switch}: ${place.name}`}
-            hitSlop={spacing[6]}
-            onPress={openSwitcher}
-            onPressIn={tapFeedback}
-            style={({ pressed }) => [styles.nameRow, pressed && styles.pressed]}
-          >
-            <Heading level={1} variant="heading">
-              {place.name}
-            </Heading>
-            <View style={styles.chevron}>
-              <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
-            </View>
-          </Pressable>
+          <Heading level={1} variant="heading">
+            {place.name}
+          </Heading>
           {place.role === "admin" ? (
             <IconButton icon={Settings} label={t.manage_title} variant="round" href={`/app/c/${place.slug}/manage`} />
           ) : null}
@@ -173,24 +144,8 @@ function EmptyDashboard() {
 }
 
 const styles = StyleSheet.create({
-  top: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing[6],
-  },
-  pressed: { opacity: opacity.pressed },
-  place: { gap: spacing[2] },
-  header: { flexDirection: "row", justifyContent: "space-between" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
-  chevron: {
-    width: spacing[8] * 2,
-    height: spacing[8] * 2,
-    borderRadius: radii.xl,
-    backgroundColor: colors.primaryTint,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  place: { gap: spacing[4] },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[6] },
   section: { gap: spacing[6] },
   sectionHead: {
     flexDirection: "row",

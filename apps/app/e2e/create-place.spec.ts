@@ -53,7 +53,7 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await expect(page.getByRole("link", { name: `${t.dashboard_open}: Ogłoszenia`, exact: true })).toBeVisible();
   // Discussions are off: no tile.
   await expect(page.getByRole("link", { name: /Dyskusje/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Kamienica Lipowa 12" }).click();
+  await page.getByRole("navigation", { name: t.nav_main }).getByRole("link", { name: t.tab_places }).click();
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
 });
 

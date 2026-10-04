@@ -21,7 +21,6 @@ export const t = {
   place_create: "Utwórz nowe",
   place_join: "Dołącz",
   place_current_label: "Twoje miejsce",
-  place_switch: "Zmień miejsce",
   place_set_default: "Ustaw wybrane jako domyślne",
   places_sheet_title: "Twoje miejsca",
   widgets_empty_title: "Pulpit jest jeszcze pusty",

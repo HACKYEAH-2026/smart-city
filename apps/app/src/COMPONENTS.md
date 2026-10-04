@@ -199,7 +199,7 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 
 ### Pulpit (DashboardHeader + WidgetGrid)
 
-- Nagłówek: powitanie `body` `textSecondary` + `IconButton round` (dzwonek); pod nim etykieta „Twoje miejsce" i nazwa miejsca `heading` (lub `headingM` dla długich nazw) z kółkiem 32 dp `primaryTint` z `ChevronDown` 16 (`primary`) — cały blok otwiera BottomSheet przełącznika.
+- Nagłówek: etykieta „Twoje miejsce" (`label` `textSecondary`), 8 dp odstępu, nazwa miejsca `heading` (lub `headingM` dla długich nazw); administrator ma po prawej `IconButton round` (ustawienia). Bez powitania i bez strzałki — BottomSheet przełącznika otwiera tylko zakładka „Miejsca" w dolnym pasku.
 - Tło nagłówka: dekoracyjna mapa (SVG: ulice `mapRoadMinor` 7 px, woda `mapWater`) — opcjonalne, `aria-hidden`.
 - Siatka widżetów (projekt „Układ pulpitu"): 3 kolumny (`DASHBOARD_COLUMNS`), wiersze `sizes.widgetRow`, gap 12; widżet zajmuje `w` × `h` komórek (rozmiar wybrany przez administratora spośród dozwolonych przez rozszerzenie). Rozmieszczenie jak CSS grid `row dense` (`src/lib/grid.ts`: `packGrid` / `gridRects`, kafelki pozycjonowane absolutnie) — tak samo w pulpicie, w edytorze układu i w podglądzie na „Zarządzaj miejscem". Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
 - Kafelek widżetu: dotknięcie otwiera widok rozszerzenia wskazany przez widżet (`onPress`; przy tytule `ChevronRight` `iconMuted`), karty i przyciski w środku działają osobno. Administrator przytrzymuje kafelek (haptyka „long press"), żeby wejść w tryb edycji: przerywana ramka, uchwyt i strzałki, nad siatką podpowiedź i „Gotowe". Czytnik ekranu: akcja „Edytuj pulpit" na kafelku.
