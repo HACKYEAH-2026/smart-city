@@ -1,6 +1,7 @@
 /**
  * Server for E2E and local dev: applies the schema to the database (DATABASE_URL, in-memory by default),
- * seeds the demo place and more public places around Kraków (test-routes.ts) and adds /__test/reset.
+ * seeds the demo place, a resident of three places and more public places around Kraków (test-routes.ts) and adds
+ * /__test/reset.
  * Refuses to start outside NODE_ENV=test.
  * Google sign-in: with the test client ID (E2E) it accepts fake ID tokens (test-google.ts); with a real
  * GOOGLE_CLIENT_ID (local dev with a phone, the repo-root .env) it checks real tokens like production.
@@ -12,7 +13,7 @@ import { TestPluginAuthor } from "./test-author";
 import { TEST_ENV } from "./test-env";
 import { TestGeocoder } from "./test-geocoder";
 import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "./test-google";
-import { createTestRoutes, seedDemo, seedDemoMap } from "./test-routes";
+import { createTestRoutes, seedDemo, seedDemoMap, seedDemoResident } from "./test-routes";
 
 // Dev/E2E: :4000 by default (3000 is often taken by other tools). Production: PORT from env (3000).
 const port = process.env.PORT ?? "4000";
@@ -40,6 +41,8 @@ const { app, auth, plugins } = createApp({
 });
 const deps = { db: handle.db, auth, plugins };
 await seedDemo(deps);
+// A resident of Kraków, a campus and a cooperative for local dev; /__test/reset (E2E) starts without them.
+await seedDemoResident(deps);
 // More pins on the map of places for local dev; /__test/reset (E2E) starts from the demo place alone.
 await seedDemoMap(handle.db);
 app.route("/", createTestRoutes(deps));

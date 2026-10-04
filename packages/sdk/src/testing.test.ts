@@ -23,6 +23,7 @@ describe("undeclared permissions", () => {
         nav: [{ view: "main", label: "Notatki" }],
         tables: { notes: t.table({ text: t.text() }) },
         views: { main: () => ui.screen("Notatki", []) },
+        dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Notatki", []) } },
         tools: {
           add: {
             description: "Dodaj",
@@ -47,6 +48,7 @@ describe("ctx.notify in the harness", () => {
       permissions: ["notify"],
       nav: [{ view: "main", label: "Dziki" }],
       views: { main: () => ui.screen("Dziki", []), sighting: () => ui.screen("Dzik", []) },
+      dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Dziki", []) } },
       tools: {
         report: {
           description: "Zgłoś dzika",
@@ -98,6 +100,7 @@ describe("ctx.ai.embed in the harness", () => {
       permissions: ["ai"],
       nav: [{ view: "main", label: "Podobne" }],
       views: { main: () => ui.screen("Podobne", []) },
+      dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Podobne", []) } },
       tools: {
         embed: {
           description: "Wektor tekstu",

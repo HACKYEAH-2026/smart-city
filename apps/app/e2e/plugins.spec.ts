@@ -175,7 +175,9 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
+  // The plugin's one widget is its way in: its tile appears once the plugin is installed.
+  const notesTile = page.getByRole("link", { name: `${t.dashboard_open}: Notatki`, exact: true });
+  await expect(notesTile).toHaveCount(0);
 
   const headers = {
     authorization: `Bearer ${TEST_ADMIN_TOKEN}`,
@@ -194,7 +196,7 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
   });
   expect(inst.status).toBe(201);
 
-  await page.getByRole("link", { name: "Notatki" }).click({ timeout: 15_000 });
+  await notesTile.click({ timeout: 20_000 }); // the dashboard refetches every 15 s
   await expect(page.getByRole("heading", { name: "Tablica notatek" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze notatek.")).toBeVisible();
 
@@ -244,7 +246,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Zebranie użytkowników");
   await page.goto("/app");
-  await expect(dashboardRegions(page)).toHaveCount(2);
+  await expect(dashboardRegions(page)).toHaveCount(3);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
 
   await holdTile(page, "Ogłoszenia");
@@ -269,11 +271,11 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
 
 test("admin drags a widget to a new place on the dashboard", async ({ page }) => {
   // The whole dashboard must fit in the viewport: the mouse cannot drag to points outside it.
-  await page.setViewportSize({ width: 1280, height: 1400 });
+  await page.setViewportSize({ width: 1280, height: 1800 });
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Przerwa w dostawie wody");
   await page.goto("/app");
-  await expect(dashboardRegions(page)).toHaveCount(2);
+  await expect(dashboardRegions(page)).toHaveCount(3);
   await holdTile(page, "Zgłoszenia i sugestie");
 
   const handle = page.getByLabel(`${t.dashboard_drag}: Ogłoszenia`);
@@ -352,4 +354,56 @@ test("issues list: a tab or chip changes the list in place; going back leaves th
   await expect(page.getByRole("radio", { name: "Problemy" })).toHaveAttribute("aria-checked", "true");
   await page.goBack();
   await expect(page).toHaveURL(/\/app$/);
+});
+
+test("discussions widget: latest activity first, a tap opens the discussion, the header opens all", async ({
+  page,
+  api,
+}) => {
+  await register(page, "anna@example.test", api.url);
+  const widget = page.getByRole("region", { name: "Dyskusje" });
+  await expect(widget.getByText("Nikt jeszcze nie zaczął rozmowy.")).toBeVisible();
+
+  const startDiscussion = async (title: string, message?: string) => {
+    await page.goto("/app");
+    await widget.getByRole("button", { name: "Nowa dyskusja" }).click();
+    await expect(page.getByRole("heading", { name: "Nowa dyskusja", level: 1 })).toBeVisible();
+    await page.getByLabel("Temat").fill(title);
+    await page.getByRole("button", { name: "Załóż dyskusję" }).click();
+    await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
+    if (!message) return;
+    await page.getByLabel("Twoja wiadomość").fill(message);
+    await page.getByRole("button", { name: "Wyślij" }).click();
+    await expect(page.getByRole("list", { name: "Wiadomości" }).getByText(message)).toBeVisible();
+    await expect(page.getByLabel("Twoja wiadomość")).toHaveValue("");
+  };
+  await startDiscussion("Zieleń przy Rondzie Mogilskim", "Proponuję lipy");
+  await startDiscussion("Parking pod blokiem");
+
+  // A neighbour sees both, the latest activity first, as new.
+  await signOut(page);
+  await register(page, "bartek@example.test", api.url);
+  const rows = widget.getByRole("list", { name: "Ostatnia aktywność" }).getByRole("listitem");
+  await expect(widget.getByText("2 z nowymi wpisami")).toBeVisible();
+  await expect(rows.nth(0)).toContainText("Parking pod blokiem");
+  await expect(rows.nth(1)).toContainText("Zieleń przy Rondzie Mogilskim");
+  await expect(rows.nth(1)).toContainText("anna@example.test: Proponuję lipy");
+
+  // Tapping a discussion opens it; a reply moves it to the top.
+  await widget.getByRole("button", { name: /Zieleń przy Rondzie Mogilskim/ }).click();
+  await expect(page.getByRole("heading", { name: "Zieleń przy Rondzie Mogilskim", level: 1 })).toBeVisible();
+  await page.getByLabel("Twoja wiadomość").fill("Raczej klony");
+  await page.getByRole("button", { name: "Wyślij" }).click();
+  await expect(page.getByRole("list", { name: "Wiadomości" }).getByText("Raczej klony")).toBeVisible();
+
+  await page.goto("/app");
+  await expect(rows.nth(0)).toContainText("Zieleń przy Rondzie Mogilskim");
+  await expect(rows.nth(0)).toContainText("Ty: Raczej klony");
+  await expect(widget.getByText("2 dyskusje", { exact: true })).toBeVisible();
+
+  // The header link opens all discussions.
+  await widget.getByRole("button", { name: "Wszystkie" }).click();
+  await expect(page).toHaveURL(/\/app\/c\/krakow\/discussions\/list$/);
+  await expect(page.getByRole("heading", { name: "Dyskusje", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Parking pod blokiem/ })).toBeVisible();
 });

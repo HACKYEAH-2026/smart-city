@@ -34,6 +34,7 @@ const notifier: PluginModule = ({ definePlugin, ui, z }) =>
     permissions: ${permissions},
     nav: [{ view: "main", label: "Test" }],
     views: { main: () => ui.screen("Test", []), detail: () => ui.screen("Szczegóły", []) },
+    dashboardWidgets: { tile: { size: { w: 1, h: 1 }, render: () => ui.widget("Test", []) } },
     tools: {
       send: {
         description: "Wyślij powiadomienie",

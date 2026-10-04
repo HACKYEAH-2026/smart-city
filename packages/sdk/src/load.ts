@@ -75,8 +75,15 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
 }
 
+/** Exactly one widget for now: its tile on the dashboard is how residents open the plugin. */
 function assertDashboardWidgets(definition: PluginDefinition): void {
-  const invalid = Object.entries(definition.dashboardWidgets ?? {}).find(
+  const widgets = Object.entries(definition.dashboardWidgets ?? {});
+  if (widgets.length !== 1) {
+    throw new PluginError(
+      `Plugin must have exactly one dashboard widget (dashboardWidgets: { <name>: { size, render } }), has ${widgets.length}`,
+    );
+  }
+  const invalid = widgets.find(
     ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetSizeSchema.safeParse(widget.size).success,
   );
   if (invalid) {

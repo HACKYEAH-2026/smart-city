@@ -9,6 +9,7 @@ export {
   keyOf,
   memberRole,
   membershipRef,
+  polishOrder,
   ref,
   rows,
   toCommunity,

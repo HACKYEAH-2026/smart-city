@@ -3,7 +3,8 @@ import type { Context, PluginModule } from "@app/plugin-sdk";
 /**
  * Announcements from the community admins (e.g. the city office or the housing estate board) to residents.
  * - Admins publish and remove announcements; everyone reads them.
- * - Dashboard widget: what is new since the resident last opened announcements (`ctx.lastVisit`).
+ * - Dashboard widget: what is new since the resident last opened announcements (`ctx.lastVisit`); before the first
+ *   announcement it says there are none yet.
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
 const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
@@ -84,7 +85,7 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
       latest: {
         size: { w: 2, h: 3 },
         render: async (ctx) => {
-          if (!(await ctx.db.announcements.count())) return null;
+          const any = (await ctx.db.announcements.count()) > 0;
           const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
           const fresh = await ctx.db.announcements.findMany({
             where: since,
@@ -95,7 +96,9 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
           return ui.widget(
             "Ogłoszenia",
             [
-              ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft"),
+              any
+                ? ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft")
+                : ui.empty("Nie ma jeszcze ogłoszeń."),
               ...fresh.map((a) =>
                 ui.card({
                   title: a.title,

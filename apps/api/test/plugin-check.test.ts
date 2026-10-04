@@ -69,7 +69,7 @@ describe("plugin check", () => {
         icon: "📝",
         description: "Wspólne notatki członków społeczności.",
         views: ["main"],
-        dashboardWidgets: [],
+        dashboardWidgets: ["main"],
         tools: ["add"],
         streams: [],
         tables: ["notes"],

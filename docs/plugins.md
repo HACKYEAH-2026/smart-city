@@ -42,7 +42,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
  host ── ctx { user, community, now, lastVisit, db, files, ai, notify } ──► view / dashboard widget / tool / stream handler
 ```
 
-Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
+Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams, a widget
+of the latest activity),
 `plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
 `plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key). All three are built in; the smallest
 plugin is the upload-test fixture `apps/api/test/fixtures/notes-plugin.ts`.
@@ -129,7 +130,7 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 | `permissions` | subset of `"db"`, `"files"`, `"ai"`, `"notify"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
 | `tables` | optional, see [Tables](#tables) |
-| `views`, `dashboardWidgets`, `tools`, `streams`, `onInstall` | see below |
+| `views`, `dashboardWidgets` (exactly one, required), `tools`, `streams`, `onInstall` | see below |
 
 **Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` / `ctx.notify` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
@@ -595,8 +596,9 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | Node | Builder |
 |---|---|
 | Screen | `ui.screen(title, children, { eyebrow? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name) |
-| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
+| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`, `chat`, `plus`; Buttons and Select cards take the same set), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
 | Highlight | `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item: a thumbnail (`image`, a photo from `ctx.files`), a vote count with an up arrow |
+| Activity | `ui.activity({ title, text?, person?, at?, unread?, onPress? })` — something a person did and when: their initials (`person`), the title, a line of text and `at` (an ISO date, shown as "5 min temu"); `unread` marks it new. In a widget a compact row (e.g. a discussion's last message), on a screen a card with the text in full (e.g. a message) |
 | Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally) |
 | List | `ui.list(label, items)` |
 | Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, tags?, counter?, onPress?, children? })` — `tags`: `{ text, tone?, icon?, dot? }` (up to 4); `counter`: `{ label, value, pressed, action? }`, a button at the left (votes): pressed, or without `action`, it cannot be pressed |
@@ -655,10 +657,11 @@ ui.map({
 
 ## Dashboard widgets
 
-A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). Each widget declares a fixed `size` in grid
-cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3 rows — and a `render(ctx)` that
-returns `ui.widget(title, children, options?)`, or `null` to show nothing (e.g. no data yet). Content beyond the size
-is clipped. With `onPress` (a `navigate` action, usually the plugin's main list) the whole tile is tappable and
+Every plugin has **exactly one** widget on the community dashboard (`dashboardWidgets` with one entry, checked on load
+and upload): its tile is the only way residents open the plugin, the dashboard has no other list of features. The
+widget declares a fixed `size` in grid cells — the dashboard is 2 columns wide, `w` is 1-2 columns and `h` is 1-3
+rows — and a `render(ctx)` that always returns `ui.widget(title, children, options?)`: with no data yet, an empty
+state (`ui.empty(…)`) and the way to start, never nothing. Content beyond the size is clipped. With `onPress` (a `navigate` action, usually the plugin's main list) the whole tile is tappable and
 shows a chevron (or its `link`, when it has one); cards, buttons and links inside it keep their own actions. Default order: plugin installation, then
 declaration. Community admins long-press a tile to reorder the dashboard (drag, or earlier/later buttons); the order
 is saved per community and widgets of newly installed plugins go last.
@@ -673,6 +676,7 @@ dashboardWidgets: {
       return ui.widget(
         "Ogłoszenia",
         [
+          fresh.length ? ui.text("Nowe od Twojej ostatniej wizyty", "soft") : ui.empty("Nic nowego."),
           ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
           ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
         ],
@@ -684,7 +688,8 @@ dashboardWidgets: {
 ```
 
 - **Read-only:** no `Form`, inputs or tool actions anywhere in the tree (validated); `navigate` opens a view
-  of the plugin. A widget that throws or returns invalid UI is left out of the dashboard (logged), the rest renders.
+  of the plugin. A widget that throws or returns invalid UI (`null` included) is left out of the dashboard
+  (logged), the rest renders.
 - **`ctx.lastVisit`:** when this user last opened any view of this plugin in this community, before the
   current request (`null` = never). The host records it on every view render, so "new since the last
   visit" works without plugin tables. Available in views too (there it is the previous view render).
@@ -704,7 +709,7 @@ No API, no AI model; connections close after each test.
 | `await testPlugin(mod, { user?, community? })` | loads, validates and syncs the schema. Default user `{ id: "u_test", role: "user" }` |
 | `.tool(name, args?)` | → `ToolResult`; rejects with `ForbiddenError` (requires) or a `ZodError` (input) |
 | `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions. Records a visit (`ctx.lastVisit`) like the host |
-| `.dashboardWidget(name)` | → validated widget `UINode` or `null` |
+| `.dashboardWidget(name)` | → validated widget `UINode` |
 | `.stream(name, args?)` | → `AsyncIterator`; read with `next()`, finish with `return()` |
 | `.invalidInput(name, args)` | Zod issues the host would answer 400 with, or `null` |
 | `.as(user)` | the same harness acting as another user (`.tool/.view/.dashboardWidget/.stream/.files.fake/.invalidInput/.ctx`) |

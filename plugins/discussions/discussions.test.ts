@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { PluginUser } from "@app/plugin-sdk";
-import { ForbiddenError, testPlugin } from "@app/plugin-sdk/testing";
+import type { PluginUser, UINode } from "@app/plugin-sdk";
+import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import discussions from "./index";
 
 const anna = { id: "anna", name: "Anna", role: "user" } as const;
@@ -91,6 +91,122 @@ describe("discussions", () => {
     await send(t, bartek, discussion, "Hej");
     await t.deleteUser("bartek");
     expect(await t.db.messages!.count()).toBe(0);
+  });
+});
+
+/** Every node of a type in a UI tree, in order. */
+const nodesOf = <T extends UINode["type"]>(node: UINode | null, type: T): Extract<UINode, { type: T }>[] => {
+  if (!node) return [];
+  const own = node.type === type ? [node as Extract<UINode, { type: T }>] : [];
+  const children = "children" in node && node.children ? node.children.flatMap((c) => nodesOf(c, type)) : [];
+  return [...own, ...children];
+};
+const at = (minute: number) => new Date(Date.UTC(2026, 9, 4, 8, minute));
+
+describe("discussions: dashboard widget and views", () => {
+  test("widget without discussions: an invitation to start one; the header opens them all", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const widget = await t.dashboardWidget("recent");
+    expect(widget).toMatchObject({
+      title: "Dyskusje",
+      icon: "chat",
+      link: { label: "Wszystkie", action: { type: "navigate", view: "list" } },
+      onPress: { type: "navigate", view: "list" },
+    });
+    expect(widget).not.toHaveProperty("subtitle");
+    expect(textsOf(widget!)).toEqual(["Dyskusje", "Nikt jeszcze nie zaczął rozmowy.", "Nowa dyskusja"]);
+    expect(nodesOf(widget, "Button")[0]?.action).toEqual({ type: "navigate", view: "new" });
+  });
+
+  test("widget: the 3 latest by activity with the last message, new ones since the last visit", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const create = async (minute: number, title: string, body?: string) => {
+      t.setNow(at(minute));
+      return ((await t.tool("createDiscussion", { title, ...(body ? { body } : {}) })).data as { id: string }).id;
+    };
+    const green = await create(0, "Zieleń przy Rondzie", "Co sadzimy?");
+    t.setNow(at(1));
+    await send(t, anna, green, "Proponuję lipy");
+    await create(2, "Parking pod blokiem");
+    await create(3, "Psy w parku", "Gdzie zrobić wybieg?");
+    await create(4, "Festyn sąsiedzki");
+
+    // Bartek never opened discussions: everything is new; only the 3 latest show.
+    const first = await t.as(bartek).dashboardWidget("recent");
+    expect(first).toMatchObject({ subtitle: "4 z nowymi wpisami" });
+    expect(nodesOf(first, "Activity").map((a) => [a.title, a.text, a.person, a.unread])).toEqual([
+      ["Festyn sąsiedzki", "Nowa dyskusja", "Anna", true],
+      ["Psy w parku", "Gdzie zrobić wybieg?", "Anna", true],
+      ["Parking pod blokiem", "Nowa dyskusja", "Anna", true],
+    ]);
+
+    // Both open discussions; Bartek replies in the oldest one, which moves to the top as his own.
+    t.setNow(at(5));
+    await t.view("list");
+    await t.as(bartek).view("thread", { id: green });
+    t.setNow(at(6));
+    await send(t, bartek, green, "Raczej klony");
+    t.setNow(at(7));
+    await t.as(bartek).view("thread", { id: green }); // the app refreshes the view after a tool call
+
+    const his = await t.as(bartek).dashboardWidget("recent");
+    expect(his).toMatchObject({ subtitle: "4 dyskusje" });
+    expect(nodesOf(his, "Activity")[0]).toEqual({
+      type: "Activity",
+      title: "Zieleń przy Rondzie",
+      text: "Ty: Raczej klony",
+      person: "Bartek",
+      at: at(6).toISOString(),
+      onPress: { type: "navigate", view: "thread", params: { id: green } },
+    });
+    const hers = await t.dashboardWidget("recent");
+    expect(hers).toMatchObject({ subtitle: "1 z nowymi wpisami" });
+    expect(nodesOf(hers, "Activity").map((a) => [a.text, a.unread ?? false])).toEqual([
+      ["Bartek: Raczej klony", true],
+      ["Nowa dyskusja", false],
+      ["Gdzie zrobić wybieg?", false],
+    ]);
+  });
+
+  test("thread: the opening post, the messages and a reply form; a locked one only for moderators", async () => {
+    const { t, discussion } = await start();
+    t.setNow(at(1));
+    await t.view("thread", { id: discussion });
+    t.setNow(at(2));
+    await send(t, bartek, discussion, "Raczej klony");
+    const thread = await t.view("thread", { id: discussion });
+    expect(nodesOf(thread, "Activity").map((a) => [a.title, a.text, a.unread ?? false])).toEqual([
+      ["Ty", "Co sadzimy?", false],
+      ["Bartek", "Raczej klony", true],
+    ]);
+    expect(nodesOf(thread, "Form")[0]?.submit).toEqual({ type: "tool", tool: "sendMessage", args: { discussion } });
+    expect(nodesOf(thread, "Button")).toEqual([]);
+
+    await t.as(moderator).tool("lockDiscussion", { id: discussion, locked: true });
+    const locked = await t.as(bartek).view("thread", { id: discussion });
+    expect(textsOf(locked)).toContain("Zamknięta: piszą tylko moderatorzy");
+    expect(nodesOf(locked, "Form")).toEqual([]);
+    expect(nodesOf(await t.dashboardWidget("recent"), "Activity")[0]?.text).toBe("Zamknięta · Bartek: Raczej klony");
+
+    const moderated = await t.as(moderator).view("thread", { id: discussion });
+    expect(nodesOf(moderated, "Form")).toHaveLength(1);
+    expect(nodesOf(moderated, "Button")[0]).toMatchObject({
+      label: "Otwórz dyskusję",
+      action: { type: "tool", tool: "lockDiscussion", args: { id: discussion, locked: false } },
+    });
+  });
+
+  test("starting a discussion from the app: the list's button opens a form that calls createDiscussion", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const list = await t.view("list");
+    expect(nodesOf(list, "Fab")[0]).toMatchObject({
+      label: "Nowa dyskusja",
+      action: { type: "navigate", view: "new" },
+    });
+    expect(nodesOf(list, "Empty")).toHaveLength(1);
+    const form = nodesOf(await t.view("new"), "Form")[0];
+    expect(form?.submit).toEqual({ type: "tool", tool: "createDiscussion" });
+    expect(nodesOf(form ?? null, "TextInput").map((i) => i.name)).toEqual(["title", "body"]);
   });
 });
 

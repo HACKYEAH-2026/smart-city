@@ -58,6 +58,15 @@ const plugin: PluginModule = ({ definePlugin, ui, z, t }) =>
         ]);
       },
     },
+    dashboardWidgets: {
+      latest: {
+        size: { w: 2, h: 1 },
+        render: async (ctx) =>
+          ui.widget(${JSON.stringify(name)}, [ui.text(\`Wpisów: \${await ctx.db.notes.count()}\`, "soft")], {
+            onPress: ui.navigate("main"),
+          }),
+      },
+    },
     tools: {
       add: {
         description: "Dodaj wpis",

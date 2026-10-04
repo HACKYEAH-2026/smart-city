@@ -13,6 +13,8 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
 - Administrator społeczności (np. urząd miasta): zarządza treściami wtyczek (np. zmienia status zgłoszeń).
   Demo: `admin@krakow.test` / `password`.
+- Mieszkanka (lokalne API): `anna@krakow.test` / `password`, członkini trzech miejsc: Kraków (domyślne),
+  Kampus Główny (uczelnia) i Spółdzielnia Słoneczna (spółdzielnia mieszkaniowa).
 - Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie

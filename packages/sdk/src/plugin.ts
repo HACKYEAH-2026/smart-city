@@ -78,10 +78,13 @@ export const dashboardWidgetSizeSchema = z.object({
 });
 export type DashboardWidgetSize = z.infer<typeof dashboardWidgetSizeSchema>;
 
-/** Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only), or null to hide it. */
+/**
+ * Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only). It always renders (an empty
+ * state rather than nothing): its tile is how residents open the plugin.
+ */
 export type DashboardWidget<TT extends Tables = Tables> = {
   size: DashboardWidgetSize;
-  render: (ctx: Context<TT>) => UINode | null | Promise<UINode | null>;
+  render: (ctx: Context<TT>) => UINode | Promise<UINode>;
 };
 
 export type Tool<S extends z.ZodType = z.ZodType, TT extends Tables = Tables> = {
@@ -112,9 +115,9 @@ export type PluginDefinition = PluginManifestInput & {
   tables?: Tables;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   views: Record<string, PluginView<any>>;
-  /** Widgets on the community dashboard, in this order. */
+  /** The plugin's widget on the community dashboard: exactly one for now (checked on load). */
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
-  dashboardWidgets?: Record<string, DashboardWidget<any>>;
+  dashboardWidgets: Record<string, DashboardWidget<any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   tools?: Record<string, Tool<z.ZodType, any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
@@ -136,7 +139,7 @@ export function definePlugin<
   plugin: PluginManifestInput & {
     tables?: TT;
     views: Record<string, PluginView<TT>>;
-    dashboardWidgets?: Record<string, DashboardWidget<TT>>;
+    dashboardWidgets: Record<string, DashboardWidget<TT>>;
     tools?: { [K in keyof TS]: Tool<TS[K], TT> };
     streams?: { [K in keyof TR]: Stream<TR[K], TT> };
     onInstall?: (ctx: Context<TT>) => void | Promise<void>;

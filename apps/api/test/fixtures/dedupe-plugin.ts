@@ -34,6 +34,15 @@ const dedupe: PluginModule = ({ definePlugin, ui, z, t }) =>
         ]);
       },
     },
+    dashboardWidgets: {
+      summary: {
+        size: { w: 2, h: 1 },
+        render: async (ctx) =>
+          ui.widget("Notatki", [ui.text(`Spraw: ${await ctx.db.notes.count()}`, "soft")], {
+            onPress: ui.navigate("main"),
+          }),
+      },
+    },
     tools: {
       add: {
         description: "Dodaj notatkę, chyba że taka sprawa już jest",

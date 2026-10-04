@@ -224,11 +224,11 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       visits.set(user.id, now());
       return node;
     },
-    /** Dashboard widget (validated like in the host); null = the widget shows nothing. */
-    async dashboardWidget(name: string): Promise<UINode | null> {
+    /** The dashboard widget (validated like in the host). */
+    async dashboardWidget(name: string): Promise<UINode> {
       const fn = definition.dashboardWidgets?.[name];
       if (!fn) throw new Error(`no dashboard widget ${name}`);
-      return dashboardWidgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
+      return dashboardWidgetSchema.parse(await fn.render(await ctxFor(user)));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];

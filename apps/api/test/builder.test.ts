@@ -163,6 +163,7 @@ describe("writing", () => {
         name: "Zguby i znalezione",
         icon: "📌",
         views: ["main"],
+        dashboardWidgets: ["latest"],
         tools: ["add"],
         tables: ["notes"],
       },

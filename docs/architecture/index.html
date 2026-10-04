@@ -707,7 +707,7 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                     <code>Widget</code> root, read-only: no forms, inputs or tool calls — and signs image URLs.
                   </p>
                   <div class="callout tip">
-                    A widget that throws or returns invalid UI is logged and left out; <code>null</code> hides it. One
+                    A widget that throws or returns invalid UI (<code>null</code> included) is logged and left out. One
                     broken plugin never breaks the dashboard.
                   </div>
                 </div>

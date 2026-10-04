@@ -103,27 +103,31 @@ export async function setup(
     return user;
   };
 
+  /** Signs in an existing account (e.g. a seeded one) via the real Better Auth endpoint. */
+  const signIn = async ({ email, password }: { email: string; password: string }) => {
+    const res = await request("/api/auth/sign-in/email", { method: "POST", json: { email, password } });
+    const token = res.headers.get("set-auth-token");
+    if (!token) throw new Error(`signIn ${email}: ${res.status}`);
+    return { headers: { authorization: `Bearer ${token}` } };
+  };
+
   /** Demo data ("Kraków" community, built-in plugins, admin account) + signed-in admin. */
   const seed = async () => {
     await seedDemo({ db: handle.db, auth, plugins });
-    const res = await request("/api/auth/sign-in/email", {
-      method: "POST",
-      json: { email: DEMO_ADMIN.email, password: DEMO_ADMIN.password },
-    });
-    const token = res.headers.get("set-auth-token");
-    if (!token) throw new Error(`seed: admin sign-in ${res.status}`);
-    return { admin: { headers: { authorization: `Bearer ${token}` } } };
+    return { admin: await signIn(DEMO_ADMIN) };
   };
 
   return {
     app,
     db: handle.db,
+    auth,
     plugins,
     notifications,
     builder,
     push,
     request,
     signUp,
+    signIn,
     seed,
     join,
     close: handle.close,

@@ -22,13 +22,17 @@ describe("announcements", () => {
     expect((await t.as(city).tool("remove", { id })).error).toBe("To ogłoszenie nie istnieje.");
   });
 
-  test("dashboard widget: hidden without announcements, then shows what is new since the last visit", async () => {
+  test("dashboard widget: none yet without announcements, then what is new since the last visit", async () => {
     const t = await testPlugin(announcements, { user: anna });
-    expect(await t.dashboardWidget("latest")).toBeNull();
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
+      "Ogłoszenia",
+      "Nie ma jeszcze ogłoszeń.",
+      "Wszystkie ogłoszenia",
+    ]);
 
     t.setNow(at(1));
     await t.as(city).tool("publish", { title: "Zebranie użytkowników" });
-    expect(textsOf((await t.dashboardWidget("latest"))!)).toEqual([
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
       "Ogłoszenia",
       "1 nowe ogłoszenie od Twojej ostatniej wizyty",
       "Zebranie użytkowników",
@@ -37,7 +41,7 @@ describe("announcements", () => {
 
     t.setNow(at(2));
     await t.view("list");
-    expect(textsOf((await t.dashboardWidget("latest"))!)).toEqual([
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
       "Ogłoszenia",
       "Nic nowego od Twojej ostatniej wizyty.",
       "Wszystkie ogłoszenia",
@@ -53,7 +57,7 @@ describe("announcements", () => {
       t.setNow(at(day));
       await t.as(city).tool("publish", { title });
     }
-    const texts = textsOf((await t.dashboardWidget("latest"))!);
+    const texts = textsOf(await t.dashboardWidget("latest"));
     expect(texts).toContain("5 nowych ogłoszeń od Twojej ostatniej wizyty");
     expect(texts).toEqual(expect.arrayContaining(["Koncert", "Przerwa w dostawie wody"]));
     expect(texts).not.toContain("Festyn");

@@ -25,7 +25,7 @@
 
   // ───────────────────────────── check runner ─────────────────────────────
 
-  /** apps/api/test/fixtures/notes-plugin.ts at 48d8d7f: the smallest uploadable plugin (line numbers matter). */
+  /** apps/api/test/fixtures/notes-plugin.ts: the smallest uploadable plugin (line numbers matter: the results below are its). */
   const NOTES = `import type { PluginModule } from "@app/plugin-sdk";
 
 /**
@@ -43,6 +43,9 @@ const notes: PluginModule = ({ definePlugin, ui, z, t }) =>
     nav: [{ view: "main", label: "Notatki" }],
     tables: {
       notes: t.table({ title: t.text(), body: t.text().default(""), author: t.ref("user").optional() }),
+    },
+    dashboardWidgets: {
+      main: { size: { w: 2, h: 1 }, render: () => ui.widget("Notatki", [], { onPress: ui.navigate("main") }) },
     },
     views: {
       main: async (ctx) => {
@@ -87,7 +90,7 @@ export default notes;
       id: "valid",
       label: "Valid plugin",
       intro:
-        "The upload-test fixture <code>apps/api/test/fixtures/notes-plugin.ts</code>: one table, one view with a form, one tool. Every stage passes and the host answers with what the plugin declares.",
+        "The upload-test fixture <code>apps/api/test/fixtures/notes-plugin.ts</code>: one table, one view with a form, one tool, its one dashboard widget. Every stage passes and the host answers with what the plugin declares.",
       source: () => NOTES,
       result: {
         status: "ok",
@@ -98,7 +101,7 @@ export default notes;
           icon: "📝",
           description: "Wspólne notatki członków społeczności.",
           views: ["main"],
-          dashboardWidgets: [],
+          dashboardWidgets: ["main"],
           tools: ["add"],
           streams: [],
           tables: ["notes"],
@@ -121,7 +124,7 @@ export default notes;
         errors: [
           {
             message: 'Expected ")" but found ";"',
-            line: 42,
+            line: 45,
             column: 70,
             snippet: "await ctx.db.notes.insert({ ...input, author: ctx.user.id };",
           },
@@ -160,13 +163,13 @@ export default notes;
           {
             message:
               "Property 'notez' does not exist on type 'Database<{ readonly notes: TableDef<{ readonly title: Column…'. Did you mean 'notes'?",
-            line: 21,
+            line: 24,
             column: 36,
             snippet: "const items = await ctx.db.notez.findMany();",
           },
           {
             message: "Parameter 'n' implicitly has an 'any' type.",
-            line: 31,
+            line: 34,
             column: 28,
             snippet: "? items.map((n) => ui.card({ title: n.title, subtitle: n.body }))",
           },
@@ -190,13 +193,13 @@ export default notes;
         errors: [
           {
             message: "'globalThis' is not available to plugins: use only ctx and the SDK (ui, z, t, fileRef)",
-            line: 22,
+            line: 25,
             column: 22,
             snippet: "const host = globalThis;",
           },
           {
             message: "'.constructor' is not allowed in plugins: it reaches the host's constructors and prototypes",
-            line: 23,
+            line: 26,
             column: 31,
             snippet: "const AsyncFunction = (async () => {}).constructor;",
           },
