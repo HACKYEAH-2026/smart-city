@@ -9,9 +9,10 @@ import { Text } from "./Text";
 
 /**
  * square: bordered button on a surface (reorder on the dashboard) · plain: back or cancel without a background in
- * screen and step headers · round: bell or account avatar · roundSunken: close in a bottom sheet · roundOnDark: close
- * and torch on the dark QR scanner · roundDark: an admin's dark round button (a plugin screen's settings gear) ·
- * floating: over a map ("my location"), with a shadow instead of a border.
+ * screen and step headers, a bottom sheet's close · round: bell or account avatar · roundSunken: close on a panel (the
+ * dashboard layout editor, a place card on the map) · roundOnDark: close and torch on the dark QR scanner ·
+ * roundDark: an admin's dark round button (a plugin screen's settings gear) · floating: over a map ("my location"),
+ * with a shadow instead of a border.
  * Back never has a background: use BackButton.
  */
 export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "roundDark" | "floating";
