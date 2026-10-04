@@ -196,13 +196,70 @@ describe("discussions: dashboard widget and views", () => {
     });
   });
 
-  test("starting a discussion from the app: the list's button opens a form that calls createDiscussion", async () => {
+  test("list: a card per discussion with the last message, when, how many people and messages, what is new", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const create = async (minute: number, title: string, body?: string) => {
+      t.setNow(at(minute));
+      return ((await t.tool("createDiscussion", { title, ...(body ? { body } : {}) })).data as { id: string }).id;
+    };
+    const green = await create(0, "Zieleń przy Rondzie", "Co sadzimy?");
+    t.setNow(at(1));
+    await send(t, bartek, green, "Proponuję lipy");
+    const quiet = await create(2, "Psy w parku", "Gdzie zrobić wybieg?");
+    await t.as(moderator).tool("lockDiscussion", { id: quiet, locked: true });
+    t.setNow(at(3));
+    await t.view("list");
+    const reply = async (minute: number, user: PluginUser, text: string) => {
+      t.setNow(at(minute));
+      await send(t, user, green, text);
+    };
+    await reply(4, bartek, "Raczej klony");
+    await reply(5, anna, "Może jedno i drugie");
+    await reply(6, moderator, "Zapiszę na zebranie");
+
+    t.setNow(at(7));
+    const cards = nodesOf(await t.view("list"), "Card");
+    expect(cards).toEqual([
+      {
+        type: "Card",
+        title: "Zieleń przy Rondzie",
+        subtitle: "Urząd: Zapiszę na zebranie",
+        meta: [
+          { at: at(6).toISOString() },
+          { text: "3 osoby", icon: "people" },
+          { text: "4 wiadomości", icon: "chat" },
+        ],
+        unread: true,
+        count: 2,
+        onPress: { type: "navigate", view: "thread", params: { id: green } },
+      },
+      {
+        type: "Card",
+        title: "Psy w parku",
+        subtitle: "Gdzie zrobić wybieg?",
+        tags: [{ text: "Zamknięta", icon: "lock", tone: "neutral" }],
+        meta: [
+          { at: at(2).toISOString() },
+          { text: "1 osoba", icon: "people" },
+          { text: "0 wiadomości", icon: "chat" },
+        ],
+        onPress: { type: "navigate", view: "thread", params: { id: quiet } },
+      },
+    ]);
+    expect(nodesOf(await t.as(bartek).view("list"), "Card")[0]).toMatchObject({
+      subtitle: "Urząd: Zapiszę na zebranie",
+      unread: true,
+    });
+    expect(nodesOf(await t.view("list"), "Card")[0]).not.toHaveProperty("unread");
+  });
+
+  test("starting a discussion from the app: the header's button opens a form that calls createDiscussion", async () => {
     const t = await testPlugin(discussions, { user: anna });
     const list = await t.view("list");
-    expect(nodesOf(list, "Fab")[0]).toMatchObject({
-      label: "Nowa dyskusja",
-      action: { type: "navigate", view: "new" },
+    expect(list).toMatchObject({
+      actions: [{ label: "Nowa dyskusja", icon: "plus", action: { type: "navigate", view: "new" } }],
     });
+    expect(nodesOf(list, "Fab")).toEqual([]);
     expect(nodesOf(list, "Empty")).toHaveLength(1);
     const form = nodesOf(await t.view("new"), "Form")[0];
     expect(form?.submit).toEqual({ type: "tool", tool: "createDiscussion" });

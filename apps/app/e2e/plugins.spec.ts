@@ -503,11 +503,26 @@ test("discussions widget: latest activity first, a tap opens the discussion, the
   await expect(rows.nth(0)).toContainText("Ty: Raczej klony");
   await expect(widget.getByText("2 dyskusje", { exact: true })).toBeVisible();
 
-  // The header link opens all discussions.
+  // The header link opens all discussions: a card each, with the last message, who took part and how much was written.
   await widget.getByRole("button", { name: "Wszystkie" }).click();
   await expect(page).toHaveURL(/\/app\/c\/krakow\/discussions\/list$/);
   await expect(page.getByRole("heading", { name: "Dyskusje", level: 1 })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Parking pod blokiem/ })).toBeVisible();
+  const cards = page.getByRole("list", { name: "Lista dyskusji" }).getByRole("listitem");
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0)).toContainText("Zieleń przy Rondzie Mogilskim");
+  await expect(cards.nth(0)).toContainText("Ty: Raczej klony");
+  await expect(cards.nth(0)).toContainText("2 osoby");
+  await expect(cards.nth(0)).toContainText("2 wiadomości");
+  await expect(cards.nth(1)).toContainText("Parking pod blokiem");
+  await expect(cards.nth(1)).toContainText("1 osoba");
+  await expect(cards.nth(1)).toContainText("0 wiadomości");
+
+  // A card opens its discussion; a new one starts from the screen's header.
+  await page.getByRole("button", { name: /Parking pod blokiem/ }).click();
+  await expect(page.getByRole("heading", { name: "Parking pod blokiem", level: 1 })).toBeVisible();
+  await page.goBack();
+  await page.getByRole("button", { name: "Nowa dyskusja" }).click();
+  await expect(page.getByRole("heading", { name: "Nowa dyskusja", level: 1 })).toBeVisible();
 });
 
 test("issues: after a report is sent, back does not return to the filled-in form", async ({ page, api }) => {

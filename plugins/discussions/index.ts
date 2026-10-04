@@ -1,10 +1,12 @@
-import type { Context, PluginModule } from "@app/plugin-sdk";
+import type { CardTag, Context, PluginModule } from "@app/plugin-sdk";
 
 /**
  * Discussion boards (a simple forum) for a community.
  * - Anyone can start a discussion and post messages; messages can reply to another message.
  * - Authors edit their own messages; authors or moderators (community admins) delete discussions and messages.
  * - Moderators can lock a discussion (no new messages from regular users).
+ * - The list: a card per discussion (the last message, when, how many people and messages, what is new); a new
+ *   discussion starts from the screen's header.
  * - Dashboard widget: the discussions with the latest activity, new ones (since `ctx.lastVisit`) marked.
  * - Streams: `messages` of one discussion and the `discussions` list — a snapshot first, then live changes.
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
@@ -43,18 +45,19 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
   const canRemove = (ctx: Ctx, authorId: string) => authorId === ctx.user.id || isModerator(ctx);
   const touch = (ctx: Ctx, discussion: string) => ctx.db.discussions.update(discussion, { lastActivityAt: ctx.now() });
 
-  /** "1 dyskusja", "3 dyskusje", "5 dyskusji" (Polish plural: 2–4 except 12–14 take "dyskusje"). */
-  const discussionCount = (n: number) => {
-    const few = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
-    return `${n} ${n === 1 ? "dyskusja" : few ? "dyskusje" : "dyskusji"}`;
+  /** A count with its Polish noun: 1 → `one`; 2–4 (but not 12–14) → `few`; the rest → `many` ("5 dyskusji"). */
+  const plural = (n: number, one: string, few: string, many: string) => {
+    const isFew = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
+    return `${n} ${n === 1 ? one : isFew ? few : many}`;
   };
+  const discussionCount = (n: number) => plural(n, "dyskusja", "dyskusje", "dyskusji");
   /** The user's own posts read "Ty". */
   const nameOf = (ctx: Ctx, person: Person) => (person.id === ctx.user.id ? "Ty" : person.name);
-  const preview = (s: string) => (s.length > 140 ? `${s.slice(0, 139).trimEnd()}…` : s);
+  const preview = (s: string, max = 140) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
   /** Activity after the user last opened discussions; everything is new to someone who never did. */
   const isNew = (ctx: Ctx, at: Date) => !ctx.lastVisit || at > ctx.lastVisit;
 
-  /** A discussion as its latest activity: who wrote last, what and when (the widget and the list). */
+  /** A discussion as its latest activity: who wrote last, what and when (the widget). */
   const activityOf = async (ctx: Ctx, d: Discussion) => {
     const last = await ctx.db.messages.findFirst({
       where: { discussion: d.id },
@@ -72,6 +75,39 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
     });
   };
 
+  const LOCKED: CardTag = { text: "Zamknięta", icon: "lock", tone: "neutral" };
+
+  /**
+   * A discussion on the list: the last message (else the opening post), when, how many people took part (its author
+   * included) and how many messages. Activity since the user's last visit gets a dot, others' new messages a count.
+   */
+  const cardOf = async (ctx: Ctx, d: Discussion) => {
+    const where = { discussion: d.id };
+    const [messages, total] = await Promise.all([
+      ctx.db.messages.findMany({ where, orderBy: { createdAt: "desc" }, limit: 1000, with: { author: true } }),
+      ctx.db.messages.count({ where }),
+    ]);
+    const [last] = messages;
+    const line = last ? `${nameOf(ctx, last.author)}: ${last.text}` : d.body;
+    const people = new Set([d.author.id, ...messages.map((m) => m.author.id)]).size;
+    const fresh = ctx.lastVisit
+      ? messages.filter((m) => m.author.id !== ctx.user.id && isNew(ctx, m.createdAt)).length
+      : 0;
+    return ui.card({
+      title: d.title,
+      ...(line ? { subtitle: preview(line, 100) } : {}),
+      ...(d.locked ? { tags: [LOCKED] } : {}),
+      meta: [
+        { at: d.lastActivityAt.toISOString() },
+        { text: plural(people, "osoba", "osoby", "osób"), icon: "people" },
+        { text: plural(total, "wiadomość", "wiadomości", "wiadomości"), icon: "chat" },
+      ],
+      ...(isNew(ctx, d.lastActivityAt) ? { unread: true } : {}),
+      ...(fresh ? { count: Math.min(fresh, 999) } : {}),
+      onPress: ui.navigate("thread", { id: d.id }),
+    });
+  };
+
   const replyForm = (discussion: string) =>
     ui.form({
       submitLabel: "Wyślij",
@@ -82,7 +118,7 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
   return definePlugin({
     id: "discussions",
     name: "Dyskusje",
-    version: "1.1.0",
+    version: "1.2.0",
     icon: "💬",
     description: "Forum społeczności: dyskusje, odpowiedzi i moderacja, z ostatnią aktywnością na pulpicie.",
     permissions: ["db"],
@@ -99,11 +135,13 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
           "Dyskusje",
           [
             items.length
-              ? ui.list("Lista dyskusji", await Promise.all(items.map((d) => activityOf(ctx, d))))
+              ? ui.list("Lista dyskusji", await Promise.all(items.map((d) => cardOf(ctx, d))))
               : ui.empty("Nie ma jeszcze dyskusji. Zapytaj o coś sąsiadów albo zaproponuj zmianę."),
-            ui.fab({ label: "Nowa dyskusja", icon: "plus", action: ui.navigate("new") }),
           ],
-          { eyebrow: ctx.community.name },
+          {
+            eyebrow: ctx.community.name,
+            actions: [{ label: "Nowa dyskusja", icon: "plus", action: ui.navigate("new") }],
+          },
         );
       },
       new: async () =>

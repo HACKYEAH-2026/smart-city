@@ -116,6 +116,7 @@ export const UI_ICONS = [
   "send",
   "pin",
   "chat",
+  "people",
   "plus",
   "lock",
   "shield",
