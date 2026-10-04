@@ -57,8 +57,22 @@ export type NewPlace = z.input<typeof newPlaceSchema>;
 export const placeUpdateSchema = z.object(placeFields).partial();
 export type PlaceUpdate = z.input<typeof placeUpdateSchema>;
 
-/** A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name. */
-export type PlaceMember = { id: string; name: string; email: string; role: "admin" | "user" };
+/** A place's admin changes another member's role (PATCH /api/communities/:slug/members/:userId). */
+export const memberRoleSchema = z.object({ role: z.enum(["admin", "user"]) });
+export type MemberRole = z.input<typeof memberRoleSchema>;
+
+/**
+ * A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name.
+ * `joinedAt` (ISO) is null for memberships from before it was recorded; `you` marks the signed-in admin.
+ */
+export type PlaceMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  joinedAt: string | null;
+  you: boolean;
+};
 
 /**
  * A plugin of the place and whether it is on (GET /api/communities/:slug/plugins), for its admins: a built-in one, or

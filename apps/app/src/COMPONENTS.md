@@ -2,7 +2,7 @@
 > Built under another name: ScreenHeader (step variant) → `StepHeader`, ScreenHeader (title variant) → `TitleHeader`, StepProgress → `SegmentedProgress`,
 > Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
 > QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
-> (no component): Avatar / PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
+> (no component): PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
 > KeyValueRow. Not implemented: CountBadge, CtaCard, IconButton `roundDark`, the A4 printout.
 
 # Twoje Miejsce — specyfikacja komponentów (React Native)
@@ -122,9 +122,9 @@ Białe tło `surface`, radius 20 (`3xl`), padding 20 (lub 16 w kartach zaprosze�
 Kwadrat z zaokrągleniem (`radii.md` 12 / `lg` 14 dla 48 dp), tło `primaryTint`, ikona `primary`. Wariant `selected`: tło `primary`, ikona `onPrimary`. Wariant `onPrimary`: tło `onPrimaryOverlay`, ikona biała (na czerwonej karcie).
 W kodzie (`src/components/IconBox.tsx`): rozmiary `sm` 40 (wiersze list, SelectableCard) · `md` 44 (domyślny) · `xl` 52 radius 16 (karta rozszerzenia w katalogu); wariant `neutral` (tło `surfaceSunken`, ikona `text`); zamiast ikony może być emoji rozszerzenia (`emojiM` 20 / `emojiL` 26, dekoracja ukryta przed czytnikiem ekranu). Wariant `onPrimary` nie jest zaimplementowany.
 
-### Avatar
+### Avatar ✅ (`src/components/Avatar.tsx`)
 
-- Inicjały osoby: koło (28/36/40 dp), tło `primaryTint` + tekst `primary` 600 (12–13 px) lub neutralny: tło `surfaceMuted`, tekst `text`.
+- Inicjały osoby: koło (28/36/40 dp), tło `primaryTint` + tekst `primary` 600 (12–13 px) lub neutralny: tło `surfaceMuted`, tekst `text`. W kodzie: tylko 40 dp (`sizes.avatarLg`, `buttonS`), ton `accent` / `neutral`, ukryty przed czytnikiem ekranu (imię stoi obok).
 - Skrót miejsca (`PlaceAvatar`): kwadrat 44–48 dp, radius 12, tło `primaryTint`, tekst `typography.abbr` `primary` (Schibsted Grotesk 700, 16, UPPERCASE), np. „OS", „KL".
 
 ### Badge / Chip

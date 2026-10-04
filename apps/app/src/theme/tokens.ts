@@ -220,6 +220,8 @@ export const sizes = {
   /** A small pill button in a list row ("Dodaj" in the "Dodaj widżet" sheet). */
   pillButton: 38,
   highlightThumb: 64,
+  /** An action row in a bottom sheet (design "Opcje członka": 56). */
+  sheetAction: 56,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */

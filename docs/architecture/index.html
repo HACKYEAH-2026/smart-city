@@ -404,7 +404,7 @@
                   </thead>
                   <tbody>
                     <tr><td><code>/api/communities</code></td><td><code>communities.ts</code></td><td>places, joining, nav, dashboard, plugin views, tools, uploads</td></tr>
-                    <tr><td><code>/api/communities</code></td><td><code>placeAdmin.ts</code></td><td>place admins: settings, members, switching plugins</td></tr>
+                    <tr><td><code>/api/communities</code></td><td><code>placeAdmin.ts</code></td><td>place admins: settings, members (roles, removing), switching plugins</td></tr>
                     <tr><td><code>/api/communities</code></td><td><code>builder.ts</code></td><td>place admins: the AI plugin builder</td></tr>
                     <tr><td><code>/api/invitations</code></td><td><code>invitations.ts</code></td><td>invite by e-mail, accept, decline</td></tr>
                     <tr><td><code>/api/files</code></td><td><code>files.ts</code></td><td>photo download by signed URL (no session)</td></tr>
@@ -853,8 +853,10 @@
                     <dt>role</dt><dd><code>admin | user</code> — becomes <code>ctx.user.role</code> in plugins</dd>
                     <dt>last_visit</dt><dd>when the user last opened the place</dd>
                     <dt>is_default</dt><dd>the place the dashboard opens on</dd>
+                    <dt>joined_at</dt><dd>when the user joined (none on memberships older than the field)</dd>
                   </dl>
-                  <p class="small muted">The creator of a place becomes its admin; joining makes a plain member.</p>
+                  <p class="small muted">The creator of a place becomes its admin; joining makes a plain member. Admins
+                    change other members' roles and remove them (<code>placeAdmin.ts</code>), never their own.</p>
                 </div>
                 <div class="detail" data-pane="invitation" hidden>
                   <h3><code>invitation</code></h3>

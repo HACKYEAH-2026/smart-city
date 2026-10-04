@@ -289,6 +289,30 @@ export const t = {
   manage_layout_more: "Więcej widżetów? Dodaj rozszerzenie",
   manage_layout_add_none: "Wszystkie widżety są już na pulpicie.",
   manage_members_title: "Członkowie",
+  /** After your own name in a list of members: "Jan Kowalski (Ty)". */
+  members_you: "(Ty)",
+  members_see_all: "Zobacz wszystkich członków",
+  members_search: "Szukaj po imieniu",
+  members_filter_label: "Filtruj członków",
+  /** Filter chips, followed by a count: "Wszyscy 8". */
+  members_filter_all: "Wszyscy",
+  members_filter_admins: "Administratorzy",
+  members_filter_members: "Członkowie",
+  members_admin_badge: "Admin",
+  /** Before the date a member joined: "W miejscu od 3 paź". */
+  members_since: "W miejscu od",
+  /** Name of a member's options button, followed by their name. */
+  members_options: "Opcje członka",
+  members_make_admin: "Nadaj uprawnienia administratora",
+  members_revoke_admin: "Odbierz uprawnienia administratora",
+  members_remove: "Usuń z miejsca",
+  members_remove_title: "Usunąć z miejsca?",
+  /** After the member's name: "Anna Nowak straci dostęp…". */
+  members_remove_body: "straci dostęp do tego miejsca i jego rozszerzeń.",
+  members_empty_search: "Nikt nie pasuje do wyszukiwania.",
+  members_role_error: "Nie udało się zmienić uprawnień.",
+  members_remove_error: "Nie udało się usunąć członka.",
+  members_invite_title: "Zaproś osoby",
   manage_settings_title: "Ustawienia miejsca",
   manage_settings_summary: "Nazwa, rodzaj, zasady dołączania",
   manage_save: "Zapisz zmiany",
@@ -340,6 +364,7 @@ export const t = {
   build_status_published: "Opublikowane",
   build_made_by_ai: "Z AI",
   role_admin: "Administrator",
+  role_member: "Członek",
   count_people: ["osoba", "osoby", "osób"],
   count_admins: ["administrator", "administratorów", "administratorów"],
   count_plugins: ["rozszerzenie", "rozszerzenia", "rozszerzeń"],

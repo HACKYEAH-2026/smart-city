@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { widgetsCount } from "../src/lib/plural";
 import { t } from "../src/texts";
-import { adminHeaders, DEMO_ADMIN, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
+import { adminHeaders, DEMO_ADMIN_NAME, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
@@ -130,19 +130,23 @@ test("settings: renaming the place and changing who may join", async ({ page }) 
   await expect(page.getByRole("radio", { name: t.join_rule_open })).toBeChecked();
 });
 
-test("members: everyone in the place, admins marked", async ({ page, api }) => {
+test("members: a preview with roles, the admin first; the link opens all members", async ({ page, api }) => {
   await register(page, "member@example.test");
   await joinKrakow(api.url, "member@example.test");
   await signOut(page);
   await loginAdmin(page);
   await openManage(page);
   await openSection(page, t.manage_members_title);
-  const members = page.getByRole("list", { name: t.manage_members_title });
-  await expect(members.getByRole("listitem")).toHaveCount(2);
-  await expect(members.getByRole("listitem").filter({ hasText: DEMO_ADMIN.email })).toContainText(t.role_admin);
-  await expect(members.getByRole("listitem").filter({ hasText: "member@example.test" })).not.toContainText(
-    t.role_admin,
-  );
+  const members = page.getByRole("list", { name: t.manage_members_title }).getByRole("listitem");
+  await expect(members).toHaveCount(2);
+  // A registered user's name is their email.
+  await expect(members.nth(0)).toContainText(`${DEMO_ADMIN_NAME} ${t.members_you}`);
+  await expect(members.nth(0)).toContainText(t.role_admin);
+  await expect(members.nth(1)).toContainText("member@example.test");
+  await expect(members.nth(1)).toContainText(t.role_member);
+
+  await page.getByRole("link", { name: t.members_see_all }).click();
+  await expect(page.getByRole("heading", { name: t.manage_members_title, level: 1 })).toBeVisible();
 });
 
 test("invitations: the code with its QR; inviting someone by the email of their account", async ({ page }) => {

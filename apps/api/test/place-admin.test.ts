@@ -36,14 +36,16 @@ describe("access", () => {
       ["GET", `${base}/members`],
       ["GET", `${base}/plugins`],
       ["PUT", `${base}/plugins/discussions`, { enabled: false }],
+      ["PATCH", `${base}/members/${member.id}`, { role: "admin" }],
+      ["DELETE", `${base}/members/${member.id}`],
     ];
     const statuses = async (headers?: Headers) =>
       Promise.all(
         routes.map(async ([method, path, body]) => (await t.request(path, { method, headers, json: body })).status),
       );
-    expect(await statuses()).toEqual([401, 401, 401, 401, 401]);
-    expect(await statuses(stranger.headers)).toEqual([404, 404, 404, 404, 404]);
-    expect(await statuses(member.headers)).toEqual([403, 403, 403, 403, 403]);
+    expect(await statuses()).toEqual(routes.map(() => 401));
+    expect(await statuses(stranger.headers)).toEqual(routes.map(() => 404));
+    expect(await statuses(member.headers)).toEqual(routes.map(() => 403));
     expect((await t.request(base, { headers: admin })).status).toBe(200);
   });
 });
@@ -76,6 +78,74 @@ describe("members", () => {
     expect(members.map(({ role }) => role)).toEqual(["admin", "user"]);
     expect(members[1]).toMatchObject({ name: "Anna Nowak", email: "anna@example.test", role: "user" });
     expect(members.map((m) => m.email)).not.toContain("outside@example.test");
+    expect(members.map(({ joinedAt }) => typeof joinedAt)).toEqual(["string", "string"]);
+    expect(members.map(({ you }) => you)).toEqual([true, false]);
+  });
+
+  test("members after the admins in order of their names", async () => {
+    const admin = await start();
+    for (const name of ["Zenon", "Adam", "Marta", "Bartek", "Ola", "Celina"]) await t.signUp({ name });
+    const members = await json<PlaceMember[]>(await t.request(`${base}/members`, { headers: admin }));
+    expect(members.slice(1).map(({ name }) => name)).toEqual(["Adam", "Bartek", "Celina", "Marta", "Ola", "Zenon"]);
+  });
+
+  test("granting and revoking admin rights; the role decides what the member may manage", async () => {
+    const admin = await start();
+    const anna = await t.signUp();
+    const role = (role: string) =>
+      t.request(`${base}/members/${anna.id}`, { method: "PATCH", headers: admin, json: { role } });
+    const annaSeesMembers = async () => (await t.request(`${base}/members`, { headers: anna.headers })).status;
+    expect((await role("admin")).status).toBe(200);
+    expect(await annaSeesMembers()).toBe(200);
+    expect((await role("user")).status).toBe(200);
+    expect(await annaSeesMembers()).toBe(403);
+    expect((await role("owner")).status).toBe(400);
+  });
+
+  test("removing a member: the place is gone for them", async () => {
+    const admin = await start();
+    const anna = await t.signUp();
+    expect((await t.request(`${base}/members/${anna.id}`, { method: "DELETE", headers: admin })).status).toBe(200);
+    expect((await t.request(base, { headers: anna.headers })).status).toBe(404);
+    const members = await json<PlaceMember[]>(await t.request(`${base}/members`, { headers: admin }));
+    expect(members.map(({ you }) => you)).toEqual([true]);
+  });
+
+  test("never the admin's own membership (409); someone who is not a member 404", async () => {
+    const admin = await start();
+    const outsider = await t.signUp({ place: null });
+    const [self] = await json<PlaceMember[]>(await t.request(`${base}/members`, { headers: admin }));
+    const call = (method: string, userId: string, json?: unknown) =>
+      t.request(`${base}/members/${userId}`, { method, headers: admin, json });
+    const calls: [string, unknown?][] = [["PATCH", { role: "user" }], ["DELETE"]];
+    for (const [method, body] of calls) {
+      const own = await call(method, self?.id ?? "", body);
+      expect(own.status).toBe(409);
+      expect(await json<{ error: string }>(own)).toMatchObject({ error: "own_membership" });
+      expect((await call(method, outsider.id, body)).status).toBe(404);
+      expect((await call(method, "nobody", body)).status).toBe(404);
+    }
+  });
+
+  test("an admin of one place never reaches the members of another", async () => {
+    const admin = await start();
+    const other = await t.signUp({ place: null });
+    const theirs = await json<{ slug: string }>(
+      await t.request("/api/communities", {
+        method: "POST",
+        headers: other.headers,
+        json: { name: "Osiedle Zielone" },
+      }),
+    );
+    const calls: [string, unknown?][] = [["PATCH", { role: "user" }], ["DELETE"]];
+    for (const [method, body] of calls) {
+      const res = await t.request(`${base}/members/${other.id}`, { method, headers: admin, json: body });
+      expect(res.status).toBe(404);
+    }
+    const members = await json<PlaceMember[]>(
+      await t.request(`/api/communities/${theirs.slug}/members`, { headers: other.headers }),
+    );
+    expect(members).toMatchObject([{ id: other.id, role: "admin" }]);
   });
 });
 

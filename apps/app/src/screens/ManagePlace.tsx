@@ -4,8 +4,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
-import { Share, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
+  Avatar,
   Badge,
   Button,
   DisclosureCard,
@@ -13,6 +14,7 @@ import {
   Icon,
   IconBox,
   InviteCodeCard,
+  Link,
   NoticeScreen,
   RadioCard,
   Screen,
@@ -32,11 +34,11 @@ import {
 } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
 import { gridRects } from "../lib/grid";
-import { inviteLink } from "../lib/invite";
+import { inviteLink, shareInvite } from "../lib/invite";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
+import { memberCounts, memberName, orderMembers } from "../lib/members";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { enabledPlugins, pluginSubtitle } from "../lib/placePlugins";
-import { initials } from "../lib/places";
 import { countOf, widgetsCount } from "../lib/plural";
 import { t } from "../texts";
 import { borders, colors, radii, sizes, spacing } from "../theme";
@@ -97,10 +99,6 @@ function InvitesSection({ place, open, onToggle }: SectionProps & { place: Place
   const summary = code
     ? `${t.manage_invites_code} ${formatInviteCode(code)} · ${t.manage_invites_rest}`
     : t.manage_invites_rest;
-  const share = (bare: string) =>
-    Share.share({
-      message: `${t.invite_share_message_before}${place.name}${t.invite_share_message_after} ${formatInviteCode(bare)}\n${inviteLink(bare)}`,
-    });
   const send = () => {
     setSent(false);
     invite.mutate(email.trim(), {
@@ -120,7 +118,7 @@ function InvitesSection({ place, open, onToggle }: SectionProps & { place: Place
         : t.manage_invite_error;
   return (
     <DisclosureCard icon={Link2} title={t.manage_invites_title} summary={summary} open={open} onToggle={onToggle}>
-      {code ? <InviteCodeCard code={code} link={inviteLink(code)} onShare={() => share(code)} /> : null}
+      {code ? <InviteCodeCard code={code} link={inviteLink(code)} onShare={() => shareInvite(place, code)} /> : null}
       <Text variant="bodyL" color="textSecondary">
         {t.manage_invite_lead}
       </Text>
@@ -235,30 +233,38 @@ function LayoutPreview({ widgets, columns }: { widgets: LayoutWidget[]; columns:
   );
 }
 
+/** How many members of the place the section shows; the members screen has them all. */
+const MEMBERS_PREVIEW = 3;
+
+/** The members (design: card "Członkowie"): the first few with their role, and the way to all of them. */
 function MembersSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
   const members = usePlaceMembers(slug);
   const list = members.data ?? [];
-  const admins = list.filter((m) => m.role === "admin").length;
-  const summary = `${countOf(list.length, t.count_people)} · ${countOf(admins, t.count_admins)}`;
+  const counts = memberCounts(list);
+  const summary = `${countOf(counts.all, t.count_people)} · ${countOf(counts.admins, t.count_admins)}`;
   return (
-    <DisclosureCard icon={Users} title={t.manage_members_title} summary={summary} open={open} onToggle={onToggle}>
-      <View role="list" aria-label={t.manage_members_title} style={styles.rows}>
-        {list.map((member) => (
-          <View key={member.id} role="listitem" style={styles.row}>
-            <View style={styles.avatar}>
-              <Text variant="buttonS" color="primary">
-                {initials(member.name || member.email)}
+    <DisclosureCard icon={Users} title={t.manage_members_title} summary={summary} open={open} onToggle={onToggle} flush>
+      <View role="list" aria-label={t.manage_members_title}>
+        {orderMembers(list)
+          .slice(0, MEMBERS_PREVIEW)
+          .map((member) => (
+            <View key={member.id} role="listitem" style={styles.pluginRow}>
+              <Avatar name={memberName(member)} />
+              <Text variant="rowTitle" numberOfLines={1} style={styles.grow}>
+                {member.you ? `${memberName(member)} ${t.members_you}` : memberName(member)}
               </Text>
+              {/* Badge aligns itself to the start, which in a row is the top: the wrapper centres it. */}
+              <View>
+                <Badge
+                  text={member.role === "admin" ? t.role_admin : t.role_member}
+                  tone={member.role === "admin" ? "accent" : "neutral"}
+                />
+              </View>
             </View>
-            <View style={styles.rowText}>
-              <Text variant="cardTitle">{member.name || member.email}</Text>
-              <Text variant="small" color="textSecondary">
-                {member.email}
-              </Text>
-            </View>
-            {member.role === "admin" ? <Badge text={t.role_admin} tone="accent" /> : null}
-          </View>
-        ))}
+          ))}
+      </View>
+      <View style={styles.membersAll}>
+        <Link href={`/app/c/${slug}/members`}>{t.members_see_all}</Link>
       </View>
     </DisclosureCard>
   );
@@ -356,8 +362,6 @@ const styles = StyleSheet.create({
   sections: { gap: spacing[7] },
   options: { gap: spacing[5] },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: spacing[5] },
-  rows: { gap: spacing[5] },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   rowText: { flex: 1, gap: spacing[1] },
   pluginRow: {
     flexDirection: "row",
@@ -369,14 +373,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   pluginAdd: { paddingTop: spacing[6], paddingHorizontal: spacing[8], paddingBottom: spacing[8] },
-  avatar: {
-    width: sizes.iconBox,
-    height: sizes.iconBox,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primaryTint,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  // The rows above end with a divider, so the link needs no line of its own (design: centred, 48 high).
+  membersAll: { alignItems: "center", paddingVertical: spacing[7] },
   preview: { padding: spacing[5], borderRadius: radii.lg, backgroundColor: colors.background },
   previewTile: {
     position: "absolute",

@@ -55,6 +55,8 @@ DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS commun
 -- Per-user place state: when the user last opened the place, and whether it is the user's default place.
 DEFINE FIELD IF NOT EXISTS last_visit ON membership TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS is_default ON membership TYPE bool DEFAULT false;
+-- When the user joined the place; optional because memberships created before this field have none.
+DEFINE FIELD IF NOT EXISTS joined_at ON membership TYPE option<datetime> DEFAULT time::now();
 
 -- An invitation to a place: an admin invites a user (by email); the invitee accepts (joins) or declines (removed).
 DEFINE TABLE IF NOT EXISTS invitation SCHEMAFULL;

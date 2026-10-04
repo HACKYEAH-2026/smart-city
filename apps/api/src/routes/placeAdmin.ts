@@ -1,4 +1,5 @@
 import {
+  memberRoleSchema,
   type PlaceMember,
   type PlacePlugin,
   type PlaceUpdate,
@@ -9,12 +10,12 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { first, geoPoint, keyOf, ref, rows, toCommunity } from "../db";
+import { type Db, first, geoPoint, keyOf, memberRole, membershipRef, ref, rows, toCommunity } from "../db";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 
 /**
- * Managing a place, for its admins (the app's "Zarządzaj miejscem"): its settings, members, built-in plugins on and
- * off, and deleting it. Mounted next to the communities router on /api/communities: a non-member gets 404 as on
+ * Managing a place, for its admins (the app's "Zarządzaj miejscem"): its settings, members (granting and revoking
+ * admin rights, removing them; never the admin's own membership), built-in plugins on and off, and deleting it. Mounted next to the communities router on /api/communities: a non-member gets 404 as on
  * every route of a place, a member who is not an admin 403. (Invitations: routes/invitations.ts; the dashboard
  * order: PATCH /:slug/dashboard in routes/communities.ts.)
  */
@@ -34,18 +35,45 @@ export const placeAdminRoutes = new Hono<AppEnv>()
   })
   .get("/:slug/members", requireUser, admin, async (c) => {
     const { place } = c.var;
-    const found = await rows<{ id: RecordId; name: string | null; email: string; role: PlaceMember["role"] }>(
+    const found = await rows<{
+      id: RecordId;
+      name: string | null;
+      email: string;
+      role: PlaceMember["role"];
+      joined_at: Date | null;
+    }>(
       c.var.db,
-      surql`SELECT user.id AS id, user.name AS name, user.email AS email, role
-         FROM membership WHERE community = ${place.id} ORDER BY role, name, email;`,
+      // Sorted outside: SurrealDB 3 ignores ORDER BY on fields aliased from a record link (`user.name AS name`).
+      surql`SELECT * FROM (
+              SELECT user.id AS id, user.name AS name, user.email AS email, role, joined_at
+                FROM membership WHERE community = ${place.id}
+            ) ORDER BY role, name, email;`,
     );
     const members: PlaceMember[] = found.map((m) => ({
       id: keyOf(m.id),
       name: m.name ?? "",
       email: m.email,
       role: m.role,
+      joinedAt: m.joined_at ? m.joined_at.toISOString() : null,
+      you: keyOf(m.id) === c.var.user.id,
     }));
     return c.json(members, 200);
+  })
+  /** Makes another member an admin or a plain member again; an admin never changes their own role. */
+  .patch("/:slug/members/:userId", requireUser, admin, zValidator("json", memberRoleSchema), async (c) => {
+    const target = await otherMember(c.var.db, keyOf(c.var.place.id), c.var.user.id, c.req.param("userId"));
+    if (target === "self") return c.json({ error: "own_membership", message: OWN_MEMBERSHIP }, 409);
+    if (!target) return c.json({ error: "not_found", message: "not a member of this place" }, 404);
+    await first(c.var.db, surql`UPDATE ${target} SET role = ${c.req.valid("json").role};`);
+    return c.json({ ok: true }, 200);
+  })
+  /** Removes another member from the place; an admin never removes themselves. */
+  .delete("/:slug/members/:userId", requireUser, admin, async (c) => {
+    const target = await otherMember(c.var.db, keyOf(c.var.place.id), c.var.user.id, c.req.param("userId"));
+    if (target === "self") return c.json({ error: "own_membership", message: OWN_MEMBERSHIP }, 409);
+    if (!target) return c.json({ error: "not_found", message: "not a member of this place" }, 404);
+    await first(c.var.db, surql`DELETE ${target};`);
+    return c.json({ ok: true }, 200);
   })
   /**
    * The plugins of this place, with whether each is on: the built-in ones (as in GET /api/plugins), then the ones the
@@ -112,6 +140,15 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     }
     return c.json({ ok: true }, 200);
   });
+
+// Without it an admin could demote or remove themselves and leave the place with no admin.
+const OWN_MEMBERSHIP = "admins do not change their own membership";
+
+/** The membership of another member of the place: "self" for the caller's own, undefined when not a member. */
+async function otherMember(db: Db, communityId: string, callerId: string, userId: string) {
+  if (userId === callerId) return "self";
+  return (await memberRole(db, communityId, userId)) ? membershipRef(communityId, userId) : undefined;
+}
 
 /** The settings as database columns, leaving out the ones not sent. */
 /** The given settings as columns. No pin (null) clears the location: undefined in a MERGE is stored as NONE. */
