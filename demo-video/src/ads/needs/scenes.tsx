@@ -32,7 +32,19 @@ import {
   REPORTERS,
   ScannerScreen,
 } from "../shared/screens";
-import { Center, ClipVideo, Counter, Flash, Light, NIGHT, PhoneAt, Pop, Pushed, WhiteIcon } from "../shared/stage";
+import {
+  Center,
+  ClipVideo,
+  Counter,
+  Flash,
+  Light,
+  NIGHT,
+  PhoneAt,
+  Pop,
+  Pushed,
+  SAFE,
+  WhiteIcon,
+} from "../shared/stage";
 
 /** Where the phone stands in the split scenes, and the text column to its left. */
 const PHONE = { x: 1290, y: 545, rotY: -10 };
@@ -108,10 +120,10 @@ const TRIO = [
   { id: "spoldzielnia", label: "Spółdzielnia", cue: "spółdzielnia", from: 1 },
 ] as const;
 
-/** Where the campus panel cuts to the QR clip: she is at the poster, about to raise her phone to its code. */
-const QR_FROM = 4;
+/** Where the campus panel cuts to the QR clip: she is at the poster, raising her phone to its code. */
+const QR_FROM = 5;
 /** The QR clip's second her phone is up against the code: the scene ends there and the app's scanner takes over. */
-const QR_SCAN = 7.4;
+const QR_SCAN = 7.2;
 
 const IntroPanel = ({
   id,
@@ -144,7 +156,7 @@ const IntroPanel = ({
         at={at}
         variant="snap"
         size={64}
-        style={{ position: "absolute", left: 44, bottom: 48, color: "#FFFFFF", opacity: 1 - grow }}
+        style={{ position: "absolute", left: 44, bottom: SAFE, color: "#FFFFFF", opacity: 1 - grow }}
       />
     </div>
   );
@@ -292,10 +304,10 @@ export const PromiseScene = () => {
       />
       {PLACES.map((p, i) => (
         <div key={p.key}>
-          <PhoneAt pose={{ x: p.x, y: 660, scale: 0.68 }}>
+          <PhoneAt pose={{ x: p.x, y: 585, scale: 0.68 }}>
             <DashboardScreen place={p.place} widgets={[...p.widgets]} />
           </PhoneAt>
-          <div style={{ position: "absolute", left: p.x, top: 990, transform: "translateX(-50%)" }}>
+          <div style={{ position: "absolute", left: p.x, bottom: SAFE, transform: "translateX(-50%)" }}>
             <Pop at={each + i * 5} style={{ background: "#FFFFFF", color: colors.text }}>
               <View>
                 <Icon icon={p.icon} size={34} color="primary" strokeWidth={2} />
@@ -363,10 +375,10 @@ export const CampusScene = () => {
           accent={["grafik."]}
           style={{ position: "absolute", left: 0, right: 0, top: 54 }}
         />
-        <PhoneAt pose={{ x: 690, y: 640, scale: 0.8, rotY: 18 }}>
+        <PhoneAt pose={{ x: 690, y: 625, scale: 0.8, rotY: 18 }}>
           <PluginScreen node={bookingDoneView()} />
         </PhoneAt>
-        <PhoneAt pose={{ x: 1230, y: 640, scale: 0.8, rotY: -18 }}>
+        <PhoneAt pose={{ x: 1230, y: 625, scale: 0.8, rotY: -18 }}>
           <PluginScreen node={bookingScheduleView()} />
         </PhoneAt>
         <div style={{ position: "absolute", left: 690, top: 196, transform: "translateX(-50%)" }}>

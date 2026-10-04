@@ -4,4 +4,9 @@ export const VOICE = {
   modelId: "eleven_v4",
   settings: { stability: 0.5, similarity_boost: 0.8, speed: 1 },
   seed: 7,
+  /**
+   * Words the narrator says differently from how the script writes them, one word for one (Polish TTS reads "AI"
+   * as "a i"). The take is recorded from the respelled text; its word times keep the script's words.
+   */
+  say: { AI: "ej-aj" } as Record<string, string>,
 };

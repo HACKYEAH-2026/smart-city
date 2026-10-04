@@ -9,8 +9,8 @@ export const VOICE_FILE = "ad/voice/needs.mp3";
 export const { scenes: SCENES, duration: DURATION } = timeline(
   BEATS,
   {
-    // After the line: the campus opens up and its student scans a QR code (kampus-qr).
-    intro: { lead: 6, tail: 62 },
+    // After the line: the campus opens up and its student raises her phone to a QR code (kampus-qr).
+    intro: { lead: 6, tail: 32 },
     promise: { lead: 4, tail: 14 },
     city: { lead: 10, tail: 14 },
     campus: { lead: 10, tail: 16 },

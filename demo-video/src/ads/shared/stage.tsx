@@ -14,6 +14,8 @@ import { votesText } from "./screens";
  */
 
 export const NIGHT = "#141519";
+/** The margin nothing on the 1920×1080 frame comes closer than to its bottom edge (title safe, ~7%). */
+export const SAFE = 72;
 export const OUTER = { width: SCREEN.width + 26, height: SCREEN.height + 26 };
 
 /* ── Stage pieces ─────────────────────────────────────────────────────────────────────────────────────── */
