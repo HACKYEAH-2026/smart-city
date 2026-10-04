@@ -99,6 +99,10 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 - Look and feel: only tokens from `apps/app/src/theme/` (`tokens.ts`, design system "Twoje Miejsce"); build screens from the components in `apps/app/src/components/` (see `apps/app/src/COMPONENTS.md`).
 - Back buttons NEVER have a background (no square, round or floating button for "go back"), on every screen, also over
   a map or a photo: always `<BackButton />` from `apps/app/src/components/` (a plain chevron).
+- Actions within thumb reach: on a screen shorter than the display, the actions it ends with (a CTA, a field to write in
+  with its button) sit at the bottom edge with the free space above them (a `flex: 1` spacer), and longer content
+  pushes them down. A conversation is messages → free space → the new message's field. Plugin views get this from the
+  renderer (`PluginScreen`); see COMPONENTS.md → Screen.
 - Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only

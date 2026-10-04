@@ -194,6 +194,8 @@ test("issues plugin page: counts, the unread badge on the panel, and the way to 
     .getByRole("button", { name: /^Ustawienia rozszerzenia/ })
     .last()
     .click();
+  // The settings view first: while it loads, "back" leads to the dashboard (PluginView without its tree).
+  await expect(page.getByRole("heading", { name: "Kategorie" })).toBeVisible();
   await page.getByRole("link", { name: t.back }).last().click();
   await expect(page).toHaveURL(/\/app\/c\/krakow\/manage\/issues$/);
 });

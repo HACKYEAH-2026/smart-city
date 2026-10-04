@@ -5,7 +5,7 @@ import { type RecordId, surql } from "surrealdb";
 import { first } from "../src/db";
 import { REQUESTS_PER_DAY } from "../src/plugins/builder";
 import type { AuthorTask, PluginAuthor } from "../src/services/ai/author/types";
-import { TestPluginAuthor } from "../src/test-author";
+import { SLOW, TestPluginAuthor } from "../src/test-author";
 import { DEMO_COMMUNITY } from "../src/test-routes";
 import { type Ctx, setup } from "./helpers";
 
@@ -270,6 +270,37 @@ describe("publishing and changing", () => {
       headers: admin,
     });
     expect(JSON.stringify(await view.json())).toContain("Klucze na ławce przy Plantach"); // the data stayed
+  });
+
+  test("a failed version is retried as a new one with the same request; the AI gets only the requests its source has", async () => {
+    const tasks: AuthorTask[] = [];
+    const slow = new TestPluginAuthor();
+    const admin = await start({
+      write: (task, check) => {
+        tasks.push(task);
+        return slow.write(task, check);
+      },
+    });
+    const first = "Tablica „Zguby i znalezione” dla użytkowników";
+    const rename = `Zmień nazwę na „Rzeczy znalezione” ${SLOW}`;
+    const { id } = await create(admin, first);
+    await settled(admin, id);
+    expect((await change(admin, id, rename)).status).toBe(201);
+    expect((await settled(admin, id)).versions[1]).toMatchObject({ status: "failed", error: "timeout" });
+
+    expect((await change(admin, id, rename)).status).toBe(201); // the retry
+    const plugin = await settled(admin, id);
+    expect(plugin.versions.map((v) => [v.n, v.status, v.outline?.name ?? null])).toEqual([
+      [1, "ready", "Zguby i znalezione"],
+      [2, "failed", null],
+      [3, "ready", "Rzeczy znalezione"],
+    ]);
+    // Version 2's request never made it into a source: the retry is not told it was done before.
+    expect(tasks.map((task) => [task.request, task.previous?.requests ?? null])).toEqual([
+      [first, null],
+      [rename, [first]],
+      [rename, [first]],
+    ]);
   });
 
   test("a published AI plugin is switchable like a built-in one; other places cannot see or switch it", async () => {

@@ -16,7 +16,7 @@ export type AuthorTask = {
   /** The place the plugin is for (name, kind), so examples and texts fit it. */
   place: { name: string; kind: string };
   request: string;
-  /** For a change: the current source and the earlier requests, oldest first. */
+  /** For a change: the current source and the requests it has (the ready versions'), oldest first. */
   previous: { source: string; requests: string[] } | null;
 };
 

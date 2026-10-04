@@ -913,8 +913,14 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
                   <p>
                     The admin reads the summary and outline, and can ask for a change at any time:
                     <code>POST …/plugins/:id/versions { request }</code>. While a version is being written the answer is
-                    <code>409 busy</code>. The new version starts from the latest <em>ready</em> source, with every earlier
-                    request listed for context, and gets the next version string (<code>1.1.0</code>, <code>1.2.0</code>…).
+                    <code>409 busy</code>. The new version starts from the latest <em>ready</em> source, with the requests
+                    of the ready versions listed for context (that source has them all; a failed request never made it
+                    in), and gets the next version string (<code>1.1.0</code>, <code>1.2.0</code>…).
+                  </p>
+                  <p>
+                    A failed latest version (any error but <code>ai_unavailable</code>) shows “Spróbuj ponownie” in the
+                    app: it sends the same request again as a new version, so it counts against the daily limit like any
+                    other.
                   </p>
                 </div>
               </li>
@@ -1001,7 +1007,8 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
                 <code>TestPluginAuthor</code> (<span class="path">apps/api/src/test-author.ts</span>; in E2E via
                 <code>PLUGIN_AUTHOR=test</code> in <span class="path">test-server.ts</span>) writes the author's example board of notes
                 (<span class="path">author/example.ts</span>) named after the quoted text in the request, and checks it like the real author. <code>firstTry: "typo"</code>
-                makes its first check fail on <code>ctx.db.notez</code> to exercise the loop.
+                makes its first check fail on <code>ctx.db.notez</code> to exercise the loop. A request with
+                <code>[slow]</code> in it runs out of time the first time a plugin gets it (E2E retries it).
               </p>
             </div>
           </div>

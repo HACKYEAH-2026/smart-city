@@ -1,7 +1,7 @@
 import type { AiPlugin, PlacePlugin, PluginOutline, PluginVersion, VersionError } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { Sparkles } from "lucide-react-native";
+import { RotateCcw, Sparkles } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import {
@@ -51,6 +51,8 @@ const FAILURES: Record<VersionError, string> = {
  * place's admins: describe a plugin and the AI writes and checks it; until it is published it is a draft. Every later
  * request is a new version, also after publishing; publishing installs the latest ready version in the place. With
  * `?plugin=` it shows that plugin's versions; without, it starts a new plugin and lists the place's AI plugins.
+ * Laid out like a chat, within thumb reach: what is written comes first, the box to write in sits at the bottom edge
+ * while that is short and is pushed down when it is long.
  */
 export default function BuildPlugin() {
   const { slug, plugin } = useLocalSearchParams<{ slug: string; plugin?: string }>();
@@ -85,7 +87,7 @@ function Alert({ text }: { text: string | null }) {
   ) : null;
 }
 
-/** The first request: what the place needs, in the admin's words. Then the place's AI plugins. */
+/** The place's AI plugins, then the first request at the bottom: what the place needs, in the admin's words. */
 function NewPlugin({ slug, onCreated }: { slug: string; onCreated: (id: string) => void }) {
   const create = useCreatePlugin(slug);
   const plugins = usePlacePlugins(slug);
@@ -98,20 +100,6 @@ function NewPlugin({ slug, onCreated }: { slug: string; onCreated: (id: string) 
       <Text variant="bodyL" color="textSecondary">
         {t.build_lead}
       </Text>
-      <TextField
-        label={t.build_request_label}
-        value={request}
-        onChangeText={setRequest}
-        placeholder={t.build_request_placeholder}
-        multiline
-      />
-      <Alert text={error} />
-      <Button
-        label={t.build_create}
-        leftIcon={<Icon icon={Sparkles} size={sizes.iconS} color="onPrimary" strokeWidth={2} />}
-        disabled={request.trim().length < MIN_REQUEST || create.isPending}
-        onPress={submit}
-      />
       {own.length ? (
         <View style={styles.list}>
           <Heading level={2} variant="headingS">
@@ -128,6 +116,21 @@ function NewPlugin({ slug, onCreated }: { slug: string; onCreated: (id: string) 
           ))}
         </View>
       ) : null}
+      <View style={styles.spacer} />
+      <TextField
+        label={t.build_request_label}
+        value={request}
+        onChangeText={setRequest}
+        placeholder={t.build_request_placeholder}
+        multiline
+      />
+      <Alert text={error} />
+      <Button
+        label={t.build_create}
+        leftIcon={<Icon icon={Sparkles} size={sizes.iconS} color="onPrimary" strokeWidth={2} />}
+        disabled={request.trim().length < MIN_REQUEST || create.isPending}
+        onPress={submit}
+      />
     </>
   );
 }
@@ -137,25 +140,37 @@ const itemStatus = (item: PlacePlugin) => {
   return item.draft ? t.build_status_draft : t.build_status_published;
 };
 
-/** The conversation with the AI: each request and what came of it; publishing; the next change. */
+/** The conversation with the AI: each request and what came of it; at the bottom publishing and the next change. */
 function PluginView({ slug, id }: { slug: string; id: string }) {
   const plugin = useAiPlugin(slug, id);
   if (plugin.isPending) return <Text color="textSecondary">{t.loading}</Text>;
   if (!plugin.data) return <Alert text={t.manage_load_error} />;
+  const latest = plugin.data.versions.at(-1);
   return (
     <>
       <View style={styles.list}>
         {plugin.data.versions.map((version) => (
-          <VersionView key={version.n} version={version} />
+          <VersionView key={version.n} slug={slug} plugin={id} version={version} latest={version === latest} />
         ))}
       </View>
+      <View style={styles.spacer} />
       <Publish slug={slug} plugin={plugin.data} />
       <Change slug={slug} plugin={plugin.data} />
     </>
   );
 }
 
-function VersionView({ version }: { version: PluginVersion }) {
+function VersionView({
+  slug,
+  plugin,
+  version,
+  latest,
+}: {
+  slug: string;
+  plugin: string;
+  version: PluginVersion;
+  latest: boolean;
+}) {
   return (
     <View role="article" aria-label={`${t.build_version} ${version.n}`} style={styles.version}>
       <View style={styles.request}>
@@ -165,7 +180,7 @@ function VersionView({ version }: { version: PluginVersion }) {
         <Text variant="body">{version.request}</Text>
       </View>
       {version.status === "working" ? <Working attempts={version.attempts} /> : null}
-      {version.status === "failed" ? <Alert text={FAILURES[version.error ?? "internal"]} /> : null}
+      {version.status === "failed" ? <Failed slug={slug} plugin={plugin} version={version} latest={latest} /> : null}
       {version.status === "ready" && version.outline ? (
         <OutlineCard outline={version.outline} summary={version.summary} />
       ) : null}
@@ -185,6 +200,41 @@ function Working({ attempts }: { attempts: number }) {
       <Text variant="caption" color="textSecondary">
         {t.build_working_hint}
       </Text>
+    </Card>
+  );
+}
+
+/**
+ * Why the AI did not write the version. The latest one can be retried with one tap (except without AI on the server):
+ * the same request again, a new version, so nobody has to type it twice.
+ */
+function Failed({
+  slug,
+  plugin,
+  version,
+  latest,
+}: {
+  slug: string;
+  plugin: string;
+  version: PluginVersion;
+  latest: boolean;
+}) {
+  const retry = useChangePlugin(slug, plugin);
+  const error = retry.isError ? sendError(retry.error) : null;
+  return (
+    <Card style={styles.card}>
+      <Alert text={FAILURES[version.error ?? "internal"]} />
+      {latest && version.error !== "ai_unavailable" ? (
+        <Button
+          label={t.build_retry}
+          variant="tint"
+          size="sm"
+          leftIcon={<Icon icon={RotateCcw} size={sizes.iconS} color="text" strokeWidth={2} />}
+          disabled={retry.isPending}
+          onPress={() => retry.mutate(version.request)}
+        />
+      ) : null}
+      <Alert text={error} />
     </Card>
   );
 }
@@ -294,4 +344,6 @@ const styles = StyleSheet.create({
   card: { gap: spacing[5] },
   row: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   grow: { flex: 1, gap: spacing[1] },
+  /** Takes the free height above the box to write in, which then sits at the bottom edge. */
+  spacer: { flex: 1 },
 });

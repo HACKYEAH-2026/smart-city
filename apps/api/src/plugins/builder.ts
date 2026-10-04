@@ -155,13 +155,16 @@ export class PluginBuilder {
       surql`CREATE plugin_version CONTENT ${{ plugin: plugin.id, n, request }};`,
     );
     if (!version) throw new Error("plugin_version not created");
-    const base = earlier.findLast((v) => statusOf(v) === "ready" && v.source);
+    // Every ready version was written from the one before it, so the latest one's source has all their requests and
+    // none of the failed ones (a retry repeats a failed request: the AI must not read it as done).
+    const ready = earlier.filter((v) => statusOf(v) === "ready" && v.source);
+    const base = ready.at(-1);
     const task: AuthorTask = {
       pluginId: keyOf(plugin.id),
       version: `1.${n - 1}.0`,
       place: { name: place.name, kind: await this.kindOf(place) },
       request,
-      previous: base?.source ? { source: base.source, requests: earlier.map((v) => v.request) } : null,
+      previous: base?.source ? { source: base.source, requests: ready.map((v) => v.request) } : null,
     };
     withLogFields({ plugin: task.pluginId, n }, () => {
       log.info("version started", { place: place.slug, kind: task.place.kind, from: base?.n ?? null, request });

@@ -106,14 +106,9 @@ const BUTTON_VARIANT: Record<NonNullable<Extract<UINode, { type: "Button" }>["va
 function PluginNode({ node }: { node: UINode }): ReactNode {
   const { onAction } = useContext(ActionsContext);
   const inWidget = useContext(InWidgetContext);
-  const inSheet = useContext(InSheetContext);
   switch (node.type) {
     case "Screen":
-      return (
-        <View style={[styles.screen, (node.chrome === false || inSheet) && styles.confirmation]}>
-          <Children nodes={node.children.filter((n) => !isFloating(n) && !isFooter(n))} />
-        </View>
-      );
+      return <PluginScreen node={node} />;
     case "Widget":
       return <WidgetTile node={node} />;
     case "Stack":
@@ -747,6 +742,47 @@ function ActivityRow({ node }: { node: Extract<UINode, { type: "Activity" }> }) 
   );
 }
 
+/**
+ * A screen's content, with its actions within thumb reach (COMPONENTS.md → Screen): the buttons and forms it closes
+ * with sit at the bottom edge while the content is short, and long content pushes them down. A form keeps its fields
+ * under the content and sends its submit down; a reply box goes down whole, as in a chat. In a sheet nothing moves: a
+ * sheet is only as tall as its content.
+ */
+function PluginScreen({ node }: { node: Extract<UINode, { type: "Screen" }> }) {
+  const inSheet = useContext(InSheetContext);
+  const nodes = node.children.filter((n) => !isFloating(n) && !isFooter(n));
+  const { content, actions } = inSheet ? { content: nodes, actions: [] } : splitClosing(nodes);
+  const [form, ...after] = actions;
+  return (
+    <View style={[styles.screen, (node.chrome === false || inSheet) && styles.confirmation]}>
+      <Children nodes={content} />
+      {form?.type === "Form" && !isReplyBox(form, content.at(-1)) ? (
+        <PluginForm node={form} closing={after} />
+      ) : actions.length ? (
+        <View style={[styles.stack, styles.atBottom]}>
+          <Children nodes={actions} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** What a screen closes with: buttons (a row of them too) and forms. */
+const isClosing = (node: UINode): boolean =>
+  node.type === "Button" ||
+  node.type === "Form" ||
+  (node.type === "Row" && node.children.every((child) => child.type === "Button"));
+
+/** A screen's nodes: the content, and the closing actions after the last of it. */
+const splitClosing = (nodes: UINode[]) => {
+  const start = nodes.findLastIndex((n) => !isClosing(n)) + 1;
+  return { content: nodes.slice(0, start), actions: nodes.slice(start) };
+};
+
+/** A form to reply with: a comment box, or one right under a list of messages (or under its empty state). */
+const isReplyBox = (form: Extract<UINode, { type: "Form" }>, before: UINode | undefined) =>
+  form.inline === true || before?.type === "List" || before?.type === "Empty";
+
 /** Children share the row's width equally (`grow`), e.g. two buttons or two stats side by side. */
 function GrowRow({ nodes }: { nodes: UINode[] }) {
   return (
@@ -761,7 +797,11 @@ function GrowRow({ nodes }: { nodes: UINode[] }) {
   );
 }
 
-function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
+/**
+ * A form; with `closing` (the screen's actions after it) it closes a screen: its submit and those actions go to the
+ * bottom edge, its fields stay where they are (PluginScreen).
+ */
+function PluginForm({ node, closing }: { node: Extract<UINode, { type: "Form" }>; closing?: UINode[] }) {
   const { onAction, busy } = useContext(ActionsContext);
   const confirmed = initialValues(node.children);
   const [state, setState] = useState(() => ({ confirmed, values: confirmed }));
@@ -770,6 +810,16 @@ function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
   }
   const submit: ToolAction = { ...node.submit, args: { ...node.submit.args, ...state.values } };
   const send = () => onAction(submit, { onSuccess: () => setState((s) => ({ ...s, values: s.confirmed })) });
+  const submitButton = (
+    <Button
+      label={node.submitLabel}
+      leftIcon={
+        node.submitIcon ? <Icon icon={UI_ICON[node.submitIcon]} size={sizes.iconM} color="onPrimary" /> : undefined
+      }
+      disabled={busy}
+      onPress={send}
+    />
+  );
   return (
     <FormContext.Provider
       value={{
@@ -811,18 +861,16 @@ function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.stack}>
+        <View style={[styles.stack, closing && styles.fillScreen]}>
           <Children nodes={node.children} />
-          <Button
-            label={node.submitLabel}
-            leftIcon={
-              node.submitIcon ? (
-                <Icon icon={UI_ICON[node.submitIcon]} size={sizes.iconM} color="onPrimary" />
-              ) : undefined
-            }
-            disabled={busy}
-            onPress={send}
-          />
+          {closing ? (
+            <View style={[styles.stack, styles.atBottom]}>
+              {submitButton}
+              <Children nodes={closing} />
+            </View>
+          ) : (
+            submitButton
+          )}
         </View>
       )}
     </FormContext.Provider>
@@ -866,6 +914,10 @@ const styles = StyleSheet.create({
   strong: { fontFamily: fontFamily.bold },
   stack: { gap: spacing[9] },
   screen: { flexGrow: 1, gap: spacing[9] },
+  /** A screen's closing actions: the free height above them pushes them to the bottom edge (PluginScreen). */
+  atBottom: { marginTop: "auto" },
+  /** A form that closes a screen takes the free height, so its submit can sit at the bottom edge. */
+  fillScreen: { flexGrow: 1 },
   confirmation: { gap: spacing[5] },
   stackTight: { gap: spacing[2] },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },

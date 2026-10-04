@@ -400,8 +400,9 @@ export const t = {
   build_widgets: ["widżet", "widżety", "widżetów"],
   build_failed_check_failed:
     "AI nie napisało rozszerzenia, które przechodzi sprawdzenie. Opisz to prościej albo inaczej.",
-  build_failed_timeout: "AI nie zdążyło w wyznaczonym czasie. Spróbuj jeszcze raz.",
-  build_failed_internal: "Coś poszło nie tak. Spróbuj jeszcze raz.",
+  build_failed_timeout: "AI nie zdążyło w wyznaczonym czasie.",
+  build_failed_internal: "Coś poszło nie tak.",
+  build_retry: "Spróbuj ponownie",
   build_failed_ai_unavailable: "AI nie jest dostępne na tym serwerze.",
   build_unavailable: "AI nie jest skonfigurowane na tym serwerze, więc nie może pisać rozszerzeń.",
   build_publish: "Opublikuj w miejscu",

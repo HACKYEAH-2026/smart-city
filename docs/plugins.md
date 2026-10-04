@@ -656,6 +656,13 @@ outside a Form with an `action` (a tool) saves at once: every change calls it wi
 that failed (an HTTP error or the tool's `error`) rolls back. Use a `.partial()` input and return `{ refresh: true }` when the view depends on it
 (e.g. a setting that shows another one); keep it `requires: "admin"` when only admins may change it.
 
+**Actions within thumb reach.** On a full screen (not in a sheet) the nodes it ends with — Buttons, rows of Buttons
+and Forms after its last other node — sit at the bottom edge while the content is shorter than the screen, and longer
+content pushes them down. A Form keeps its fields in place and sends its submit (and the buttons after it) down; a
+reply box — an `inline` form, or a form right after a List or an Empty — goes down whole, as in a chat. So put a
+screen's main action last. A `Composer` is pinned under the content instead (`PluginScreen` in
+`apps/app/src/plugins/Renderer.tsx`).
+
 **Screen and form presentation options.** `Screen.back` accepts `ui.navigate(…)` or `ui.app(…)`, never a tool.
 `Screen.chrome: false` omits its header for confirmations. `Heading` level 3 is a condensed uppercase section label.
 `Card.variant: "compact"` uses a 64 dp thumbnail and navigation chevron; `"featured"` uses a 96 dp thumbnail,
@@ -1065,6 +1072,9 @@ request changes it:
   (every check again, `schema` against the published tables) and enables it in that place; from then on it is
   switchable like a built-in plugin (`madeByAi`), and no other place can see or install it. The AI can change it any
   time: the new version runs in the place once it is published, and the plugin's data stays.
+- **Retry:** a failed latest version (any error but `ai_unavailable`) has "Spróbuj ponownie" in the app: the same
+  request again, as a new version (it counts against the daily limit). The author is told only the requests of ready
+  versions, the ones the current source has, so a repeated request never reads as done.
 
 ## Known issues
 

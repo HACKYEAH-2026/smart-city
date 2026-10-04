@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { type AddressInfo, createServer } from "node:net";
 import { resolve } from "node:path";
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { TEST_GOOGLE_CLIENT_ID } from "../../api/src/test-google";
 import { t } from "../src/texts";
 
@@ -197,5 +197,16 @@ export const signOut = async (page: Page) => {
   await page.goto("/app/account");
   await page.getByRole("button", { name: t.sign_out }).click();
   await expect(page).toHaveURL(/\/login$/);
+};
+/**
+ * A short screen keeps an action within thumb reach: its bottom edge sits at the screen's bottom padding (32 dp,
+ * `layout.screenBottomPadding`), not right under the content above it.
+ */
+export const expectAtBottom = async (page: Page, action: Locator) => {
+  const box = await action.boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  expect(box, "the action is on screen").not.toBeNull();
+  expect(height - ((box?.y ?? 0) + (box?.height ?? 0))).toBeGreaterThanOrEqual(0);
+  expect(height - ((box?.y ?? 0) + (box?.height ?? 0))).toBeLessThanOrEqual(48);
 };
 export { expect };

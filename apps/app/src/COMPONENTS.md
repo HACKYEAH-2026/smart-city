@@ -192,6 +192,8 @@ W białej grupie: wiersz `space-between`, padding 14/16, tekst 15; etykieta `tex
 
 `backgroundColor: colors.background`, `paddingHorizontal: 24`, `paddingTop: insets.top + 12`, `paddingBottom: 32` (lub insets.bottom + 8), kolumna z `gap` 24–28, spacer `flex:1` przed dolnym CTA. Używaj `react-native-safe-area-context`, `ScrollView` dla ekranów dłuższych niż ekran (np. Zarządzaj miejscem, min. wysokość 1100 dp w makiecie). Nie rysuj atrap paska statusu.
 
+Akcje w zasięgu kciuka: gdy treść jest krótsza niż ekran, akcje, którymi ekran się kończy (CTA, pole do pisania z przyciskiem), stoją przy dolnej krawędzi, a wolne miejsce jest nad nimi (spacer `flex:1`); dłuższa treść spycha je niżej (przewijają się z nią). Rozmowa (Rozszerzenie z AI): wiadomości → wolne miejsce → pole nowej wiadomości. Formularz zostawia pola pod treścią i spycha na dół tylko przycisk. Widoki rozszerzeń mają to z renderera (`PluginScreen` w `src/plugins/Renderer.tsx`, docs/plugins.md).
+
 ### NoticeScreen ✅ (`src/components/NoticeScreen.tsx`)
 
 Ekran z nagłówkiem i jednym komunikatem zamiast treści (wczytywanie, błąd wczytania, brak uprawnień — np. ekrany administratora otwarte przez członka): `Screen` bez chrome, nagłówek, tekst `bodyL` `textSecondary` (`role="alert"` przy błędzie).

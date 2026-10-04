@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { t } from "../src/texts";
-import { expect, loginAdmin, test } from "./fixtures";
+import { expect, expectAtBottom, loginAdmin, test } from "./fixtures";
 
 /**
  * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" → "Stwórz rozszerzenie z AI"), for a
@@ -63,4 +63,34 @@ test("an admin describes a plugin, the AI writes it, the admin publishes it and 
   // The plugin is now one of the place's plugins, marked as made by AI, and listed in the builder.
   await page.goto("/app/c/krakow/build");
   await expect(page.getByRole("link", { name: /Rzeczy znalezione/ })).toBeVisible();
+});
+
+/** A request the test author runs out of time on the first time (SLOW in apps/api/src/test-author.ts). */
+const SLOW = "[slow]";
+
+test("a version the AI did not finish in time is retried with one tap; the request box stays at the bottom", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  // Taller than a phone: the conversation stays shorter than the screen.
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await loginAdmin(page);
+  await openBuilder(page);
+  await expectAtBottom(page, page.getByRole("button", { name: t.build_create }));
+
+  const request = `Tablica „Wolne terminy” dla sąsiadów ${SLOW}`;
+  await page.getByLabel(t.build_request_label).fill(request);
+  await page.getByRole("button", { name: t.build_create }).click();
+  const first = page.getByRole("article", { name: `${t.build_version} 1` });
+  await expect(first.getByRole("alert")).toHaveText(t.build_failed_timeout, AI);
+  await expectAtBottom(page, page.getByRole("button", { name: t.build_change_send }));
+
+  // The same request again, without typing it: a new version.
+  await first.getByRole("button", { name: t.build_retry }).click();
+  const second = page.getByRole("article", { name: `${t.build_version} 2` });
+  await expect(second).toContainText(request);
+  await expect(second.getByRole("heading", { name: "Wolne terminy" })).toBeVisible(AI);
+  await expect(first.getByRole("button", { name: t.build_retry })).toHaveCount(0);
+  await expect(page.getByLabel(t.build_change_label)).toHaveValue("");
+  await expectAtBottom(page, page.getByRole("button", { name: t.build_change_send }));
 });
