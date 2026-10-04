@@ -120,7 +120,7 @@ export default function LocationPicker({
       </View>
       <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + layout.screenTopOffset }]}>
         <View style={styles.searchRow}>
-          <IconButton icon={ChevronLeft} label={t.back} variant="floating" onPress={onCancel} />
+          <IconButton icon={ChevronLeft} label={t.back} variant="roundOnImage" onPress={onCancel} />
           <SearchField
             label={t.location_search}
             value={query}

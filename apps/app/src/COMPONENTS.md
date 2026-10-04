@@ -74,8 +74,10 @@ Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `prim
 - `roundDark` — radius 22, tło `text`, ikona `onPrimary` (zębatka admina w nagłówku ekranu rozszerzenia; `CountBadge` w rogu nie jest zaimplementowany),
 - `roundOnDark` — radius 22, tło `onDarkOverlay`, ikona biała (skaner: zamknij, latarka),
 - `roundSunken` — radius 22, tło `surfaceSunken` (zamknij w bottom sheet),
-- `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` (wstecz na zdjęciu/mapie w PodgladMiejsca).
+- `roundOnImage` — radius 22, tło `photoOverlay` (ciemne, półprzezroczyste jak licznik zdjęć), ikona `onPrimary` (wstecz nad zdjęciem lub mapą),
+- `floating` — 44×44 radius 14, tło `surface`, `shadows.floating` („Moja lokalizacja" nad mapą).
   Zawsze `accessibilityLabel` (np. „Wróć", „Powiadomienia").
+  Wstecz w lewym górnym rogu nigdy nie ma białego tła (odciąga wzrok od ekranu): `plain`, a nad zdjęciem lub mapą `roundOnImage`.
 
 ### Label (eyebrow)
 
@@ -253,7 +255,7 @@ Węzły z katalogu SDK (`packages/sdk/src/ui.ts`) rysuje `Renderer.tsx` z kompon
   14 px). Segmented tabs have a 48 dp track and 40 dp segments; card lists use 10 dp gaps. Meta items with icons
   have no preceding dot.
 
-- Nagłówek ekranu (`ScreenHeader.tsx`): `IconButton square` (wstecz) → etykieta `label` nad `Heading level 1 headingS` → akcje: pigułka `Button dark xs` z ikoną (radius pill) albo `IconButton roundDark`. Gdy pierwszy węzeł to `Gallery`, galeria idzie na całą szerokość u góry, a wstecz to `IconButton floating` nad nią.
+- Nagłówek ekranu (`ScreenHeader.tsx`): `IconButton plain` (wstecz) → etykieta `label` nad `Heading level 1 headingS` → akcje: pigułka `Button dark xs` z ikoną (radius pill) albo `IconButton roundDark`. Gdy pierwszy węzeł to `Gallery`, galeria idzie na całą szerokość u góry, a wstecz to `IconButton roundOnImage` nad nią.
 - Karta (`CardRow.tsx`): na ekranie biała karta radius 18, padding 12, `shadows.card`: miniatura 76 (`sizes.cardThumb`, radius 12, pigułka „+N” `photoOverlay`), tytuł `rowTitle` w 2 wierszach, linia meta `small` `textSecondary` (`MetaLine.tsx`, kropki między elementami), po prawej pigułka głosów 32 (`sizes.votePill`: wciśnięta `primary`/`onPrimary`, niewciśnięta `surface` + ramka `border`, tekst `primary`; `aria-pressed` przez `src/lib/a11y.ts`). Karta bez zdjęcia, ikony, meta, licznika, tagów i kropki to zwykła `Card` z tekstem. W liście `grouped` (biała grupa radius 18, linie `divider`): kolumna kropki „nowe” 8 dp, miniatura 52 albo `IconBox sm` (`neutral`, `dark` z licznikiem), liczba głosów strzałka nad liczbą (`text`), `CountBadge` 22 (`primary`), chevron. W widżecie: wiersz z tytułem w 1 linii (`link`) i liczbą głosów w `primary`.
 - `Menu.tsx`: wyzwalacz tekstowy 36 dp (`buttonS` + `ChevronDown`) albo pigułka 28 dp z ramką i ikoną `primary`; otwiera `BottomSheet` z `RadioCard`. W kafelku pulpitu (bez nakładki) opcje są rzędem `Chip`.
 - `Gallery.tsx`: strony 4:3 przewijane w poziomie, pigułka „1 / 2” 28 dp `photoOverlay` w rogu (`aria-live`).
@@ -277,7 +279,7 @@ Pinezka miejsca na mapie: ustawianego nad środkiem mapy (wybór lokalizacji) i 
 
 ### SearchField ✅ (`src/components/SearchField.tsx`)
 
-Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `IconButton floating`.
+Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `IconButton roundOnImage`.
 Wariant `outlined` (nad listą, np. „Szukaj rozszerzeń"): wysokość 50 (`sizes.inputS`), ramka 1 px `border` zamiast cienia; bez `onSubmit` filtruje przy każdym znaku.
 
 ### Ekran „Lokalizacja miejsca" (kreator, krok 2)
@@ -296,7 +298,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-DolaczQR            | Skanowanie QR                                             | ScannerFrame, IconButton roundOnDark ×2, Button onDark / ghost-on-dark                                               |
 | E-DolaczKod           | Kod lub link                                              | SegmentedControl, OtpInput, TextField url + „Wklej", Button primary                                                  |
 | E-Zaproszenia         | Zaproszenia                                               | InviteCard ×N                                                                                                        |
-| E-PodgladMiejsca      | Podgląd miejsca                                           | zdjęcie/mapa + IconButton floating, panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
+| E-PodgladMiejsca      | Podgląd miejsca                                           | zdjęcie/mapa + IconButton roundOnImage, panel z zaokrąglonymi górnymi rogami 24, KeyValueRow, Switch row, Button primary |
 | E-Dashboard           | Pulpit (członek)                                          | DashboardHeader, EmptyStateCard, BottomTabBar                                                                        |
 | E-PrzelacznikMiejsc   | Przełącznik miejsc                                        | BottomSheet, PlaceRow ×N, Button secondary ×2                                                                        |
 | E-NoweMiejsceTyp      | Nowe miejsce 1/4                                          | ScreenHeader (krok), SelectableCard ×6, Button primary                                                               |

@@ -88,7 +88,7 @@ export default function PluginView() {
       {node?.chrome === false ? null : node ? (
         <PluginScreenHeader node={node} backHref={lead ? null : backHref} onAction={actions.onAction} />
       ) : (
-        <IconButton icon={ChevronLeft} label={t.back} variant="square" href={backHref} />
+        <IconButton icon={ChevronLeft} label={t.back} variant="plain" href={backHref} />
       )}
       {toast ? (
         <View role="status" style={styles.toast}>
@@ -132,7 +132,7 @@ function LeadGallery({ node, backHref }: { node: Extract<UINode, { type: "Galler
     <View style={[styles.bleed, { marginTop: -top }]}>
       <PluginGallery node={node} edgeToEdge />
       <View style={[styles.floatingBack, { top }]}>
-        <IconButton icon={ChevronLeft} label={t.back} variant="floating" href={backHref} />
+        <IconButton icon={ChevronLeft} label={t.back} variant="roundOnImage" href={backHref} />
       </View>
     </View>
   );

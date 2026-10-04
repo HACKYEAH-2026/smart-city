@@ -10,9 +10,20 @@ import { Text } from "./Text";
  * square: bordered button on a surface (reorder on the dashboard) · plain: back or cancel without a background in
  * screen and step headers · round: bell or account avatar · roundSunken: close in a bottom sheet · roundOnDark: close
  * and torch on the dark QR scanner · roundDark: an admin's dark round button (a plugin screen's settings gear) ·
- * floating: over a map (back, "my location"), with a shadow instead of a border.
+ * roundOnImage: back over a photo or a map, dark and see-through like the photo counter · floating: "my location" over
+ * a map, with a shadow instead of a border.
+ * Back in the top left corner never has a white background (it pulls the eye from the screen): `plain`, or
+ * `roundOnImage` over a photo or a map.
  */
-export type IconButtonVariant = "square" | "plain" | "round" | "roundSunken" | "roundOnDark" | "roundDark" | "floating";
+export type IconButtonVariant =
+  | "square"
+  | "plain"
+  | "round"
+  | "roundSunken"
+  | "roundOnDark"
+  | "roundDark"
+  | "roundOnImage"
+  | "floating";
 
 export type IconButtonProps = {
   /** Accessible name, required for icon-only buttons. */
@@ -69,7 +80,7 @@ export function IconButton({
         <Icon
           icon={icon}
           size={variant === "roundSunken" ? sizes.iconS : sizes.iconM}
-          color={color ?? (variant === "roundOnDark" || variant === "roundDark" ? "onPrimary" : "text")}
+          color={color ?? (ON_DARK.includes(variant) ? "onPrimary" : "text")}
         />
       ) : (
         <Text variant="buttonS">{text}</Text>
@@ -84,6 +95,9 @@ export function IconButton({
     button
   );
 }
+
+/** Variants with a dark background, so a white icon. */
+const ON_DARK: IconButtonVariant[] = ["roundOnDark", "roundDark", "roundOnImage"];
 
 const styles = StyleSheet.create({
   disabled: { opacity: opacity.disabled },
@@ -111,5 +125,6 @@ const styles = StyleSheet.create({
   roundSunken: { borderRadius: radii.pill, backgroundColor: colors.surfaceSunken },
   roundOnDark: { borderRadius: radii.pill, backgroundColor: colors.onDarkOverlay },
   roundDark: { borderRadius: radii.pill, backgroundColor: colors.text },
+  roundOnImage: { borderRadius: radii.pill, backgroundColor: colors.photoOverlay },
   floating: { borderRadius: radii.lg, backgroundColor: colors.surface, ...shadows.floating },
 });

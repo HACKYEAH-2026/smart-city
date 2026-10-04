@@ -24,7 +24,7 @@ export function PluginScreenHeader({
 }) {
   return (
     <View style={styles.row}>
-      {backHref ? <IconButton icon={ChevronLeft} label={t.back} variant="square" href={backHref} /> : null}
+      {backHref ? <IconButton icon={ChevronLeft} label={t.back} variant="plain" href={backHref} /> : null}
       <View style={styles.text}>
         {node.eyebrow ? (
           <Text variant="sectionLabel" color="textSecondary" numberOfLines={1}>

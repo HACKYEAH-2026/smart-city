@@ -44,7 +44,7 @@ export default function PluginPage() {
 function PageHeader({ plugin, onBack }: { plugin: PlacePlugin | undefined; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <IconButton icon={ChevronLeft} label={t.back} variant="square" onPress={onBack} />
+      <IconButton icon={ChevronLeft} label={t.back} variant="plain" onPress={onBack} />
       {plugin ? <IconBox icon={plugin.icon} size="xl" neutral /> : null}
       <View style={styles.headerText}>
         <Text variant="label" color="textSecondary">
