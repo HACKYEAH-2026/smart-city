@@ -119,7 +119,13 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
             {place.name}
           </Heading>
           {place.role === "admin" ? (
-            <IconButton icon={Settings} label={t.manage_title} variant="round" href={`/app/c/${place.slug}/manage`} />
+            <IconButton
+              icon={Settings}
+              label={t.manage_title}
+              variant="round"
+              size={36}
+              href={`/app/c/${place.slug}/manage`}
+            />
           ) : null}
         </View>
       </View>
@@ -161,8 +167,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing[6],
+    justifyContent: "flex-start",
+    gap: spacing[3],
     height: sizes.dashboardHeader,
   },
   placeName: { flexShrink: 1, maxWidth: `${sizes.dashboardNameWidth * 100}%` },

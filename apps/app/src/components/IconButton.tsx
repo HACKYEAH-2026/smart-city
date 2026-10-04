@@ -25,6 +25,8 @@ export type IconButtonProps = {
   color?: ColorToken;
   /** Shown dimmed and not pressable (e.g. a sheet's close while its action runs). */
   disabled?: boolean;
+  /** The visible size (dp) of a round button; the touch target stays 44 dp around it. */
+  size?: number;
 } & (
   | { onPress: () => void; href?: undefined }
   /** A link to a route of the app instead of an action (role link), e.g. "Zarządzaj miejscem" on the dashboard. */
@@ -46,6 +48,7 @@ export function IconButton({
   text,
   color,
   disabled = false,
+  size,
 }: IconButtonProps) {
   const button = (
     <Pressable
@@ -55,14 +58,22 @@ export function IconButton({
       disabled={disabled}
       onPress={onPress}
       onPressIn={tapFeedback}
+      // A smaller visible button keeps the 44 dp touch target around it.
+      hitSlop={size && size < sizes.iconButton ? (sizes.iconButton - size) / 2 : undefined}
       // A link gets one flat style object: expo-router's Link (asChild) drops a style function and, on the web,
       // hands a style array to the DOM <a> as is (which throws).
       style={
         href
-          ? StyleSheet.flatten([styles.button, styles[variant], disabled && styles.disabled])
+          ? StyleSheet.flatten([
+              styles.button,
+              styles[variant],
+              size ? { width: size, height: size } : null,
+              disabled && styles.disabled,
+            ])
           : ({ pressed }) => [
               styles.button,
               styles[variant],
+              size ? { width: size, height: size } : null,
               pressed && { opacity: opacity.pressed },
               disabled && styles.disabled,
             ]
