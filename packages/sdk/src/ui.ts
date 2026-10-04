@@ -408,8 +408,9 @@ const leafSchemas = [
   }),
   /**
    * A conversation like a messenger: bubbles oldest first, the viewer's own (`mine`) on the right in the brand colour,
-   * the others' on the left with the author's initials. Consecutive messages of one person are grouped and a time
-   * line separates messages further apart. `note`: a small line under a bubble (e.g. "edytowano").
+   * the others' on the left with the author's initials. Consecutive messages of one person make one block (their name
+   * and initials once). No clock times on screen (`at` orders the talk and is read to screen readers). `note`: a small
+   * line under a bubble (e.g. "edytowano").
    */
   z.object({
     type: z.literal("Chat"),

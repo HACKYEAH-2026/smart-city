@@ -8,63 +8,38 @@ import { initials } from "../lib/places";
 import { messageTime } from "../lib/relativeTime";
 import { t } from "../texts";
 import { borders, colors, opacity, radii, shadows, sizes, spacing, typography } from "../theme";
+import { blockPlaces } from "./chatBlocks";
 import { ActionsContext } from "./context";
 
 type ChatNode = Extract<UINode, { type: "Chat" }>;
 type ChatMessage = ChatNode["messages"][number];
 
-/** Messages closer than this stay in one run: one name, one avatar, no time line between them. */
-const RUN_GAP_MS = 10 * 60_000;
-const gapBetween = (a: ChatMessage, b: ChatMessage) => Math.abs(Date.parse(b.at) - Date.parse(a.at));
-const sameRun = (a: ChatMessage | undefined, b: ChatMessage | undefined) =>
-  a !== undefined &&
-  b !== undefined &&
-  a.person === b.person &&
-  Boolean(a.mine) === Boolean(b.mine) &&
-  gapBetween(a, b) < RUN_GAP_MS;
-
 /**
  * A messenger-like chat (packages/sdk Chat): the viewer's bubbles on the right in the brand colour, the others' on the
- * left in white with the author's initials at the end of their run and the name above it; a time line where the talk
- * pauses.
+ * left in white. Consecutive messages of one person make one block (chatBlocks.ts) with the name above it and the
+ * initials beside its last bubble. No clock times on screen; a screen reader hears each message's time.
  */
 export function ChatThread({ node }: { node: ChatNode }) {
-  const now = new Date();
+  const places = blockPlaces(node.messages);
   return (
     <View role="list" aria-label={node.label} style={styles.chat}>
-      {node.messages.map((message, i) => {
-        const before = node.messages[i - 1];
-        const after = node.messages[i + 1];
-        const pause = !before || gapBetween(before, message) >= RUN_GAP_MS;
-        return (
-          <ChatBubble
-            key={message.id}
-            message={message}
-            first={!sameRun(before, message)}
-            last={!sameRun(message, after)}
-            time={pause ? messageTime(message.at, now) : null}
-          />
-        );
-      })}
+      {node.messages.map((message, i) => (
+        <ChatBubble
+          key={message.id}
+          message={message}
+          first={places[i]?.first ?? true}
+          last={places[i]?.last ?? true}
+        />
+      ))}
     </View>
   );
 }
 
-function ChatBubble({
-  message,
-  first,
-  last,
-  time,
-}: {
-  message: ChatMessage;
-  first: boolean;
-  last: boolean;
-  time: string | null;
-}) {
+function ChatBubble({ message, first, last }: { message: ChatMessage; first: boolean; last: boolean }) {
   const mine = Boolean(message.mine);
   const who = mine ? t.plugin_chat_you : message.person;
   const note = message.note ? ` (${message.note})` : "";
-  // The joined corners of a run are tighter, like in a messenger.
+  // The joined corners of a block are tighter, like in a messenger.
   const corners = mine
     ? { borderTopRightRadius: first ? radii["2xl"] : radii.xs, borderBottomRightRadius: last ? radii["2xl"] : radii.xs }
     : { borderTopLeftRadius: first ? radii["2xl"] : radii.xs, borderBottomLeftRadius: last ? radii["2xl"] : radii.xs };
@@ -73,13 +48,8 @@ function ChatBubble({
       role="listitem"
       accessible
       accessibilityLabel={`${who}, ${messageTime(message.at)}: ${message.text}${note}`}
-      style={first ? styles.runStart : undefined}
+      style={first ? styles.blockStart : undefined}
     >
-      {time ? (
-        <Text variant="small" color="textSecondary" style={styles.time}>
-          {time}
-        </Text>
-      ) : null}
       <View style={[styles.row, mine && styles.rowMine]}>
         {mine ? null : last ? (
           <View style={styles.avatar}>
@@ -161,8 +131,7 @@ export function MessageComposer({ node }: { node: Extract<UINode, { type: "Compo
 
 const styles = StyleSheet.create({
   chat: { gap: spacing[1] },
-  runStart: { paddingTop: spacing[4] },
-  time: { textAlign: "center", paddingBottom: spacing[4] },
+  blockStart: { paddingTop: spacing[4] },
   row: { flexDirection: "row", alignItems: "flex-end", gap: spacing[4] },
   rowMine: { justifyContent: "flex-end" },
   avatar: {

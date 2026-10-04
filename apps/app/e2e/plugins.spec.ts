@@ -498,7 +498,10 @@ test("discussions widget: latest activity first, a tap opens the discussion, the
   await expect(page.getByRole("heading", { name: "Zieleń przy Rondzie Mogilskim", level: 1 })).toBeVisible();
   await page.getByLabel("Twoja wiadomość").fill("Raczej klony");
   await page.getByRole("button", { name: "Wyślij" }).click();
-  await expect(page.getByRole("list", { name: "Wiadomości" }).getByText("Raczej klony")).toBeVisible();
+  const messages = page.getByRole("list", { name: "Wiadomości" });
+  await expect(messages.getByText("Raczej klony")).toBeVisible();
+  // A chat without clock lines between the messages.
+  await expect(messages.getByText(/^\d{2}:\d{2}$/)).toHaveCount(0);
 
   await page.goto("/app");
   await expect(rows.nth(0)).toContainText("Zieleń przy Rondzie Mogilskim");
