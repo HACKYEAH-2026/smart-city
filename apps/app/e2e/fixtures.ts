@@ -140,6 +140,8 @@ export const PASSWORD = "password123";
  * that file has runtime dependencies and Playwright loads this one).
  */
 export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } as const;
+/** The demo admin's name (DEMO_ADMIN.name in apps/api/src/test-routes.ts); kept out of DEMO_ADMIN, the sign-in body. */
+export const DEMO_ADMIN_NAME = "Urząd Miasta";
 /** A resident of Kraków, a campus and a cooperative: DEMO_RESIDENT in apps/api/src/test-routes.ts (copied too). */
 export const DEMO_RESIDENT = { email: "anna@krakow.test", password: "password" } as const;
 

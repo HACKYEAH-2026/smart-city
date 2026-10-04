@@ -404,7 +404,7 @@
                   </thead>
                   <tbody>
                     <tr><td><code>/api/communities</code></td><td><code>communities.ts</code></td><td>places, joining, nav, dashboard, plugin views, tools, uploads</td></tr>
-                    <tr><td><code>/api/communities</code></td><td><code>placeAdmin.ts</code></td><td>place admins: settings, members, switching plugins</td></tr>
+                    <tr><td><code>/api/communities</code></td><td><code>placeAdmin.ts</code></td><td>place admins: settings, members (roles, removing), switching plugins</td></tr>
                     <tr><td><code>/api/communities</code></td><td><code>builder.ts</code></td><td>place admins: the AI plugin builder</td></tr>
                     <tr><td><code>/api/invitations</code></td><td><code>invitations.ts</code></td><td>invite by e-mail, accept, decline</td></tr>
                     <tr><td><code>/api/files</code></td><td><code>files.ts</code></td><td>photo download by signed URL (no session)</td></tr>
@@ -673,9 +673,9 @@
                   <figure class="snippet">
                     <figcaption><span>apps/api/src/routes/communities.ts</span></figcaption>
                     <pre class="code"><code data-lang="ts">const installed = await rows&lt;{ id: RecordId; plugin: string }&gt;(
-  c.var.db,
+  db,
   surql`SELECT id, plugin, created_at FROM plugin_installation
-        WHERE community = ${ref("community", community.id)} AND enabled ORDER BY created_at;`,
+        WHERE community = ${ref("community", communityId)} AND enabled ORDER BY created_at;`,
 );</code></pre>
                   </figure>
                 </div>
@@ -684,15 +684,17 @@
                 <button class="step-title" type="button">A <code>ctx</code> for each installation</button>
                 <div class="step-body">
                   <p>
-                    For every installation (in parallel) the host reads when this user last opened the plugin
+                    For every installation with a widget on the dashboard (in parallel) the host reads when this user
+                    last opened the plugin
                     (<code>plugin_visit</code>, becomes <code>ctx.lastVisit</code>) and builds the plugin's context:
                     the user with their role in this place, the place (with its pin), and only the services the plugin's
                     manifest declares. The rest of <code>ctx</code> rejects on use.
                   </p>
                   <figure class="snippet">
                     <figcaption><span>apps/api/src/routes/communities.ts</span></figcaption>
-                    <pre class="code"><code data-lang="ts">const lastVisit = await c.var.plugins.lastVisit(installationId, user.id);
-const ctx = c.var.plugins.context(plugin, { installationId, community, user, lastVisit });</code></pre>
+                    <pre class="code"><code data-lang="ts">host
+  .lastVisit(installationId, user.id)
+  .then((lastVisit) =&gt; host.context(plugin, { installationId, community, user, lastVisit })),</code></pre>
                   </figure>
                   <p class="small"><a href="plugins.html">What exactly is in <code>ctx</code> →</a></p>
                 </div>
@@ -713,12 +715,15 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                 </div>
               </li>
               <li data-hl="route db">
-                <button class="step-title" type="button">Order and answer</button>
+                <button class="step-title" type="button">Layout and answer</button>
                 <div class="step-body">
                   <p>
-                    The place's admins may have saved an order (the <code>dashboard</code> row, keys
-                    <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>). <code>sortByOrder</code> puts saved keys first; the
-                    rest keep the default order (installation, then declaration).
+                    <code>communityLayout</code> — the one code path for the dashboard and its editor — resolves the
+                    declared widgets against what the place's admins saved (the <code>dashboard</code> row, keys
+                    <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>): removed widgets are left out, <code>sortByOrder</code>
+                    puts saved keys first while the rest keep the default order (installation, then declaration), and
+                    each widget gets its saved size when its plugin still allows it, else its default. Only the widgets
+                    on the layout are rendered.
                   </p>
                   <figure class="snippet">
                     <figcaption><span>the response</span></figcaption>
@@ -726,7 +731,7 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
   "canEdit": true,
   "widgets": [
     { "key": "announcements/latest", "pluginId": "announcements", "widget": "latest",
-      "size": { "w": 2, "h": 3 }, "node": { "type": "Widget", "title": "Ogłoszenia", "children": [] } }
+      "size": { "w": 3, "h": 3 }, "node": { "type": "Widget", "title": "Ogłoszenia", "children": [] } }
   ]
 }</code></pre>
                   </figure>
@@ -736,12 +741,14 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                 <button class="step-title" type="button">The app draws the trees</button>
                 <div class="step-body">
                   <p>
-                    <code>src/plugins/Dashboard.tsx</code> lays the tiles out on a 2-column grid by their declared
+                    <code>src/plugins/Dashboard.tsx</code> lays the tiles out on a 3-column grid by their
                     <code>size</code> and draws each <code>node</code> with <code>PluginRenderer</code>, which maps the
                     closed node catalog onto design-system components. Tapping a tile navigates to
                     <code>/app/c/&lt;slug&gt;/&lt;plugin&gt;/&lt;view&gt;</code>, where <code>PluginView</code> fetches a
                     full view the same way. Admins long-press to reorder; the order is saved with
-                    <code>PATCH /api/communities/:slug/dashboard</code> (<code>requirePlaceAdmin</code>).
+                    <code>PATCH /api/communities/:slug/dashboard</code> (<code>requirePlaceAdmin</code>). The whole layout
+                    (order, sizes, removed widgets) is edited in Zarządzaj miejscem → Układ pulpitu through
+                    <code>GET</code> and <code>PUT /api/communities/:slug/dashboard/layout</code>.
                   </p>
                 </div>
               </li>
@@ -846,8 +853,10 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                     <dt>role</dt><dd><code>admin | user</code> — becomes <code>ctx.user.role</code> in plugins</dd>
                     <dt>last_visit</dt><dd>when the user last opened the place</dd>
                     <dt>is_default</dt><dd>the place the dashboard opens on</dd>
+                    <dt>joined_at</dt><dd>when the user joined (none on memberships older than the field)</dd>
                   </dl>
-                  <p class="small muted">The creator of a place becomes its admin; joining makes a plain member.</p>
+                  <p class="small muted">The creator of a place becomes its admin; joining makes a plain member. Admins
+                    change other members' roles and remove them (<code>placeAdmin.ts</code>), never their own.</p>
                 </div>
                 <div class="detail" data-pane="invitation" hidden>
                   <h3><code>invitation</code></h3>
@@ -913,8 +922,13 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                   <dl class="fields">
                     <dt>id</dt><dd>the community's key</dd>
                     <dt>order</dt><dd><code>array&lt;string&gt;</code> of <code>"&lt;plugin&gt;/&lt;widget&gt;"</code></dd>
+                    <dt>sizes</dt><dd><code>array&lt;{ key, w, h }&gt;</code>: the size picked per widget</dd>
+                    <dt>hidden</dt><dd><code>array&lt;string&gt;</code>: widgets removed from the dashboard</dd>
                   </dl>
-                  <p class="small muted">Set by the place's admins; widgets missing from it follow in the default order.</p>
+                  <p class="small muted">
+                    Set by the place's admins; widgets missing from <code>order</code> follow in the default order, a
+                    size the plugin no longer allows falls back to its default.
+                  </p>
                 </div>
                 <div class="detail" data-pane="ptables" hidden>
                   <h3>Plugin tables <code>p_&lt;plugin&gt;__&lt;table&gt;</code></h3>

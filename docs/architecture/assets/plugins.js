@@ -987,13 +987,14 @@ RETURN $result;`,
     };
 
     const widget = () => {
-      if (!state.items.length) return null;
       const since = state.visits[state.role];
       const fresh = state.items.filter((a) => since === null || a.at > since);
       return ui.widget(
         "Ogłoszenia",
         [
-          ui.text(fresh.length ? newCount(fresh.length) : "Nic nowego od Twojej ostatniej wizyty.", "soft"),
+          state.items.length
+            ? ui.text(fresh.length ? newCount(fresh.length) : "Nic nowego od Twojej ostatniej wizyty.", "soft")
+            : ui.empty("Nie ma jeszcze ogłoszeń."),
           ...fresh.slice(0, 2).map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
           ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
         ],
@@ -1067,16 +1068,14 @@ RETURN $result;`,
         const node = widget();
         const response = {
           canEdit: isAdmin(),
-          widgets: node
-            ? [{ key: "announcements/latest", pluginId: "announcements", widget: "latest", size: { w: 2, h: 3 }, node }]
-            : [],
+          widgets: [
+            { key: "announcements/latest", pluginId: "announcements", widget: "latest", size: { w: 3, h: 3 }, node },
+          ],
         };
         setCode(json, JSON.stringify(response, null, 2));
         $("sdui-json-title").textContent = "Dashboard response (widget rendered for this user)";
         $("sdui-request").textContent = "GET /api/communities/krakow/dashboard";
-        phone.innerHTML = `<div class="pv-bar"><span>Pulpit</span><span>Kraków</span></div><div class="pv-messages" id="pv-messages"></div>${
-          node ? render(node, actions, false) : `<p class="pv-empty">The widget returned null: it is left out.</p>`
-        }`;
+        phone.innerHTML = `<div class="pv-bar"><span>Pulpit</span><span>Kraków</span></div><div class="pv-messages" id="pv-messages"></div>${render(node, actions, false)}`;
       }
       state2.actions = actions;
       showMessage();

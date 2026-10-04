@@ -67,23 +67,34 @@ export type Context<TT extends Tables = Tables> = {
 
 export type PluginView<TT extends Tables = Tables> = (ctx: Context<TT>, params: ViewParams) => UINode | Promise<UINode>;
 
+/** Width of the community dashboard grid, in columns. */
+export const DASHBOARD_COLUMNS = 3;
+
 /**
- * Space a widget takes on the community dashboard: a grid 2 columns wide (`w`), in rows of fixed height (`h`).
- * Default order: plugin installation, then declaration; a community admin can reorder the dashboard.
+ * Space a widget takes on the community dashboard: a grid DASHBOARD_COLUMNS wide (`w` columns), in rows of fixed
+ * height (`h`). Default order: plugin installation, then declaration; a community admin can rearrange the dashboard.
  * A widget never grows beyond its size (content is clipped).
  */
 export const dashboardWidgetSizeSchema = z.object({
-  w: z.union([z.literal(1), z.literal(2)]),
+  w: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   h: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 export type DashboardWidgetSize = z.infer<typeof dashboardWidgetSizeSchema>;
+export const sameSize = (a: DashboardWidgetSize, b: DashboardWidgetSize): boolean => a.w === b.w && a.h === b.h;
+
+/** At most this many extra sizes a widget may offer (`sizes`). */
+export const DASHBOARD_WIDGET_SIZES_MAX = 6;
 
 /**
- * Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only). It always renders (an empty
+ * Dashboard widget: a default size and `render` returning `ui.widget(...)` (read-only). It always renders (an empty
  * state rather than nothing): its tile is how residents open the plugin.
+ * `title`: its name where admins arrange the dashboard (defaults to the plugin's name).
+ * `sizes`: other sizes an admin may switch it to; `size` is always allowed.
  */
 export type DashboardWidget<TT extends Tables = Tables> = {
   size: DashboardWidgetSize;
+  title?: string;
+  sizes?: DashboardWidgetSize[];
   render: (ctx: Context<TT>) => UINode | Promise<UINode>;
 };
 

@@ -536,7 +536,9 @@ const issues: PluginModule = ({ definePlugin, ui, z, fileRef, geoLocation, t }) 
        * tile opens the full list, "Zgłoś problem" and "Sugestia" open the form.
        */
       summary: {
-        size: { w: 2, h: 3 },
+        title: "Zgłoszenia",
+        size: { w: 3, h: 3 },
+        sizes: [{ w: 3, h: 2 }],
         render: async (ctx) => {
           const open = await ctx.db.issues.findMany({
             where: { status: { ne: "fixed" } },

@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { widgetsCount } from "../src/lib/plural";
 import { t } from "../src/texts";
-import { adminHeaders, DEMO_ADMIN, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
+import { adminHeaders, DEMO_ADMIN_NAME, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
@@ -36,6 +36,9 @@ test("only admins manage a place; the screen shows its sections, closed", async 
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: t.manage_title })).toHaveCount(0);
   await page.goto("/app/c/krakow/manage");
+  await expect(page.getByText(t.manage_admins_only)).toBeVisible();
+  await page.goto("/app/c/krakow/layout");
+  await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
   await expect(page.getByText(t.manage_admins_only)).toBeVisible();
 
   await signOut(page);
@@ -126,19 +129,23 @@ test("settings: renaming the place and changing who may join", async ({ page }) 
   await expect(page.getByRole("radio", { name: t.join_rule_open })).toBeChecked();
 });
 
-test("members: everyone in the place, admins marked", async ({ page, api }) => {
+test("members: a preview with roles, the admin first; the link opens all members", async ({ page, api }) => {
   await register(page, "member@example.test");
   await joinKrakow(api.url, "member@example.test");
   await signOut(page);
   await loginAdmin(page);
   await openManage(page);
   await openSection(page, t.manage_members_title);
-  const members = page.getByRole("list", { name: t.manage_members_title });
-  await expect(members.getByRole("listitem")).toHaveCount(2);
-  await expect(members.getByRole("listitem").filter({ hasText: DEMO_ADMIN.email })).toContainText(t.role_admin);
-  await expect(members.getByRole("listitem").filter({ hasText: "member@example.test" })).not.toContainText(
-    t.role_admin,
-  );
+  const members = page.getByRole("list", { name: t.manage_members_title }).getByRole("listitem");
+  await expect(members).toHaveCount(2);
+  // A registered user's name is their email.
+  await expect(members.nth(0)).toContainText(`${DEMO_ADMIN_NAME} ${t.members_you}`);
+  await expect(members.nth(0)).toContainText(t.role_admin);
+  await expect(members.nth(1)).toContainText("member@example.test");
+  await expect(members.nth(1)).toContainText(t.role_member);
+
+  await page.getByRole("link", { name: t.members_see_all }).click();
+  await expect(page.getByRole("heading", { name: t.manage_members_title, level: 1 })).toBeVisible();
 });
 
 test("invitations: the code with its QR; inviting someone by the email of their account", async ({ page }) => {
@@ -160,22 +167,73 @@ test("invitations: the code with its QR; inviting someone by the email of their 
   await expect(email).toHaveValue("");
 });
 
-test("dashboard layout: the widgets in order; moving one changes the dashboard", async ({ page }) => {
+test("dashboard layout: the editor changes sizes, order and widgets; saving changes the dashboard", async ({
+  page,
+}) => {
   await loginAdmin(page);
-  await page.goto("/app/c/krakow/announcements/list");
-  await page.getByLabel("Tytuł").fill("Zebranie użytkowników");
-  await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
-  await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
-  await page.goto("/app");
   await openManage(page);
   await openSection(page, t.manage_layout_title);
-  const widgets = page.getByRole("list", { name: t.manage_layout_title }).getByRole("listitem");
-  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
-  await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
-  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/, /Dyskusje/]);
+  await expect(
+    page.getByText(`${widgetsCount(3)} · ${t.manage_layout_grid} 3 ${t.manage_layout_columns}`),
+  ).toBeVisible();
+  await page.getByRole("link", { name: t.manage_layout_edit }).click();
+  await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.manage_layout_hint)).toBeVisible();
+
+  const grid = page.getByRole("list", { name: t.manage_layout_title });
+  const tiles = grid.getByRole("listitem");
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  const announcements = grid.getByRole("button", { name: /Ogłoszenia/ });
+  await announcements.click();
+  await expect(announcements).toHaveAttribute("aria-pressed", "true");
+  const sizes = page.getByRole("radiogroup", { name: t.manage_layout_size_group });
+  await expect(sizes.getByRole("radio")).toHaveText(["3 × 3", "3 × 2"]);
+  await sizes.getByRole("radio", { name: "3 × 2" }).click();
+  await expect(sizes.getByRole("radio", { name: "3 × 2" })).toBeChecked();
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  const up = page.getByRole("button", { name: t.manage_layout_up });
+  const down = page.getByRole("button", { name: t.manage_layout_down });
+  await up.click();
+  await expect(tiles).toHaveText([/Ogłoszenia/, /Zgłoszenia/, /Dyskusje/]);
+  await expect(up).toBeDisabled();
+  await down.click();
+  await down.click();
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia/]);
+  await expect(down).toBeDisabled();
+  await page.getByRole("button", { name: t.manage_layout_remove, exact: true }).click();
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/]);
+  await expect(sizes).toHaveCount(0);
+
+  await page.getByRole("button", { name: t.manage_layout_add }).click();
+  const sheet = page.getByRole("dialog", { name: t.manage_layout_add });
+  await expect(sheet.getByText(`${t.manage_layout_sizes} 3×3, 3×2`)).toBeVisible();
+  await expect(sheet.getByRole("link", { name: t.manage_layout_more })).toBeVisible();
+  await sheet.getByRole("button", { name: `${t.manage_layout_add_one}: Ogłoszenia` }).click();
+  await expect(sheet).toHaveCount(0);
+  // Added back at the end with its default size, and selected.
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia.*3 × 3/]);
+  await expect(announcements).toHaveAttribute("aria-pressed", "true");
+  await up.click();
+  await up.click();
+  await sizes.getByRole("radio", { name: "3 × 2" }).click();
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
+  // Tapping the selected tile again deselects it.
+  await announcements.click();
+  await expect(announcements).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByRole("button", { name: t.manage_layout_add }).click();
+  await expect(sheet.getByText(t.manage_layout_add_none)).toBeVisible();
+  await sheet.getByRole("button", { name: t.close }).click();
+  await expect(sheet).toHaveCount(0);
+
+  await page.getByRole("button", { name: t.manage_layout_save, exact: true }).click();
+  await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
   await page.getByRole("button", { name: t.back }).click();
   const regions = page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
+
+  await page.goto("/app/c/krakow/layout");
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {

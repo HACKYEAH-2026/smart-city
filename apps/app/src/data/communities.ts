@@ -1,6 +1,6 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
-import type { JoinPlace, NewPlace, PlaceUpdate } from "@app/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { DashboardLayoutInput, JoinPlace, MemberRole, NewPlace, PlaceUpdate } from "@app/shared";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
 import { mapPlacesKey } from "./geo";
@@ -14,7 +14,15 @@ const c = api.api.communities;
 export const communitiesKey = ["communities"] as const;
 const communityKey = (slug: string) => ["communities", slug] as const;
 const dashboardKey = (slug: string) => [...communityKey(slug), "dashboard"] as const;
+/** Under the dashboard's key, so whatever refreshes the dashboard (a reorder, a plugin switched on) refreshes it too. */
+const dashboardLayoutKey = (slug: string): readonly string[] => [...dashboardKey(slug), "layout"];
 const pluginKey = (slug: string, pluginId: string) => [...communityKey(slug), "plugin", pluginId] as const;
+const membersKey = (slug: string) => [...communityKey(slug), "members"];
+/**
+ * Reloads the place and everything under it. After a failed member change: another admin may have revoked the
+ * caller's rights (403) or removed them (404), and the screens should show that, not stale admin controls.
+ */
+const refreshPlace = (qc: QueryClient, slug: string) => qc.invalidateQueries({ queryKey: communityKey(slug) });
 
 export function useCommunities() {
   return useQuery({ queryKey: communitiesKey, queryFn: () => parseResponse(c.$get()) });
@@ -38,6 +46,29 @@ export function useSaveDashboardOrder(slug: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (order: string[]) => parseResponse(c[":slug"].dashboard.$patch({ param: { slug }, json: { order } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
+  });
+}
+
+/**
+ * Community admins: the dashboard layout to arrange (widgets on it with their sizes, and the removed ones). Fetched
+ * again on every mount even when cached: the editor starts its draft only from data fetched after it opened, never
+ * from a copy cached before.
+ */
+export function useDashboardLayout(slug: string) {
+  return useQuery({
+    queryKey: dashboardLayoutKey(slug),
+    queryFn: () => parseResponse(c[":slug"].dashboard.layout.$get({ param: { slug } })),
+    refetchOnMount: "always",
+  });
+}
+
+/** Community admins: save the dashboard layout; the dashboard and the layout (under its key) are refetched. */
+export function useSaveDashboardLayout(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (layout: DashboardLayoutInput) =>
+      parseResponse(c[":slug"].dashboard.layout.$put({ param: { slug }, json: layout })),
     onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
   });
 }
@@ -151,8 +182,29 @@ export function useDeclineInvitation() {
 /** Managing a place, for its admins ("Zarządzaj miejscem"): members, plugins on and off, settings, deleting it. */
 export function usePlaceMembers(slug: string) {
   return useQuery({
-    queryKey: [...communityKey(slug), "members"],
+    queryKey: membersKey(slug),
     queryFn: () => parseResponse(c[":slug"].members.$get({ param: { slug } })),
+  });
+}
+
+/** Makes another member an admin or a plain member again. */
+export function useSetMemberRole(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string } & MemberRole) =>
+      parseResponse(c[":slug"].members[":userId"].$patch({ param: { slug, userId }, json: { role } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(slug) }),
+    onError: () => refreshPlace(qc, slug),
+  });
+}
+
+/** Removes another member from the place. */
+export function useRemoveMember(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => parseResponse(c[":slug"].members[":userId"].$delete({ param: { slug, userId } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(slug) }),
+    onError: () => refreshPlace(qc, slug),
   });
 }
 

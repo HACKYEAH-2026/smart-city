@@ -2,7 +2,7 @@
 > Built under another name: ScreenHeader (step variant) → `StepHeader`, ScreenHeader (title variant) → `TitleHeader`, StepProgress → `SegmentedProgress`,
 > Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
 > QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
-> (no component): Avatar / PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
+> (no component): PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
 > KeyValueRow. Not implemented: CountBadge, CtaCard, IconButton `roundDark`, the A4 printout.
 
 # Twoje Miejsce — specyfikacja komponentów (React Native)
@@ -122,9 +122,9 @@ Białe tło `surface`, radius 20 (`3xl`), padding 20 (lub 16 w kartach zaprosze�
 Kwadrat z zaokrągleniem (`radii.md` 12 / `lg` 14 dla 48 dp), tło `primaryTint`, ikona `primary`. Wariant `selected`: tło `primary`, ikona `onPrimary`. Wariant `onPrimary`: tło `onPrimaryOverlay`, ikona biała (na czerwonej karcie).
 W kodzie (`src/components/IconBox.tsx`): rozmiary `sm` 40 (wiersze list, SelectableCard) · `md` 44 (domyślny) · `xl` 52 radius 16 (karta rozszerzenia w katalogu); wariant `neutral` (tło `surfaceSunken`, ikona `text`); zamiast ikony może być emoji rozszerzenia (`emojiM` 20 / `emojiL` 26, dekoracja ukryta przed czytnikiem ekranu). Wariant `onPrimary` nie jest zaimplementowany.
 
-### Avatar
+### Avatar ✅ (`src/components/Avatar.tsx`)
 
-- Inicjały osoby: koło (28/36/40 dp), tło `primaryTint` + tekst `primary` 600 (12–13 px) lub neutralny: tło `surfaceMuted`, tekst `text`.
+- Inicjały osoby: koło (28/36/40 dp), tło `primaryTint` + tekst `primary` 600 (12–13 px) lub neutralny: tło `surfaceMuted`, tekst `text`. W kodzie: tylko 40 dp (`sizes.avatarLg`, `buttonS`), ton `accent` / `neutral`, ukryty przed czytnikiem ekranu (imię stoi obok).
 - Skrót miejsca (`PlaceAvatar`): kwadrat 44–48 dp, radius 12, tło `primaryTint`, tekst `typography.abbr` `primary` (Schibsted Grotesk 700, 16, UPPERCASE), np. „OS", „KL".
 
 ### Badge / Chip
@@ -201,7 +201,7 @@ Tło pod arkuszem: `scrim` z przyciemnieniem. Arkusz: `background`, górne rogi 
 
 - Nagłówek: powitanie `body` `textSecondary` + `IconButton round` (dzwonek); pod nim etykieta „Twoje miejsce" i nazwa miejsca `heading` (lub `headingM` dla długich nazw) z kółkiem 32 dp `primaryTint` z `ChevronDown` 16 (`primary`) — cały blok otwiera BottomSheet przełącznika.
 - Tło nagłówka: dekoracyjna mapa (SVG: ulice `mapRoadMinor` 7 px, woda `mapWater`) — opcjonalne, `aria-hidden`.
-- Siatka widżetów: 2 kolumny, gap 12; widżet pełnej szerokości = span 2. Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
+- Siatka widżetów (projekt „Układ pulpitu"): 3 kolumny (`DASHBOARD_COLUMNS`), wiersze `sizes.widgetRow`, gap 12; widżet zajmuje `w` × `h` komórek (rozmiar wybrany przez administratora spośród dozwolonych przez rozszerzenie). Rozmieszczenie jak CSS grid `row dense` (`src/lib/grid.ts`: `packGrid` / `gridRects`, kafelki pozycjonowane absolutnie) — tak samo w pulpicie, w edytorze układu i w podglądzie na „Zarządzaj miejscem". Nagłówek sekcji: `label` + licznik „N widżetów" (`small`).
 - Kafelek widżetu: dotknięcie otwiera widok rozszerzenia wskazany przez widżet (`onPress`; przy tytule `ChevronRight` `iconMuted`), karty i przyciski w środku działają osobno. Administrator przytrzymuje kafelek (haptyka „long press"), żeby wejść w tryb edycji: przerywana ramka, uchwyt i strzałki, nad siatką podpowiedź i „Gotowe". Czytnik ekranu: akcja „Edytuj pulpit" na kafelku.
 - `EmptyStateCard`: Card radius 20, padding 20, `IconBox` 48 radius 14 + tytuł 16/600 + opis `caption` (lineHeight 20).
 - `CtaCard` (Zaproś użytkowników): radius 20, padding 16, tło `primary`, `IconBox` w wariancie `onPrimary`, tytuł 16/600 biały, podtytuł `caption` biały z `opacity.onPrimarySubtitle`, `ChevronRight` po prawej.
@@ -269,6 +269,7 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-ZaprosOsoby         | Zaproś osoby                                              | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary                                               |
 | E-DashboardAdmin      | Pulpit (administrator)                                    | jak Dashboard + StatusPill, IconButton roundDark z CountBadge, CtaCard                                               |
 | E-ZarzadzanieMiejscem | Zarządzaj miejscem                                        | TitleHeader, DisclosureCard: zapraszanie (karta), rozszerzenia (`flush`: włączone rozszerzenia — IconBox `sm` z emoji, nazwa `rowTitle` + „N widżetów · opis" `small`, linia `divider`; Button `primary sm` z `href` „Dodaj rozszerzenie"), układ pulpitu („N widżetów · siatka 3 kolumn"; podgląd siatki `aria-hidden`: tło `background`, radius 14, padding 10, wiersze `layoutPreviewRow` 22, gap 6, kafelki radius `mini` 8 — pierwszy `primary`, reszta `surface` z ramką `borderSubtle`; Button `dark sm` z `href` „Edytuj układ pulpitu"), członkowie (RoleBadge), ustawienia; Button destructiveGhost |
+| E-UkladPulpitu        | Układ pulpitu (edytor)                                    | TitleHeader + Button `dark xs` „Zapisz" jako pigułka 44 dp; podpowiedź `small`; siatka 3 kolumn (tło `surfaceSunken`, radius 22, padding/gap 10, wiersze `layoutRow` 64): kafelek = przycisk z `aria-pressed` (radius 16, emoji + nazwa `tileTitle`, plakietka rozmiaru `label` radius 6; zaznaczony: ramka 2 `primary` + `shadows.selected`, plakietka `primary`), na końcu przerywany kafelek „Dodaj widżet" (`dashedStrong`). Panel zaznaczonego widżetu przy dolnej krawędzi (nie modalny: `surface`, górne rogi `radii.panel` 24, `shadows.panel`): nazwa `cardTitle` + rozszerzenie `small`, zamknij `roundSunken`, `label` „Rozmiar" + `radiogroup` opcji 48 dp (obrys `layoutSizeUnit` × w/h; zaznaczona: tło `text`), Button `secondary sm` „Wyżej"/„Niżej" i `accent sm` „Usuń". BottomSheet „Dodaj widżet": grupy rozszerzeń (emoji + nazwa `smallStrong`), białe karty wierszy (`rowTitle` + „Rozmiary: …" `small`, Button `primary xs` pigułka 38 „Dodaj"), Button `ghost sm` „Więcej widżetów? Dodaj rozszerzenie" |
 | E-KatalogWidzetow     | Dodaj rozszerzenie (katalog rozszerzeń miejsca)           | TitleHeader, SearchField `outlined`, `label` „Rozszerzenia", karty rozszerzeń (radius 20, padding 18, `cardRaised`: IconBox `xl` z emoji + nazwa `cardTitleL` + podtytuł `small`, Button `accent` „Dodaj do miejsca" 44 dp), na dole ActionRow „Stwórz rozszerzenie z AI" |
 | E-WydrukQR            | Wydruk A4 z QR                                            | szablon wydruku (poza główną nawigacją; niezaimplementowany)                                                         |
 

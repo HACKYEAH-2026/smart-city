@@ -43,6 +43,7 @@ export const colors = {
   borderEmpty: '#E6E3DC', // empty code cells
   divider: '#EEEBE4', // separators inside cards/lists
   dashed: '#D3CEC2', // dashed frames, bottom sheet handle
+  dashedStrong: '#B9B4A9', // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
   dot: '#B5B2AA', // dash in the ABC-DEF code
 
   // Dark mode (QR scanner only)
@@ -123,7 +124,10 @@ export const radii = {
   xl: 16, // list rows, small cards
   '2xl': 18, // list groups, SelectableCard
   '3xl': 20, // dashboard cards, dashboard tiles
-  '4xl': 22, // banner/hero, success card
+  '4xl': 22, // banner/hero, success card, the layout editor's grid
+  panel: 24, // top corners of a non-modal panel at the bottom of a screen (layout editor)
+  mini: 8, // tiles of the dashboard layout preview
+  outline: 3, // the outline rectangle of a widget size choice ("3 × 2")
   sheet: 28, // top corners of the bottom sheet
   pill: 999,
 } as const;
@@ -229,6 +233,15 @@ export const sizes = {
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
+  /** Dashboard layout (design "Układ pulpitu"): a grid row in the editor and in the preview on "Zarządzaj miejscem". */
+  layoutRow: 64,
+  layoutPreviewRow: 22,
+  /** Layout editor: one grid cell in a size choice's outline icon (a 3 × 2 widget draws 21 × 14). */
+  layoutSizeUnit: 7,
+  /** Layout editor: a size choice ("3 × 2"). */
+  layoutSizeOption: 48,
+  /** A small pill button in a list row ("Dodaj" in the "Dodaj widżet" sheet). */
+  pillButton: 38,
   /** A list card's counter (votes): its width and minimum height. */
   voteWidth: 48,
   voteHeight: 64,
@@ -238,6 +251,8 @@ export const sizes = {
   /** The floating button over a screen. */
   fab: 56,
   highlightThumb: 64,
+  /** An action row in a bottom sheet (design "Opcje członka": 56). */
+  sheetAction: 56,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */
@@ -305,6 +320,12 @@ export const typography = {
   cardTitleL: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 }, // a plugin's name on its catalog card (17/700)
   rowTitle: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 20 }, // titles in flush rows inside a card (15/600)
   small: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
+  smallStrong: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+  }, // group headers in a sheet (13/600)
+  tileTitle: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 15 }, // a widget's name on a layout tile
   tab: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   tabActive: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
 
@@ -421,6 +442,14 @@ export const shadows = {
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
+  },
+  /** A panel at the bottom of a screen, over the content (0 -8 28 rgba .10) */
+  panel: {
+    shadowColor: '#1B1B1F',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 8,
   },
   /** Focus glow of a text field (COMPONENTS.md → TextField: 4 dp, primary at .10) */
   focusRing: {

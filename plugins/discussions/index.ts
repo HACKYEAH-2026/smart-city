@@ -168,7 +168,9 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
     dashboardWidgets: {
       /** The 3 discussions with the latest activity; tapping one opens it, the header and the tile open them all. */
       recent: {
-        size: { w: 2, h: 3 },
+        title: "Dyskusje",
+        size: { w: 3, h: 3 },
+        sizes: [{ w: 3, h: 2 }],
         render: async (ctx) => {
           const latest = await ctx.db.discussions.findMany({
             orderBy: { lastActivityAt: "desc" },

@@ -1,4 +1,4 @@
-import { type GeoPoint, geoPointSchema } from "@app/plugin-sdk";
+import { type DashboardWidgetSize, dashboardWidgetSizeSchema, type GeoPoint, geoPointSchema } from "@app/plugin-sdk";
 import { z } from "zod";
 import type { PluginCatalogItem } from "./plugins";
 
@@ -57,8 +57,22 @@ export type NewPlace = z.input<typeof newPlaceSchema>;
 export const placeUpdateSchema = z.object(placeFields).partial();
 export type PlaceUpdate = z.input<typeof placeUpdateSchema>;
 
-/** A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name. */
-export type PlaceMember = { id: string; name: string; email: string; role: "admin" | "user" };
+/** A place's admin changes another member's role (PATCH /api/communities/:slug/members/:userId). */
+export const memberRoleSchema = z.object({ role: z.enum(["admin", "user"]) });
+export type MemberRole = z.input<typeof memberRoleSchema>;
+
+/**
+ * A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name.
+ * `joinedAt` (ISO) is null for memberships from before it was recorded; `you` marks the signed-in admin.
+ */
+export type PlaceMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  joinedAt: string | null;
+  you: boolean;
+};
 
 /**
  * A plugin of the place and whether it is on (GET /api/communities/:slug/plugins), for its admins: a built-in one, or
@@ -154,3 +168,34 @@ export const dashboardOrderSchema = z.object({
   order: z.array(z.string().min(3).max(100)).max(100),
 });
 export type DashboardOrder = z.input<typeof dashboardOrderSchema>;
+
+/**
+ * The dashboard as a community admin arranges it (PUT /api/communities/:slug/dashboard/layout): the widgets on it,
+ * first = top left, each with a size its plugin allows. Declared widgets left out are hidden.
+ */
+export const dashboardLayoutSchema = z.object({
+  widgets: z
+    .array(z.object({ key: z.string().min(3).max(100), size: dashboardWidgetSizeSchema }))
+    .max(100)
+    .refine((widgets) => new Set(widgets.map((w) => w.key)).size === widgets.length, "Widget keys must be unique"),
+});
+export type DashboardLayoutInput = z.input<typeof dashboardLayoutSchema>;
+
+/**
+ * A declared widget in the layout editor. `title`: its name (the plugin's name when it declares none); `size`: the
+ * size it has now; `sizes`: every size an admin may pick, the plugin's default first.
+ */
+export type LayoutWidget = {
+  key: string;
+  pluginId: string;
+  pluginName: string;
+  pluginIcon: string;
+  title: string;
+  size: DashboardWidgetSize;
+  sizes: DashboardWidgetSize[];
+};
+/**
+ * The dashboard layout for its admins (GET/PUT /api/communities/:slug/dashboard/layout): `columns` of the grid,
+ * the `widgets` on the dashboard in order, and the declared widgets an admin removed (`available`, may be added back).
+ */
+export type DashboardLayout = { columns: number; widgets: LayoutWidget[]; available: LayoutWidget[] };

@@ -83,7 +83,9 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       latest: {
-        size: { w: 2, h: 3 },
+        title: "Ogłoszenia",
+        size: { w: 3, h: 3 },
+        sizes: [{ w: 3, h: 2 }],
         render: async (ctx) => {
           const any = (await ctx.db.announcements.count()) > 0;
           const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};

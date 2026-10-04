@@ -55,6 +55,8 @@ DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS commun
 -- Per-user place state: when the user last opened the place, and whether it is the user's default place.
 DEFINE FIELD IF NOT EXISTS last_visit ON membership TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS is_default ON membership TYPE bool DEFAULT false;
+-- When the user joined the place; optional because memberships created before this field have none.
+DEFINE FIELD IF NOT EXISTS joined_at ON membership TYPE option<datetime> DEFAULT time::now();
 
 -- An invitation to a place: an admin invites a user (by email); the invitee accepts (joins) or declines (removed).
 DEFINE TABLE IF NOT EXISTS invitation SCHEMAFULL;
@@ -83,10 +85,16 @@ DEFINE FIELD IF NOT EXISTS installation ON plugin_visit TYPE record<plugin_insta
 DEFINE FIELD IF NOT EXISTS user ON plugin_visit TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS at ON plugin_visit TYPE datetime;
 
--- Dashboard widget order of a community, set by its admins. id = community key; entries are
--- "<plugin>/<widget>" (widgets missing from it follow in the default order).
+-- Dashboard layout of a community, set by its admins. id = community key; keys are "<plugin>/<widget>".
+-- order: widget order (widgets missing from it follow in the default order); sizes: the size an admin picked per
+-- widget (from the sizes its plugin allows); hidden: widgets an admin removed from the dashboard.
 DEFINE TABLE IF NOT EXISTS dashboard SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS order ON dashboard TYPE array<string>;
+DEFINE FIELD IF NOT EXISTS sizes ON dashboard TYPE array<object> DEFAULT [];
+DEFINE FIELD IF NOT EXISTS sizes.*.key ON dashboard TYPE string;
+DEFINE FIELD IF NOT EXISTS sizes.*.w ON dashboard TYPE int;
+DEFINE FIELD IF NOT EXISTS sizes.*.h ON dashboard TYPE int;
+DEFINE FIELD IF NOT EXISTS hidden ON dashboard TYPE array<string> DEFAULT [];
 DEFINE FIELD IF NOT EXISTS updated_at ON dashboard TYPE datetime DEFAULT time::now();
 
 -- A notification in a resident's inbox (ctx.notify), one row per recipient. \`open\` = view of the plugin to open.
