@@ -70,16 +70,19 @@ describe("settings", () => {
 });
 
 describe("members", () => {
-  test("everyone in the place with their role, admins first", async () => {
+  test("everyone in the place with their role, admins first, then in Polish alphabetical order", async () => {
     const admin = await start();
+    await t.signUp({ name: "Zofia Zając", email: "zofia@example.test" });
+    await t.signUp({ name: "Łukasz Lis", email: "lukasz@example.test" });
     await t.signUp({ name: "Anna Nowak", email: "anna@example.test" });
     await t.signUp({ place: null, email: "outside@example.test" });
     const members = await json<PlaceMember[]>(await t.request(`${base}/members`, { headers: admin }));
-    expect(members.map(({ role }) => role)).toEqual(["admin", "user"]);
+    expect(members.map(({ role }) => role)).toEqual(["admin", "user", "user", "user"]);
+    expect(members.slice(1).map((m) => m.name)).toEqual(["Anna Nowak", "Łukasz Lis", "Zofia Zając"]);
     expect(members[1]).toMatchObject({ name: "Anna Nowak", email: "anna@example.test", role: "user" });
     expect(members.map((m) => m.email)).not.toContain("outside@example.test");
-    expect(members.map(({ joinedAt }) => typeof joinedAt)).toEqual(["string", "string"]);
-    expect(members.map(({ you }) => you)).toEqual([true, false]);
+    expect(members.map(({ joinedAt }) => typeof joinedAt)).toEqual(["string", "string", "string", "string"]);
+    expect(members.map(({ you }) => you)).toEqual([true, false, false, false]);
   });
 
   test("members after the admins in order of their names", async () => {
@@ -154,11 +157,11 @@ describe("plugins", () => {
     const admin = await start();
     const member = await t.signUp();
     const list = async () => json<PlacePlugin[]>(await t.request(`${base}/plugins`, { headers: admin }));
-    // `widgets`: the dashboard widgets each plugin declares (discussions has none).
+    // `widgets`: the dashboard widgets each plugin declares.
     expect((await list()).map(({ id, enabled, widgets }) => ({ id, enabled, widgets }))).toEqual([
       { id: "issues", enabled: true, widgets: 1 },
       { id: "announcements", enabled: true, widgets: 1 },
-      { id: "discussions", enabled: true, widgets: 0 },
+      { id: "discussions", enabled: true, widgets: 1 },
     ]);
     const put = (pluginId: string, enabled: boolean) =>
       t.request(`${base}/plugins/${pluginId}`, { method: "PUT", headers: admin, json: { enabled } });

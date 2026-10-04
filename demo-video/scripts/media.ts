@@ -1,13 +1,14 @@
 /**
- * The ad's generated media (src/ad/media.ts) from the Gemini API: stills with the Gemini image model (an `edit`
- * still starts from another still, so both show the same scene), clips with Veo. Makes only the files missing in
+ * The ads' generated media (src/ads/shared/media.ts) from the Gemini API: stills with the Gemini image model (an `edit`
+ * still starts from another still, so both show the same scene), clips with Veo (a `start` clip opens on a frame of
+ * another clip, so it continues that shot). Makes only the files missing in
  * public/. Paid per image and per second of video, so run it on purpose. Needs GEMINI_API_KEY (repo .env).
  *   bun run media                 everything missing
  *   bun run media --only dom,miasto   just these (also when they exist)
  */
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { MEDIA, type MediaId } from "../src/ad/media";
+import { CLIP_SECONDS, MEDIA, type MediaId } from "../src/ads/shared/media";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 const IMAGE_MODEL = "gemini-3.1-flash-image";
@@ -73,15 +74,43 @@ const finished = async (name: string): Promise<Operation> => {
   return finished(name);
 };
 
-const video = async (prompt: string) => {
+/** One frame of a clip in public/, as PNG bytes (the start of a clip that continues it). */
+const frameOf = async (file: string, second: number) => {
+  const png = join(PUBLIC, `${file}.${second}s.png`);
+  const proc = Bun.spawn(
+    [
+      "bunx",
+      "remotion",
+      "ffmpeg",
+      "-y",
+      "-loglevel",
+      "error",
+      "-ss",
+      String(second),
+      "-i",
+      join(PUBLIC, file),
+      "-frames:v",
+      "1",
+      png,
+    ],
+    { stdout: "inherit", stderr: "inherit" },
+  );
+  if ((await proc.exited) !== 0) throw new Error(`ffmpeg could not take a frame of ${file}`);
+  const bytes = Buffer.from(await Bun.file(png).arrayBuffer());
+  await Bun.file(png).delete();
+  return bytes;
+};
+
+const video = async (prompt: string, start?: Buffer) => {
+  const image = start ? { image: { bytesBase64Encoded: start.toString("base64"), mimeType: "image/png" } } : {};
   const res = await call(`${API}/models/${VIDEO_MODEL}:predictLongRunning`, {
     method: "POST",
     body: JSON.stringify({
-      instances: [{ prompt }],
+      instances: [{ prompt, ...image }],
       parameters: {
         aspectRatio: "16:9",
         resolution: "1080p",
-        durationSeconds: 8,
+        durationSeconds: CLIP_SECONDS,
         negativePrompt: "text, captions, subtitles, logos, watermark, readable phone screen",
       },
     }),
@@ -113,7 +142,8 @@ const make = async (id: MediaId) => {
   const item = MEDIA[id];
   const source = "edit" in item ? join(PUBLIC, MEDIA[item.edit].file) : undefined;
   const from = source ? Buffer.from(await Bun.file(source).arrayBuffer()) : undefined;
-  const bytes = item.kind === "image" ? await image(item.prompt, from) : await video(item.prompt);
+  const start = "start" in item ? await frameOf(MEDIA[item.start.clip as MediaId].file, item.start.second) : undefined;
+  const bytes = item.kind === "image" ? await image(item.prompt, from) : await video(item.prompt, start);
   const out = join(PUBLIC, item.file);
   const raw = `${out}.raw${item.kind === "image" ? ".jpg" : ".mp4"}`;
   await mkdir(dirname(out), { recursive: true });
@@ -129,8 +159,8 @@ const unknown = only.filter((id) => !ids.includes(id as MediaId));
 if (unknown.length) throw new Error(`Unknown media: ${unknown.join(", ")} (known: ${ids.join(", ")})`);
 const missing = await Promise.all(ids.map(async (id) => !(await Bun.file(join(PUBLIC, MEDIA[id].file)).exists())));
 const todo = only.length ? (only as MediaId[]) : ids.filter((_, i) => missing[i]);
-// Edits wait for the still they start from; everything else runs at once.
-const first = todo.filter((id) => !("edit" in MEDIA[id]));
-await Promise.all(first.map(make));
-await Promise.all(todo.filter((id) => "edit" in MEDIA[id]).map(make));
+// Edits and continued clips wait for what they start from; everything else runs at once.
+const follows = (id: MediaId) => "edit" in MEDIA[id] || "start" in MEDIA[id];
+await Promise.all(todo.filter((id) => !follows(id)).map(make));
+await Promise.all(todo.filter(follows).map(make));
 console.log(todo.length ? `media: made ${todo.join(", ")}` : "media: nothing missing (--only <ids> to make again)");

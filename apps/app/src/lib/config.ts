@@ -13,15 +13,22 @@ export function apiBaseUrl(): string {
   return globalThis.__API_URL__ ?? process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 }
 
-/** The demo place's admin the dev API seeds (DEMO_ADMIN in apps/api/src/test-routes.ts; PRODUCT.md). */
-const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } as const;
+export type DevLoginAccount = { email: string; password: string };
+/**
+ * Accounts the dev API seeds (apps/api/src/test-routes.ts; PRODUCT.md): the demo place's admin (DEMO_ADMIN) and a
+ * resident of Kraków, a campus and a cooperative (DEMO_RESIDENT).
+ */
+const DEV_LOGIN_ACCOUNTS: DevLoginAccount[] = [
+  { email: "admin@krakow.test", password: "password" },
+  { email: "anna@krakow.test", password: "password" },
+];
 
 /**
- * Dev login: a button at the bottom of the login screen signs in as the demo admin in one tap. Off by default.
+ * Dev login: buttons at the bottom of the login screen sign in as a seeded account in one tap. Off by default.
  *  - EXPO_PUBLIC_DEV_LOGIN=true in the repo-root .env (the app's dev script loads it, see .env.example).
  *  - globalThis.__DEV_LOGIN__: runtime override (E2E, like __API_URL__).
  */
-export function devLoginAccount(): typeof DEMO_ADMIN | null {
+export function devLoginAccounts(): DevLoginAccount[] {
   const on = globalThis.__DEV_LOGIN__ ?? process.env.EXPO_PUBLIC_DEV_LOGIN === "true";
-  return on ? DEMO_ADMIN : null;
+  return on ? DEV_LOGIN_ACCOUNTS : [];
 }

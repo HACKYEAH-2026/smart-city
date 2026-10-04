@@ -1,4 +1,5 @@
-import type { PlaceKind } from "@app/shared";
+import type { NavigateAction } from "@app/plugin-sdk";
+import type { JoinRule, PlaceKind } from "@app/shared";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { Auth } from "./auth";
@@ -196,16 +197,86 @@ export const DEMO_MAP_PLACES = [
   mapPlace("tyniec", "Opactwo Benedyktynów w Tyńcu", "other", "Benedyktyńska 37, 30-398 Kraków", 50.01845, 19.8029),
 ];
 
+/** A resident of Kraków in local dev: a plain member of the city (the default place), a campus and a cooperative. */
+export const DEMO_RESIDENT = { email: "anna@krakow.test", password: "password", name: "Anna Nowak" } as const;
+
+type ResidentPlace = {
+  slug: string;
+  name: string;
+  kind: PlaceKind;
+  address: string;
+  description: string;
+  join_rule: JoinRule;
+  invite_code: string;
+  on_map: boolean;
+  lat: number;
+  lng: number;
+  /** Built-in plugins enabled in the place, in this order (its navigation). */
+  pluginIds: string[];
+};
+/**
+ * DEMO_RESIDENT's places besides Kraków: the campus and the housing cooperative of the demo video's ads, each with
+ * only the plugins it needs. Made-up places on real addresses (points from Nominatim). The campus is on the map of
+ * places for everyone; the cooperative only for its members.
+ */
+export const DEMO_RESIDENT_PLACES: ResidentPlace[] = [
+  {
+    slug: "kampus-glowny",
+    name: "Kampus Główny",
+    kind: "school",
+    address: "prof. Stanisława Łojasiewicza 11, 30-348 Kraków",
+    description: "Ogłoszenia uczelni i dyskusje studentów.",
+    join_rule: "open",
+    invite_code: "KMPGLW",
+    on_map: true,
+    lat: 50.02907,
+    lng: 19.90491,
+    pluginIds: ["announcements", "discussions"],
+  },
+  {
+    slug: "spoldzielnia-sloneczna",
+    name: "Spółdzielnia Słoneczna",
+    kind: "estate",
+    address: "os. Słoneczne 1, 31-956 Kraków",
+    description: "Zgłoszenia usterek w budynkach i ogłoszenia administracji osiedla.",
+    join_rule: "open",
+    invite_code: "SLNCZN",
+    on_map: false,
+    lat: 50.07679,
+    lng: 20.03974,
+    pluginIds: ["issues", "announcements"],
+  },
+];
+
 type Deps = { db: Db; auth: Auth; plugins: PluginHost };
 
 const userIdByEmail = async (db: Db, email: string) =>
   (await first<{ id: RecordId }>(db, surql`SELECT id FROM user WHERE email = ${email};`))?.id;
 
+/** The id of a seeded account: signed up on the first run, found by its email after that. */
+async function seedAccount({ db, auth }: Deps, account: { email: string; password: string; name: string }) {
+  const existing = await userIdByEmail(db, account.email);
+  return existing ? keyOf(existing) : (await auth.api.signUpEmail({ body: { ...account } })).user.id;
+}
+
+async function seededCommunity(db: Db, slug: string) {
+  const row = await communityBySlug(db, slug);
+  if (!row) throw new Error(`seed: community ${slug} missing`);
+  return toCommunity(row);
+}
+
+function builtinPlugin(plugins: PluginHost, id: string) {
+  const plugin = plugins.get(id);
+  if (plugin?.origin !== "builtin") throw new Error(`seed: no built-in plugin ${id}`);
+  return plugin;
+}
+
 /**
  * Dev/E2E seed data (idempotent): a demo community with built-in plugins (with onInstall)
  * and a community admin account.
  */
-export async function seedDemo({ db, auth, plugins }: Deps) {
+export async function seedDemo(deps: Deps) {
+  const { db, plugins } = deps;
   const data = { ...DEMO_COMMUNITY, kind: "district", join_rule: "open", invite_code: DEMO_INVITE_CODE };
   await db.query(surql`INSERT IGNORE INTO community ${data};`);
   // Also for a dev database seeded before places had a location.
@@ -213,18 +284,47 @@ export async function seedDemo({ db, auth, plugins }: Deps) {
     surql`UPDATE community SET address = ${DEMO_ADDRESS}, location = ${geoPoint(DEMO_LOCATION)}, on_map = true
            WHERE slug = ${DEMO_COMMUNITY.slug} AND location IS NONE;`,
   );
-  const row = await communityBySlug(db, DEMO_COMMUNITY.slug);
-  if (!row) throw new Error("seed: community missing");
-  const community = toCommunity(row);
+  const community = await seededCommunity(db, DEMO_COMMUNITY.slug);
   await plugins.ready();
   for (const plugin of plugins.list().filter((p) => p.origin === "builtin")) await plugins.enable(plugin, community);
 
-  const existing = await userIdByEmail(db, DEMO_ADMIN.email);
-  const adminId = existing ? keyOf(existing) : (await auth.api.signUpEmail({ body: { ...DEMO_ADMIN } })).user.id;
+  const adminId = await seedAccount(deps, DEMO_ADMIN);
   await db.query(
     surql`UPSERT ${membershipRef(community.id, adminId)}
           MERGE { community: ${ref("community", community.id)}, user: ${ref("user", adminId)}, role: "admin" };`,
   );
+}
+
+/**
+ * Local dev only (idempotent, after seedDemo): DEMO_RESIDENT, a plain member of Kraków (the default place) and of the
+ * DEMO_RESIDENT_PLACES, with their plugins. Not part of seedDemo, so /__test/reset (E2E) keeps Kraków the only
+ * place. Memberships are only created, never reset: the resident's later role or default place survives a restart.
+ */
+export async function seedDemoResident(deps: Deps) {
+  const { db, plugins } = deps;
+  const places = DEMO_RESIDENT_PLACES.map(({ lat, lng, pluginIds: _, ...place }) => ({
+    ...place,
+    location: geoPoint({ lat, lng }),
+  }));
+  await db.query(surql`INSERT IGNORE INTO community ${places};`);
+  await plugins.ready();
+  for (const place of DEMO_RESIDENT_PLACES) {
+    const community = await seededCommunity(db, place.slug);
+    // One after another: the place's navigation lists plugins in the order they were enabled.
+    for (const id of place.pluginIds) await plugins.enable(builtinPlugin(plugins, id), community);
+  }
+
+  const residentId = await seedAccount(deps, DEMO_RESIDENT);
+  const slugs = [DEMO_COMMUNITY.slug, ...DEMO_RESIDENT_PLACES.map((p) => p.slug)];
+  const communities = await Promise.all(slugs.map((slug) => seededCommunity(db, slug)));
+  const memberships = communities.map((community) => ({
+    id: membershipRef(community.id, residentId),
+    community: ref("community", community.id),
+    user: ref("user", residentId),
+    role: "user",
+    is_default: community.slug === DEMO_COMMUNITY.slug,
+  }));
+  await db.query(surql`INSERT IGNORE INTO membership ${memberships};`);
 }
 
 /**
@@ -263,6 +363,11 @@ export function createTestRoutes(deps: Deps) {
         await seedDemo(deps);
         return c.json({ ok: true });
       })
+      /** The demo resident with her campus and cooperative, as the dev API seeds them on start (dev login E2E). */
+      .post("/__test/resident", async (c) => {
+        await seedDemoResident(deps);
+        return c.json({ ok: true });
+      })
       /** Invites an existing user to Kraków from its admin (the invitations screen shows it). */
       .post("/__test/invitation", async (c) => {
         const { email, slug } = await c.req.json<{ email: string; slug: string }>();
@@ -288,6 +393,36 @@ export function createTestRoutes(deps: Deps) {
           deps.db,
           surql`UPSERT ${membershipRef(keyOf(community.id), keyOf(user.id))}
                 MERGE { community: ${community.id}, user: ${user.id} };`,
+        );
+        return c.json({ ok: true });
+      })
+      /** A notification from a plugin of a place in a user's inbox, as ctx.notify stores it (no push). */
+      .post("/__test/notification", async (c) => {
+        const { email, slug, pluginId, ...notification } = await c.req.json<{
+          email: string;
+          slug: string;
+          pluginId: string;
+          title: string;
+          body: string;
+          open?: NavigateAction;
+        }>();
+        const user = await userIdByEmail(deps.db, email);
+        const community = await communityBySlug(deps.db, slug);
+        const installation = community
+          ? await first<{ id: RecordId }>(
+              deps.db,
+              surql`SELECT id FROM plugin_installation WHERE community = ${community.id} AND plugin = ${pluginId};`,
+            )
+          : undefined;
+        if (!user || !community || !installation) return c.json({ error: "not_found" }, 404);
+        await deps.db.query(
+          surql`CREATE notification CONTENT ${{
+            ...notification,
+            user,
+            community: community.id,
+            installation: installation.id,
+            plugin: pluginId,
+          }} RETURN NONE;`,
         );
         return c.json({ ok: true });
       })

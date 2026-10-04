@@ -87,8 +87,15 @@ const dashboardWidgetMetaSchema = z.object({
   sizes: z.array(dashboardWidgetSizeSchema).max(DASHBOARD_WIDGET_SIZES_MAX).optional(),
 });
 
+/** Exactly one widget for now: its tile on the dashboard is how residents open the plugin. */
 function assertDashboardWidgets(definition: PluginDefinition): void {
-  const invalid = Object.entries(definition.dashboardWidgets ?? {}).find(
+  const widgets = Object.entries(definition.dashboardWidgets ?? {});
+  if (widgets.length !== 1) {
+    throw new PluginError(
+      `Plugin must have exactly one dashboard widget (dashboardWidgets: { <name>: { size, render } }), has ${widgets.length}`,
+    );
+  }
+  const invalid = widgets.find(
     ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetMetaSchema.safeParse(widget).success,
   );
   if (invalid) {

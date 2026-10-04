@@ -60,9 +60,8 @@ test("plugins: the section lists the place's plugins that are on and leads to ad
   await openSection(page, t.manage_plugins_title);
   const plugins = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
   await expect(plugins).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
-  // The line under a name counts the plugin's widgets; discussions has none, so no count.
+  // The line under a name counts the plugin's widgets.
   await expect(plugins.filter({ hasText: "Zgłoszenia" })).toContainText(widgetsCount(1));
-  await expect(plugins.filter({ hasText: "Dyskusje" })).not.toContainText(t.count_widgets[0]);
   await expect(page.getByRole("link", { name: t.add_plugin_title })).toBeVisible();
 });
 
@@ -77,7 +76,7 @@ test("plugins: the catalog lists the ones that are off; adding one puts it in th
     });
     expect(res.ok, `switch ${plugin} off`).toBe(true);
   }
-  // The issues plugin's dashboard tile ("Otwórz: Zgłoszenia…"); discussions has no widget.
+  // The issues plugin's dashboard tile ("Otwórz: Zgłoszenia…").
   const issuesTile = page.getByRole("link", { name: new RegExp(`^${t.dashboard_open}: Zgłoszenia`) });
 
   await loginAdmin(page);
@@ -172,16 +171,10 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   page,
 }) => {
   await loginAdmin(page);
-  // The announcements widget shows on the dashboard only once there is an announcement.
-  await page.goto("/app/c/krakow/announcements/list");
-  await page.getByLabel("Tytuł").fill("Zebranie użytkowników");
-  await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
-  await expect(page.getByRole("status")).toContainText("Ogłoszenie opublikowane");
-  await page.goto("/app");
   await openManage(page);
   await openSection(page, t.manage_layout_title);
   await expect(
-    page.getByText(`${widgetsCount(2)} · ${t.manage_layout_grid} 3 ${t.manage_layout_columns}`),
+    page.getByText(`${widgetsCount(3)} · ${t.manage_layout_grid} 3 ${t.manage_layout_columns}`),
   ).toBeVisible();
   await page.getByRole("link", { name: t.manage_layout_edit }).click();
   await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
@@ -189,7 +182,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
 
   const grid = page.getByRole("list", { name: t.manage_layout_title });
   const tiles = grid.getByRole("listitem");
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
   const announcements = grid.getByRole("button", { name: /Ogłoszenia/ });
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "true");
@@ -197,14 +190,18 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await expect(sizes.getByRole("radio")).toHaveText(["3 × 3", "3 × 2"]);
   await sizes.getByRole("radio", { name: "3 × 2" }).click();
   await expect(sizes.getByRole("radio", { name: "3 × 2" })).toBeChecked();
-  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 2/]);
-  await expect(page.getByRole("button", { name: t.manage_layout_down })).toBeDisabled();
-  await page.getByRole("button", { name: t.manage_layout_up }).click();
-  await expect(tiles).toHaveText([/Ogłoszenia/, /Zgłoszenia/]);
-  await page.getByRole("button", { name: t.manage_layout_down }).click();
-  await expect(tiles).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
+  await expect(tiles).toHaveText([/Zgłoszenia.*3 × 3/, /Ogłoszenia.*3 × 2/, /Dyskusje.*3 × 3/]);
+  const up = page.getByRole("button", { name: t.manage_layout_up });
+  const down = page.getByRole("button", { name: t.manage_layout_down });
+  await up.click();
+  await expect(tiles).toHaveText([/Ogłoszenia/, /Zgłoszenia/, /Dyskusje/]);
+  await expect(up).toBeDisabled();
+  await down.click();
+  await down.click();
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia/]);
+  await expect(down).toBeDisabled();
   await page.getByRole("button", { name: t.manage_layout_remove, exact: true }).click();
-  await expect(tiles).toHaveText([/Zgłoszenia/]);
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/]);
   await expect(sizes).toHaveCount(0);
 
   await page.getByRole("button", { name: t.manage_layout_add }).click();
@@ -214,11 +211,12 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await sheet.getByRole("button", { name: `${t.manage_layout_add_one}: Ogłoszenia` }).click();
   await expect(sheet).toHaveCount(0);
   // Added back at the end with its default size, and selected.
-  await expect(tiles).toHaveText([/Zgłoszenia/, /Ogłoszenia.*3 × 3/]);
+  await expect(tiles).toHaveText([/Zgłoszenia/, /Dyskusje/, /Ogłoszenia.*3 × 3/]);
   await expect(announcements).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: t.manage_layout_up }).click();
+  await up.click();
+  await up.click();
   await sizes.getByRole("radio", { name: "3 × 2" }).click();
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/]);
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
   // Tapping the selected tile again deselects it.
   await announcements.click();
   await expect(announcements).toHaveAttribute("aria-pressed", "false");
@@ -235,7 +233,7 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
 
   await page.goto("/app/c/krakow/layout");
-  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/]);
+  await expect(tiles).toHaveText([/Ogłoszenia.*3 × 2/, /Zgłoszenia.*3 × 3/, /Dyskusje.*3 × 3/]);
 });
 
 test("deleting the place after confirming; its admin is left without places", async ({ page }) => {

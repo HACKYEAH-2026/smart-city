@@ -6,7 +6,8 @@
     "render": "remotion render TwojeMiejsceDemo out/demo.mp4",
     "still": "remotion still TwojeMiejsceDemo out/still.png",
     "typecheck": "tsc -p . --incremental",
-    "render:ad": "remotion render Reklama out/reklama.mp4",
+    "render:problems": "remotion render AdProblems out/ad-problems.mp4",
+    "render:needs": "remotion render AdNeeds out/ad-needs.mp4",
     "vo": "bun --env-file=../.env scripts/voiceover.ts",
     "media": "bun --env-file=../.env scripts/media.ts"
   },

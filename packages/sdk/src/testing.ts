@@ -224,11 +224,11 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       visits.set(user.id, now());
       return node;
     },
-    /** Dashboard widget (validated like in the host); null = the widget shows nothing. */
-    async dashboardWidget(name: string): Promise<UINode | null> {
+    /** The dashboard widget (validated like in the host). */
+    async dashboardWidget(name: string): Promise<UINode> {
       const fn = definition.dashboardWidgets?.[name];
       if (!fn) throw new Error(`no dashboard widget ${name}`);
-      return dashboardWidgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
+      return dashboardWidgetSchema.parse(await fn.render(await ctxFor(user)));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];
@@ -288,10 +288,17 @@ export function textsOf(node: UINode): string[] {
     return typeof v === "string" ? [v] : [];
   });
   const children = "children" in node && node.children ? node.children.flatMap(textsOf) : [];
-  return [...own, ...children, ...mapTexts(node)];
+  return [...own, ...children, ...mapTexts(node), ...itemTexts(node)];
 }
 
 /** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
+const itemTexts = (node: UINode): string[] =>
+  node.type === "Tags"
+    ? node.items.map((tag) => tag.text)
+    : node.type === "Timeline"
+      ? node.items.flatMap((step) => [step.title, ...(step.text ? [step.text] : [])])
+      : [];
+
 const mapTexts = (node: UINode): string[] =>
   node.type === "Map"
     ? node.layers.flatMap((layer) => [

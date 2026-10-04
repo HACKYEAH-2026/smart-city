@@ -42,7 +42,8 @@ Contents: [Mental model](#mental-model) · [New plugin](#creating-a-plugin-packa
  host ── ctx { user, community, now, lastVisit, db, files, ai, notify } ──► view / dashboard widget / tool / stream handler
 ```
 
-Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams),
+Reference plugins: `plugins/discussions` (best full example: two tables, refs, moderator rules, streams, a widget
+of the latest activity),
 `plugins/announcements` (dashboard widget with `ctx.lastVisit`, admin-only tools),
 `plugins/issues` (photos, `ai.findSimilar`, `upsert` on a unique key). All three are built in; the smallest
 plugin is the upload-test fixture `apps/api/test/fixtures/notes-plugin.ts`.
@@ -129,7 +130,7 @@ helpers (e.g. `canRemove(ctx, authorId)`) instead of nested imperative blocks.
 | `permissions` | subset of `"db"`, `"files"`, `"ai"`, `"notify"`, default `[]` |
 | `nav` | ≥ 1 entry `{ view, label (≤ 40) }`; each `view` must exist in `views` |
 | `tables` | optional, see [Tables](#tables) |
-| `views`, `dashboardWidgets`, `tools`, `streams`, `onInstall` | see below |
+| `views`, `dashboardWidgets` (exactly one, required), `tools`, `streams`, `onInstall` | see below |
 
 **Permissions.** In the host, using `ctx.db` / `ctx.files` / `ctx.ai` / `ctx.notify` without the matching permission rejects
 with `Plugin did not declare the "<x>" permission`; uploads for a plugin without `"files"` return 404.
@@ -594,15 +595,20 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 
 | Node | Builder |
 |---|---|
-| Screen | `ui.screen(title, children)` — always the root |
-| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
+| Screen | `ui.screen(title, children, { eyebrow? })` — always the root; `eyebrow` is a small line above the title (e.g. the place's name) |
+| Widget | `ui.widget(title, children, options?)` — the root of a [dashboard widget](#dashboard-widgets); `options`: `onPress` (a `navigate` action) is where tapping the tile leads; `icon` (`alert`, `idea`, `camera`, `megaphone`, `chat`, `plus`; Buttons and Select cards take the same set), `subtitle` and `link` (`{ label, action }`, e.g. "Wszystkie") make the header |
 | Highlight | `ui.highlight({ eyebrow, title, image?, votes?, onPress? })` — a widget's featured item: a thumbnail (`image`, a photo from `ctx.files`), a vote count with an up arrow |
+| Activity | `ui.activity({ title, text?, person?, at?, unread?, onPress? })` — something a person did and when: their initials (`person`), the title, a line of text and `at` (an ISO date, shown as "5 min temu"); `unread` marks it new. In a widget a compact row (e.g. a discussion's last message), on a screen a card with the text in full (e.g. a message) |
 | Stack / Row | `ui.stack([...])`, `ui.row([...], { grow? })` (`grow`: the children share the width equally) |
 | List | `ui.list(label, items)` |
-| Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, onPress?, children? })` |
+| Card | `ui.card({ title, subtitle?, badge?: { text, tone? }, tags?, counter?, onPress?, children? })` — `tags`: `{ text, tone?, icon?, dot? }` (up to 4); `counter`: `{ label, value, pressed, action? }`, a button at the left (votes): pressed, or without `action`, it cannot be pressed |
 | Heading / Text | `ui.heading(text, 2 \| 3)`, `ui.text(text, "ink" \| "soft"?)` |
 | Badge | `ui.badge(text, tone?)` — `neutral`, `info`, `success`, `warning`, `danger` |
-| Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?)` |
+| Button | `ui.button(label, action, "primary" \| "quiet" \| "danger"?, icon?)` |
+| Tabs | `ui.tabs({ label, variant?: "segmented" \| "chips", options: [{ label, selected?, action }] })` — options only navigate (sorting, filters); `ui.navigate(view, params, { replace: true })` replaces the view instead of stacking one |
+| Fab | `ui.fab({ label, icon?, action })` — a floating button over the screen (bottom right, outside its scroll), e.g. "Zgłoś"; navigates |
+| Timeline | `ui.timeline([{ title, at?, text?, tone? }])` — the steps of something that moves on (a report's progress): a dot per step (its tone), the date and an optional note |
+| Share | `ui.share(label, path)` — a button that shares a link to a place in the app (`path` starts with `/app/`); the app builds the full address |
 | Progress / Stat | `ui.progress({ value, max, label })`, `ui.stat(label, value)` |
 | Empty | `ui.empty(text)` |
 | Image | `ui.image(fileId, alt)` |
@@ -651,25 +657,27 @@ ui.map({
 
 ## Dashboard widgets
 
-A plugin may put widgets on the community dashboard (optional, `dashboardWidgets`). The dashboard is a grid
-3 columns wide (`DASHBOARD_COLUMNS`) in rows of fixed height. Each widget declares:
+Every plugin has **exactly one** widget on the community dashboard (`dashboardWidgets` with one entry, checked on load
+and upload): its tile is the only way residents open the plugin, the dashboard has no other list of features. The
+dashboard is a grid 3 columns wide (`DASHBOARD_COLUMNS`) in rows of fixed height. The widget declares:
 
 | Field | Required | Meaning |
 |---|---|---|
 | `size` | yes | default size in grid cells: `w` 1-3 columns, `h` 1-3 rows (`{ w: 3, h: 3 }` = full width, 3 rows) |
 | `sizes` | no | up to 6 other sizes an admin may switch the widget to (same limits); `size` is always allowed |
-| `title` | no | 1-60 characters: the widget's name where admins arrange the dashboard (defaults to the plugin's `name`); set it when the plugin has more than one widget |
-| `render(ctx)` | yes | returns `ui.widget(title, children, options?)`, or `null` to show nothing (e.g. no data yet) |
+| `title` | no | 1-60 characters: the widget's name in the layout editor (defaults to the plugin's `name`) |
+| `render(ctx)` | yes | always returns `ui.widget(title, children, options?)`: with no data yet, an empty state (`ui.empty(…)`) and the way to start, never nothing |
 
 Content beyond the size is clipped, so `render` must fit the smallest size the widget offers. With `onPress` (a
 `navigate` action, usually the plugin's main list) the whole tile is tappable and shows a chevron (or its `link`,
 when it has one); cards, buttons and links inside it keep their own actions.
 
-Default order: plugin installation, then declaration, each widget at its `size`. Community admins arrange the
-dashboard in Zarządzaj miejscem → Układ pulpitu: the order, each widget's size (one of the sizes its plugin allows),
-and which widgets are on it (a removed widget can be added back). They can also long-press a tile on the dashboard
-to reorder it (drag, or earlier/later buttons). The layout is saved per community; widgets of newly enabled plugins
-go last, at their default size. A saved size the plugin no longer allows falls back to its `size`.
+Default order: plugin installation, each widget at its `size`. Community admins arrange the dashboard in Zarządzaj
+miejscem → Układ pulpitu: the order, each widget's size (one of the sizes its plugin allows), and which widgets are on
+it (a removed widget can be added back). Removing a widget only hides its tile: the plugin stays enabled, but residents
+cannot open it from the dashboard until an admin adds the widget back (links and notifications still open it). Admins can also long-press a tile on the dashboard to reorder it (drag, or earlier/later
+buttons). The layout is saved per community; widgets of newly enabled plugins go last, at their default size. A saved
+size the plugin no longer allows falls back to its `size`.
 
 ```ts
 dashboardWidgets: {
@@ -683,6 +691,7 @@ dashboardWidgets: {
       return ui.widget(
         "Ogłoszenia",
         [
+          fresh.length ? ui.text("Nowe od Twojej ostatniej wizyty", "soft") : ui.empty("Nic nowego."),
           ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
           ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
         ],
@@ -694,7 +703,8 @@ dashboardWidgets: {
 ```
 
 - **Read-only:** no `Form`, inputs or tool actions anywhere in the tree (validated); `navigate` opens a view
-  of the plugin. A widget that throws or returns invalid UI is left out of the dashboard (logged), the rest renders.
+  of the plugin. A widget that throws or returns invalid UI (`null` included) is left out of the dashboard
+  (logged), the rest renders.
 - **`ctx.lastVisit`:** when this user last opened any view of this plugin in this community, before the
   current request (`null` = never). The host records it on every view render, so "new since the last
   visit" works without plugin tables. Available in views too (there it is the previous view render).
@@ -714,7 +724,7 @@ No API, no AI model; connections close after each test.
 | `await testPlugin(mod, { user?, community? })` | loads, validates and syncs the schema. Default user `{ id: "u_test", role: "user" }` |
 | `.tool(name, args?)` | → `ToolResult`; rejects with `ForbiddenError` (requires) or a `ZodError` (input) |
 | `.view(name, params?)` | → validated `UINode`; use `textsOf(node)` for layout-independent assertions. Records a visit (`ctx.lastVisit`) like the host |
-| `.dashboardWidget(name)` | → validated widget `UINode` or `null` |
+| `.dashboardWidget(name)` | → validated widget `UINode` |
 | `.stream(name, args?)` | → `AsyncIterator`; read with `next()`, finish with `return()` |
 | `.invalidInput(name, args)` | Zod issues the host would answer 400 with, or `null` |
 | `.as(user)` | the same harness acting as another user (`.tool/.view/.dashboardWidget/.stream/.files.fake/.invalidInput/.ctx`) |
@@ -908,7 +918,7 @@ previous version keeps running. There is no endpoint for `streams` yet.
 | `GET /api/files/:fileId?exp&sig` | file download via a signed URL |
 | `GET /api/me/notifications` | the user's inbox across communities: `{ items: [{ id, community, pluginId, title, body, tone, open, createdAt, read }], unread }` (newest 50) |
 | `POST /api/me/notifications/read` `{ ids? }` | mark as read (the given ids, or all) → `{ unread }` |
-| `GET` / `POST /api/me/places` `{ label, lat, lng }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10) |
+| `GET` / `POST /api/me/places` `{ label, lat, lng, address? }`, `DELETE /api/me/places/:id` | the user's saved places (private; ≤ 10; the account's addresses for nearby notifications) |
 | `PUT /api/me/location` `{ lat, lng }`, `DELETE /api/me/location` | share / stop sharing the current position (counts for `near` for 30 min) |
 | `POST` / `DELETE /api/me/push-tokens` `{ token }` | this phone gets / stops getting the user's pushes (Expo push token; moves to whoever registered it last) |
 | `GET /api/communities/:slug/plugins` | place admins: the place's plugins with `enabled`, `madeByAi`, `draft`, `working` (built-in ones, then the AI ones) |

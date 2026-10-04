@@ -9,7 +9,7 @@ const withWidget = (widget: object) => (sdk: PluginSdk) => ({
   version: "1.0.0",
   nav: [{ view: "main", label: "Kafelki" }],
   views: { main: () => sdk.ui.screen("Kafelki", []) },
-  dashboardWidgets: { w: { ...widget, render: () => null } },
+  dashboardWidgets: { w: { ...widget, render: () => sdk.ui.widget("Kafelki", []) } },
 });
 
 describe("dashboard widgets", () => {

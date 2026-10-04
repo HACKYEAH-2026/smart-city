@@ -6,7 +6,7 @@
  * requires it) sits bottom left, above `bottomInset` (a panel over the map's lower edge); a still preview starts
  * with it folded.
  * Messages in: init (the style, data and first view: a centre and zoom, or bounds to fit), data (new GeoJSON for the
- * sources), fly (move the view).
+ * sources), fly (move the view). The centre sits at `anchor` (padding on the opposite sides moves it off the middle).
  * Out: ready, press (a pin, by feature id), tap (the map elsewhere, when `tapToCenter`), move (the centre after a
  * move; `user` when the user moved it), error.
  */
@@ -45,6 +45,13 @@ const PAGE_SCRIPT = `
     });
     loaded = true;
   }
+  // Padding of (2 * anchor - 1) of the view on one side puts the middle of the rest, the centre, at the anchor.
+  function anchor() {
+    var box = map.getContainer();
+    var x = (2 * spec.anchor.x - 1) * box.clientWidth;
+    var y = (2 * spec.anchor.y - 1) * box.clientHeight;
+    map.setPadding({ left: Math.max(x, 0), right: Math.max(-x, 0), top: Math.max(y, 0), bottom: Math.max(-y, 0) });
+  }
   function onClick(e) {
     var hit = spec.pressable.length ? map.queryRenderedFeatures(e.point, { layers: spec.pressable }) : [];
     if (hit.length) return send({ type: "press", id: String(hit[0].properties.id) });
@@ -64,6 +71,8 @@ const PAGE_SCRIPT = `
       attributionControl: false,
     }, view));
     if (spec.monochrome) document.getElementById("map").style.filter = "grayscale(1)";
+    anchor();
+    map.on("resize", anchor);
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     document.querySelector(".maplibregl-ctrl-bottom-left").style.marginBottom = spec.bottomInset + "px";
     map.on("load", addData);

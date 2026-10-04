@@ -42,6 +42,7 @@ import {
   keyOf,
   memberRole,
   membershipRef,
+  polishOrder,
   ref,
   rows,
   toCommunity,
@@ -85,17 +86,19 @@ export const communitiesRoutes = new Hono<AppEnv>()
       c.var.db,
       surql`SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
               is_default, last_visit
-         FROM membership WHERE user = ${ref("user", c.var.user.id)} ORDER BY name;`,
+         FROM membership WHERE user = ${ref("user", c.var.user.id)};`,
     );
-    const places: MyPlace[] = mine.map((m) => ({
-      id: keyOf(m.id),
-      slug: m.slug,
-      name: m.name,
-      kind: m.kind ?? "other",
-      role: m.role,
-      isDefault: m.is_default,
-      lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
-    }));
+    const places: MyPlace[] = mine
+      .sort((a, b) => polishOrder(a.name, b.name))
+      .map((m) => ({
+        id: keyOf(m.id),
+        slug: m.slug,
+        name: m.name,
+        kind: m.kind ?? "other",
+        role: m.role,
+        isDefault: m.is_default,
+        lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
+      }));
     return c.json(places);
   })
   .post("/", zValidator("json", newPlaceSchema), async (c) => {
@@ -236,8 +239,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
   })
   /**
    * Dashboard: the widgets on the community's layout (communityLayout), rendered for this user, in its order and
-   * sizes. A widget that fails or returns null is left out, so one broken plugin never breaks the dashboard.
-   * `canEdit` = the user may rearrange it.
+   * sizes. Every plugin has one widget and it always renders; one that fails (throws, null or invalid UI) is left
+   * out and logged, so a broken plugin never breaks the dashboard. `canEdit` = the user may rearrange it.
    */
   .get("/:slug/dashboard", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
@@ -557,7 +560,7 @@ const toDashboardLayout = (layout: ResolvedLayout): DashboardLayout => ({
 
 /**
  * Renders the widgets for this user, in their order; one context per installation (its `lastVisit` read once).
- * A widget that throws, returns invalid UI or null is left out.
+ * A widget that fails (throws, null or invalid UI) is left out and logged.
  */
 async function renderWidgets(
   host: PluginHost,

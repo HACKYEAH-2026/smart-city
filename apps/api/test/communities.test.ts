@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TEST_ENV } from "../src/test-env";
+import { DEMO_RESIDENT, seedDemoResident } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
 
 /**
@@ -35,7 +36,7 @@ type PlaceInput = {
 /** Six characters without look-alikes (no 0/O, 1/I). */
 const INVITE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 
-const myPlaces = async (u: TestUser) =>
+const myPlaces = async (u: Pick<TestUser, "headers">) =>
   (await (await t.request("/api/communities", { headers: u.headers })).json()) as MyPlace[];
 const create = (u: TestUser, place: string | PlaceInput) =>
   t.request("/api/communities", {
@@ -70,6 +71,13 @@ describe("membership gate", () => {
     const names = (await myPlaces(member)).map((p) => `${p.slug}:${p.role}`);
     expect(names).toEqual(["krakow:user"]);
     expect(await myPlaces(await t.signUp({ place: null }))).toEqual([]);
+  });
+
+  test("the list is in Polish alphabetical order", async () => {
+    t = await setup();
+    const u = await t.signUp({ place: null });
+    for (const name of ["Zator", "Łąka", "Lipa"]) expect((await create(u, name)).status).toBe(201);
+    expect((await myPlaces(u)).map((p) => p.name)).toEqual(["Lipa", "Łąka", "Zator"]);
   });
 });
 
@@ -285,5 +293,43 @@ describe("invite codes", () => {
       json: { code: "0OIL1!" },
     });
     expect(malformed.status).toBe(404);
+  });
+});
+
+describe("local dev seed", () => {
+  test("the demo resident is a plain member of Kraków (default), a campus and a cooperative", async () => {
+    t = await setup();
+    await t.seed();
+    const deps = { db: t.db, auth: t.auth, plugins: t.plugins };
+    await seedDemoResident(deps);
+    await seedDemoResident(deps); // a restart of the dev API seeds again
+    const resident = await t.signIn(DEMO_RESIDENT);
+
+    expect((await myPlaces(resident)).map((p) => [p.slug, p.kind, p.role, p.isDefault])).toEqual([
+      ["kampus-glowny", "school", "user", false],
+      ["krakow", "district", "user", true],
+      ["spoldzielnia-sloneczna", "estate", "user", false],
+    ]);
+    const nav = async (slug: string) =>
+      (
+        (await (await t.request(`/api/communities/${slug}/nav`, { headers: resident.headers })).json()) as {
+          pluginId: string;
+        }[]
+      ).map((n) => n.pluginId);
+    expect(await nav("kampus-glowny")).toEqual(["announcements", "discussions"]);
+    expect(await nav("spoldzielnia-sloneczna")).toEqual(["issues", "announcements"]);
+
+    // The campus is on the map of places for everyone, the cooperative only for its members; both open to a code.
+    const stranger = await t.signUp({ place: null });
+    const map = await (await t.request("/api/geo/places", { headers: stranger.headers })).json();
+    expect((map as { name: string }[]).map((p) => p.name)).toEqual(["Kampus Główny", "Kraków"]);
+    for (const code of ["KMP-GLW", "SLN-CZN"]) {
+      const joined = await t.request("/api/communities/join", {
+        method: "POST",
+        headers: stranger.headers,
+        json: { code },
+      });
+      expect(joined.status, code).toBe(200);
+    }
   });
 });

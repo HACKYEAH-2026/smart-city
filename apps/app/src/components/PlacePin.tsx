@@ -9,8 +9,9 @@ export interface PlacePinProps {
 }
 
 /**
- * The pin of the place being placed (COMPONENTS.md → PlacePin): a red circle with the kind's icon on a short stem,
- * over the centre of a map. Laid out so that the stem's tip is at the centre of its parent; not interactive.
+ * The pin of a place over a map (COMPONENTS.md → PlacePin): a red circle with the kind's icon on a short stem, for the
+ * place being placed or the current one behind the dashboard. Laid out so that the stem's tip is at the centre of its
+ * parent; not interactive.
  */
 export function PlacePin({ icon }: PlacePinProps) {
   return (

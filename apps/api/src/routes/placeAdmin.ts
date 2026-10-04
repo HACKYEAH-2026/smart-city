@@ -10,7 +10,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { type Db, first, geoPoint, keyOf, memberRole, membershipRef, ref, rows, toCommunity } from "../db";
+import { type Db, first, geoPoint, keyOf, memberRole, membershipRef, polishOrder, ref, rows, toCommunity } from "../db";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 
 /**
@@ -43,20 +43,23 @@ export const placeAdminRoutes = new Hono<AppEnv>()
       joined_at: Date | null;
     }>(
       c.var.db,
-      // Sorted outside: SurrealDB 3 ignores ORDER BY on fields aliased from a record link (`user.name AS name`).
-      surql`SELECT * FROM (
-              SELECT user.id AS id, user.name AS name, user.email AS email, role, joined_at
-                FROM membership WHERE community = ${place.id}
-            ) ORDER BY role, name, email;`,
+      surql`SELECT user.id AS id, user.name AS name, user.email AS email, role, joined_at
+         FROM membership WHERE community = ${place.id};`,
     );
-    const members: PlaceMember[] = found.map((m) => ({
-      id: keyOf(m.id),
-      name: m.name ?? "",
-      email: m.email,
-      role: m.role,
-      joinedAt: m.joined_at ? m.joined_at.toISOString() : null,
-      you: keyOf(m.id) === c.var.user.id,
-    }));
+    const adminsFirst = (m: { role: PlaceMember["role"] }) => (m.role === "admin" ? 0 : 1);
+    const members: PlaceMember[] = found
+      .sort(
+        (a, b) =>
+          adminsFirst(a) - adminsFirst(b) || polishOrder(a.name ?? "", b.name ?? "") || polishOrder(a.email, b.email),
+      )
+      .map((m) => ({
+        id: keyOf(m.id),
+        name: m.name ?? "",
+        email: m.email,
+        role: m.role,
+        joinedAt: m.joined_at ? m.joined_at.toISOString() : null,
+        you: keyOf(m.id) === c.var.user.id,
+      }));
     return c.json(members, 200);
   })
   /** Makes another member an admin or a plain member again; an admin never changes their own role. */

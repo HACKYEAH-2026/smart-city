@@ -163,6 +163,7 @@ describe("writing", () => {
         name: "Zguby i znalezione",
         icon: "📌",
         views: ["main"],
+        dashboardWidgets: ["latest"],
         tools: ["add"],
         tables: ["notes"],
       },
@@ -177,7 +178,7 @@ describe("writing", () => {
       madeByAi: true,
       draft: true,
       working: false,
-      widgets: 0,
+      widgets: 1,
     });
     // A draft: residents do not see it, and it cannot be switched on without publishing.
     expect((await nav(admin)).map((n) => n.pluginId)).not.toContain(created.id);

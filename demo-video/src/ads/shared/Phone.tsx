@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { BottomTabBar, colors, layout } from "../app-ui";
+import { BottomTabBar, colors, layout } from "../../app-ui";
 import { FONT } from "./kit";
 
 /** The phone the app runs in: an iPhone-sized screen in points (the app's design is 390 wide). */

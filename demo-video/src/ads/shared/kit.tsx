@@ -1,6 +1,6 @@
 import { type CSSProperties, createContext, type ReactNode, useContext } from "react";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { colors } from "../app-ui";
+import { colors } from "../../app-ui";
 import { type Scene, wordKey } from "./timing";
 
 /** The app's typeface (loaded by ../app-ui under the families the tokens use). */
@@ -66,11 +66,10 @@ export const rise = (p: number, distance = 28): CSSProperties => ({
   transform: `translateY(${(1 - p) * distance}px)`,
 });
 
-/** Land from large and blurred (CSS). */
-export const slam = (p: number): CSSProperties => ({
-  opacity: Math.min(1, p * 2),
-  transform: `scale(${1 + (1 - p) * 0.6})`,
-  filter: p < 1 ? `blur(${(1 - p) * 14}px)` : undefined,
+/** Land quickly: a fade and a short rise, no zoom (CSS). */
+export const snap = (p: number): CSSProperties => ({
+  opacity: Math.min(1, p * 1.6),
+  transform: `translateY(${(1 - p) * 14}px)`,
 });
 
 /** Text typed from `at` at `perFrame` characters a frame. */
@@ -129,8 +128,8 @@ export const Headline = ({
   at: number;
   stagger?: number;
   spoken?: boolean;
-  /** rise: each word rises into place; slam: each word lands from large and blurred. */
-  variant?: "rise" | "slam";
+  /** rise: each word rises into place; snap: each word lands quickly, a fade and a short rise. */
+  variant?: "rise" | "snap";
   size?: number;
   accent?: string[];
   align?: "left" | "center";
@@ -159,8 +158,8 @@ export const Headline = ({
           {words.map((word, wi) => {
             const index = lines.slice(0, li).reduce((n, l) => n + l.length, 0) + wi;
             const p =
-              variant === "slam"
-                ? ramp(frame, startOf(index) - 1, startOf(index) + 8)
+              variant === "snap"
+                ? ramp(frame, startOf(index) - 1, startOf(index) + 6)
                 : ramp(frame, startOf(index) - 2, startOf(index) + 14);
             return (
               <span
@@ -170,7 +169,7 @@ export const Headline = ({
                   display: "inline-block",
                   marginRight: "0.24em",
                   color: accents.has(wordKey(word)) ? colors.primary : undefined,
-                  ...(variant === "slam" ? slam(p) : rise(p, size * 0.4)),
+                  ...(variant === "snap" ? snap(p) : rise(p, size * 0.4)),
                 }}
               >
                 {word}

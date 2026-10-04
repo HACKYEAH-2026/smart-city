@@ -5,6 +5,7 @@ import type { Context, PluginModule } from "@app/plugin-sdk";
  * - Anyone can start a discussion and post messages; messages can reply to another message.
  * - Authors edit their own messages; authors or moderators (community admins) delete discussions and messages.
  * - Moderators can lock a discussion (no new messages from regular users).
+ * - Dashboard widget: the discussions with the latest activity, new ones (since `ctx.lastVisit`) marked.
  * - Streams: `messages` of one discussion and the `discussions` list — a snapshot first, then live changes.
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
@@ -32,6 +33,8 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
     ),
   };
   type Ctx = Context<typeof tables>;
+  type Person = { id: string; name: string };
+  type Discussion = { id: string; title: string; body: string; locked: boolean; lastActivityAt: Date; author: Person };
 
   const id = z.string().min(1);
   const text = z.string().trim().min(1, "Wiadomość nie może być pusta").max(2000, "Wiadomość jest za długa");
@@ -40,12 +43,48 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
   const canRemove = (ctx: Ctx, authorId: string) => authorId === ctx.user.id || isModerator(ctx);
   const touch = (ctx: Ctx, discussion: string) => ctx.db.discussions.update(discussion, { lastActivityAt: ctx.now() });
 
+  /** "1 dyskusja", "3 dyskusje", "5 dyskusji" (Polish plural: 2–4 except 12–14 take "dyskusje"). */
+  const discussionCount = (n: number) => {
+    const few = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
+    return `${n} ${n === 1 ? "dyskusja" : few ? "dyskusje" : "dyskusji"}`;
+  };
+  /** The user's own posts read "Ty". */
+  const nameOf = (ctx: Ctx, person: Person) => (person.id === ctx.user.id ? "Ty" : person.name);
+  const preview = (s: string) => (s.length > 140 ? `${s.slice(0, 139).trimEnd()}…` : s);
+  /** Activity after the user last opened discussions; everything is new to someone who never did. */
+  const isNew = (ctx: Ctx, at: Date) => !ctx.lastVisit || at > ctx.lastVisit;
+
+  /** A discussion as its latest activity: who wrote last, what and when (the widget and the list). */
+  const activityOf = async (ctx: Ctx, d: Discussion) => {
+    const last = await ctx.db.messages.findFirst({
+      where: { discussion: d.id },
+      orderBy: { createdAt: "desc" },
+      with: { author: true },
+    });
+    const line = last ? `${nameOf(ctx, last.author)}: ${preview(last.text)}` : preview(d.body) || "Nowa dyskusja";
+    return ui.activity({
+      title: d.title,
+      text: d.locked ? `Zamknięta · ${line}` : line,
+      person: (last?.author ?? d.author).name,
+      at: d.lastActivityAt.toISOString(),
+      ...(isNew(ctx, d.lastActivityAt) ? { unread: true } : {}),
+      onPress: ui.navigate("thread", { id: d.id }),
+    });
+  };
+
+  const replyForm = (discussion: string) =>
+    ui.form({
+      submitLabel: "Wyślij",
+      submit: ui.tool("sendMessage", { discussion }),
+      children: [ui.textInput({ name: "text", label: "Twoja wiadomość", multiline: true })],
+    });
+
   return definePlugin({
     id: "discussions",
     name: "Dyskusje",
-    version: "1.0.0",
+    version: "1.1.0",
     icon: "💬",
-    description: "Forum społeczności: dyskusje, odpowiedzi i moderacja.",
+    description: "Forum społeczności: dyskusje, odpowiedzi i moderacja, z ostatnią aktywnością na pulpicie.",
     permissions: ["db"],
     nav: [{ view: "list", label: "Dyskusje" }],
     tables,
@@ -56,22 +95,29 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
           orderBy: { lastActivityAt: "desc" },
           with: { author: true },
         });
-        return ui.screen("Dyskusje", [
-          ui.list(
-            "Lista dyskusji",
+        return ui.screen(
+          "Dyskusje",
+          [
             items.length
-              ? items.map((d) =>
-                  ui.card({
-                    title: d.title,
-                    subtitle: d.author.name,
-                    ...(d.locked ? { badge: { text: "Zamknięta", tone: "neutral" as const } } : {}),
-                    onPress: ui.navigate("thread", { id: d.id }),
-                  }),
-                )
-              : [ui.empty("Nie ma jeszcze dyskusji.")],
-          ),
-        ]);
+              ? ui.list("Lista dyskusji", await Promise.all(items.map((d) => activityOf(ctx, d))))
+              : ui.empty("Nie ma jeszcze dyskusji. Zapytaj o coś sąsiadów albo zaproponuj zmianę."),
+            ui.fab({ label: "Nowa dyskusja", icon: "plus", action: ui.navigate("new") }),
+          ],
+          { eyebrow: ctx.community.name },
+        );
       },
+      new: async () =>
+        ui.screen("Nowa dyskusja", [
+          ui.text("Zapytaj sąsiadów, zaproponuj zmianę albo zbierz opinie przed zebraniem.", "soft"),
+          ui.form({
+            submitLabel: "Załóż dyskusję",
+            submit: ui.tool("createDiscussion"),
+            children: [
+              ui.textInput({ name: "title", label: "Temat" }),
+              ui.textInput({ name: "body", label: "Opis (opcjonalnie)", multiline: true }),
+            ],
+          }),
+        ]),
       thread: async (ctx, params) => {
         const discussion = params.id ? await ctx.db.discussions.get(params.id, { with: { author: true } }) : null;
         if (!discussion) return ui.screen("Nie znaleziono", [ui.empty("Ta dyskusja nie istnieje.")]);
@@ -80,15 +126,77 @@ const discussions: PluginModule = ({ definePlugin, ui, z, t }) => {
           orderBy: { createdAt: "asc" },
           with: { author: true },
         });
+        // New since the previous visit; on the first one nothing is marked (all of it is new).
+        const unread = (m: { createdAt: Date; author: Person }) =>
+          Boolean(ctx.lastVisit) && m.author.id !== ctx.user.id && isNew(ctx, m.createdAt);
         return ui.screen(discussion.title, [
-          ui.text(discussion.body || "Brak opisu.", "soft"),
-          ui.list(
-            "Wiadomości",
-            messages.map((m) =>
-              ui.card({ title: m.author.name, subtitle: m.editedAt ? `${m.text} (edytowano)` : m.text }),
-            ),
-          ),
+          ui.activity({
+            title: nameOf(ctx, discussion.author),
+            text: discussion.body || "Zaczyna dyskusję.",
+            person: discussion.author.name,
+            at: discussion.createdAt.toISOString(),
+          }),
+          ...(discussion.locked ? [ui.badge("Zamknięta: piszą tylko moderatorzy", "neutral")] : []),
+          messages.length
+            ? ui.list(
+                "Wiadomości",
+                messages.map((m) =>
+                  ui.activity({
+                    title: nameOf(ctx, m.author),
+                    text: m.editedAt ? `${m.text} (edytowano)` : m.text,
+                    person: m.author.name,
+                    at: m.createdAt.toISOString(),
+                    ...(unread(m) ? { unread: true } : {}),
+                  }),
+                ),
+              )
+            : ui.empty("Nie ma jeszcze odpowiedzi."),
+          ...(!discussion.locked || isModerator(ctx) ? [replyForm(discussion.id)] : []),
+          ...(isModerator(ctx)
+            ? [
+                ui.button(
+                  discussion.locked ? "Otwórz dyskusję" : "Zamknij dyskusję",
+                  ui.tool("lockDiscussion", { id: discussion.id, locked: !discussion.locked }),
+                  "quiet",
+                ),
+              ]
+            : []),
         ]);
+      },
+    },
+
+    dashboardWidgets: {
+      /** The 3 discussions with the latest activity; tapping one opens it, the header and the tile open them all. */
+      recent: {
+        title: "Dyskusje",
+        size: { w: 3, h: 3 },
+        sizes: [{ w: 3, h: 2 }],
+        render: async (ctx) => {
+          const latest = await ctx.db.discussions.findMany({
+            orderBy: { lastActivityAt: "desc" },
+            limit: 3,
+            with: { author: true },
+          });
+          const total = latest.length ? await ctx.db.discussions.count() : 0;
+          const fresh = ctx.lastVisit
+            ? await ctx.db.discussions.count({ where: { lastActivityAt: { gt: ctx.lastVisit } } })
+            : total;
+          return ui.widget(
+            "Dyskusje",
+            [
+              latest.length
+                ? ui.list("Ostatnia aktywność", await Promise.all(latest.map((d) => activityOf(ctx, d))))
+                : ui.empty("Nikt jeszcze nie zaczął rozmowy."),
+              ui.button("Nowa dyskusja", ui.navigate("new"), "quiet", "plus"),
+            ],
+            {
+              icon: "chat",
+              ...(total ? { subtitle: fresh ? `${fresh} z nowymi wpisami` : discussionCount(total) } : {}),
+              link: { label: "Wszystkie", action: ui.navigate("list") },
+              onPress: ui.navigate("list"),
+            },
+          );
+        },
       },
     },
 

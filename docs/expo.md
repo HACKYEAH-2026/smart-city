@@ -81,8 +81,9 @@ export const useCommunities = () =>
   `API_URL` on that address (signed photo URLs) and Expo with `--lan` and `EXPO_PUBLIC_API_URL` on it; scan the QR
   code with the iPhone camera. Guest/hackathon Wi-Fi usually isolates devices: use the cable.
 - Dev login: `EXPO_PUBLIC_DEV_LOGIN=true` in the repo-root `.env` (the app's dev script loads it with `--env-file`;
-  restart the `app` proc) adds a button at the bottom of the login screen that signs in as the demo admin
-  (`admin@krakow.test`, seeded by the dev API). Off by default; read only in `src/lib/config.ts` (`devLoginAccount`).
+  restart the `app` proc) adds buttons at the bottom of the login screen that sign in as the demo admin
+  (`admin@krakow.test`) or the demo resident (`anna@krakow.test`), both seeded by the dev API. Off by default; read
+  only in `src/lib/config.ts` (`devLoginAccounts`).
 - Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
 - Keyboard: `Screen` scrolls with `KeyboardAwareScrollView` (react-native-keyboard-controller, also in Expo Go), so a
   focused field and the button below it stay above the keyboard. Forms inside `Screen` need nothing more; do not add

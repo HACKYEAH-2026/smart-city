@@ -1,10 +1,9 @@
-import { formatInviteCode } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { Share, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Button, Heading, InviteCodeCard, Screen, StatusPill, SuccessMark, Text } from "../components";
 import { useCommunity } from "../data/communities";
-import { inviteLink } from "../lib/invite";
+import { inviteLink, shareInvite } from "../lib/invite";
 import { t } from "../texts";
 import { spacing } from "../theme";
 
@@ -26,10 +25,6 @@ export default function PlaceCreated() {
     );
   }
   const { name, inviteCode } = place.data;
-  const share = (code: string) =>
-    Share.share({
-      message: `${t.invite_share_message_before}${name}${t.invite_share_message_after} ${formatInviteCode(code)}\n${inviteLink(code)}`,
-    }).catch(() => undefined);
   return (
     <Screen chrome={false}>
       <Head>
@@ -43,7 +38,11 @@ export default function PlaceCreated() {
         <StatusPill text={t.created_admin} />
       </View>
       {inviteCode ? (
-        <InviteCodeCard code={inviteCode} link={inviteLink(inviteCode)} onShare={() => share(inviteCode)} />
+        <InviteCodeCard
+          code={inviteCode}
+          link={inviteLink(inviteCode)}
+          onShare={() => shareInvite({ name }, inviteCode)}
+        />
       ) : null}
       <View style={styles.grow} />
       <Button label={t.created_go_dashboard} onPress={() => router.replace("/app")} />

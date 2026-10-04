@@ -15,3 +15,11 @@ test("the day before is named, older times are dates", () => {
   expect(relativeTime(new Date(2026, 9, 2, 8, 0).toISOString(), now)).toBe(t.time_yesterday);
   expect(relativeTime(new Date(2026, 9, 1, 8, 0).toISOString(), now)).toBe("01.10.2026");
 });
+
+test("the short style for tight rows drops 'temu' and the year", () => {
+  expect(relativeTime(ago(20_000), now, "short")).toBe(t.time_now);
+  expect(relativeTime(ago(5 * 60_000), now, "short")).toBe(`5 ${t.time_minutes}`);
+  expect(relativeTime(ago(2 * 60 * 60_000), now, "short")).toBe(`2 ${t.time_hours}`);
+  expect(relativeTime(new Date(2026, 9, 2, 8, 0).toISOString(), now, "short")).toBe(t.time_yesterday);
+  expect(relativeTime(new Date(2026, 9, 1, 8, 0).toISOString(), now, "short")).toBe("1 paź");
+});

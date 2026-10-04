@@ -6,14 +6,20 @@ export type ModelConfig = { apiKey: string; model: string; baseUrl?: string | un
 /** The embedding model of ctx.ai.embed (OpenAI, 1536 numbers per text); it uses the AI_API_KEY key. */
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 
-/** A model via an OpenAI-compatible API (OpenAI or a custom endpoint: AI_BASE_URL). */
+/**
+ * The language model (AI_MODEL). OpenAI goes through the Responses API: reasoning models such as gpt-6-luna take
+ * function tools (the builder's check_plugin, structured output) only there, not in Chat Completions. A custom
+ * OpenAI-compatible endpoint (AI_BASE_URL) usually offers only Chat Completions.
+ */
 export const openAIModel = (config: ModelConfig) =>
-  new OpenAIModel({
-    api: "chat",
-    modelId: config.model,
-    apiKey: config.apiKey,
-    ...(config.baseUrl ? { clientConfig: { baseURL: config.baseUrl } } : {}),
-  });
+  config.baseUrl
+    ? new OpenAIModel({
+        api: "chat",
+        modelId: config.model,
+        apiKey: config.apiKey,
+        clientConfig: { baseURL: config.baseUrl },
+      })
+    : new OpenAIModel({ api: "responses", modelId: config.model, apiKey: config.apiKey });
 
 /** The client of the same API for what Strands does not wrap (embeddings: POST /embeddings). */
 export const openAIClient = (config: ModelConfig) =>

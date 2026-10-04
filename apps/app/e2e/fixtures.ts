@@ -113,6 +113,26 @@ export const inviteToKrakow = async (apiUrl: string, email: string) => {
   if (!res.ok) throw new Error(`inviteToKrakow ${res.status}`);
 };
 
+/** Puts a notification from a plugin of Kraków in a user's inbox, as ctx.notify would; the test API exposes this route. */
+export const notify = async (
+  apiUrl: string,
+  email: string,
+  notification: { pluginId: string; title: string; body: string; open?: { type: "navigate"; view: string } },
+) => {
+  const res = await fetch(`${apiUrl}/__test/notification`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, slug: "krakow", ...notification }),
+  });
+  if (!res.ok) throw new Error(`notify ${res.status}`);
+};
+
+/** Seeds the demo resident (DEMO_RESIDENT) with her campus and cooperative, as the dev API does on start. */
+export const seedResident = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/__test/resident`, { method: "POST" });
+  if (!res.ok) throw new Error(`seedResident ${res.status}`);
+};
+
 /** The password of every user a test registers (register). */
 export const PASSWORD = "password123";
 /**
@@ -122,6 +142,8 @@ export const PASSWORD = "password123";
 export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } as const;
 /** The demo admin's name (DEMO_ADMIN.name in apps/api/src/test-routes.ts); kept out of DEMO_ADMIN, the sign-in body. */
 export const DEMO_ADMIN_NAME = "Urząd Miasta";
+/** A resident of Kraków, a campus and a cooperative: DEMO_RESIDENT in apps/api/src/test-routes.ts (copied too). */
+export const DEMO_RESIDENT = { email: "anna@krakow.test", password: "password" } as const;
 
 /** Registers and lands on the dashboard; a new user has no places yet. */
 export const register = async (page: Page, email: string) => {

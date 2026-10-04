@@ -13,7 +13,9 @@ Rules (the checks enforce most of them):
 - A plugin gets only ctx (user, community, now, lastVisit, db, files, ai, notify) and the SDK (ui, z, t, fileRef). Never use host globals
   (globalThis, process, fetch, Function, eval, Reflect, Proxy…), '.constructor', '.prototype', 'declare', '@ts-ignore', 'any' or calls of untyped values.
 - Declare only the permissions you use. Prefer "db"; add "files", "ai" or "notify" only when the feature needs them.
-- Keep it small and useful: one or two views, the tools they need, a dashboard widget when it helps residents at a glance.
+- Keep it small and useful: one or two views and the tools they need.
+- Give it EXACTLY ONE dashboard widget that always renders (an empty state when there is no data yet): its tile is the only
+  way residents open the plugin. Show what matters at a glance and set \`onPress\` to the main view.
 - Give it a fitting emoji \`icon\` and a one-sentence Polish \`description\` for residents.
 - Form fields arrive as strings: use z.coerce.number() / z.coerce.date() in tool inputs, never casts.
 - Every nav entry is shown to every member: put admin-only actions in a view that checks ctx.user.role, or behind \`requires: "admin"\`.

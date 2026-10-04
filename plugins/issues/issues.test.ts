@@ -26,6 +26,12 @@ const findNode = (node: UINode, match: (n: UINode) => boolean): UINode | undefin
   return children.map((c) => findNode(c, match)).find(Boolean);
 };
 
+/** Every node in the tree (depth first) that matches. */
+const findAll = (node: UINode, match: (n: UINode) => boolean): UINode[] => [
+  ...(match(node) ? [node] : []),
+  ...("children" in node && node.children ? node.children : []).flatMap((c) => findAll(c, match)),
+];
+
 describe("issues: reporting", () => {
   test("empty list → report with photo → details", async () => {
     const t = await testPlugin(issues, { user: alice });
@@ -49,7 +55,7 @@ describe("issues: reporting", () => {
 
     const detail = await t.view("detail", res.navigate!.params);
     expect(textsOf(detail)).toEqual(
-      expect.arrayContaining(["Nie świeci lampa", "Długa 12", "1 osoba zgłasza", "Zgłaszasz ten problem"]),
+      expect.arrayContaining(["Nie świeci lampa", "Długa 12", "Podbite (1)", "Udostępnij", "Postęp"]),
     );
     expect(textsOf(detail)).toContain("Zdjęcie: Nie świeci lampa");
   });
@@ -72,9 +78,11 @@ describe("issues: reporting", () => {
       anonymous: true,
     });
     const id = navigate!.params!.id!;
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("Zgłoszenie anonimowe");
+    expect(textsOf(await t.as(bob).view("detail", { id })).some((x) => x.startsWith("Zgłoszenie anonimowe"))).toBe(
+      true,
+    );
     expect(textsOf(await t.as(bob).view("detail", { id }))).not.toContain("Alice");
-    expect(textsOf(await t.as(admin).view("detail", { id }))).toContain("Alice (anonimowo)");
+    expect(textsOf(await t.as(admin).view("detail", { id })).some((x) => x.startsWith("Alice (anonimowo)"))).toBe(true);
     expect((await t.db.issues!.get(id))?.kind).toBe("suggestion");
   });
 
@@ -154,7 +162,7 @@ describe("issues: on the map", () => {
     const [map] = mapsOf(await t.view("list"));
     expect(map?.label).toBe("Mapa zgłoszeń");
     expect(map?.layers.map((l) => [l.title, l.tone, l.items.map((i) => i.title)])).toEqual([
-      ["Nowe", "info", ["Dziura w chodniku"]],
+      ["Nowe", "neutral", ["Dziura w chodniku"]],
       ["Przyjęte", "warning", ["Złamana ławka"]],
     ]);
     expect(map?.layers[0]?.items[0]?.onPress).toEqual({
@@ -233,15 +241,7 @@ describe("issues: similar reports", () => {
     expect(await t.db.issues!.count()).toBe(1);
 
     const detail = await t.as(bob).view("detail", { id });
-    expect(textsOf(detail)).toEqual(
-      expect.arrayContaining([
-        "2 osoby zgłaszają",
-        "Zgłoszenia użytkowników (2)",
-        "Bob",
-        "Od tygodnia",
-        "Zdjęcie od: Bob",
-      ]),
-    );
+    expect(textsOf(detail)).toEqual(expect.arrayContaining(["Podbite (2)", "Postęp"]));
   });
 
   test('"different problem" (force) creates a new issue despite similarity', async () => {
@@ -262,7 +262,7 @@ describe("issues: similar reports", () => {
     const id = navigate!.params!.id!;
     await t.as(bob).tool("support", { id });
     await t.as(bob).tool("support", { id });
-    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("2 osoby zgłaszają");
+    expect(textsOf(await t.as(bob).view("detail", { id }))).toContain("Podbite (2)");
   });
 });
 
@@ -321,7 +321,7 @@ describe("issues: dashboard", () => {
 
   test("summary widget: the open issue most residents support, with its photo and a way to report", async () => {
     const t = await testPlugin(issues, { user: alice });
-    const empty = (await t.dashboardWidget("summary"))!;
+    const empty = await t.dashboardWidget("summary");
     expect(textsOf(empty)).toEqual([
       "Zgłoszenia i sugestie",
       "0 otwartych · 0 w realizacji",
@@ -349,7 +349,7 @@ describe("issues: dashboard", () => {
     await support(bench, bob, carol, dave);
     await t.as(admin).tool("setStatus", { id: bench, status: "fixed" });
 
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(textsOf(widget)).toEqual([
       "Zgłoszenia i sugestie",
       "4 otwarte · 0 w realizacji",
@@ -369,7 +369,7 @@ describe("issues: dashboard", () => {
 
   test('summary widget: "Sugestia" opens the form with the suggestion kind picked', async () => {
     const t = await testPlugin(issues, { user: alice });
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(JSON.stringify(widget)).toContain(
       JSON.stringify({
         type: "navigate",
@@ -381,5 +381,120 @@ describe("issues: dashboard", () => {
     expect(findNode(form, (n) => n.type === "Select" && n.name === "kind")).toMatchObject({
       value: "suggestion",
     });
+  });
+});
+
+describe("issues: list", () => {
+  const carol = { id: "carol", name: "Carol", role: "user" } as const;
+  const cardsOf = (view: UINode) => findAll(view, (n) => n.type === "Card") as Extract<UINode, { type: "Card" }>[];
+  const titles = (view: UINode) => cardsOf(view).map((c) => c.title);
+  const tabsOf = (view: UINode, label: string) =>
+    findAll(view, (n) => n.type === "Tabs" && n.label === label)[0] as Extract<UINode, { type: "Tabs" }> | undefined;
+
+  test("residents see every report: most supported first, with a vote counter, tags and a floating report button", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const hole = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    const rack = (await t.as(bob).tool("report", { title: "Stojaki na rowery", category: "other", kind: "suggestion" }))
+      .navigate!.params!.id!;
+    await t.as(bob).tool("support", { id: hole });
+    await t.as(carol).tool("support", { id: hole });
+
+    const view = await t.view("list");
+    const [first, second] = cardsOf(view);
+    expect(titles(view)).toEqual(["Dziura w jezdni", "Stojaki na rowery"]);
+    expect(first).toMatchObject({
+      counter: { value: 3, pressed: true }, // alice reported it, so she has confirmed it
+      tags: [
+        { text: "Problem", tone: "danger", icon: "alert" },
+        { text: "Nowe", tone: "neutral", dot: true },
+      ],
+      onPress: { type: "navigate", view: "detail", params: { id: hole } },
+    });
+    expect(second).toMatchObject({
+      counter: { value: 1, pressed: false, action: { type: "tool", tool: "support", args: { id: rack } } },
+      tags: [
+        { text: "Sugestia", tone: "info", icon: "idea" },
+        { text: "Nowe", tone: "neutral", dot: true },
+      ],
+    });
+    expect(findAll(view, (n) => n.type === "Fab")).toEqual([
+      { type: "Fab", label: "Zgłoś", icon: "camera", action: { type: "navigate", view: "new" } },
+    ]);
+  });
+
+  test("tabs sort by popularity, newest or mine; the second row narrows to problems or suggestions", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const hole = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    // The second report comes a day later, so "newest" has a clear order.
+    t.setNow(new Date(Date.UTC(2026, 0, 2)));
+    await t.as(bob).tool("report", { title: "Stojaki na rowery", category: "other", kind: "suggestion" });
+    await t.as(bob).tool("support", { id: hole });
+    await t.as(carol).tool("support", { id: hole });
+
+    const popular = await t.view("list");
+    expect(tabsOf(popular, "Sortowanie")).toMatchObject({
+      variant: "segmented",
+      options: [
+        {
+          label: "Popularne",
+          selected: true,
+          action: { type: "navigate", view: "list", params: { sort: "popular", kind: "all" }, replace: true },
+        },
+        { label: "Najnowsze", selected: false },
+        { label: "Moje", selected: false },
+      ],
+    });
+    expect(titles(popular)).toEqual(["Dziura w jezdni", "Stojaki na rowery"]);
+    expect(titles(await t.view("list", { sort: "newest" }))).toEqual(["Stojaki na rowery", "Dziura w jezdni"]);
+    // Carol confirmed only the hole; Bob reported the rack and confirmed the hole.
+    expect(titles(await t.as(carol).view("list", { sort: "mine" }))).toEqual(["Dziura w jezdni"]);
+    expect(titles(await t.as(bob).view("list", { sort: "mine" }))).toEqual(["Stojaki na rowery", "Dziura w jezdni"]);
+    expect(titles(await t.view("list", { kind: "suggestion" }))).toEqual(["Stojaki na rowery"]);
+    expect(tabsOf(await t.view("list", { kind: "suggestion" }), "Rodzaj")?.options.map((o) => o.selected)).toEqual([
+      false,
+      false,
+      true,
+    ]);
+  });
+});
+
+describe("issues: details", () => {
+  test("a detail: the vote counter, the progress, the comments with their form, and a share link to the issue", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const id = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    await t.as(admin).tool("setStatus", { id, status: "accepted", note: "Zgłosiliśmy sprawę zarządcy drogi." });
+    await t.as(bob).tool("comment", { id, text: "Potwierdzam, rano prawie wjechałem w nią rowerem." });
+
+    const view = await t.view("detail", { id });
+    expect(findAll(view, (n) => n.type === "Button" && n.label === "Podbite (1)")).toHaveLength(1);
+    expect(findAll(view, (n) => n.type === "Share")).toEqual([
+      { type: "Share", label: "Udostępnij", path: `/app/c/test/issues/detail?id=${id}` },
+    ]);
+    expect(findAll(view, (n) => n.type === "Timeline")).toEqual([
+      {
+        type: "Timeline",
+        items: [
+          { title: "Zgłoszone", at: expect.any(String), tone: "neutral" },
+          { title: "Przyjęte", at: expect.any(String), text: "Zgłosiliśmy sprawę zarządcy drogi.", tone: "warning" },
+        ],
+      },
+    ]);
+    expect(textsOf(view)).toContain("Komentarze (1)");
+    expect(textsOf(view)).toContain("Potwierdzam, rano prawie wjechałem w nią rowerem.");
+    expect(findNode(view, (n) => n.type === "Form")).toMatchObject({
+      inline: true,
+      submit: { type: "tool", tool: "comment", args: { id } },
+      children: [{ type: "TextInput", name: "text" }],
+    });
+    expect(textsOf(view)).not.toContain("Wróć do listy");
+    expect(view).toMatchObject({ back: { type: "navigate", view: "list" } });
+  });
+
+  test("comments: a comment needs text; the first reporter's name leads the subtitle", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const id = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    expect((await t.tool("comment", { id, text: "   " }).catch((e) => e)) instanceof Error).toBe(true);
+    await t.tool("comment", { id, text: "Dzięki za zgłoszenie." });
+    expect(textsOf(await t.view("detail", { id }))).toContain("Dzięki za zgłoszenie.");
   });
 });
