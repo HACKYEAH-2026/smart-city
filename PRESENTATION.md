@@ -55,8 +55,6 @@ style: |
     padding: 0.05em 0.35em;
     font-size: 0.85em;
   }
-  /* Slides with a screenshot (class "shot"): the text keeps left of a phone-sized frame on the right. */
-  section.shot { padding-right: 420px; }
   /* A screenshot slot. Replace it with ![bg right:34%](zrzut.png) once the screenshot exists. */
   blockquote {
     position: absolute;
@@ -78,29 +76,6 @@ style: |
     text-align: center;
   }
   blockquote p { margin: 0; }
-  /* The theme's tabular-nums gives commas and colons a digit's width in this font. */
-  table { display: table; border-collapse: collapse; width: 100%; font-size: 21px; font-variant: normal; margin: 6px 0 24px; }
-  table tr, table tr:nth-child(2n) { background: transparent; }
-  table th {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #5E5E66;
-    text-align: left;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid #DDD9CF;
-    padding: 8px 14px;
-  }
-  table td {
-    background: #FFFFFF;
-    border: none;
-    border-bottom: 1px solid #EEEBE4;
-    padding: 11px 14px;
-    color: #1B1B1F;
-    vertical-align: top;
-  }
   footer { color: #8A8A92; font-size: 15px; left: 72px; }
   section::after { color: #8A8A92; font-size: 16px; right: 72px; }
   /* A process drawn as a row of numbered steps (the ordered list of the slide). */
@@ -163,27 +138,6 @@ style: |
   section.statement.phones h1, section.statement.phone h1 { font-size: 42px; }
   section.statement.phones ul, section.statement.phone ul { font-size: 26px; }
   section.statement.phones h3, section.statement.phone h3 { font-size: 28px; margin-top: 32px; }
-  /* Title and closing slides: the brand red. */
-  section.lead {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: #E50101;
-    color: #FFFFFF;
-  }
-  section.lead h1 { color: #FFFFFF; font-size: 72px; margin: 18px 0 10px; }
-  section.lead h2 {
-    font-family: 'Schibsted Grotesk', sans-serif;
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 500;
-    font-size: 36px;
-    color: #FFFFFF;
-    margin: 0 0 28px;
-  }
-  section.lead p { color: #FFFFFF; font-size: 24px; margin: 6px 0; }
-  section.lead strong { color: #FFFFFF; }
-  section.lead img { border-radius: 24px; }
   /* Two phones with real app screens on the right (class "phones"): the slide's first image is the back phone,
      the second the front one. Both images go on one line, so they share a paragraph. */
   section.phones {
@@ -276,7 +230,7 @@ HackYeah 2026 · SMART CITY
 
 <!--
 Notatki: jedno zdanie o tym, czym jest Twoje Miejsce (cyfrowe społeczności dla prawdziwych miejsc: miasta, uczelni,
-osiedla), i od razu przejście do problemu. Hasło pada tu i na końcu. Na telefonach: ekran logowania i pulpit Krakowa
+osiedla), i od razu przejście do problemu. Hasło pada tu. Na telefonach: ekran logowania i pulpit Krakowa
 z konta anna@krakow.test.
 -->
 
@@ -519,54 +473,4 @@ Tego rozszerzenia nie przygotowaliśmy na demo: to przykład opisu dla generator
 Notatki: ta sama aplikacja i ten sam generator od całego miasta po jedno mieszkanie; zmienia się tylko zestaw rozszerzeń.
 Wbudowane rozszerzenia to zgłoszenia usterek, ogłoszenia i dyskusje. Pozostałe funkcje to przykłady opisów dla
 generatora: nie przygotowaliśmy ich na demo (ROADMAP.md). Budżet obywatelski wymaga weryfikacji mieszkańców (mObywatel, v2).
--->
-
----
-
-<!-- _footer: "Bun · Hono · SurrealDB · Expo (React Native) · Strands Agents · TypeScript" -->
-
-## Technologia
-
-# Wtyczki + Server-Driven UI
-
-| Wtyczka na serwerze | Aplikacja na telefonie |
-| --- | --- |
-| Jeden plik TypeScript, zależny tylko od SDK | Rysuje ekrany, które opisuje serwer |
-| Własne tabele, osobne dla każdego miejsca | Katalog 34 elementów UI: formularze, mapa, galeria… |
-| Widoki, widżety i akcje z walidacją (Zod) | Nowa funkcja bez nowej wersji aplikacji |
-
-Serwer przysyła opis ekranu, a aplikacja go rysuje. Dlatego wtyczka napisana przez AI działa od razu na iOS, Androidzie i w przeglądarce.
-
-### Kod od AI przechodzi te same bramki co każda wtyczka, więc działa.
-
-*Składnia → importy → typy → safety → wczytanie → schemat bazy*
-
-<!--
-Notatki: samo połączenie wtyczek i Server-Driven UI jest znane (np. aplikacje Slacka). Nowe jest to, że na tym fundamencie
-AI pisze funkcje bezpiecznie: pisze tylko kod serwera przeciw wąskiemu SDK, nigdy kod aplikacji.
-Bramki: wtyczka widzi tylko `ctx` (bez dostępu do bazy aplikacji, dysku, sieci i lokalizacji mieszkańców); dane każdej
-instalacji są odizolowane; błędy wracają do agenta AI, który poprawia kod (najwyżej 3 sprawdzenia na wersję); niezgodna
-zmiana tabel odrzuca nową wersję, a poprzednia działa dalej.
-Pytanie jury „a jeśli AI napisze coś złośliwego?”: safety to statyczny strażnik, nie sandbox; kontrakt wtyczki jest gotowy
-na Worker/WASM i to jest v2 (ROADMAP.md).
--->
-
----
-
-<!-- _class: lead -->
-<!-- _paginate: false -->
-<!-- _footer: "" -->
-
-![w:96](apps/app/assets/icon.png)
-
-# Twoje Miejsce. Rośnie razem z Twoimi potrzebami.
-
-**Twój Team**
-
-Karol Jażdrzyk · Marcin Niemczyk · Dawid Danieluk
-
-github.com/HACKYEAH-2026/smart-city
-
-<!--
-Notatki: zakończyć hasłem. Link do repozytorium tylko, jeśli będzie publiczne na czas oceny.
 -->
