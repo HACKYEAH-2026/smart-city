@@ -135,6 +135,26 @@ style: |
   }
   section.flow ol li strong { display: block; font-size: 21px; margin-bottom: 2px; }
   section.flow ul { font-size: 23px; }
+  /* Places side by side (class "places"): each top-level item is a card, its nested list the place's functions. */
+  section.places > ul {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 28px;
+  }
+  section.places > ul > li {
+    margin: 0;
+    padding: 18px 18px 20px;
+    background: #FFFFFF;
+    border: 1px solid #E3E0D8;
+    border-radius: 18px;
+  }
+  section.places > ul > li > strong { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
+  section.places ul ul { padding-left: 1em; font-size: 19px; line-height: 1.3; color: #5E5E66; }
+  section.places ul ul li { margin: 0.35em 0; }
+  section.places p { font-size: 23px; }
   /* A slide with one claim and a few short points: larger text, more air. */
   section.statement ul { font-size: 32px; margin-top: 12px; }
   section.statement li { margin: 0.55em 0; }
@@ -392,22 +412,28 @@ Ostatnie zdanie wraca do slajdu 3: to przykład rozszerzenia, nie cały produkt.
 
 ---
 
-<!-- _class: shot -->
+<!-- _class: statement phone -->
 
-> 📸 Zrzut: panel administratora zgłoszeń z kategorią i odpowiedzią urzędu
+> Zrzut: panel administratora zgłoszeń z kategorią i odpowiedzią urzędu
 
 ## Dla urzędu
 
 # Jedno zgłoszenie zamiast wielu takich samych
 
-- **Powtórzone zgłoszenia łączą się w jedno,** a urząd widzi, ilu mieszkańców dotyczy sprawa.
-- **AI przypisuje kategorię** (drogi i chodniki, oświetlenie, czystość, zieleń). Urząd może ją zmienić.
-- **Odpowiedź dla mieszkańców i notatka wewnętrzna.** Zamknięcie zgłoszenia powiadamia autora i osoby, które dołączyły.
-- **Ogłoszenia i dyskusje** w tym samym miejscu.
-- **Ustawienia miejsca:** głosowanie, komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
+- **Takie same zgłoszenia** łączą się w jedno
+- **AI nadaje kategorię,** urząd może ją zmienić
+- **Odpowiedź dociera** do każdego, kto zgłosił
+
+### Urząd widzi, ilu mieszkańców dotyczy sprawa.
 
 <!--
-Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi odpowiedź zamiast ciszy.
+Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi
+odpowiedź zamiast ciszy. Rozwinięcie na głos:
+- Kategorie: drogi i chodniki, oświetlenie, czystość, zieleń.
+- Urząd pisze odpowiedź dla mieszkańców i notatkę wewnętrzną. Zamknięcie zgłoszenia powiadamia autora i osoby, które
+  dołączyły.
+- W tym samym miejscu ogłoszenia i dyskusje.
+- Ustawienia miejsca: głosowanie, komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
 -->
 
 ---
@@ -418,19 +444,81 @@ Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplika
 
 # Nowa potrzeba to nowa funkcja, nie nowa aplikacja
 
-1. **Dziś** Mieszkańcy zgłaszają usterki, czytają ogłoszenia administracji i rozmawiają w dyskusjach.
-2. **Nowa potrzeba** Na osiedle przychodzą dziki. Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął.
-3. **Administrator opisuje** dwie funkcje własnymi słowami: „Uwaga, dzik!” i „Oddam za darmo”.
-4. **Mieszkańcy dostają** ostrzeżenie, gdy dzik jest w pobliżu, i tablicę rzeczy do oddania.
+1. **Dziś** Usterki, ogłoszenia, dyskusje.
+2. **Nowa potrzeba** Dziki na osiedlu. Dobre meble przy śmietniku.
+3. **Administrator opisuje** „Uwaga, dzik!” i „Oddam za darmo”.
+4. **Mieszkańcy dostają** ostrzeżenie o dziku w pobliżu i tablicę rzeczy do oddania.
 
-- **Nic nowego do instalowania i uczenia się.** To samo konto, te same powiadomienia, ten sam pulpit.
-- **Bez programisty i bez zamówienia.** AI pisze wtyczkę, a administrator ją sprawdza i publikuje.
+- **Bez programisty i bez zamówienia.** AI pisze rozszerzenie, administrator je publikuje.
 
 <!--
 Notatki: to jest hasło „Rośnie razem z Twoimi potrzebami” w praktyce; jak to działa, pokazał slajd „Innowacja”.
+Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął. Administrator opisuje obie funkcje własnymi
+słowami. Nic nowego do instalowania i uczenia się: to samo konto, te same powiadomienia, ten sam pulpit.
 Ostrzeżenie dostają tylko mieszkańcy w promieniu np. 500 m (zapisane miejsce albo pozycja z otwartej aplikacji z ostatnich
-30 minut), a wtyczka nie zna niczyjej lokalizacji: dopasowuje ją serwer. To samo działa w skali miasta: Kraków może
-włączyć „Uwaga, dzik!” dla wszystkich mieszkańców. Bez liczb, których nie zmierzyliśmy.
+30 minut), a rozszerzenie nie zna niczyjej lokalizacji: dopasowuje ją serwer. Następny slajd: to samo w skali miasta.
+Bez liczb, których nie zmierzyliśmy.
+-->
+
+---
+
+<!-- _class: flow -->
+
+## Przykład: Kraków
+
+# Komunikat trafia tylko do tych, których dotyczy
+
+1. **Dziś** Zgłoszenia usterek, ogłoszenia urzędu, dyskusje.
+2. **Nowa potrzeba** Remont, objazd, brak wody.
+3. **Urząd opisuje** „Utrudnienia w okolicy”.
+4. **Mieszkańcy dostają** mapę utrudnień i powiadomienie tylko o tych w swojej okolicy.
+
+- **Rozszerzenie nie zna niczyjego adresu.** Okolicę dopasowuje serwer.
+
+<!--
+Notatki: ta sama droga co w spółdzielni, tylko skala inna. W spółdzielni ostrzeżenie dotyczy prawie wszystkich, w mieście
+powiadomienie dla wszystkich byłoby spamem, więc dostaje je tylko okolica utrudnienia.
+Urząd zaznacza na mapie obszar (np. ulicę w remoncie albo rejon bez wody), a powiadomienie dostają mieszkańcy z zapisanym
+adresem albo niedawną pozycją w tym promieniu. Adresy mieszkańcy dodają sami w koncie („adresy do powiadomień w okolicy”).
+SDK ma do tego gotowe elementy: obszary na mapie (`ui.map.areas`) i powiadomienia „w pobliżu” (promień do 50 km).
+Tego rozszerzenia nie przygotowaliśmy na demo: to przykład opisu dla generatora, nie gotowa funkcja.
+-->
+
+---
+
+<!-- _class: places -->
+
+## Od miasta po dom
+
+# Każde miejsce włącza swoje funkcje
+
+- **Miasto**
+  - Zgłoszenia usterek
+  - Utrudnienia w okolicy
+  - Budżet obywatelski
+  - Konsultacje społeczne
+- **Uczelnia**
+  - Rezerwacja sal
+  - Ogłoszenia dziekanatu
+  - Zmiany w planie zajęć
+  - Rzeczy znalezione
+- **Spółdzielnia mieszkaniowa**
+  - Uwaga, dzik!
+  - Oddam za darmo
+  - Odczyty liczników
+  - Usterki w bloku
+- **Dom**
+  - Lista zakupów
+  - Grafik sprzątania
+  - Wspólne wydatki
+  - Kalendarz rodziny
+
+**Zgłoszenia, ogłoszenia i dyskusje działają w demo.** Resztę administrator opisuje, a AI pisze.
+
+<!--
+Notatki: ta sama aplikacja i ten sam generator od całego miasta po jedno mieszkanie; zmienia się tylko zestaw rozszerzeń.
+Wbudowane rozszerzenia to zgłoszenia usterek, ogłoszenia i dyskusje. Pozostałe funkcje to przykłady opisów dla
+generatora: nie przygotowaliśmy ich na demo (ROADMAP.md). Budżet obywatelski wymaga weryfikacji mieszkańców (mObywatel, v2).
 -->
 
 ---
