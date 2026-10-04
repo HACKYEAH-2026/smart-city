@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { FILE_ID, type FileId, type Files } from "@app/plugin-sdk";
-import { RecordId } from "surrealdb";
+import { RecordId, surql, Table } from "surrealdb";
 import { type Db, TABLES } from "../../db";
 import type { FileStore } from "./store";
 
-type FileRow = { mime: string; size: number; installation: RecordId };
+type FileRow = { mime: string; size: number; installation: RecordId; status: string; uploaded_by?: RecordId };
 const fileRecord = (id: string) => new RecordId(TABLES.file, id);
 const installationRecord = (id: string) => new RecordId(TABLES.installation, id);
 
@@ -35,15 +35,13 @@ export class FileService {
     await this.sweep();
     const id = `file_${crypto.randomUUID()}` as FileId;
     await this.store.put(id, args.data);
-    await this.db.query("CREATE $f CONTENT $data;", {
-      f: fileRecord(id),
-      data: {
-        installation: installationRecord(args.installationId),
-        uploaded_by: new RecordId(TABLES.user, args.userId),
-        mime: args.mime,
-        size: args.data.byteLength,
-      },
-    });
+    const data = {
+      installation: installationRecord(args.installationId),
+      uploaded_by: new RecordId(TABLES.user, args.userId),
+      mime: args.mime,
+      size: args.data.byteLength,
+    };
+    await this.db.query(surql`CREATE ${fileRecord(id)} CONTENT ${data};`);
     return id;
   }
 
@@ -58,11 +56,16 @@ export class FileService {
     return {
       info: async (id) => {
         const row = await own(id);
-        return { mime: row.mime, size: row.size };
+        return {
+          mime: row.mime,
+          size: row.size,
+          uploadedBy: row.uploaded_by ? String(row.uploaded_by.id) : null,
+          kept: row.status === "kept",
+        };
       },
       remove: async (id) => {
         await own(id);
-        await this.db.query("DELETE $f;", { f: fileRecord(id) });
+        await this.db.query(surql`DELETE ${fileRecord(id)};`);
         await this.store.delete(id);
       },
     };
@@ -74,6 +77,22 @@ export class FileService {
     if (!row || String(row.installation.id) !== installationId) return null;
     const data = await this.store.get(id);
     return data ? { mime: row.mime, data } : null;
+  }
+
+  /**
+   * Of `ids`, the files `userId` may see in this installation: kept ones (a row of the plugin shows them) and the
+   * user's own pending uploads. A plugin's tree may name any FileId (e.g. from a view param), so only these are signed.
+   */
+  async visible(installationId: string, userId: string, ids: string[]): Promise<Set<string>> {
+    const valid = [...new Set(ids)].filter((id) => FILE_ID.test(id));
+    if (!valid.length) return new Set();
+    // Point lookups by record id (a WHERE over the table would scan every upload).
+    const rows = await Promise.all(valid.map(async (id) => ({ id, row: await this.row(id) })));
+    const seen = (row: FileRow | undefined) =>
+      row !== undefined &&
+      String(row.installation.id) === installationId &&
+      (row.status === "kept" || (row.uploaded_by !== undefined && String(row.uploaded_by.id) === userId));
+    return new Set(rows.filter(({ row }) => seen(row)).map(({ id }) => id));
   }
 
   /** Signed, short-lived URL (works in <Image> without an Authorization header). */
@@ -96,15 +115,19 @@ export class FileService {
 
   /** Deletes unconfirmed uploads older than 24 h (called on every upload). */
   async sweep(now = Date.now()) {
-    const [stale] = await this.db.query<[{ id: RecordId }[]]>(
-      `DELETE ${TABLES.file} WHERE status = "pending" AND created_at < $cutoff RETURN BEFORE;`,
-      { cutoff: new Date(now - PENDING_TTL_MS) },
+    const cutoff = new Date(now - PENDING_TTL_MS);
+    const [stale] = await this.db.query(
+      surql<
+        [{ id: RecordId }[]]
+      >`DELETE ${new Table(TABLES.file)} WHERE status = "pending" AND created_at < ${cutoff} RETURN BEFORE;`,
     );
     await Promise.all(stale.map((f) => this.store.delete(String(f.id.id))));
   }
 
   private async row(id: string): Promise<FileRow | undefined> {
-    const [rows] = await this.db.query<[FileRow[]]>("SELECT mime, size, installation FROM $f;", { f: fileRecord(id) });
+    const [rows] = await this.db.query(
+      surql<[FileRow[]]>`SELECT mime, size, installation, status, uploaded_by FROM ${fileRecord(id)};`,
+    );
     return rows[0];
   }
 

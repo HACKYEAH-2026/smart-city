@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { RecordId, type SurrealSession } from "surrealdb";
+import { RecordId, type SurrealSession, surql } from "surrealdb";
 import { type TableDef, type Tables, t } from "../services/db";
 import { testDatabase } from "../testing";
 import { createDatabase, DbError } from "./client";
@@ -34,26 +34,23 @@ let surreal: SurrealSession;
 const db = (installationId: string, userId: string | null = "alice") =>
   createDatabase({ surreal, pluginId: "issues", tables, installationId, userId });
 const upload = (id: string, installation: string, by: string) =>
-  surreal.query("CREATE $f CONTENT $data;", {
-    f: new RecordId(HOST.file, id),
-    data: {
+  surreal.query(
+    surql`CREATE ${new RecordId(HOST.file, id)} CONTENT ${{
       installation: new RecordId(HOST.installation, installation),
       uploaded_by: new RecordId(HOST.user, by),
       mime: "image/jpeg",
       size: 1,
-    },
-  });
+    }};`,
+  );
 const fileStatus = async (id: string) => {
-  const [rows] = await surreal.query<[{ status: string }[]]>("SELECT status FROM $f;", {
-    f: new RecordId(HOST.file, id),
-  });
+  const [rows] = await surreal.query(surql<[{ status: string }[]]>`SELECT status FROM ${new RecordId(HOST.file, id)};`);
   return rows[0]?.status;
 };
 
 beforeEach(async () => {
   surreal = await testDatabase();
   await surreal.query(PLATFORM_SCHEMA);
-  await surreal.query(`
+  await surreal.query(surql`
     CREATE user:alice SET name = "Alice"; CREATE user:bob SET name = "Bob";
     CREATE plugin_installation:krakow; CREATE plugin_installation:gdansk;`);
   await syncSchema(surreal, "issues", tables);
@@ -150,7 +147,7 @@ describe("integrity", () => {
   test("references cascade: deleting a user or an issue removes dependent rows", async () => {
     const issue = await db("krakow").issues.insert({ title: "Latarnia", reporter: "alice" });
     await db("krakow", "bob").reports.insert({ issue: issue.id, author: "bob" });
-    await surreal.query("DELETE user:bob;");
+    await surreal.query(surql`DELETE user:bob;`);
     expect(await db("krakow").reports.count()).toBe(0);
     await db("krakow").reports.insert({ issue: issue.id, author: "alice" });
     await db("krakow").issues.delete(issue.id);
@@ -326,7 +323,7 @@ describe("schema sync (no migration files)", () => {
     await syncSchema(surreal, "issues", relaxed);
     expect(await client(relaxed).issues.update(issue.id, { title: null })).toMatchObject({ title: null });
     // query() returns a lazy thenable; .then() makes it a Promise for expect().rejects.
-    await expect(surreal.query("DELETE user:alice;").then()).rejects.toThrow("ON DELETE REJECT");
+    await expect(surreal.query(surql`DELETE user:alice;`).then()).rejects.toThrow("ON DELETE REJECT");
     // The unique index is gone with the declaration.
     expect(await client(relaxed).labels.insert({ name: "pilne", scope: "x" })).toMatchObject({ name: "pilne" });
 

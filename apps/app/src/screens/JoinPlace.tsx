@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { Keyboard, Link as LinkIcon, QrCode, User, UserPlus } from "lucide-react-native";
+import { Keyboard, Link as LinkIcon, Map as MapIcon, QrCode, User, UserPlus } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { ActionRow, Brand, CreateRow, Heading, HeroBanner, IconButton, Screen } from "../components";
 import { useCommunities } from "../data/communities";
@@ -34,6 +34,7 @@ export default function JoinPlace() {
         <ActionRow icon={Keyboard} title={t.join_code} subtitle={t.join_code_hint} href="/app/join-code" />
         <ActionRow icon={LinkIcon} title={t.join_link} subtitle={t.join_link_hint} href="/app/join-code?tab=link" />
         <ActionRow icon={UserPlus} title={t.join_invites} subtitle={t.join_invites_hint} href="/app/invites" />
+        <ActionRow icon={MapIcon} title={t.join_map} subtitle={t.join_map_hint} href="/app/map" />
       </View>
       <View style={styles.grow} />
       <CreateRow label={t.place_create_own} href="/app/create" />

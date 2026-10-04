@@ -1,8 +1,9 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { type AddressInfo, createServer } from "node:net";
 import { resolve } from "node:path";
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { TEST_GOOGLE_CLIENT_ID } from "../../api/src/test-google";
+import { t } from "../src/texts";
 
 /**
  * E2E fixtures:
@@ -59,7 +60,12 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           DATABASE_URL: "mem://",
           API_URL: url,
           GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID,
+          PLUGIN_AUTHOR: "test",
+          // Address search answers with fixed Kraków addresses (apps/api/src/test-geocoder.ts), never the network.
+          GEOCODER: "test",
           TRUSTED_ORIGINS: web,
+          // Warnings and errors only (one info line per request would drown Playwright's output).
+          LOG_LEVEL: process.env.LOG_LEVEL ?? "warn",
         },
         stdio: ["ignore", "inherit", "inherit"],
       });
@@ -79,6 +85,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await page.addInitScript((u) => {
         (globalThis as unknown as { __API_URL__: string }).__API_URL__ = u;
       }, api.url);
+      // No network, as with the geocoder: the maps' MapLibre (unpkg.com) and tiles (OpenFreeMap) do not load. A map
+      // drawn with software WebGL kept the main thread busy enough that a long-press on a dashboard tile became a tap.
+      await page.context().route(/^https:\/\/(unpkg\.com|tiles\.openfreemap\.org)\//, (route) => route.abort());
       await use(undefined);
     },
     { auto: true },
@@ -104,5 +113,100 @@ export const inviteToKrakow = async (apiUrl: string, email: string) => {
     body: JSON.stringify({ email, slug: "krakow" }),
   });
   if (!res.ok) throw new Error(`inviteToKrakow ${res.status}`);
+};
+
+/** Puts a notification from a plugin of Kraków in a user's inbox, as ctx.notify would; the test API exposes this route. */
+export const notify = async (
+  apiUrl: string,
+  email: string,
+  notification: { pluginId: string; title: string; body: string; open?: { type: "navigate"; view: string } },
+) => {
+  const res = await fetch(`${apiUrl}/__test/notification`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, slug: "krakow", ...notification }),
+  });
+  if (!res.ok) throw new Error(`notify ${res.status}`);
+};
+
+/** Seeds the demo resident (DEMO_RESIDENT) with her campus and cooperative, as the dev API does on start. */
+export const seedResident = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/__test/resident`, { method: "POST" });
+  if (!res.ok) throw new Error(`seedResident ${res.status}`);
+};
+
+/**
+ * Seeds the whole local demo, as the dev API does on start: the resident's places and the demo content (accounts,
+ * Kraków's and the Tauron Arena's reports, announcements and discussions; apps/api/src/test-demo.ts).
+ */
+export const seedDemoContent = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/__test/demo`, { method: "POST" });
+  if (!res.ok) throw new Error(`seedDemoContent ${res.status}`);
+};
+
+/** The password of every user a test registers (register). */
+export const PASSWORD = "password123";
+/**
+ * The demo place's admin, seeded by the test API: DEMO_ADMIN in apps/api/src/test-routes.ts (copied, not imported:
+ * that file has runtime dependencies and Playwright loads this one).
+ */
+export const DEMO_ADMIN = { email: "admin@krakow.test", password: "password" } as const;
+/** The demo admin's name (DEMO_ADMIN.name in apps/api/src/test-routes.ts); kept out of DEMO_ADMIN, the sign-in body. */
+export const DEMO_ADMIN_NAME = "Urząd Miasta";
+/** A resident of Kraków, a campus and a cooperative: DEMO_RESIDENT in apps/api/src/test-routes.ts (copied too). */
+export const DEMO_RESIDENT = { email: "anna@krakow.test", password: "password" } as const;
+/** The Tauron Arena's admin: DEMO_ARENA_ADMIN in apps/api/src/test-demo.ts (copied too). */
+export const DEMO_ARENA_ADMIN = { email: "admin@arena.test", password: "password" } as const;
+
+/** Registers and lands on the dashboard; a new user has no places yet. */
+export const register = async (page: Page, email: string) => {
+  await page.goto("/register");
+  await page.getByLabel(t.auth_email).fill(email);
+  await page.getByLabel(t.auth_password).fill(PASSWORD);
+  await page.getByRole("checkbox", { name: t.auth_consent }).click();
+  await page.getByRole("button", { name: t.auth_submit_register }).click();
+  await expect(page.getByRole("heading", { name: t.dashboard_empty_title })).toBeVisible();
+};
+
+/** Signs in as the demo place's admin and lands on the dashboard of Kraków. */
+export const loginAdmin = async (page: Page) => {
+  await page.goto("/login");
+  await page.getByLabel(t.auth_email).fill(DEMO_ADMIN.email);
+  await page.getByLabel(t.auth_password).fill(DEMO_ADMIN.password);
+  await page.getByRole("button", { name: t.auth_submit_login }).click();
+  await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
+};
+
+/**
+ * The demo admin's session for calling the API directly (`authorization: Bearer …`), for what has no screen in the
+ * app; signs in through the real Better Auth endpoint.
+ */
+export const adminHeaders = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/api/auth/sign-in/email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(DEMO_ADMIN),
+  });
+  const token = res.headers.get("set-auth-token");
+  if (!token) throw new Error(`adminHeaders: sign-in ${res.status}`);
+  return { authorization: `Bearer ${token}` };
+};
+
+/** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
+export const signOut = async (page: Page) => {
+  await page.goto("/app/account");
+  await page.getByRole("button", { name: t.sign_out }).click();
+  await expect(page).toHaveURL(/\/login$/);
+};
+/**
+ * A short screen keeps an action within thumb reach: its bottom edge sits at the screen's bottom padding (32 dp,
+ * `layout.screenBottomPadding`), not right under the content above it.
+ */
+export const expectAtBottom = async (page: Page, action: Locator) => {
+  const box = await action.boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  expect(box, "the action is on screen").not.toBeNull();
+  expect(height - ((box?.y ?? 0) + (box?.height ?? 0))).toBeGreaterThanOrEqual(0);
+  expect(height - ((box?.y ?? 0) + (box?.height ?? 0))).toBeLessThanOrEqual(48);
 };
 export { expect };

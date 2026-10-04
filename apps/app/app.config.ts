@@ -23,7 +23,9 @@ const googleSignIn: NonNullable<ExpoConfig["plugins"]> = googleIosClientId
   ? [
       [
         "@react-native-google-signin/google-signin",
-        { iosUrlScheme: `com.googleusercontent.apps.${googleIosClientId.replace(".apps.googleusercontent.com", "")}` },
+        {
+          iosUrlScheme: `com.googleusercontent.apps.${googleIosClientId.replace(".apps.googleusercontent.com", "")}`,
+        },
       ],
     ]
   : [];
@@ -47,7 +49,7 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/adaptive-icon.png",
       monochromeImage: "./assets/adaptive-icon.png",
       // colors.primary (src/theme/tokens.ts): Expo's config loader cannot import the app's TS modules.
-      backgroundColor: "#E50101",
+      backgroundColor: "#D81B60",
     },
     ...(googleServicesFile ? { googleServicesFile } : {}),
   },
@@ -62,6 +64,7 @@ const config: ExpoConfig = {
       "expo-image-picker",
       {
         photosPermission: "Aplikacja potrzebuje dostępu do zdjęć, aby dodać zdjęcie.",
+        cameraPermission: "Aplikacja potrzebuje aparatu, aby zrobić zdjęcie zgłoszenia.",
       },
     ],
     // iOS system permission prompt: user-visible text, so Polish (AGENTS.md: Language).
@@ -72,6 +75,13 @@ const config: ExpoConfig = {
       },
     ],
     "expo-notifications",
+    // System permission prompt (iOS text; Android adds the location permissions): Polish (AGENTS.md: Language).
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission: "Aplikacja potrzebuje lokalizacji, aby pokazać Twoje położenie na mapie.",
+      },
+    ],
     ...googleSignIn,
   ],
   experiments: { typedRoutes: true },

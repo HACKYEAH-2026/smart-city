@@ -27,7 +27,16 @@ export const Issue: React.FC = () => {
         <div style={{ display: "flex", gap: 30 }}>
           <Card style={{ width: 560, padding: 24, ...fadeUp(photo) }}>
             <LampPhoto />
-            <div style={{ marginTop: 20, fontSize: 18, color: C.muted, fontWeight: 600 }}>Opis</div>
+            <div
+              style={{
+                marginTop: 20,
+                fontSize: 18,
+                color: C.muted,
+                fontWeight: 600,
+              }}
+            >
+              Opis
+            </div>
             <div
               style={{
                 marginTop: 8,
@@ -49,7 +58,14 @@ export const Issue: React.FC = () => {
             </div>
           </Card>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 22 }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+            }}
+          >
             {frame >= AI_AT ? (
               <Card style={fadeUp(ai)}>
                 <div
@@ -84,15 +100,28 @@ export const Issue: React.FC = () => {
             ) : null}
 
             {frame >= DUP_AT ? (
-              <Card style={{ background: C.amberSoft, border: `2px solid #FCD34D`, ...fadeUp(dup) }}>
+              <Card
+                style={{
+                  background: C.amberSoft,
+                  border: `2px solid #FCD34D`,
+                  ...fadeUp(dup),
+                }}
+              >
                 <div style={{ fontSize: 22, fontWeight: 800, color: C.amber }}>
                   To samo zgłoszono 2 dni temu, 40 m stąd
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 14 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 18,
+                    marginTop: 14,
+                  }}
+                >
                   <div style={{ fontSize: 20, flex: 1, lineHeight: 1.4 }}>
                     #1842 „Ciemno na Długiej przy przystanku”
                     <br />
-                    <b style={{ fontSize: 26 }}>{count}</b> mieszkańców · status: <b>przyjęte</b>
+                    <b style={{ fontSize: 26 }}>{count}</b> użytkowników · status: <b>przyjęte</b>
                   </div>
                   <Button pressAt={CLICK} color={frame >= CLICK ? C.green : C.amber}>
                     {frame >= CLICK ? "✓ Dołączono" : "+1 Dołącz"}

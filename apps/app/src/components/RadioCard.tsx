@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { Badge } from "./Badge";
 import { Text } from "./Text";
 
@@ -12,21 +12,31 @@ export interface RadioCardProps {
   badge?: string;
   selected: boolean;
   onPress: () => void;
+  /** Shown dimmed and not pressable (e.g. while the choice is being saved). */
+  disabled?: boolean;
 }
 
 /**
  * Selectable option (COMPONENTS.md → RadioCard). Selection is shown by the border, the shadow and the filled dot,
  * not by color alone. Put several inside a View with role="radiogroup".
  */
-export function RadioCard({ label, description, badge, selected, onPress }: RadioCardProps) {
+export function RadioCard({ label, description, badge, selected, onPress, disabled = false }: RadioCardProps) {
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
       aria-checked={selected}
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
       onPressIn={tapFeedback}
       onPress={onPress}
-      style={[styles.card, description ? styles.top : null, selected ? styles.selected : styles.idle]}
+      style={({ pressed }) => [
+        styles.card,
+        description ? styles.top : null,
+        selected ? styles.selected : styles.idle,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
       <View style={[styles.dot, selected && styles.dotSelected]}>
         {selected ? <View style={styles.dotFill} /> : null}
@@ -47,6 +57,8 @@ export function RadioCard({ label, description, badge, selected, onPress }: Radi
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
+  disabled: { opacity: opacity.disabled },
   card: {
     minHeight: sizes.iconBox,
     flexDirection: "row",

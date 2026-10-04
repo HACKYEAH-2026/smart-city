@@ -1,4 +1,6 @@
+import { type DashboardWidgetSize, dashboardWidgetSizeSchema, type GeoPoint, geoPointSchema } from "@app/plugin-sdk";
 import { z } from "zod";
+import type { PluginCatalogItem } from "./plugins";
 
 /** Admin contracts: communities and plugin installation. */
 export const communitySlugSchema = z
@@ -23,18 +25,74 @@ export type JoinRule = (typeof JOIN_RULES)[number];
  * A user creates a place (the answers of the "new place" wizard). Only the name is required; the slug and the
  * invite code are made on the server, and the creator becomes the place's admin.
  */
-export const newPlaceSchema = z.object({
+/** What describes a place: the wizard (newPlaceSchema) asks for it, its admins change it (placeUpdateSchema). */
+const placeFields = {
   name: z.string().trim().min(1).max(80),
-  kind: z.enum(PLACE_KINDS).default("other"),
-  address: z.string().trim().max(200).default(""),
-  description: z.string().trim().max(500).default(""),
-  joinRule: z.enum(JOIN_RULES).default("approval"),
+  kind: z.enum(PLACE_KINDS),
+  address: z.string().trim().max(200),
+  description: z.string().trim().max(500),
+  joinRule: z.enum(JOIN_RULES),
+  /** The place's pin on the map (null = none). */
+  location: geoPointSchema.nullable(),
+  /** Shown on the map of places to every signed-in user (only with a location); members always see it there. */
+  onMap: z.boolean(),
+};
+
+export const newPlaceSchema = z.object({
+  name: placeFields.name,
+  kind: placeFields.kind.default("other"),
+  address: placeFields.address.default(""),
+  description: placeFields.description.default(""),
+  joinRule: placeFields.joinRule.default("approval"),
+  location: placeFields.location.default(null),
+  onMap: placeFields.onMap.default(false),
   /** Make it the user's default place (the first place is the default anyway). */
   makeDefault: z.boolean().default(false),
   /** Built-in plugins to enable in the place (ids from GET /api/plugins); its navigation keeps this order. */
   plugins: z.array(z.string().min(1).max(64)).max(20).default([]),
 });
 export type NewPlace = z.input<typeof newPlaceSchema>;
+
+/** A place's admin changes its settings (PATCH /api/communities/:slug): any of them; the slug stays. */
+export const placeUpdateSchema = z.object(placeFields).partial();
+export type PlaceUpdate = z.input<typeof placeUpdateSchema>;
+
+/** A place's admin changes another member's role (PATCH /api/communities/:slug/members/:userId). */
+export const memberRoleSchema = z.object({ role: z.enum(["admin", "user"]) });
+export type MemberRole = z.input<typeof memberRoleSchema>;
+
+/**
+ * A member of a place as its admins see it (GET /api/communities/:slug/members): admins first, then by name.
+ * `joinedAt` (ISO) is null for memberships from before it was recorded; `you` marks the signed-in admin.
+ */
+export type PlaceMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  joinedAt: string | null;
+  you: boolean;
+};
+
+/**
+ * A plugin of the place and whether it is on (GET /api/communities/:slug/plugins), for its admins: a built-in one, or
+ * one the AI wrote for this place (`madeByAi`, the plugin builder). A `draft` was never published: it cannot be
+ * switched on, and its name and icon are those of its latest ready version (the first request while none is ready).
+ * `working`: the AI is writing a version of it right now. `widgets`: how many dashboard widgets the plugin declares.
+ * `adminView`: the view its page in "Zarządzaj miejscem" shows (null = none, or a draft that is not loaded).
+ * `sizes`: the sizes an admin may give its widget, the default first (empty when it is not loaded).
+ */
+export type PlacePlugin = PluginCatalogItem & {
+  enabled: boolean;
+  madeByAi: boolean;
+  draft: boolean;
+  working: boolean;
+  widgets: number;
+  adminView: string | null;
+  sizes: DashboardWidgetSize[];
+};
+/** A place's admin switches one of its plugins on or off (PUT /api/communities/:slug/plugins/:pluginId). */
+export const pluginSwitchSchema = z.object({ enabled: z.boolean() });
 
 /** Invite code: 6 characters without look-alikes (no 0/O, 1/I); stored bare, shown as "ABC-DEF". */
 export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -79,6 +137,8 @@ export type PlaceDetails = Community & {
   address: string;
   description: string;
   joinRule: JoinRule;
+  location: GeoPoint | null;
+  onMap: boolean;
   inviteCode: string | null;
 };
 /** A place as someone holding its invite code sees it before joining (GET /api/communities/invite/:code). */
@@ -112,3 +172,34 @@ export const dashboardOrderSchema = z.object({
   order: z.array(z.string().min(3).max(100)).max(100),
 });
 export type DashboardOrder = z.input<typeof dashboardOrderSchema>;
+
+/**
+ * The dashboard as a community admin arranges it (PUT /api/communities/:slug/dashboard/layout): the widgets on it,
+ * first = top left, each with a size its plugin allows. Declared widgets left out are hidden.
+ */
+export const dashboardLayoutSchema = z.object({
+  widgets: z
+    .array(z.object({ key: z.string().min(3).max(100), size: dashboardWidgetSizeSchema }))
+    .max(100)
+    .refine((widgets) => new Set(widgets.map((w) => w.key)).size === widgets.length, "Widget keys must be unique"),
+});
+export type DashboardLayoutInput = z.input<typeof dashboardLayoutSchema>;
+
+/**
+ * A declared widget in the layout editor. `title`: its name (the plugin's name when it declares none); `size`: the
+ * size it has now; `sizes`: every size an admin may pick, the plugin's default first.
+ */
+export type LayoutWidget = {
+  key: string;
+  pluginId: string;
+  pluginName: string;
+  pluginIcon: string;
+  title: string;
+  size: DashboardWidgetSize;
+  sizes: DashboardWidgetSize[];
+};
+/**
+ * The dashboard layout for its admins (GET/PUT /api/communities/:slug/dashboard/layout): `columns` of the grid,
+ * the `widgets` on the dashboard in order, and the declared widgets an admin removed (`available`, may be added back).
+ */
+export type DashboardLayout = { columns: number; widgets: LayoutWidget[]; available: LayoutWidget[] };

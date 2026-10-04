@@ -29,22 +29,65 @@ export const Petition: React.FC = () => {
         <div style={{ display: "flex", gap: 30 }}>
           <Card style={{ flex: 1, padding: 40, ...fadeUp(card) }}>
             <div
-              style={{ fontSize: 17, fontWeight: 700, color: C.accent, letterSpacing: 1, textTransform: "uppercase" }}
+              style={{
+                fontSize: 17,
+                fontWeight: 700,
+                color: C.accent,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+              }}
             >
               Obywatelska inicjatywa uchwałodawcza
             </div>
-            <div style={{ fontSize: 40, fontWeight: 800, marginTop: 12, lineHeight: 1.2 }}>
+            <div
+              style={{
+                fontSize: 40,
+                fontWeight: 800,
+                marginTop: 12,
+                lineHeight: 1.2,
+              }}
+            >
               Zielone podwórka na Grzegórzkach
             </div>
-            <div style={{ fontSize: 22, color: C.muted, marginTop: 14, lineHeight: 1.45 }}>
-              Projekt uchwały o zamianie 6 betonowych podwórek w ogrody społeczne. Potrzeba {GOAL} podpisów mieszkańców,
-              żeby trafił pod obrady Rady Miasta.
+            <div
+              style={{
+                fontSize: 22,
+                color: C.muted,
+                marginTop: 14,
+                lineHeight: 1.45,
+              }}
+            >
+              Projekt uchwały o zamianie 6 betonowych podwórek w ogrody społeczne. Potrzeba {GOAL} podpisów
+              użytkowników, żeby trafił pod obrady Rady Miasta.
             </div>
-            <div style={{ marginTop: 34, display: "flex", alignItems: "baseline", gap: 12 }}>
-              <span style={{ fontSize: 64, fontWeight: 800, color: done ? C.green : C.text }}>{signatures}</span>
+            <div
+              style={{
+                marginTop: 34,
+                display: "flex",
+                alignItems: "baseline",
+                gap: 12,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 64,
+                  fontWeight: 800,
+                  color: done ? C.green : C.text,
+                }}
+              >
+                {signatures}
+              </span>
               <span style={{ fontSize: 26, color: C.muted }}>/ {GOAL} podpisów</span>
             </div>
-            <div style={{ marginTop: 14, height: 22, borderRadius: 11, background: C.canvas, overflow: "hidden" }}>
+            <div
+              style={{
+                marginTop: 14,
+                height: 22,
+                borderRadius: 11,
+                background: C.canvas,
+                overflow: "hidden",
+              }}
+            >
               <div
                 style={{
                   height: "100%",
@@ -54,7 +97,14 @@ export const Petition: React.FC = () => {
                 }}
               />
             </div>
-            <div style={{ marginTop: 34, display: "flex", alignItems: "center", gap: 20 }}>
+            <div
+              style={{
+                marginTop: 34,
+                display: "flex",
+                alignItems: "center",
+                gap: 20,
+              }}
+            >
               {frame < CLICK ? (
                 <Button pressAt={CLICK}>🪪 Podpisz przez mObywatel</Button>
               ) : (
@@ -98,7 +148,14 @@ export const Petition: React.FC = () => {
                 <span style={{ marginLeft: "auto", color: C.muted }}>{i === 0 ? "teraz" : `${i * 2} min`}</span>
               </div>
             ))}
-            <div style={{ marginTop: 14, fontSize: 16, color: C.muted, lineHeight: 1.4 }}>
+            <div
+              style={{
+                marginTop: 14,
+                fontSize: 16,
+                color: C.muted,
+                lineHeight: 1.4,
+              }}
+            >
               Komitet widzi liczbę i ważność podpisów, nie dane osobowe.
             </div>
           </Card>

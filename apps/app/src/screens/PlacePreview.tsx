@@ -1,10 +1,9 @@
 import { formatInviteCode, parseInviteCode } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft } from "lucide-react-native";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Card, Checkbox, DashboardMap, Heading, IconButton, Screen, Text } from "../components";
+import { BackButton, Button, Card, Checkbox, DashboardMap, Heading, Screen, Text } from "../components";
 import { useJoinPlace, usePlacePreview } from "../data/communities";
 import { goBack } from "../lib/navigation";
 import { t } from "../texts";
@@ -25,11 +24,11 @@ export default function PlacePreview() {
       <Head>
         <title>{t.place_preview_title}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} onPress={back} />
+      <BackButton onPress={back} />
       <View style={styles.map}>
         <DashboardMap />
       </View>
-      {invite ? <Preview code={invite} /> : <NotFound onBack={back} />}
+      {invite ? <Preview code={invite} /> : <NotFound />}
     </Screen>
   );
 }
@@ -47,7 +46,7 @@ function Preview({ code }: { code: string }) {
       </Text>
     );
   }
-  if (preview.isError || !preview.data) return <NotFound onBack={() => router.replace("/app")} />;
+  if (preview.isError || !preview.data) return <NotFound />;
 
   const place = preview.data;
   const open = place.joinRule === "open";
@@ -92,15 +91,12 @@ function Preview({ code }: { code: string }) {
   );
 }
 
-function NotFound({ onBack }: { onBack: () => void }) {
+/** An unknown code. Back is the chevron at the top: no second, bordered "Wróć" button. */
+function NotFound() {
   return (
-    <>
-      <Heading level={1} variant="heading">
-        {t.place_preview_not_found}
-      </Heading>
-      <View style={styles.grow} />
-      <Button label={t.back} variant="secondary" onPress={onBack} />
-    </>
+    <Heading level={1} variant="heading">
+      {t.place_preview_not_found}
+    </Heading>
   );
 }
 

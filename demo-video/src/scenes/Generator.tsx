@@ -44,7 +44,15 @@ const Building: React.FC = () => {
   return (
     <Stage caption="Na żywo: nowa funkcja w kilkadziesiąt sekund, bez zmian w rdzeniu." captionAt={20}>
       <AbsoluteFill style={{ flexDirection: "row", gap: 40, padding: "150px 120px 160px" }}>
-        <div style={{ width: 640, display: "flex", flexDirection: "column", gap: 22, ...fadeUp(win, 30) }}>
+        <div
+          style={{
+            width: 640,
+            display: "flex",
+            flexDirection: "column",
+            gap: 22,
+            ...fadeUp(win, 30),
+          }}
+        >
           <div style={{ fontSize: 22, color: "#93A3C4", fontWeight: 600 }}>💬 Agent · Twoje Miejsce (MCP)</div>
           <div
             style={{
@@ -59,7 +67,14 @@ const Building: React.FC = () => {
             {typed(PROMPT, frame, 6, 1.2) || " "}
           </div>
           {frame >= CODE_AT ? (
-            <div style={{ fontSize: 24, color: "#CBD5E1", lineHeight: 1.5, ...fadeUp(code, 10) }}>
+            <div
+              style={{
+                fontSize: 24,
+                color: "#CBD5E1",
+                lineHeight: 1.5,
+                ...fadeUp(code, 10),
+              }}
+            >
               Tworzę wtyczkę <b style={{ color: "white" }}>benches</b>: zgłoszenie z parkiem i zdjęciem oraz widok mapy…
             </div>
           ) : null}
@@ -111,7 +126,7 @@ const Building: React.FC = () => {
 const Installed: React.FC = () => {
   const map = useIn(20);
   return (
-    <Stage caption="Odświeżamy stronę, a wtyczka już działa dla 12 480 mieszkańców." captionAt={10}>
+    <Stage caption="Odświeżamy stronę, a wtyczka już działa dla 12 480 użytkowników." captionAt={10}>
       <AppFrame active="benches" extra={{ item: { id: "benches", icon: "🪑", label: "Ławki" }, at: 5 }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
           <div style={{ fontSize: 34, fontWeight: 800 }}>🪑 Ławki w parkach</div>
@@ -129,7 +144,15 @@ const Installed: React.FC = () => {
             + Zgłoś ławkę
           </div>
         </div>
-        <Card style={{ padding: 0, overflow: "hidden", height: 640, position: "relative", ...fadeUp(map, 20) }}>
+        <Card
+          style={{
+            padding: 0,
+            overflow: "hidden",
+            height: 640,
+            position: "relative",
+            ...fadeUp(map, 20),
+          }}
+        >
           <svg
             aria-hidden="true"
             width="100%"
@@ -158,13 +181,13 @@ const Installed: React.FC = () => {
   );
 };
 
-const Pin: React.FC<{ x: number; y: number; broken: boolean; label: string; delay: number }> = ({
-  x,
-  y,
-  broken,
-  label,
-  delay,
-}) => {
+const Pin: React.FC<{
+  x: number;
+  y: number;
+  broken: boolean;
+  label: string;
+  delay: number;
+}> = ({ x, y, broken, label, delay }) => {
   const p = useIn(delay, 10);
   return (
     <div

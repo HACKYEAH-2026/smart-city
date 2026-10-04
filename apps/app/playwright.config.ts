@@ -23,7 +23,8 @@ export default defineConfig({
   use: { baseURL: WEB_URL, trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "bun run build && bun run preview",
+    // E2E_PREBUILT=1 serves the existing dist/ (handy when only specs changed). Without it, a fresh export first.
+    command: process.env.E2E_PREBUILT === "1" ? "bun run preview" : "bun run build && bun run preview",
     url: WEB_URL,
     env: { PORT: WEB_PORT },
     timeout: 240_000,

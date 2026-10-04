@@ -1,4 +1,4 @@
-import { RecordId, type SurrealSession } from "surrealdb";
+import { BoundQuery, escapeIdent, RecordId, raw, type SurrealSession, surql } from "surrealdb";
 import {
   type ColumnKind,
   type ColumnSpec,
@@ -41,8 +41,15 @@ export const SYSTEM_COLUMNS = {
 } as const;
 
 export const tableName = (pluginId: string, table: string) => `p_${pluginId.replaceAll("-", "_")}__${table}`;
-/** Identifiers are validated (letters and digits; generated names add underscores); backticks guard against reserved words. */
-export const ident = (name: string) => `\`${name}\``;
+/**
+ * A table, field or index name inside a `surql` query. Names are validated (letters and digits; generated names add
+ * underscores) and escaped by the SDK; values are never spliced — they always go through `${}` as bindings.
+ */
+export const ident = (name: string) => raw(escapeIdent(name));
+
+/** Joins query fragments (statements, conditions, assignments) with a separator. */
+export const joinQueries = (parts: BoundQuery[], separator: string): BoundQuery =>
+  parts.reduce((acc, part, i) => (i ? surql`${acc}${raw(separator)}${part}` : part), new BoundQuery());
 
 const BASE_TYPES: Record<ColumnKind, (spec: ColumnSpec, pluginId: string) => string> = {
   text: () => "string",
@@ -52,7 +59,7 @@ const BASE_TYPES: Record<ColumnKind, (spec: ColumnSpec, pluginId: string) => str
   timestamp: () => "datetime",
   json: () => "any",
   enum: (spec) => (spec.values ?? []).map((v) => JSON.stringify(v)).join(" | "),
-  ref: (spec, pluginId) => `record<${refTable(pluginId, spec)}>`,
+  ref: (spec, pluginId) => `record<${escapeIdent(refTable(pluginId, spec))}>`,
 };
 
 /** The table a ref column points to. */
@@ -115,24 +122,32 @@ const stored = (pluginId: string, spec: ColumnSpec): StoredColumn => ({
   ...(spec.kind === "ref" ? { target: refTable(pluginId, spec), onDelete: onDeleteOf(spec) } : {}),
 });
 
-function fieldDdl(pluginId: string, table: string, col: string, spec: ColumnSpec, overwrite: boolean): string {
+/** The field type of a column (DDL text built from validated names), with its reference clause. */
+function fieldType(pluginId: string, spec: ColumnSpec) {
   const base = BASE_TYPES[spec.kind](spec, pluginId);
   // `any` already admits NONE (option<any> is invalid); required JSON is enforced by the engine.
   const type = spec.nullable && spec.kind !== "json" ? `option<${base}>` : base;
   const reference = spec.kind === "ref" ? ` REFERENCE ON DELETE ${ON_DELETE[onDeleteOf(spec)]}` : "";
-  const mode = overwrite ? "OVERWRITE" : "IF NOT EXISTS";
-  return `DEFINE FIELD ${mode} ${ident(col)} ON ${ident(table)} TYPE ${type}${reference};`;
+  return raw(`${type}${reference}`);
 }
 
-function systemDdl(table: string): string[] {
+function fieldDdl(pluginId: string, table: string, col: string, spec: ColumnSpec, overwrite: boolean): BoundQuery {
+  const [field, on, type] = [ident(col), ident(table), fieldType(pluginId, spec)];
+  return overwrite
+    ? surql`DEFINE FIELD OVERWRITE ${field} ON ${on} TYPE ${type};`
+    : surql`DEFINE FIELD IF NOT EXISTS ${field} ON ${on} TYPE ${type};`;
+}
+
+function systemDdl(table: string): BoundQuery[] {
   const t = ident(table);
+  const [installation, user] = [ident(HOST.installation), ident(HOST.user)];
   return [
-    `DEFINE TABLE IF NOT EXISTS ${t} SCHEMAFULL;`,
-    `DEFINE FIELD IF NOT EXISTS installation ON ${t} TYPE record<${HOST.installation}> REFERENCE ON DELETE CASCADE;`,
-    `DEFINE FIELD IF NOT EXISTS created_at ON ${t} TYPE datetime;`,
-    `DEFINE FIELD IF NOT EXISTS updated_at ON ${t} TYPE datetime;`,
-    `DEFINE FIELD IF NOT EXISTS created_by ON ${t} TYPE option<record<${HOST.user}>> REFERENCE ON DELETE UNSET;`,
-    `DEFINE INDEX IF NOT EXISTS ${ident(`${table}__created`)} ON ${t} FIELDS installation, created_at;`,
+    surql`DEFINE TABLE IF NOT EXISTS ${t} SCHEMAFULL;`,
+    surql`DEFINE FIELD IF NOT EXISTS installation ON ${t} TYPE record<${installation}> REFERENCE ON DELETE CASCADE;`,
+    surql`DEFINE FIELD IF NOT EXISTS created_at ON ${t} TYPE datetime;`,
+    surql`DEFINE FIELD IF NOT EXISTS updated_at ON ${t} TYPE datetime;`,
+    surql`DEFINE FIELD IF NOT EXISTS created_by ON ${t} TYPE option<record<${user}>> REFERENCE ON DELETE UNSET;`,
+    surql`DEFINE INDEX IF NOT EXISTS ${ident(`${table}__created`)} ON ${t} FIELDS installation, created_at;`,
   ];
 }
 
@@ -141,15 +156,20 @@ const fieldName = (col: string) => (col in SYSTEM_COLUMNS ? SYSTEM_COLUMNS[col a
 const indexName = (table: string, cols: readonly string[], unique: boolean) =>
   `${table}__${unique ? "u" : "i"}_${cols.join("_")}`;
 
-function indexDdl(table: string, cols: readonly string[], unique: boolean): string {
-  const fields = ["installation", ...cols.map(fieldName)].map(ident).join(", ");
-  const name = ident(indexName(table, cols, unique));
-  return `DEFINE INDEX IF NOT EXISTS ${name} ON ${ident(table)} FIELDS ${fields}${unique ? " UNIQUE" : ""};`;
+function indexDdl(table: string, cols: readonly string[], unique: boolean): BoundQuery {
+  const fields = joinQueries(
+    ["installation", ...cols.map(fieldName)].map((field) => surql`${ident(field)}`),
+    ", ",
+  );
+  const [name, on] = [ident(indexName(table, cols, unique)), ident(table)];
+  return unique
+    ? surql`DEFINE INDEX IF NOT EXISTS ${name} ON ${on} FIELDS ${fields} UNIQUE;`
+    : surql`DEFINE INDEX IF NOT EXISTS ${name} ON ${on} FIELDS ${fields};`;
 }
 
 // ─────────────────────────────── planning ───────────────────────────────
 
-export type Plan = { statements: string[]; vars: Record<string, unknown> };
+export type Plan = { statements: BoundQuery[] };
 
 const sameColumn = (a: StoredColumn, b: StoredColumn) =>
   a.kind === b.kind &&
@@ -170,19 +190,17 @@ function breakingChange(before: StoredColumn, after: StoredColumn): string | nul
   return null;
 }
 
-function newColumn(pluginId: string, table: string, where: string, col: string, spec: ColumnSpec, vars: Plan["vars"]) {
+function newColumn(pluginId: string, table: string, where: string, col: string, spec: ColumnSpec): BoundQuery[] {
   if (!spec.nullable && !spec.hasDefault) {
     throw new SchemaError(`New column "${where}" must be .optional() or have .default(...)`);
   }
   if (spec.kind === "ref" && !spec.nullable)
     throw new SchemaError(`New reference column "${where}" must be .optional()`);
   if (!spec.hasDefault) return [fieldDdl(pluginId, table, col, spec, false)];
-  const key = `default_${table}_${col}`;
-  vars[key] = spec.default;
   // Declare first (SCHEMAFULL rejects undeclared fields), then backfill rows written before the column existed.
   return [
     fieldDdl(pluginId, table, col, spec, false),
-    `UPDATE ${ident(table)} SET ${ident(col)} = $${key} WHERE ${ident(col)} = NONE;`,
+    surql`UPDATE ${ident(table)} SET ${ident(col)} = ${spec.default} WHERE ${ident(col)} = NONE;`,
   ];
 }
 
@@ -193,9 +211,8 @@ function planColumn(
   col: string,
   spec: ColumnSpec,
   before: StoredColumn | undefined,
-  vars: Plan["vars"],
-): string[] {
-  if (!before) return newColumn(pluginId, table, where, col, spec, vars);
+): BoundQuery[] {
+  if (!before) return newColumn(pluginId, table, where, col, spec);
   const after = stored(pluginId, spec);
   if (sameColumn(before, after)) return [];
   const breaking = breakingChange(before, after);
@@ -204,14 +221,14 @@ function planColumn(
 }
 
 /** Optional columns removed from the declaration are dropped with their data; required ones are rejected. */
-function removedColumns(table: string, name: string, def: TableDef, before: StoredTable | undefined): string[] {
+function removedColumns(table: string, name: string, def: TableDef, before: StoredTable | undefined): BoundQuery[] {
   const removed = Object.entries(before?.columns ?? {}).filter(([col]) => !(col in def.columns));
   const required = removed.find(([, c]) => !c.nullable);
   if (required)
     throw new SchemaError(`Required column "${name}.${required[0]}" was removed; make it .optional() first`);
   return removed.flatMap(([col]) => [
-    `REMOVE FIELD IF EXISTS ${ident(col)} ON ${ident(table)};`,
-    `UPDATE ${ident(table)} UNSET ${ident(col)};`,
+    surql`REMOVE FIELD IF EXISTS ${ident(col)} ON ${ident(table)};`,
+    surql`UPDATE ${ident(table)} UNSET ${ident(col)};`,
   ]);
 }
 
@@ -220,24 +237,21 @@ const declaredIndexes = (table: string, def: TableDef) => [
   ...def.unique.map((cols) => indexName(table, cols, true)),
 ];
 
-function planTable(pluginId: string, name: string, def: TableDef, before: StoredTable | undefined, vars: Plan["vars"]) {
+function planTable(pluginId: string, name: string, def: TableDef, before: StoredTable | undefined): BoundQuery[] {
   const table = tableName(pluginId, name);
   // A new table has no rows yet: every column is created as declared. Existing tables only change compatibly.
   const columns = Object.entries(def.columns as Columns).flatMap(([col, column]) =>
     before
-      ? planColumn(pluginId, table, `${name}.${col}`, col, column.spec, before.columns[col], vars)
+      ? planColumn(pluginId, table, `${name}.${col}`, col, column.spec, before.columns[col])
       : [fieldDdl(pluginId, table, col, column.spec, false)],
   );
   const indexes = declaredIndexes(table, def);
   const removedIndexes = (before?.indexes ?? [])
     .filter((index) => !indexes.includes(index))
-    .map((index) => `REMOVE INDEX IF EXISTS ${ident(index)} ON ${ident(table)};`);
-  const schemaKey = `schema_${table}`;
-  vars[`id_${schemaKey}`] = new RecordId(HOST.schema, table);
-  vars[schemaKey] = Object.fromEntries(
+    .map((index) => surql`REMOVE INDEX IF EXISTS ${ident(index)} ON ${ident(table)};`);
+  const storedColumns = Object.fromEntries(
     Object.entries(def.columns as Columns).map(([col, column]) => [col, stored(pluginId, column.spec)]),
   );
-  vars[`indexes_${schemaKey}`] = indexes;
   return [
     ...systemDdl(table),
     ...removedColumns(table, name, def, before),
@@ -245,7 +259,7 @@ function planTable(pluginId: string, name: string, def: TableDef, before: Stored
     ...removedIndexes,
     ...def.indexes.map((cols) => indexDdl(table, cols, false)),
     ...def.unique.map((cols) => indexDdl(table, cols, true)),
-    `UPSERT $id_${schemaKey} SET columns = $${schemaKey}, indexes = $indexes_${schemaKey};`,
+    surql`UPSERT ${new RecordId(HOST.schema, table)} SET columns = ${storedColumns}, indexes = ${indexes};`,
   ];
 }
 
@@ -254,10 +268,11 @@ async function storedSchema(
   pluginId: string,
   names: string[],
 ): Promise<Record<string, StoredTable>> {
-  const [, rows] = await db.query<[unknown, ({ key: string } & Partial<StoredTable>)[]]>(
-    `DEFINE TABLE IF NOT EXISTS ${HOST.schema} SCHEMALESS;
-     SELECT meta::id(id) AS key, columns, indexes FROM ${HOST.schema} WHERE meta::id(id) IN $ids;`,
-    { ids: names.map((n) => tableName(pluginId, n)) },
+  const schema = ident(HOST.schema);
+  const ids = names.map((n) => tableName(pluginId, n));
+  const [, rows] = await db.query(
+    surql<[unknown, ({ key: string } & Partial<StoredTable>)[]]>`DEFINE TABLE IF NOT EXISTS ${schema} SCHEMALESS;
+     SELECT meta::id(id) AS key, columns, indexes FROM ${schema} WHERE meta::id(id) IN ${ids};`,
   );
   return Object.fromEntries(rows.map((r) => [r.key, { columns: r.columns ?? {}, indexes: r.indexes ?? [] }]));
 }
@@ -266,18 +281,17 @@ async function storedSchema(
 export async function planSchema(db: SurrealSession, pluginId: string, tables: Tables): Promise<Plan> {
   validateTables(tables);
   const before = await storedSchema(db, pluginId, Object.keys(tables));
-  const vars: Plan["vars"] = {};
   const statements = Object.entries(tables).flatMap(([name, def]) =>
-    planTable(pluginId, name, def, before[tableName(pluginId, name)], vars),
+    planTable(pluginId, name, def, before[tableName(pluginId, name)]),
   );
-  return { statements, vars };
+  return { statements };
 }
 
 /** Applies the plan in one transaction; a failing statement (e.g. duplicates for a new unique index) rolls back. */
 export async function syncSchema(db: SurrealSession, pluginId: string, tables: Tables): Promise<void> {
   const plan = await planSchema(db, pluginId, tables);
   try {
-    await db.query(["BEGIN TRANSACTION;", ...plan.statements, "COMMIT TRANSACTION;"].join("\n"), plan.vars);
+    await db.query(joinQueries([surql`BEGIN TRANSACTION;`, ...plan.statements, surql`COMMIT TRANSACTION;`], "\n"));
   } catch (err) {
     throw new SchemaError(`Cannot apply tables of "${pluginId}": ${(err as Error).message}`);
   }

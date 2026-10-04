@@ -12,7 +12,6 @@
       "!**/android",
       "!**/ios",
       "!**/.expo",
-      "!**/migrations/meta",
       "!**/playwright-report",
       "!**/test-results",
       "!**/expo-env.d.ts",
@@ -27,8 +26,9 @@
   "linter": {
     "rules": {
       "preset": "recommended",
-      "style": {
-        "noNonNullAssertion": "off"
+      "nursery": {
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error"
       }
     }
   },
@@ -48,5 +48,171 @@
     "formatter": {
       "enabled": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.typetest.ts", "apps/api/test/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/src/**", "apps/app/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noJsxLiterals": "error",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@react-native-async-storage/async-storage": "Persistent data only through src/lib/storage.ts (docs/expo.md).",
+                  "react-router": "Routing is Expo Router (docs/expo.md).",
+                  "react-router-dom": "Routing is Expo Router (docs/expo.md)."
+                },
+                "patterns": [
+                  {
+                    "group": ["@react-navigation/*", "next/*"],
+                    "message": "Routing is Expo Router (docs/expo.md)."
+                  }
+                ]
+              }
+            }
+          },
+          "correctness": {
+            "noNodejsModules": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/src/**", "!apps/app/src/lib/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@react-native-async-storage/async-storage": "Persistent data only through src/lib/storage.ts (docs/expo.md).",
+                  "react-router": "Routing is Expo Router (docs/expo.md).",
+                  "react-router-dom": "Routing is Expo Router (docs/expo.md).",
+                  "react-native": {
+                    "importNames": ["Platform", "TouchableOpacity"],
+                    "message": "Platform branches only in src/lib/ and routes (AGENTS.md); use Pressable, not TouchableOpacity."
+                  }
+                },
+                "patterns": [
+                  {
+                    "group": ["@react-navigation/*", "next/*"],
+                    "message": "Routing is Expo Router (docs/expo.md)."
+                  }
+                ]
+              }
+            },
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "window": "DOM globals only in src/lib/ (docs/expo.md).",
+                  "document": "DOM globals only in src/lib/ (docs/expo.md).",
+                  "localStorage": "Persistent data only through src/lib/storage.ts (docs/expo.md)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "window": "DOM globals only in src/lib/ (docs/expo.md).",
+                  "document": "DOM globals only in src/lib/ (docs/expo.md).",
+                  "localStorage": "Persistent data only through src/lib/storage.ts (docs/expo.md)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/src/**", "apps/app/app/**", "!apps/app/src/texts.ts", "!**/*.test.ts", "!**/*.test.tsx"],
+      "plugins": ["./biome-plugins/polish-literals.grit"]
+    },
+    {
+      "includes": ["apps/api/src/**", "!apps/api/src/test-*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/test-*", "./test-*", "../test-*"],
+                    "message": "test-*.ts files are test-only; never import them from production code (AGENTS.md)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/src/**", "!apps/api/src/db/migrate-cli.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/**", "packages/sdk/**", "scripts/**"],
+      "plugins": ["./biome-plugins/raw-surql.grit"]
+    },
+    {
+      "includes": ["plugins/**", "packages/shared/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "error",
+            "noUndeclaredDependencies": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/e2e/**"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noPlaywrightMissingAwait": "error",
+            "noPlaywrightWaitForTimeout": "error",
+            "noPlaywrightNetworkidle": "error",
+            "noPlaywrightForceOption": "error",
+            "noPlaywrightPagePause": "error",
+            "noPlaywrightElementHandle": "error",
+            "noPlaywrightEval": "error",
+            "noPlaywrightWaitForSelector": "error",
+            "noPlaywrightWaitForNavigation": "error"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  description = "Twoje Miejsce: Bun + Hono + Drizzle/SQLite + Expo (React Native, web)";
+  description = "Twoje Miejsce: Bun + Hono + SurrealDB + Expo (React Native, web)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -52,14 +52,20 @@
             mprocs # `just dev`: API + Expo in one terminal (mprocs.yaml)
           ];
 
+          # Linux: nix's bun loads native addons with nix's loader, which never looks in /usr/lib, so the prebuilt
+          # @surrealdb/node binary cannot find libstdc++.so.6 / libgcc_s.so.1 ("Cannot find native binding" in CI).
+          nativeLibs = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
+          };
+
           # mkShellNoCC: does not override DEVELOPER_DIR/SDKROOT on macOS (xcodebuild, CocoaPods).
-          mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // extra);
+          mkShell = packages: extra: pkgs.mkShellNoCC ({ inherit packages; } // nativeLibs // extra);
         in
         {
           # Default: everything for dev, tests and web (fast, no Android SDK).
           devShells.default = mkShell base { };
 
-          # Full `bun run verify` (with the Android build): nix develop .#android
+          # The Android build (`bun run android`): nix develop .#android
           devShells.android = mkShell (base ++ [ pkgs.jdk17 androidSdk ]) {
             JAVA_HOME = pkgs.jdk17.home;
             ANDROID_HOME = sdkRoot;

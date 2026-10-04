@@ -6,10 +6,11 @@
 import { createApp } from "./app";
 import { createDb } from "./db";
 import { loadEnv } from "./env";
+import { logger } from "./log";
 
 const env = loadEnv();
 const { db } = await createDb(env.DATABASE_URL);
 const { app } = createApp({ db, env });
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
-console.log(`api: listening on :${server.port} (${env.NODE_ENV})`);
+logger("api").info(`listening on :${server.port}`, { env: env.NODE_ENV });

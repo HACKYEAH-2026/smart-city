@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { GeoPoint, geoLocation } from "./geo";
 import type { AI } from "./services/ai";
 import type { Database, TableBuilders, Tables } from "./services/db";
 import type { Files, fileRef } from "./services/files";
@@ -7,7 +8,8 @@ import type { ToolResult, UI, UINode, ViewParams } from "./ui";
 
 /**
  * Plugin contract. A plugin module imports NOTHING at runtime (only `import type`):
- * its default export is a function that receives the SDK ({ definePlugin, ui, z, fileRef, t }) from the host.
+ * its default export is a function that receives the SDK ({ definePlugin, ui, z, fileRef, geoLocation, t }) from the
+ * host.
  * This way the same file works as a built-in plugin and as a plugin uploaded at runtime via the API,
  * and can later run in isolation (Worker/WASM) without changes to the plugin code.
  */
@@ -18,9 +20,16 @@ export type Permission = (typeof PLUGIN_PERMISSIONS)[number];
 export const ROLES = ["admin", "user"] as const;
 export type Role = (typeof ROLES)[number];
 
+/**
+ * Ids the app's routes use next to plugin ids: /app/c/<slug>/manage/<pluginId> would otherwise also read as view
+ * <pluginId> of a plugin "manage".
+ */
+export const RESERVED_PLUGIN_IDS = ["manage"] as const;
+
 const id = z
   .string()
-  .regex(/^[a-z][a-z0-9-]{1,39}$/, "Use 2-40 chars: lowercase letters, digits, hyphens; start with a letter");
+  .regex(/^[a-z][a-z0-9-]{1,39}$/, "Use 2-40 chars: lowercase letters, digits, hyphens; start with a letter")
+  .refine((value) => !RESERVED_PLUGIN_IDS.some((reserved) => reserved === value), "This id is reserved by the app");
 
 export const pluginManifestSchema = z.object({
   id,
@@ -31,6 +40,11 @@ export const pluginManifestSchema = z.object({
   permissions: z.array(z.enum(PLUGIN_PERMISSIONS)).default([]),
   /** Community navigation entries; each points to a plugin view. */
   nav: z.array(z.object({ view: z.string().min(1), label: z.string().min(1).max(40) })).min(1),
+  /**
+   * The view shown on the plugin's page in "Zarządzaj miejscem" (its admin part: stats, links to admin views). Only a
+   * place's admins may open it (the host answers 403 to others).
+   */
+  adminView: z.string().min(1).optional(),
 });
 export type PluginManifest = z.output<typeof pluginManifestSchema>;
 export type PluginManifestInput = z.input<typeof pluginManifestSchema>;
@@ -38,7 +52,8 @@ export type PluginManifestInput = z.input<typeof pluginManifestSchema>;
 // ─────────────────────────────── Context ────────────────────────────────
 
 export type PluginUser = { id: string; name: string; role: Role };
-export type PluginCommunity = { id: string; slug: string; name: string };
+/** `location`: the place's pin (set by its admins; null = none), e.g. where a plugin's map starts. */
+export type PluginCommunity = { id: string; slug: string; name: string; location: GeoPoint | null };
 
 /** The only API a plugin sees. No raw database, filesystem or network — only what the host provides. */
 export type Context<TT extends Tables = Tables> = {
@@ -64,21 +79,39 @@ export type Context<TT extends Tables = Tables> = {
 
 export type PluginView<TT extends Tables = Tables> = (ctx: Context<TT>, params: ViewParams) => UINode | Promise<UINode>;
 
+/** Width of the community dashboard grid, in columns. */
+export const DASHBOARD_COLUMNS = 3;
+
 /**
- * Space a widget takes on the community dashboard: a grid 2 columns wide (`w`), in rows of fixed height (`h`).
- * Default order: plugin installation, then declaration; a community admin can reorder the dashboard.
+ * Space a widget takes on the community dashboard: a grid DASHBOARD_COLUMNS wide (`w` columns), in rows of fixed
+ * height (`h`). Default order: plugin installation, then declaration; a community admin can rearrange the dashboard.
  * A widget never grows beyond its size (content is clipped).
  */
 export const dashboardWidgetSizeSchema = z.object({
-  w: z.union([z.literal(1), z.literal(2)]),
+  w: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   h: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 export type DashboardWidgetSize = z.infer<typeof dashboardWidgetSizeSchema>;
+export const sameSize = (a: DashboardWidgetSize, b: DashboardWidgetSize): boolean => a.w === b.w && a.h === b.h;
 
-/** Dashboard widget: a fixed size and `render` returning `ui.widget(...)` (read-only), or null to hide it. */
+/** At most this many extra sizes a widget may offer (`sizes`). */
+export const DASHBOARD_WIDGET_SIZES_MAX = 6;
+
+/** Where a widget is drawn: `size` = the size it has on this dashboard (its default or one an admin chose). */
+export type WidgetFrame = { size: DashboardWidgetSize };
+
+/**
+ * Dashboard widget: a default size and `render` returning `ui.widget(...)` (read-only). It always renders (an empty
+ * state rather than nothing): its tile is how residents open the plugin.
+ * `title`: its name where admins arrange the dashboard (defaults to the plugin's name).
+ * `sizes`: other sizes an admin may switch it to; `size` is always allowed.
+ * `render` gets the frame it is drawn in, e.g. to show more rows in a taller tile.
+ */
 export type DashboardWidget<TT extends Tables = Tables> = {
   size: DashboardWidgetSize;
-  render: (ctx: Context<TT>) => UINode | null | Promise<UINode | null>;
+  title?: string;
+  sizes?: DashboardWidgetSize[];
+  render: (ctx: Context<TT>, frame: WidgetFrame) => UINode | Promise<UINode>;
 };
 
 export type Tool<S extends z.ZodType = z.ZodType, TT extends Tables = Tables> = {
@@ -109,9 +142,9 @@ export type PluginDefinition = PluginManifestInput & {
   tables?: Tables;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   views: Record<string, PluginView<any>>;
-  /** Widgets on the community dashboard, in this order. */
+  /** The plugin's widget on the community dashboard: exactly one for now (checked on load). */
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
-  dashboardWidgets?: Record<string, DashboardWidget<any>>;
+  dashboardWidgets: Record<string, DashboardWidget<any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
   tools?: Record<string, Tool<z.ZodType, any>>;
   // biome-ignore lint/suspicious/noExplicitAny: erased table types; typed in definePlugin
@@ -133,7 +166,7 @@ export function definePlugin<
   plugin: PluginManifestInput & {
     tables?: TT;
     views: Record<string, PluginView<TT>>;
-    dashboardWidgets?: Record<string, DashboardWidget<TT>>;
+    dashboardWidgets: Record<string, DashboardWidget<TT>>;
     tools?: { [K in keyof TS]: Tool<TS[K], TT> };
     streams?: { [K in keyof TR]: Stream<TR[K], TT> };
     onInstall?: (ctx: Context<TT>) => void | Promise<void>;
@@ -147,6 +180,7 @@ export type PluginSdk = {
   ui: UI;
   z: typeof z;
   fileRef: typeof fileRef;
+  geoLocation: typeof geoLocation;
   t: TableBuilders;
 };
 

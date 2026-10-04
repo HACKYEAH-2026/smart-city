@@ -77,6 +77,6 @@ function listenForTaps(n: Notifications, open: (data: unknown) => void): { remov
 export function onPushTap(open: (data: unknown) => void): () => void {
   const subscription = notifications().then((n) => n && listenForTaps(n, open));
   return () => {
-    subscription.then((s) => s?.remove());
+    void subscription.then((s) => s?.remove());
   };
 }

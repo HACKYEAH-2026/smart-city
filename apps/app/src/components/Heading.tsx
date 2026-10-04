@@ -4,7 +4,16 @@ import { Text, type TextProps } from "./Text";
 type HeadingLevel = 1 | 2 | 3;
 type HeadingVariant = Extract<
   TypographyToken,
-  "titleXL" | "title" | "heading" | "headingM" | "headingS" | "cardTitle" | "label"
+  | "titleXL"
+  | "title"
+  | "heading"
+  | "headingM"
+  | "headingS"
+  | "cardTitleL"
+  | "cardTitle"
+  | "label"
+  | "sectionLabel"
+  | "smallStrong"
 >;
 
 export interface HeadingProps extends Omit<TextProps, "variant"> {

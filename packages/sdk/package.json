@@ -8,7 +8,7 @@
     "./engine": "./src/engine/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p . --incremental"
   },
   "dependencies": {
     "@surrealdb/node": "3.0.3",

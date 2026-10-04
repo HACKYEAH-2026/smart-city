@@ -32,6 +32,7 @@ export default function Guard() {
       }}
     >
       <Stack.Screen name="index" options={{ animation: "fade" }} />
+      <Stack.Screen name="map" options={{ animation: "fade" }} />
       <Stack.Screen name="account" options={{ animation: "fade" }} />
       <Stack.Screen name="scan" options={{ animation: "slide_from_bottom" }} />
     </Stack>

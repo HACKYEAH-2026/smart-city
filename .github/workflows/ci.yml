@@ -2,11 +2,13 @@
 # and the "secrets" job prints a readable note about what is missing.
 name: ci
 
+# Automatic runs are OFF for now: `bun run verify` locally is the check (AGENTS.md). Only a manual run
+# (Actions -> ci -> Run workflow) starts it. To turn CI back on, uncomment push / pull_request.
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
+  # push:
+  #   branches: [master]
+  #   tags: ["v*"]
+  # pull_request:
   workflow_dispatch:
 
 permissions:
@@ -14,6 +16,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
+  # master: a running CI is never cancelled (pushes come faster than a run takes, so it would never finish);
+  # GitHub keeps only the newest push waiting behind it and drops the older pending ones.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -43,28 +47,16 @@ jobs:
   verify:
     name: bun run verify
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/free-disk
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
           gc-max-store-size-linux: 8G
-      - run: nix develop .#android -c bun install --frozen-lockfile
-      - run: nix develop .#android -c bash -c 'cd apps/app && bunx playwright install --with-deps chromium'
-      - run: nix develop .#android -c bun run verify
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: playwright-report
-          path: apps/app/playwright-report
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android-debug-apk
-          path: apps/app/android/app/build/outputs/apk/debug/*.apk
+      - run: nix develop -c bun install --frozen-lockfile
+      - run: nix develop -c bun run verify
 
   ios:
     name: iOS (unsigned build)

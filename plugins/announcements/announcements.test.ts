@@ -22,22 +22,30 @@ describe("announcements", () => {
     expect((await t.as(city).tool("remove", { id })).error).toBe("To ogłoszenie nie istnieje.");
   });
 
-  test("dashboard widget: hidden without announcements, then shows what is new since the last visit", async () => {
+  test("dashboard widget: none yet without announcements, then what is new since the last visit", async () => {
     const t = await testPlugin(announcements, { user: anna });
-    expect(await t.dashboardWidget("latest")).toBeNull();
-
-    t.setNow(at(1));
-    await t.as(city).tool("publish", { title: "Zebranie mieszkańców" });
-    expect(textsOf((await t.dashboardWidget("latest"))!)).toEqual([
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
       "Ogłoszenia",
-      "1 nowe ogłoszenie od Twojej ostatniej wizyty",
-      "Zebranie mieszkańców",
+      "Nie ma jeszcze ogłoszeń.",
       "Wszystkie ogłoszenia",
     ]);
 
+    t.setNow(at(1));
+    await t.as(city).tool("publish", { title: "Zebranie użytkowników" });
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
+      "Ogłoszenia",
+      "1 nowe ogłoszenie od Twojej ostatniej wizyty",
+      "Zebranie użytkowników",
+      "Wszystkie ogłoszenia",
+    ]);
+    // The count is the tile's subtitle (one short line under the title), so two rows fit two announcements.
+    expect(await t.dashboardWidget("latest")).toMatchObject({
+      subtitle: "1 nowe ogłoszenie od Twojej ostatniej wizyty",
+    });
+
     t.setNow(at(2));
     await t.view("list");
-    expect(textsOf((await t.dashboardWidget("latest"))!)).toEqual([
+    expect(textsOf(await t.dashboardWidget("latest"))).toEqual([
       "Ogłoszenia",
       "Nic nowego od Twojej ostatniej wizyty.",
       "Wszystkie ogłoszenia",
@@ -53,7 +61,7 @@ describe("announcements", () => {
       t.setNow(at(day));
       await t.as(city).tool("publish", { title });
     }
-    const texts = textsOf((await t.dashboardWidget("latest"))!);
+    const texts = textsOf(await t.dashboardWidget("latest"));
     expect(texts).toContain("5 nowych ogłoszeń od Twojej ostatniej wizyty");
     expect(texts).toEqual(expect.arrayContaining(["Koncert", "Przerwa w dostawie wody"]));
     expect(texts).not.toContain("Festyn");

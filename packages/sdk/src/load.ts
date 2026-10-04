@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { SchemaError, validateTables } from "./engine/schema";
+import { geoLocation } from "./geo";
 import {
+  DASHBOARD_WIDGET_SIZES_MAX,
   dashboardWidgetSizeSchema,
   definePlugin,
   type PluginDefinition,
@@ -14,8 +16,19 @@ import { ui } from "./ui";
 /** Plugin error (bad manifest, exception, invalid result). The message is safe to show the author/admin. */
 export class PluginError extends Error {}
 
-/** SDK passed to the plugin module — the only thing a plugin uses at runtime. */
-export const sdk = { definePlugin, ui, z, fileRef, t };
+/**
+ * SDK passed to the plugin module — the only thing a plugin uses at runtime. Frozen: every plugin gets these same
+ * objects, so one plugin must not be able to swap `ui.card`, `ui.map.pins` or `t.text` under the others (`z` is a
+ * module namespace, immutable already).
+ */
+export const sdk = Object.freeze({
+  definePlugin: Object.freeze(definePlugin),
+  ui: Object.freeze(Object.assign(ui, { map: Object.freeze(ui.map) })),
+  z,
+  fileRef: Object.freeze(fileRef),
+  geoLocation: Object.freeze(geoLocation),
+  t: Object.freeze(t),
+});
 
 export type LoadedDefinition = { manifest: PluginManifest; definition: PluginDefinition };
 
@@ -61,15 +74,38 @@ function assertViews(definition: PluginDefinition, manifest: PluginManifest): vo
   if (!definition.views || typeof definition.views !== "object") throw new PluginError("Plugin must define views");
   const missing = manifest.nav.find((entry) => typeof definition.views[entry.view] !== "function");
   if (missing) throw new PluginError(`Nav entry "${missing.label}" points to missing view "${missing.view}"`);
+  const admin = manifest.adminView;
+  if (admin !== undefined && typeof definition.views[admin] !== "function") {
+    throw new PluginError(`adminView points to missing view "${admin}"`);
+  }
 }
 
+const dashboardWidgetMetaSchema = z.object({
+  size: dashboardWidgetSizeSchema,
+  // The raw string: the host shows the title as declared, so no trimming here (it would let padding past the limit).
+  title: z
+    .string()
+    .max(60)
+    .refine((title) => title.trim().length > 0, "Title must not be blank")
+    .optional(),
+  sizes: z.array(dashboardWidgetSizeSchema).max(DASHBOARD_WIDGET_SIZES_MAX).optional(),
+});
+
+/** Exactly one widget for now: its tile on the dashboard is how residents open the plugin. */
 function assertDashboardWidgets(definition: PluginDefinition): void {
-  const invalid = Object.entries(definition.dashboardWidgets ?? {}).find(
-    ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetSizeSchema.safeParse(widget.size).success,
+  const widgets = Object.entries(definition.dashboardWidgets ?? {});
+  if (widgets.length !== 1) {
+    throw new PluginError(
+      `Plugin must have exactly one dashboard widget (dashboardWidgets: { <name>: { size, render } }), has ${widgets.length}`,
+    );
+  }
+  const invalid = widgets.find(
+    ([, widget]) => typeof widget?.render !== "function" || !dashboardWidgetMetaSchema.safeParse(widget).success,
   );
   if (invalid) {
     throw new PluginError(
-      `Dashboard widget "${invalid[0]}" must have a size ({ w: 1-2, h: 1-3 }) and a render function`,
+      `Dashboard widget "${invalid[0]}" must have a size ({ w: 1-3, h: 1-3 }) and a render function; ` +
+        `optional: title (1-60 characters), sizes (up to ${DASHBOARD_WIDGET_SIZES_MAX} more sizes)`,
     );
   }
 }

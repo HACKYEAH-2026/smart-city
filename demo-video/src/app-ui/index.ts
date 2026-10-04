@@ -1,3 +1,4 @@
+import { BarlowCondensed_600SemiBold } from "@expo-google-fonts/barlow-condensed";
 import {
   SchibstedGrotesk_400Regular,
   SchibstedGrotesk_500Medium,
@@ -16,6 +17,7 @@ export * from "@app/app/src/theme";
 // The same font files and family names as apps/app/src/theme/fonts.ts (tokens refer to e.g. "SchibstedGrotesk_700Bold").
 // Typed as RN asset ids; in the webpack bundle they are URLs.
 const families: Record<string, unknown> = {
+  BarlowCondensed_600SemiBold,
   SchibstedGrotesk_400Regular,
   SchibstedGrotesk_500Medium,
   SchibstedGrotesk_600SemiBold,
@@ -26,4 +28,4 @@ const loadFamily = ([name, url]: [string, unknown]) =>
   new FontFace(name, `url(${String(url)})`).load().then((face) => document.fonts.add(face));
 
 const fontsReady = delayRender("Loading design-system fonts");
-Promise.all(Object.entries(families).map(loadFamily)).then(() => continueRender(fontsReady));
+void Promise.all(Object.entries(families).map(loadFamily)).then(() => continueRender(fontsReady));

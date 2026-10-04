@@ -1,8 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { surql } from "surrealdb";
 import { TEST_ENV } from "../src/test-env";
+import { DEMO_RESIDENT, seedDemoResident } from "../src/test-routes";
 import { type Ctx, setup, type TestUser } from "./helpers";
+
+// Uploading a plugin type-checks it (~1 s on an idle machine, more when verify runs builds in parallel).
+setDefaultTimeout(30_000);
 
 /**
  * Membership: a user sees and opens only the places they belong to; creating a place makes its creator an admin.
@@ -35,7 +40,7 @@ type PlaceInput = {
 /** Six characters without look-alikes (no 0/O, 1/I). */
 const INVITE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 
-const myPlaces = async (u: TestUser) =>
+const myPlaces = async (u: Pick<TestUser, "headers">) =>
   (await (await t.request("/api/communities", { headers: u.headers })).json()) as MyPlace[];
 const create = (u: TestUser, place: string | PlaceInput) =>
   t.request("/api/communities", {
@@ -54,11 +59,13 @@ describe("membership gate", () => {
     expect(await myPlaces(stranger)).toEqual([]);
 
     const base = "/api/communities/krakow";
-    for (const path of [base, `${base}/nav`, `${base}/widgets`, `${base}/plugins/issues/views/list`]) {
+    for (const path of [base, `${base}/nav`, `${base}/dashboard`, `${base}/plugins/issues/views/list`]) {
       expect((await t.request(path, { headers: stranger.headers })).status, path).toBe(404);
     }
     expect((await t.request(`${base}/visit`, { method: "POST", headers: stranger.headers })).status).toBe(404);
     expect((await t.request(`${base}/default`, { method: "PUT", headers: stranger.headers })).status).toBe(404);
+    const reorder = { method: "PATCH", headers: stranger.headers, json: { order: [] } };
+    expect((await t.request(`${base}/dashboard`, reorder)).status).toBe(404);
   });
 
   test("the list holds only the user's places, with their role", async () => {
@@ -68,6 +75,13 @@ describe("membership gate", () => {
     const names = (await myPlaces(member)).map((p) => `${p.slug}:${p.role}`);
     expect(names).toEqual(["krakow:user"]);
     expect(await myPlaces(await t.signUp({ place: null }))).toEqual([]);
+  });
+
+  test("the list is in Polish alphabetical order", async () => {
+    t = await setup();
+    const u = await t.signUp({ place: null });
+    for (const name of ["Zator", "Łąka", "Lipa"]) expect((await create(u, name)).status).toBe(201);
+    expect((await myPlaces(u)).map((p) => p.name)).toEqual(["Lipa", "Łąka", "Zator"]);
   });
 });
 
@@ -127,6 +141,8 @@ describe("creating a place", () => {
       address: "ul. Lipowa 12, Kraków",
       description: "Wspólnota mieszkaniowa: ogłoszenia, awarie, zebrania.",
       joinRule: "open",
+      location: null,
+      onMap: false,
       inviteCode,
     });
     expect((await myPlaces(u))[0]).toMatchObject({ slug: "kamienica-lipowa-12", kind: "building" });
@@ -281,5 +297,52 @@ describe("invite codes", () => {
       json: { code: "0OIL1!" },
     });
     expect(malformed.status).toBe(404);
+  });
+});
+
+describe("local dev seed", () => {
+  test("the demo resident is a plain member of Kraków (default), a campus and a cooperative", async () => {
+    t = await setup();
+    await t.seed();
+    const deps = { db: t.db, auth: t.auth, plugins: t.plugins };
+    await seedDemoResident(deps);
+    // A restart of the dev API seeds again; the places go back on the map and open (a dev database had the
+    // cooperative members-only).
+    await t.db.query(
+      surql`UPDATE community SET on_map = false, join_rule = "approval" WHERE slug = "spoldzielnia-sloneczna";`,
+    );
+    await seedDemoResident(deps);
+    const resident = await t.signIn(DEMO_RESIDENT);
+
+    expect((await myPlaces(resident)).map((p) => [p.slug, p.kind, p.role, p.isDefault])).toEqual([
+      ["kampus-glowny", "school", "user", false],
+      ["krakow", "district", "user", true],
+      ["spoldzielnia-sloneczna", "estate", "user", false],
+    ]);
+    const nav = async (slug: string) =>
+      (
+        (await (await t.request(`/api/communities/${slug}/nav`, { headers: resident.headers })).json()) as {
+          pluginId: string;
+        }[]
+      ).map((n) => n.pluginId);
+    expect(await nav("kampus-glowny")).toEqual(["announcements", "discussions"]);
+    expect(await nav("spoldzielnia-sloneczna")).toEqual(["issues", "announcements", "discussions"]);
+
+    // Both are on the map of places for everyone, with their codes: anyone can join them from there.
+    const stranger = await t.signUp({ place: null });
+    const map = await (await t.request("/api/geo/places", { headers: stranger.headers })).json();
+    expect((map as { name: string; inviteCode: string }[]).map((p) => [p.name, p.inviteCode])).toEqual([
+      ["Kampus Główny", "KMPGLW"],
+      ["Kraków", "KRKMST"],
+      ["Spółdzielnia Słoneczna", "SLNCZN"],
+    ]);
+    for (const code of ["KMP-GLW", "SLN-CZN"]) {
+      const joined = await t.request("/api/communities/join", {
+        method: "POST",
+        headers: stranger.headers,
+        json: { code },
+      });
+      expect(joined.status, code).toBe(200);
+    }
   });
 });

@@ -1,9 +1,10 @@
-import type { AuthProviders } from "@app/shared";
+import { type AuthProviders, MIN_PASSWORD_LENGTH } from "@app/shared";
 import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins";
 import { surrealdbAdapter } from "surreal-better-auth";
 import type { Db } from "./db";
 import type { Env } from "./env";
+import { libraryLogger } from "./log";
 
 /** Checks a Google ID token's signature; replaces Better Auth's check against Google's keys (tests only). */
 export type GoogleIdTokenVerifier = (token: string) => Promise<boolean>;
@@ -35,17 +36,19 @@ function googleProvider(env: Env, verifyIdToken?: GoogleIdTokenVerifier) {
  * auth path for web and the native Expo app (Authorization header), without relying on cookies.
  */
 export function createAuth(db: Db, env: Env, opts: { verifyGoogleIdToken?: GoogleIdTokenVerifier } = {}) {
+  const auth = libraryLogger("auth");
   return betterAuth({
     baseURL: env.API_URL,
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: env.TRUSTED_ORIGINS,
     database: surrealdbAdapter(db, { schemaMode: "schemaless" }),
-    // The only password rule; must match MIN_PASSWORD_LENGTH in apps/app/src/lib/passwordStrength.ts.
-    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: 5 },
+    emailAndPassword: { enabled: true, autoSignIn: true, minPasswordLength: MIN_PASSWORD_LENGTH },
     socialProviders: googleProvider(env, opts.verifyGoogleIdToken),
     plugins: [bearer()],
     rateLimit: { enabled: env.NODE_ENV === "production" },
+    // Everything Better Auth logs (failed sign-ins, Google token checks…) goes to ours; LOG_LEVEL filters it.
+    logger: { level: "debug", log: (level, message, ...args) => auth[level](message, ...args) },
   });
 }
 

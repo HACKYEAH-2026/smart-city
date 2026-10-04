@@ -1,5 +1,6 @@
 declare global {
   var __API_URL__: string | undefined;
+  var __DEV_LOGIN__: boolean | undefined;
 }
 
 /**
@@ -10,4 +11,27 @@ declare global {
  */
 export function apiBaseUrl(): string {
   return globalThis.__API_URL__ ?? process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
+}
+
+export type DevLoginAccount = { email: string; password: string };
+/**
+ * Accounts the dev API seeds (apps/api/src/test-routes.ts and test-demo.ts; PRODUCT.md): the demo place's admin
+ * (DEMO_ADMIN), a resident of Kraków, the Tauron Arena, a campus and a cooperative (DEMO_RESIDENT), the Tauron Arena's
+ * admin (DEMO_ARENA_ADMIN) and a resident with reports of his own in Kraków and in the arena.
+ */
+const DEV_LOGIN_ACCOUNTS: DevLoginAccount[] = [
+  { email: "admin@krakow.test", password: "password" },
+  { email: "anna@krakow.test", password: "password" },
+  { email: "admin@arena.test", password: "password" },
+  { email: "piotr@krakow.test", password: "password" },
+];
+
+/**
+ * Dev login: buttons at the bottom of the login screen sign in as a seeded account in one tap. Off by default.
+ *  - EXPO_PUBLIC_DEV_LOGIN=true in the repo-root .env (the app's dev script loads it, see .env.example).
+ *  - globalThis.__DEV_LOGIN__: runtime override (E2E, like __API_URL__).
+ */
+export function devLoginAccounts(): DevLoginAccount[] {
+  const on = globalThis.__DEV_LOGIN__ ?? process.env.EXPO_PUBLIC_DEV_LOGIN === "true";
+  return on ? DEV_LOGIN_ACCOUNTS : [];
 }

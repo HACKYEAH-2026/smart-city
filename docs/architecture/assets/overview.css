@@ -1,0 +1,333 @@
+/* Overview page (docs/architecture/index.html): layouts of its diagrams. Shared building blocks are in docs.css. */
+
+/* ───────────────────────────── monorepo map ───────────────────────────── */
+
+.tiers {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tier {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .tier {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+}
+
+.tier-label {
+  align-self: center;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tier-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.repo-box {
+  position: relative;
+}
+
+.repo-box .rel {
+  display: none;
+  position: absolute;
+  top: -0.65rem;
+  right: 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--soft);
+}
+
+.repo-box[data-rel="imports"] .rel,
+.repo-box[data-rel="imported-by"] .rel,
+.repo-box[data-rel="both"] .rel {
+  display: inline-block;
+}
+
+.repo-box[data-rel="imports"] .rel,
+.repo-box[data-rel="both"] .rel {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+
+.repo-box[data-rel="imported-by"] .rel {
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 45%, transparent);
+}
+
+.has-selection .repo-box[data-rel="none"] {
+  opacity: 0.45;
+}
+
+.info-text {
+  color: var(--info);
+}
+
+.repo-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: var(--soft);
+}
+
+/* ───────────────────────────── runtime topology ───────────────────────────── */
+
+.topology {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 28px minmax(230px, 1.4fr) 28px minmax(150px, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .topology {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .link-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+.topology-col {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.topology-col > .col-label,
+.externals > .col-label {
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.link-arrow {
+  text-align: center;
+  color: var(--soft);
+  font-size: 1.1rem;
+}
+
+.api-frame {
+  border: 1.5px solid color-mix(in srgb, var(--c-api) 45%, transparent);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.api-frame-title {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.api-parts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.externals {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.externals-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+/* ───────────────────────────── request lanes ───────────────────────────── */
+
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  padding: 0.25rem 0.1rem 0.4rem;
+}
+
+.lane {
+  position: relative;
+  min-height: 5.2rem;
+}
+
+.lane + .lane::before {
+  content: "→";
+  position: absolute;
+  left: -0.25rem;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--faint);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 780px) {
+  .lane + .lane::before {
+    content: none;
+  }
+}
+
+/* ───────────────────────────── data model ───────────────────────────── */
+
+.explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .explorer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.table-groups {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.table-group h3 {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 0.4rem;
+}
+
+.table-group .pills {
+  margin: 0;
+}
+
+.table-group .pill {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.explorer .detail {
+  position: sticky;
+  top: 84px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.3rem 0.9rem;
+  font-size: 0.88rem;
+  margin: 0 0 1em;
+}
+
+.fields dt {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.fields dd {
+  margin: 0;
+  color: var(--soft);
+}
+
+/* ───────────────────────────── frontend layers ───────────────────────────── */
+
+.layers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .layers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.layer-stack {
+  display: grid;
+  gap: 0.15rem;
+}
+
+/* ───────────────────────────── rules filter ───────────────────────────── */
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.75rem;
+}
+
+.filter input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.filter input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rules td:first-child {
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* ───────────────────────────── verify pipeline ───────────────────────────── */
+
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.stage-n {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--faint);
+  letter-spacing: 0.06em;
+}
+
+/* ───────────────────────────── spacing between blocks ───────────────────────────── */
+
+main > section > [data-group] {
+  margin-bottom: 1.5rem;
+}
+
+.table-wrap td:first-child > code {
+  white-space: nowrap;
+}

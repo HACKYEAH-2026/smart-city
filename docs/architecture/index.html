@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overview · Twoje Miejsce architecture</title>
+    <meta
+      name="description"
+      content="How Twoje Miejsce fits together: the monorepo, the running system, one request end to end, the data model, the frontend and the quality gates."
+    />
+    <link rel="stylesheet" href="assets/docs.css" />
+    <link rel="stylesheet" href="assets/overview.css" />
+    <script src="assets/docs.js" defer></script>
+    <script src="assets/overview.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-text">Twoje Miejsce<small>architecture</small></span></a>
+      <nav class="pages" aria-label="Architecture pages">
+        <a href="index.html" aria-current="page">Overview</a>
+        <a href="plugins.html">Plugin runtime</a>
+        <a href="pipeline.html">Checks &amp; AI builder</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" /></svg>
+      </button>
+    </header>
+    <div class="layout">
+      <nav class="toc" data-toc aria-label="On this page"></nav>
+      <main>
+        <header class="hero">
+          <p class="eyebrow">Architecture · Overview</p>
+          <h1>How Twoje Miejsce fits together</h1>
+          <p class="lede">
+            Digital communities for real places: a city, a campus, a housing estate. Members belong to the place, and
+            every feature a place switches on — issue reports, announcements, discussions, or one its admin had the AI
+            write — is a plugin with its own isolated data. One TypeScript codebase: a Bun + Hono API on SurrealDB and
+            an Expo app that runs on iOS, Android and the web.
+          </p>
+          <div class="cards">
+            <a class="card" href="index.html">
+              <h3>Overview <span class="chip">you are here</span></h3>
+              <p class="small muted">
+                The monorepo, the running system, one request end to end, the data model, the frontend and the quality
+                gates.
+              </p>
+            </a>
+            <a class="card" href="plugins.html">
+              <h3>Plugin runtime →</h3>
+              <p class="small muted">How a plugin runs: <code>ctx</code>, isolation, tables, Server-Driven UI.</p>
+            </a>
+            <a class="card" href="pipeline.html">
+              <h3>Checks &amp; AI builder →</h3>
+              <p class="small muted">How plugin code gets in: checks, schema evolution, the AI plugin builder.</p>
+            </a>
+          </div>
+          <div class="callout key">
+            <span class="callout-title">The one idea to keep in mind</span>
+            The core only knows places (communities), users and plugin installations. Everything a resident does inside
+            a place is a plugin: a module that sees nothing but the narrow <code>ctx</code> the host gives it.
+          </div>
+          <p class="small muted">Colours mean the same part of the system on every page:</p>
+          <div class="legend">
+            <span class="chip" data-layer="app">Expo app</span>
+            <span class="chip" data-layer="api">API &amp; plugin host</span>
+            <span class="chip" data-layer="sdk">Plugin SDK</span>
+            <span class="chip" data-layer="plugin">Plugins</span>
+            <span class="chip" data-layer="db">SurrealDB</span>
+            <span class="chip" data-layer="ext">External services</span>
+          </div>
+        </header>
+
+        <!-- ───────────────────────────── monorepo ───────────────────────────── -->
+        <section id="monorepo">
+          <h2>The monorepo</h2>
+          <p class="section-intro">
+            Bun workspaces (<code>apps/*</code>, <code>packages/*</code>, <code>plugins/*</code>,
+            <code>demo-video</code>). Pick a package to see what it owns and what it may import; the others show how they
+            relate to it.
+          </p>
+          <div class="wide" data-group data-repo>
+            <div class="diagram">
+              <div class="tiers">
+                <div class="tier">
+                  <span class="tier-label">Apps</span>
+                  <div class="tier-boxes">
+                    <button class="box repo-box" type="button" data-layer="app" data-show="app" aria-pressed="true">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">apps/app</span>
+                      <span class="box-sub">@app/app · Expo app: iOS, Android, web</span>
+                    </button>
+                    <button class="box repo-box" type="button" data-layer="api" data-show="api">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">apps/api</span>
+                      <span class="box-sub">@app/api · Bun + Hono API, plugin host</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="tier">
+                  <span class="tier-label">Contracts</span>
+                  <div class="tier-boxes">
+                    <button class="box repo-box" type="button" data-show="shared">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">packages/shared</span>
+                      <span class="box-sub">@app/shared · app contracts (Zod)</span>
+                    </button>
+                    <button class="box repo-box" type="button" data-layer="sdk" data-show="sdk">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">packages/sdk</span>
+                      <span class="box-sub">@app/plugin-sdk · the plugin contract</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="tier">
+                  <span class="tier-label">Plugins</span>
+                  <div class="tier-boxes">
+                    <button class="box repo-box" type="button" data-layer="plugin" data-show="plugins">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">plugins/*</span>
+                      <span class="box-sub">@plugins/issues, announcements, discussions (built in)</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="tier">
+                  <span class="tier-label">Tooling</span>
+                  <div class="tier-boxes">
+                    <button class="box repo-box" type="button" data-show="scripts">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">scripts/</span>
+                      <span class="box-sub">verify, plugin upload, Android USB</span>
+                    </button>
+                    <button class="box repo-box" type="button" data-layer="ext" data-show="video">
+                      <span class="rel" aria-hidden="true"></span>
+                      <span class="box-title">demo-video</span>
+                      <span class="box-sub">@app/demo-video · Remotion videos</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="repo-key">
+                <span><strong class="ok-text">imported</strong> = the selected package imports it</span>
+                <span><strong class="info-text">imports it</strong> = it imports the selected package</span>
+              </div>
+            </div>
+
+            <div class="detail" data-pane="app">
+              <h3>apps/app <span class="chip" data-layer="app">Expo app</span></h3>
+              <p>
+                Expo (React Native) app with Expo Router. The same code renders native views on iOS and Android and HTML
+                on the web (react-native-web, static export). Plugin screens are not written here: they arrive from the
+                API as UI trees and are drawn by <code>src/plugins/Renderer.tsx</code>.
+              </p>
+              <p>
+                <strong>Key files:</strong> <span class="path">app/</span> (routes, thin files) ·
+                <span class="path">src/screens/</span> · <span class="path">src/data/</span> (TanStack Query hooks) ·
+                <span class="path">src/lib/api.ts</span> (Hono RPC client + Better Auth client) ·
+                <span class="path">src/lib/config.ts</span> (API address) · <span class="path">src/texts.ts</span> ·
+                <span class="path">src/theme/tokens.ts</span> · <span class="path">app.config.ts</span>
+              </p>
+              <p>
+                <strong>Imports:</strong> <code>@app/shared</code> (e.g. invite-code helpers at runtime);
+                <code>@app/plugin-sdk</code> and <code>@app/api</code> as <em>types only</em> — <code>AppType</code>
+                comes from the API (a dev dependency), so request and response types are never written by hand.
+              </p>
+              <p class="small muted">
+                Never: hand-written <code>fetch</code> (the one exception is the multipart photo upload in
+                <code>src/lib/upload.ts</code>), Polish literals outside <code>texts.ts</code>, <code>Platform.OS</code> in
+                screens, edits to the generated <code>android/</code> and <code>ios/</code>.
+              </p>
+            </div>
+            <div class="detail" data-pane="api" hidden>
+              <h3>apps/api <span class="chip" data-layer="api">API &amp; plugin host</span></h3>
+              <p>
+                Bun + Hono. <code>createApp()</code> in <code>src/app.ts</code> wires the services and is the only place
+                routers are mounted; its return type is exported as <code>AppType</code> for the app's RPC client. The
+                same process hosts plugins (<code>PluginHost</code>) and the AI plugin builder (<code>PluginBuilder</code>).
+              </p>
+              <p>
+                <strong>Key files:</strong> <span class="path">src/app.ts</span> · <span class="path">src/server.ts</span>
+                (production entry) · <span class="path">src/test-server.ts</span> (dev and E2E, adds
+                <code>/__test/*</code>) · <span class="path">src/db/</span> (<code>createDb</code>, <code>schema.ts</code>,
+                <code>query.ts</code>) · <span class="path">src/auth.ts</span> (Better Auth) ·
+                <span class="path">src/middleware.ts</span> · <span class="path">src/routes/</span> ·
+                <span class="path">src/plugins/host.ts</span> · <span class="path">src/plugins/builder.ts</span> ·
+                <span class="path">src/services/</span> (ai, db, files, geo, notifications, push)
+              </p>
+              <p>
+                <strong>Imports:</strong> <code>@app/shared</code>, <code>@app/plugin-sdk</code> (and its host-side
+                <code>@app/plugin-sdk/engine</code>), and the built-in plugins <code>@plugins/issues</code>,
+                <code>@plugins/announcements</code>, <code>@plugins/discussions</code>.
+              </p>
+              <p class="small muted">
+                Public surface (<code>src/index.ts</code>): <code>AppType</code>, <code>createApp</code>,
+                <code>loadEnv</code>. Test code (<code>test-*.ts</code>) is never imported by production code; the build
+                fails if <code>__test</code> ends up in the bundle.
+              </p>
+            </div>
+            <div class="detail" data-pane="shared" hidden>
+              <h3>packages/shared <span class="chip">app contracts</span></h3>
+              <p>
+                Zod schemas and types of the app's own API: places and invitations (<code>communities.ts</code>), the
+                user's data (<code>me.ts</code>), maps and geocoding (<code>geo.ts</code>), the plugin builder
+                (<code>builder.ts</code>), plugin lists (<code>plugins.ts</code>), sign-in providers (<code>auth.ts</code>).
+                The API validates requests with them (<code>zValidator</code>); the app reuses the same constants and
+                helpers.
+              </p>
+              <p>
+                <strong>Imports:</strong> <code>@app/plugin-sdk</code> (shared shapes such as <code>geoPointSchema</code>
+                and <code>NavigateAction</code>) and <code>zod</code>.
+              </p>
+              <p class="small muted">
+                Rule: types and validation live only here (app contracts) and in <code>packages/sdk</code> (plugin
+                contract).
+              </p>
+            </div>
+            <div class="detail" data-pane="sdk" hidden>
+              <h3>packages/sdk <span class="chip" data-layer="sdk">Plugin SDK</span></h3>
+              <p>The contract between the host and plugins, with three entry points:</p>
+              <ul>
+                <li>
+                  <code>@app/plugin-sdk</code> — <code>definePlugin</code>, the UI catalog <code>ui</code>, table builders
+                  <code>t</code>, <code>loadPlugin</code>, the check result types, and the types plugins use
+                  (<code>Context</code>, <code>PluginModule</code>…).
+                </li>
+                <li>
+                  <code>@app/plugin-sdk/engine</code> — the host-side runtime of plugin tables on SurrealDB
+                  (<code>createDatabase</code>, <code>syncSchema</code>, <code>planSchema</code>). Plugins never import it.
+                </li>
+                <li>
+                  <code>@app/plugin-sdk/testing</code> — <code>testPlugin</code>: a plugin tested like a function, on the
+                  real engine over embedded in-memory SurrealDB.
+                </li>
+              </ul>
+              <p class="small muted">
+                Depends on <code>zod</code>, <code>surrealdb</code> and <code>@surrealdb/node</code>. How it works:
+                <a href="plugins.html">Plugin runtime</a>.
+              </p>
+            </div>
+            <div class="detail" data-pane="plugins" hidden>
+              <h3>plugins/* <span class="chip" data-layer="plugin">Plugins</span></h3>
+              <p>
+                Each plugin is one <code>index.ts</code> (its test next to it) that depends <strong>only</strong> on
+                <code>@app/plugin-sdk</code> and imports nothing at runtime — only <code>import type</code>. Its default
+                export is a factory <code>(sdk) =&gt; definePlugin({…})</code>; the host passes the SDK in. That is why
+                the same file can be built in, uploaded at runtime, or written by the AI.
+              </p>
+              <p>
+                <strong>Built in</strong> = a dependency in <code>apps/api/package.json</code> + an entry in
+                <code>apps/api/src/plugins/builtin/index.ts</code>
+                (<code>builtinPlugins = [issues, announcements, discussions]</code>).
+              </p>
+              <p class="small muted">
+                Uploaded and AI-written plugins never live in this folder: their source is stored in the database. See
+                <a href="pipeline.html">Checks &amp; AI builder</a>.
+              </p>
+            </div>
+            <div class="detail" data-pane="scripts" hidden>
+              <h3>scripts/ <span class="chip">tooling</span></h3>
+              <ul>
+                <li><code>verify.ts</code> — <code>bun run verify</code>, the only definition of done (see Quality gates).</li>
+                <li>
+                  <code>plugin-upload.ts</code> — <code>bun run plugin:upload plugins/&lt;id&gt; [community]</code>: posts
+                  the plugin's source to <code>POST /api/admin/plugins</code> of a running API and enables it.
+                </li>
+                <li><code>adb-reverse.ts</code> — Android over USB: the phone's <code>localhost</code> reaches :4000 and :8081.</li>
+              </ul>
+              <p class="small muted">Not a workspace package: plain Bun scripts run from the repo root.</p>
+            </div>
+            <div class="detail" data-pane="video" hidden>
+              <h3>demo-video <span class="chip" data-layer="ext">tooling</span></h3>
+              <p>
+                A Remotion project that renders the demo and the ad from the app's real components (it imports
+                <code>@app/app</code> and <code>@app/plugin-sdk</code>). Not part of the running product.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── runtime ───────────────────────────── -->
+        <section id="runtime">
+          <h2>The running system</h2>
+          <p class="section-intro">
+            Three parts of our own and a few external services. Pick a part: what it is, where it lives in the code, and
+            what happens when an optional service is not configured.
+          </p>
+          <div class="wide" data-group>
+            <div class="diagram">
+              <div class="topology">
+                <div class="topology-col">
+                  <span class="col-label">Clients</span>
+                  <button class="box" type="button" data-layer="app" data-show="native" aria-pressed="true">
+                    <span class="box-title">iOS / Android</span>
+                    <span class="box-sub">Expo app, native views</span>
+                  </button>
+                  <button class="box" type="button" data-layer="app" data-show="web">
+                    <span class="box-title">Web</span>
+                    <span class="box-sub">static export, react-native-web</span>
+                  </button>
+                </div>
+                <div class="link-arrow" aria-hidden="true">⇄</div>
+                <div class="api-frame">
+                  <span class="api-frame-title">API process · Bun + Hono</span>
+                  <div class="api-parts">
+                    <button class="box" type="button" data-layer="api" data-show="auth">
+                      <span class="box-title">Better Auth</span>
+                      <span class="box-sub">/api/auth/*, bearer</span>
+                    </button>
+                    <button class="box" type="button" data-layer="api" data-show="routes">
+                      <span class="box-title">Routes</span>
+                      <span class="box-sub">/api/communities, /me…</span>
+                    </button>
+                    <button class="box" type="button" data-layer="api" data-show="host">
+                      <span class="box-title">PluginHost</span>
+                      <span class="box-sub">plugins run in-process</span>
+                    </button>
+                    <button class="box" type="button" data-layer="api" data-show="services">
+                      <span class="box-title">Services</span>
+                      <span class="box-sub">files, AI, notifications, geo</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="link-arrow" aria-hidden="true">⇄</div>
+                <div class="topology-col">
+                  <span class="col-label">State</span>
+                  <button class="box" type="button" data-layer="db" data-show="surreal">
+                    <span class="box-title">SurrealDB</span>
+                    <span class="box-sub">embedded or server</span>
+                  </button>
+                  <button class="box" type="button" data-layer="db" data-show="filestore">
+                    <span class="box-title">File store</span>
+                    <span class="box-sub">photo bytes on disk</span>
+                  </button>
+                </div>
+              </div>
+              <div class="externals">
+                <span class="col-label">External services</span>
+                <div class="externals-row">
+                  <button class="box" type="button" data-layer="ext" data-show="push">
+                    <span class="box-title">Expo Push</span>
+                    <span class="box-sub">→ FCM / APNs</span>
+                  </button>
+                  <button class="box" type="button" data-layer="ext" data-show="google">
+                    <span class="box-title">Google sign-in</span>
+                    <span class="box-sub">ID tokens</span>
+                  </button>
+                  <button class="box" type="button" data-layer="ext" data-show="model">
+                    <span class="box-title">Language model</span>
+                    <span class="box-sub">OpenAI-compatible, Strands</span>
+                  </button>
+                  <button class="box" type="button" data-layer="ext" data-show="maps">
+                    <span class="box-title">Map tiles</span>
+                    <span class="box-sub">OpenFreeMap, MapLibre</span>
+                  </button>
+                  <button class="box" type="button" data-layer="ext" data-show="geocoding">
+                    <span class="box-title">Geocoding</span>
+                    <span class="box-sub">Photon, GUGiK</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail" data-pane="native">
+              <h3>iOS and Android <span class="chip ok">required</span></h3>
+              <p>
+                Expo SDK 57 (React Native). The session is a bearer token kept in the Keychain/Keystore through
+                <code>src/lib/storage.ts</code> and sent on every request. The API address comes only from
+                <code>src/lib/config.ts</code>: <code>EXPO_PUBLIC_API_URL</code> at build time, a runtime
+                <code>__API_URL__</code> (E2E), else <code>http://localhost:4000</code>.
+              </p>
+              <p class="small muted">
+                Native config lives only in <code>app.config.ts</code>; <code>android/</code> and <code>ios/</code> are
+                generated by <code>expo prebuild</code>.
+              </p>
+            </div>
+            <div class="detail" data-pane="web" hidden>
+              <h3>Web <span class="chip ok">required</span></h3>
+              <p>
+                The same code exported as static HTML (<code>expo export --platform web</code>). The token is kept in
+                <code>localStorage</code> (via <code>src/lib/storage.ts</code>). The API answers browsers only from
+                <code>TRUSTED_ORIGINS</code> (CORS on <code>/api/*</code>, exposing <code>set-auth-token</code>); native apps
+                send no Origin and authenticate with the bearer token.
+              </p>
+              <p class="small muted">E2E tests run against this production export, not the dev server.</p>
+            </div>
+            <div class="detail" data-pane="auth" hidden>
+              <h3>Better Auth <span class="chip ok">required</span></h3>
+              <p>
+                <code>src/auth.ts</code>: e-mail + password, and Google when configured, stored in SurrealDB through the
+                <code>surreal-better-auth</code> adapter (schemaless <code>user</code>, <code>session</code>,
+                <code>account</code>, <code>verification</code>). The <code>bearer()</code> plugin gives web and native
+                one auth path: the <code>Authorization</code> header, no cookies.
+              </p>
+              <p class="small muted">
+                Routes: Better Auth owns <code>/api/auth/*</code>; <code>requireUser</code> calls
+                <code>auth.api.getSession()</code> and answers <code>401 unauthorized</code> without a session.
+              </p>
+            </div>
+            <div class="detail" data-pane="routes" hidden>
+              <h3>Routes</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Mount</th><th>File</th><th>What</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>/api/communities</code></td><td><code>communities.ts</code></td><td>places, joining, nav, dashboard, plugin views, tools, uploads</td></tr>
+                    <tr><td><code>/api/communities</code></td><td><code>placeAdmin.ts</code></td><td>place admins: settings, members (roles, removing), switching plugins</td></tr>
+                    <tr><td><code>/api/communities</code></td><td><code>builder.ts</code></td><td>place admins: the AI plugin builder</td></tr>
+                    <tr><td><code>/api/invitations</code></td><td><code>invitations.ts</code></td><td>invite by e-mail, accept, decline</td></tr>
+                    <tr><td><code>/api/files</code></td><td><code>files.ts</code></td><td>photo download by signed URL (no session)</td></tr>
+                    <tr><td><code>/api/geo</code></td><td><code>geo.ts</code></td><td>address search, address at a pin, map of places</td></tr>
+                    <tr><td><code>/api/me</code></td><td><code>me.ts</code></td><td>inbox, push tokens, saved places, shared location</td></tr>
+                    <tr><td><code>/api/plugins</code></td><td><code>plugins.ts</code></td><td>catalog of built-in plugins</td></tr>
+                    <tr><td><code>/api/admin</code></td><td><code>admin.ts</code></td><td>platform admin (<code>PLUGIN_ADMIN_TOKEN</code>; unset = 404)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="small muted">
+                Plus <code>GET /health</code> and the public <code>GET /api/auth-providers</code>. Everything inside a
+                place answers 404 to non-members, so a user cannot learn which places exist.
+              </p>
+            </div>
+            <div class="detail" data-pane="host" hidden>
+              <h3>PluginHost <span class="chip" data-layer="api">in-process</span></h3>
+              <p>
+                <code>src/plugins/host.ts</code>: the registry of loaded plugins (built-in ones at construction, uploaded
+                ones from <code>plugin_source</code> on <code>ready()</code>), the <code>ctx</code> factory, and the guarded
+                calls into views, dashboard widgets, tools and <code>onInstall</code>. Plugins run inside the API process,
+                behind static checks rather than a sandbox.
+              </p>
+              <p><a href="plugins.html">How a plugin runs →</a> · <a href="pipeline.html">How plugin code gets in →</a></p>
+            </div>
+            <div class="detail" data-pane="services" hidden>
+              <h3>Services</h3>
+              <p>
+                Built once in <code>createApp()</code> and handed to routes through <code>c.var</code>; plugins reach
+                them only through <code>ctx</code>, filtered by their declared permissions.
+              </p>
+              <ul>
+                <li><code>FileService</code> — uploads (pending → kept), signed URLs, 24 h sweep of unused uploads.</li>
+                <li><code>AIService</code> — <code>ctx.ai</code>: model calls with a per-installation rate limit.</li>
+                <li><code>NotificationService</code> — <code>ctx.notify</code>: inbox rows and pushes; resolves "near" audiences itself.</li>
+                <li><code>OpenGeocoder</code> — address search and reverse geocoding for <code>/api/geo</code>.</li>
+                <li><code>PluginBuilder</code> — AI-written plugins for a place (versions written in the background).</li>
+              </ul>
+              <p class="small muted">
+                Each is swappable: <code>createApp({ db, env, ai, push, geocoder, author })</code> — tests and the E2E
+                server pass fakes.
+              </p>
+            </div>
+            <div class="detail" data-pane="surreal" hidden>
+              <h3>SurrealDB <span class="chip ok">required</span></h3>
+              <p><code>createDb(DATABASE_URL)</code> in <code>src/db/client.ts</code> picks the engine from the URL:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>URL</th><th>Engine</th><th>Used by</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>mem://</code></td><td>embedded, in memory</td><td>tests, E2E, the API's dev script by default</td></tr>
+                    <tr><td><code>surrealkv:///abs/path</code></td><td>embedded, on disk</td><td><code>just dev</code> (<code>apps/api/.data/db</code>)</td></tr>
+                    <tr><td><code>ws://user:pass@host:8000</code></td><td>SurrealDB server</td><td>production (separate container)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="small muted">
+                Namespace <code>app</code>, database <code>main</code>. The embedded engine (<code>@surrealdb/node</code>)
+                is loaded only for embedded URLs; the production image does not ship it.
+              </p>
+            </div>
+            <div class="detail" data-pane="filestore" hidden>
+              <h3>File store</h3>
+              <p>
+                Photo bytes live on disk (<code>DiskFileStore</code>, <code>FILES_DIR</code> or a temp directory); their
+                owner, installation and status live in the <code>plugin_file</code> table. Uploads: JPEG, PNG or WebP,
+                at most 10 MB. The app shows them through short-lived signed URLs
+                (<code>/api/files/:id?exp&amp;sig</code>, HMAC, one hour), so an <code>&lt;Image&gt;</code> needs no
+                Authorization header.
+              </p>
+            </div>
+            <div class="detail" data-pane="push" hidden>
+              <h3>Expo Push Service <span class="chip warn">optional</span></h3>
+              <p>
+                <code>ExpoPushSender</code> posts to <code>https://exp.host/--/api/v2/push/send</code>; Expo forwards to
+                Firebase Cloud Messaging (Android) and APNs (iOS). <code>EXPO_ACCESS_TOKEN</code> only if the Expo project
+                enables enhanced push security.
+              </p>
+              <p class="small muted">
+                Pushes go out in the background: the notification is already in the inbox, so a failing push service
+                never fails the plugin call. Expo Go on Android has no pushes; the app runs without them.
+              </p>
+            </div>
+            <div class="detail" data-pane="google" hidden>
+              <h3>Google sign-in <span class="chip warn">optional</span></h3>
+              <p>
+                The phone's native account picker returns an ID token; the app posts it to
+                <code>/api/auth/sign-in/social</code> and Better Auth checks it against Google's public keys. No client
+                secret: the API only verifies ID tokens.
+              </p>
+              <p class="small muted">
+                Without <code>GOOGLE_CLIENT_ID</code>, <code>GET /api/auth-providers</code> answers
+                <code>{ google: null }</code> and the login screen shows no Google button.
+              </p>
+            </div>
+            <div class="detail" data-pane="model" hidden>
+              <h3>Language model <span class="chip warn">optional</span></h3>
+              <p>
+                One model for the whole host, configured only in <code>src/services/ai/model.ts</code>: an
+                OpenAI-compatible API through Strands Agents (<code>AI_API_KEY</code> + <code>AI_MODEL</code>, optional
+                <code>AI_BASE_URL</code>). It powers <code>ctx.ai</code> (<code>StrandsLanguageModel</code>) and the
+                plugin builder's author agent (<code>StrandsPluginAuthor</code>). An embedding model on the same key
+                and endpoint (<code>text-embedding-3-small</code>, <code>OpenAIEmbeddingModel</code>; it needs only
+                <code>AI_API_KEY</code>) powers <code>ctx.ai.embed</code>.
+              </p>
+              <p class="small muted">
+                Without it: the builder answers <code>503 ai_unavailable</code>, <code>ctx.ai.call</code> throws, and
+                <code>ctx.ai.findSimilar</code> falls back to matching shared words — enough for tests and a keyless demo.
+                Without <code>AI_API_KEY</code>, <code>ctx.ai.embed</code> throws too.
+              </p>
+            </div>
+            <div class="detail" data-pane="maps" hidden>
+              <h3>Map tiles <span class="chip warn">optional</span></h3>
+              <p>
+                The app's map page (<code>src/lib/map/html.ts</code>) loads MapLibre GL JS from <code>unpkg.com</code>
+                (pinned version, checked with SRI) and the OpenFreeMap "Positron" style. On phones it runs in
+                <code>react-native-webview</code>, on the web in an iframe (<code>MapSurface.web.tsx</code>). It draws the
+                map of places, the location picker, and plugin maps (<code>ui.map</code>, via
+                <code>src/plugins/PluginMap.tsx</code>).
+              </p>
+              <p class="small muted">The API never talks to the tile servers; only the app's map page does.</p>
+            </div>
+            <div class="detail" data-pane="geocoding" hidden>
+              <h3>Geocoding <span class="chip warn">optional</span></h3>
+              <p>
+                <code>OpenGeocoder</code> (<code>src/services/geo/open.ts</code>), no API keys: Photon (komoot,
+                OpenStreetMap data) for address search inside Poland; the address at a pin from GUGiK's geocoding service
+                (the national address register), with Photon where GUGiK has none. Used by
+                <code>GET /api/geo/search</code> and <code>GET /api/geo/reverse</code>.
+              </p>
+              <p class="small muted">
+                A failing provider answers <code>502 geocoder_unavailable</code> and the app lets the user place the pin
+                by hand. E2E runs on <code>TestGeocoder</code> (no network).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── request ───────────────────────────── -->
+        <section id="request" data-toc="One request, end to end">
+          <h2>One request, end to end</h2>
+          <p class="section-intro">
+            Opening a place's dashboard touches every layer: the app's data hook, Hono middleware, the route, the plugin
+            host, the plugins and the database. Step through it with the buttons or the <kbd>←</kbd> <kbd>→</kbd> keys.
+          </p>
+          <div class="stepper wide" data-stepper tabindex="-1">
+            <div class="stepper-head">
+              <h3><code>GET /api/communities/:slug/dashboard</code></h3>
+            </div>
+            <div class="lanes">
+              <div class="box lane" data-node="app" data-layer="app">
+                <span class="box-title">App</span>
+                <span class="box-sub">screen, data hook, renderer</span>
+              </div>
+              <div class="box lane" data-node="mw" data-layer="api">
+                <span class="box-title">Middleware</span>
+                <span class="box-sub">app.ts</span>
+              </div>
+              <div class="box lane" data-node="route" data-layer="api">
+                <span class="box-title">Route</span>
+                <span class="box-sub">routes/communities.ts</span>
+              </div>
+              <div class="box lane" data-node="host" data-layer="api">
+                <span class="box-title">PluginHost</span>
+                <span class="box-sub">plugins/host.ts</span>
+              </div>
+              <div class="box lane" data-node="plugin" data-layer="plugin">
+                <span class="box-title">Plugin</span>
+                <span class="box-sub">widget render(ctx)</span>
+              </div>
+              <div class="box lane" data-node="db" data-layer="db">
+                <span class="box-title">SurrealDB</span>
+                <span class="box-sub">platform + plugin tables</span>
+              </div>
+            </div>
+            <ol class="stepper-steps">
+              <li data-hl="app">
+                <button class="step-title" type="button">The app asks for the dashboard</button>
+                <div class="step-body">
+                  <p>
+                    The dashboard screen calls <code>useDashboard(slug)</code>. The request goes through the Hono RPC
+                    client <code>hc&lt;AppType&gt;</code>, so the path, parameters and response type come from the API's
+                    own code; <code>tokens.headers()</code> adds <code>Authorization: Bearer …</code>. TanStack Query
+                    refetches it every 15 seconds.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/app/src/data/communities.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export function useDashboard(slug: string) {
+  return useQuery({
+    queryKey: dashboardKey(slug),
+    queryFn: () =&gt; parseResponse(c[":slug"].dashboard.$get({ param: { slug } })),
+    refetchInterval: 15000,
+  });
+}</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="mw">
+                <button class="step-title" type="button">CORS and the request context</button>
+                <div class="step-body">
+                  <p>
+                    <code>createApp()</code> applies CORS to <code>/api/*</code> (origins from
+                    <code>TRUSTED_ORIGINS</code>), then one middleware puts the shared services on the context:
+                    <code>db</code>, <code>auth</code>, <code>plugins</code>, <code>builder</code>, <code>files</code>,
+                    <code>notifications</code>, <code>geocoder</code>. An unhandled error anywhere becomes
+                    <code>500 { error: "internal_error" }</code> (<code>app.onError</code>).
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/app.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">app.use(async (c, next) =&gt; {
+  c.set("db", db);
+  c.set("auth", auth);
+  c.set("plugins", plugins);
+  // … builder, files, notifications, geocoder
+  await next();
+});</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="route db">
+                <button class="step-title" type="button">Who is asking: <code>requireUser</code></button>
+                <div class="step-body">
+                  <p>
+                    The router starts with <code>requireUser</code>: Better Auth resolves the bearer token to a session
+                    (<code>auth.api.getSession({ headers })</code>) — none means <code>401 unauthorized</code>. A second
+                    router middleware awaits <code>plugins.ready()</code>: once per process the host syncs plugin tables
+                    and loads uploaded plugins from <code>plugin_source</code>.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/middleware.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export const requireUser = createMiddleware&lt;AppEnv&gt;(async (c, next) =&gt; {
+  const session = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return c.json({ error: "unauthorized" }, 401);
+  c.set("user", session.user);
+  await next();
+});</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="route db">
+                <button class="step-title" type="button">Is this user a member of the place?</button>
+                <div class="step-body">
+                  <p>
+                    <code>memberOf(c, slug)</code> looks the place up by slug and reads the user's role from the
+                    membership record, whose id is <code>[community, user]</code>. An unknown place and a place the user
+                    does not belong to both answer <code>404 not_found</code>: a user cannot probe which places exist.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/db/query.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export async function memberRole(db: Db, communityId: string, userId: string): Promise&lt;Role | null&gt; {
+  const row = await first&lt;{ role: Role }&gt;(db, surql`SELECT role FROM ${membershipRef(communityId, userId)};`);
+  return row?.role ?? null;
+}</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="route db">
+                <button class="step-title" type="button">Which plugins are on here</button>
+                <div class="step-body">
+                  <p>
+                    The enabled installations of the place, oldest first — that is the default order of the dashboard and
+                    of the place's navigation. Values are always bound through the <code>surql</code> tag.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/routes/communities.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">const installed = await rows&lt;{ id: RecordId; plugin: string }&gt;(
+  db,
+  surql`SELECT id, plugin, created_at FROM plugin_installation
+        WHERE community = ${ref("community", communityId)} AND enabled ORDER BY created_at;`,
+);</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="host db">
+                <button class="step-title" type="button">A <code>ctx</code> for each installation</button>
+                <div class="step-body">
+                  <p>
+                    For every installation with a widget on the dashboard (in parallel) the host reads when this user
+                    last opened the plugin
+                    (<code>plugin_visit</code>, becomes <code>ctx.lastVisit</code>) and builds the plugin's context:
+                    the user with their role in this place, the place (with its pin), and only the services the plugin's
+                    manifest declares. The rest of <code>ctx</code> rejects on use.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/api/src/routes/communities.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">host
+  .lastVisit(installationId, user.id)
+  .then((lastVisit) =&gt; host.context(plugin, { installationId, community, user, lastVisit })),</code></pre>
+                  </figure>
+                  <p class="small"><a href="plugins.html">What exactly is in <code>ctx</code> →</a></p>
+                </div>
+              </li>
+              <li data-hl="host plugin db">
+                <button class="step-title" type="button">Plugins render their widgets</button>
+                <div class="step-body">
+                  <p>
+                    <code>renderDashboardWidget</code> calls each declared widget's <code>render(ctx)</code>. The plugin
+                    reads its own tables through <code>ctx.db</code> (every query scoped to this installation) and returns
+                    a UI tree, not code. The host validates it with <code>dashboardWidgetSchema</code> — a
+                    <code>Widget</code> root, read-only: no forms, inputs or tool calls — and signs image URLs.
+                  </p>
+                  <div class="callout tip">
+                    A widget that throws or returns invalid UI (<code>null</code> included) is logged and left out. One
+                    broken plugin never breaks the dashboard.
+                  </div>
+                </div>
+              </li>
+              <li data-hl="route db">
+                <button class="step-title" type="button">Layout and answer</button>
+                <div class="step-body">
+                  <p>
+                    <code>communityLayout</code> — the one code path for the dashboard and its editor — resolves the
+                    declared widgets against what the place's admins saved (the <code>dashboard</code> row, keys
+                    <code>"&lt;pluginId&gt;/&lt;widget&gt;"</code>): removed widgets are left out, <code>sortByOrder</code>
+                    puts saved keys first while the rest keep the default order (installation, then declaration), and
+                    each widget gets its saved size when its plugin still allows it, else its default. Only the widgets
+                    on the layout are rendered.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>the response</span></figcaption>
+                    <pre class="code"><code data-lang="json">{
+  "canEdit": true,
+  "widgets": [
+    { "key": "announcements/latest", "pluginId": "announcements", "widget": "latest",
+      "size": { "w": 3, "h": 2 }, "node": { "type": "Widget", "title": "Ogłoszenia", "children": [] } }
+  ]
+}</code></pre>
+                  </figure>
+                </div>
+              </li>
+              <li data-hl="app">
+                <button class="step-title" type="button">The app draws the trees</button>
+                <div class="step-body">
+                  <p>
+                    <code>src/plugins/Dashboard.tsx</code> lays the tiles out on a 3-column grid by their
+                    <code>size</code> and draws each <code>node</code> with <code>PluginRenderer</code>, which maps the
+                    closed node catalog onto design-system components. Tapping a tile navigates to
+                    <code>/app/c/&lt;slug&gt;/&lt;plugin&gt;/&lt;view&gt;</code>, where <code>PluginView</code> fetches a
+                    full view the same way. Admins long-press to reorder; the order is saved with
+                    <code>PATCH /api/communities/:slug/dashboard</code> (<code>requirePlaceAdmin</code>). The whole layout
+                    (order, sizes, removed widgets) is edited in the layout editor (a plugin's page in Zarządzaj miejscem) through
+                    <code>GET</code> and <code>PUT /api/communities/:slug/dashboard/layout</code>.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── data ───────────────────────────── -->
+        <section id="data">
+          <h2>Data model</h2>
+          <p class="section-intro">
+            One SurrealDB database. The platform's tables are defined in one file,
+            <code>apps/api/src/db/schema.ts</code>; plugin tables are generated from each plugin's
+            <code>tables</code>. Pick a table.
+          </p>
+          <div class="wide" data-group>
+            <div class="explorer">
+              <div class="table-groups">
+                <div class="table-group">
+                  <h3>Identity</h3>
+                  <div class="pills">
+                    <button class="pill" type="button" data-show="user" aria-pressed="true">user</button>
+                    <button class="pill" type="button" data-show="authtables">session · account · verification</button>
+                  </div>
+                </div>
+                <div class="table-group">
+                  <h3>Places</h3>
+                  <div class="pills">
+                    <button class="pill" type="button" data-show="community">community</button>
+                    <button class="pill" type="button" data-show="membership">membership</button>
+                    <button class="pill" type="button" data-show="invitation">invitation</button>
+                  </div>
+                </div>
+                <div class="table-group">
+                  <h3>Plugins</h3>
+                  <div class="pills">
+                    <button class="pill" type="button" data-show="installation">plugin_installation</button>
+                    <button class="pill" type="button" data-show="source">plugin_source</button>
+                    <button class="pill" type="button" data-show="visit">plugin_visit</button>
+                    <button class="pill" type="button" data-show="file">plugin_file</button>
+                    <button class="pill" type="button" data-show="schema">plugin_schema</button>
+                    <button class="pill" type="button" data-show="dashboard">dashboard</button>
+                    <button class="pill" type="button" data-show="ptables">p_&lt;plugin&gt;__&lt;table&gt;</button>
+                  </div>
+                </div>
+                <div class="table-group">
+                  <h3>Residents</h3>
+                  <div class="pills">
+                    <button class="pill" type="button" data-show="notification">notification</button>
+                    <button class="pill" type="button" data-show="place">place</button>
+                    <button class="pill" type="button" data-show="location">user_location</button>
+                    <button class="pill" type="button" data-show="push">push_token</button>
+                  </div>
+                </div>
+                <div class="table-group">
+                  <h3>AI plugin builder</h3>
+                  <div class="pills">
+                    <button class="pill" type="button" data-show="placeplugin">place_plugin</button>
+                    <button class="pill" type="button" data-show="version">plugin_version</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="detail" data-pane="user">
+                  <h3><code>user</code></h3>
+                  <p>
+                    Accounts, managed by Better Auth (schemaless). The schema adds a unique index on <code>email</code>,
+                    and the plugin engine relies on <code>name</code>. Record keys of <code>user</code> are the user ids
+                    the API and plugins use.
+                  </p>
+                  <p class="small muted">
+                    Deleting a user cascades into memberships, invitations, inbox rows, saved places, push tokens — and into
+                    plugin rows with a required <code>t.ref("user")</code> to them.
+                  </p>
+                </div>
+                <div class="detail" data-pane="authtables" hidden>
+                  <h3><code>session</code> · <code>account</code> · <code>verification</code></h3>
+                  <p>
+                    Better Auth's own tables through the <code>surreal-better-auth</code> adapter, schemaless. Not in
+                    <code>schema.ts</code>: the adapter manages them.
+                  </p>
+                </div>
+                <div class="detail" data-pane="community" hidden>
+                  <h3><code>community</code> — a place</h3>
+                  <dl class="fields">
+                    <dt>slug</dt><dd>unique; derived from the name (ASCII, hyphens)</dd>
+                    <dt>name</dt><dd>shown everywhere</dd>
+                    <dt>kind</dt><dd><code>estate | building | company | school | district | other</code></dd>
+                    <dt>address, description</dt><dd>answers of the "new place" wizard</dd>
+                    <dt>join_rule</dt><dd><code>open | approval | invite</code>, default <code>approval</code></dd>
+                    <dt>location</dt><dd><code>option&lt;geometry&lt;point&gt;&gt;</code> — the place's pin (also <code>ctx.community.location</code>)</dd>
+                    <dt>on_map</dt><dd>every signed-in user sees it on the map of places (and joins it from there when it is open)</dd>
+                    <dt>invite_code</dt><dd>for joining by code, link or QR; kept unique by the API; the map hands it to non-members of an open place</dd>
+                  </dl>
+                </div>
+                <div class="detail" data-pane="membership" hidden>
+                  <h3><code>membership</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd><code>[community, user]</code> (<code>membershipRef</code>) — one per pair</dd>
+                    <dt>community, user</dt><dd>references, <code>ON DELETE CASCADE</code></dd>
+                    <dt>role</dt><dd><code>admin | user</code> — becomes <code>ctx.user.role</code> in plugins</dd>
+                    <dt>last_visit</dt><dd>when the user last opened the place</dd>
+                    <dt>is_default</dt><dd>the place the dashboard opens on</dd>
+                    <dt>joined_at</dt><dd>when the user joined (none on memberships older than the field)</dd>
+                  </dl>
+                  <p class="small muted">The creator of a place becomes its admin; joining makes a plain member. Admins
+                    change other members' roles and remove them (<code>placeAdmin.ts</code>), never their own.</p>
+                </div>
+                <div class="detail" data-pane="invitation" hidden>
+                  <h3><code>invitation</code></h3>
+                  <dl class="fields">
+                    <dt>community, user, invited_by</dt><dd>references, all cascade</dd>
+                    <dt>created_at</dt><dd>datetime</dd>
+                  </dl>
+                  <p class="small muted">Unique per (community, user). Accepting joins the place; declining removes the row.</p>
+                </div>
+                <div class="detail" data-pane="installation" hidden>
+                  <h3><code>plugin_installation</code> — plugin × place</h3>
+                  <dl class="fields">
+                    <dt>community</dt><dd>reference, cascade</dd>
+                    <dt>plugin</dt><dd>the plugin id (a string: plugins are code, not rows)</dd>
+                    <dt>enabled</dt><dd>default <code>true</code>; switching off keeps the data</dd>
+                    <dt>created_at</dt><dd>the default order of navigation and dashboard</dd>
+                  </dl>
+                  <p class="small muted">
+                    Unique per (community, plugin). Every plugin row and every uploaded file references its installation
+                    and cascades with it: deleting a place deletes its plugin data.
+                  </p>
+                </div>
+                <div class="detail" data-pane="source" hidden>
+                  <h3><code>plugin_source</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd>the plugin id</dd>
+                    <dt>version, source</dt><dd>the uploaded TypeScript, as checked</dd>
+                    <dt>updated_at</dt><dd>datetime</dd>
+                  </dl>
+                  <p class="small muted">
+                    Code of plugins uploaded at runtime (and of published AI plugins). The database is the source of
+                    truth: <code>ready()</code> reloads them after a restart. <a href="pipeline.html">More →</a>
+                  </p>
+                </div>
+                <div class="detail" data-pane="visit" hidden>
+                  <h3><code>plugin_visit</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd><code>[installation, user]</code> (<code>visitRef</code>)</dd>
+                    <dt>at</dt><dd>updated on every view render → <code>ctx.lastVisit</code></dd>
+                  </dl>
+                  <p class="small muted">Lets widgets say "new since your last visit" without tables of their own.</p>
+                </div>
+                <div class="detail" data-pane="file" hidden>
+                  <h3><code>plugin_file</code></h3>
+                  <dl class="fields">
+                    <dt>installation</dt><dd>reference, cascade</dd>
+                    <dt>uploaded_by</dt><dd>user; unset when the user is deleted</dd>
+                    <dt>status</dt><dd><code>pending</code> after upload → <code>kept</code> once a plugin row references it</dd>
+                    <dt>mime, size, created_at</dt><dd>metadata; the bytes are in the file store</dd>
+                  </dl>
+                  <p class="small muted">Pending uploads older than 24 hours are swept.</p>
+                </div>
+                <div class="detail" data-pane="schema" hidden>
+                  <h3><code>plugin_schema</code></h3>
+                  <p>
+                    Schemaless. The declared shape of every plugin table (columns and indexes, id = the table's name), so
+                    the next version of a plugin is compared with what is stored: compatible changes are applied, breaking
+                    ones rejected. <a href="pipeline.html">Schema evolution →</a>
+                  </p>
+                </div>
+                <div class="detail" data-pane="dashboard" hidden>
+                  <h3><code>dashboard</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd>the community's key</dd>
+                    <dt>order</dt><dd><code>array&lt;string&gt;</code> of <code>"&lt;plugin&gt;/&lt;widget&gt;"</code></dd>
+                    <dt>sizes</dt><dd><code>array&lt;{ key, w, h }&gt;</code>: the size picked per widget</dd>
+                    <dt>hidden</dt><dd><code>array&lt;string&gt;</code>: widgets removed from the dashboard</dd>
+                  </dl>
+                  <p class="small muted">
+                    Set by the place's admins; widgets missing from <code>order</code> follow in the default order, a
+                    size the plugin no longer allows falls back to its default.
+                  </p>
+                </div>
+                <div class="detail" data-pane="ptables" hidden>
+                  <h3>Plugin tables <code>p_&lt;plugin&gt;__&lt;table&gt;</code></h3>
+                  <p>
+                    One SCHEMAFULL table per declared plugin table — e.g. <code>p_announcements__announcements</code> —
+                    shared by every installation of that plugin. Each row carries system fields the plugin cannot set:
+                  </p>
+                  <dl class="fields">
+                    <dt>installation</dt><dd>reference to <code>plugin_installation</code>, cascade</dd>
+                    <dt>created_at, updated_at</dt><dd>datetimes (<code>createdAt</code>, <code>updatedAt</code> in plugins)</dd>
+                    <dt>created_by</dt><dd>the user who inserted it (<code>createdBy</code>)</dd>
+                  </dl>
+                  <p class="small muted">
+                    Every query and every index is prefixed with the installation, so one community never sees another's
+                    rows. Generated by the engine in <code>packages/sdk/src/engine/schema.ts</code>.
+                    <a href="plugins.html">How isolation works →</a>
+                  </p>
+                </div>
+                <div class="detail" data-pane="notification" hidden>
+                  <h3><code>notification</code> — the inbox</h3>
+                  <dl class="fields">
+                    <dt>user, community, installation</dt><dd>references, cascade</dd>
+                    <dt>plugin</dt><dd>sender plugin id</dd>
+                    <dt>title, body, tone</dt><dd><code>info | success | warning | danger</code></dd>
+                    <dt>open</dt><dd>the plugin view a tap opens</dd>
+                    <dt>created_at, read_at</dt><dd>datetimes</dd>
+                  </dl>
+                  <p class="small muted">One row per recipient (fan-out on write, one statement), written by <code>ctx.notify</code>.</p>
+                </div>
+                <div class="detail" data-pane="place" hidden>
+                  <h3><code>place</code> — "Moje miejsca"</h3>
+                  <dl class="fields">
+                    <dt>user</dt><dd>reference, cascade</dd>
+                    <dt>label, point</dt><dd>e.g. home, work; <code>geometry&lt;point&gt;</code></dd>
+                  </dl>
+                  <p class="small muted">
+                    Private to the user (at most 10). Plugins never read it: the host matches
+                    <code>ctx.notify({ to: { near } })</code> against it.
+                  </p>
+                </div>
+                <div class="detail" data-pane="location" hidden>
+                  <h3><code>user_location</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd>the user's key (one per user)</dd>
+                    <dt>point, at</dt><dd>shared while the app is open</dd>
+                  </dl>
+                  <p class="small muted">Counts for "near" notifications for 30 minutes (<code>LOCATION_FRESH_MINUTES</code>).</p>
+                </div>
+                <div class="detail" data-pane="push" hidden>
+                  <h3><code>push_token</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd>the Expo push token itself</dd>
+                    <dt>user</dt><dd>whoever registered it last</dd>
+                  </dl>
+                  <p class="small muted">Tokens Expo reports as uninstalled are forgotten.</p>
+                </div>
+                <div class="detail" data-pane="placeplugin" hidden>
+                  <h3><code>place_plugin</code></h3>
+                  <dl class="fields">
+                    <dt>id</dt><dd>the generated plugin id (<code>ai-…</code>)</dd>
+                    <dt>community</dt><dd>the place that owns it, cascade</dd>
+                    <dt>author</dt><dd>the admin who asked</dd>
+                    <dt>published</dt><dd>the version number running in the place; <code>NONE</code> = a draft</dd>
+                  </dl>
+                </div>
+                <div class="detail" data-pane="version" hidden>
+                  <h3><code>plugin_version</code></h3>
+                  <dl class="fields">
+                    <dt>plugin, n</dt><dd>unique pair; cascade with the plugin</dd>
+                    <dt>request</dt><dd>the admin's words for this version</dd>
+                    <dt>status</dt><dd><code>working | ready | failed</code></dd>
+                    <dt>attempts</dt><dd>checks the AI ran</dd>
+                    <dt>source, outline, summary, error</dt><dd>the result</dd>
+                  </dl>
+                  <p class="small muted"><a href="pipeline.html">How the builder writes versions →</a></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h3>Rules for the database</h3>
+          <div class="cols">
+            <div class="card">
+              <h4>No migration files</h4>
+              <p class="small">
+                The schema is idempotent SurrealQL (<code>DEFINE … IF NOT EXISTS</code>), applied by
+                <code>migrate()</code>: on every start of the dev/E2E server, for every test database, and in production
+                by <code>migrate-cli.js</code> before the server starts. Changes are additive only.
+              </p>
+            </div>
+            <div class="card">
+              <h4>Queries through <code>surql</code> only</h4>
+              <p class="small">
+                Never a plain string: values always go through <code>${}</code> as bindings. Application code gets a
+                <code>Db</code> from <code>createDb()</code> and uses <code>rows</code>, <code>first</code>,
+                <code>ref</code>, <code>keyOf</code> from <code>src/db/query.ts</code>.
+              </p>
+            </div>
+          </div>
+          <figure class="snippet">
+            <figcaption><span>the pattern (AGENTS.md)</span></figcaption>
+            <pre class="code"><code data-lang="ts">const mine = await rows&lt;{ id: RecordId }&gt;(db, surql`SELECT id FROM membership WHERE user = ${ref("user", userId)};`);</code></pre>
+          </figure>
+        </section>
+
+        <!-- ───────────────────────────── frontend ───────────────────────────── -->
+        <section id="frontend">
+          <h2>Frontend</h2>
+          <p class="section-intro">
+            One Expo codebase for iOS, Android and the web. Each layer has one job, and code only reaches down. Pick a
+            layer.
+          </p>
+          <div class="wide" data-group>
+            <div class="layers">
+              <div class="layer-stack">
+                <button class="box" type="button" data-layer="app" data-show="routes" aria-pressed="true">
+                  <span class="box-title">Routes</span>
+                  <span class="path">apps/app/app/</span>
+                </button>
+                <div class="arrow-down" aria-hidden="true"></div>
+                <button class="box" type="button" data-layer="app" data-show="screens">
+                  <span class="box-title">Screens</span>
+                  <span class="path">src/screens/</span>
+                </button>
+                <div class="arrow-down" aria-hidden="true"></div>
+                <button class="box" type="button" data-layer="app" data-show="data">
+                  <span class="box-title">Data hooks</span>
+                  <span class="path">src/data/</span>
+                </button>
+                <div class="arrow-down" aria-hidden="true"></div>
+                <button class="box" type="button" data-layer="app" data-show="lib">
+                  <span class="box-title">Platform and API client</span>
+                  <span class="path">src/lib/</span>
+                </button>
+                <div class="arrow-down" aria-hidden="true">HTTP</div>
+                <button class="box" type="button" data-layer="api" data-show="apilayer">
+                  <span class="box-title">API</span>
+                  <span class="path">apps/api (AppType)</span>
+                </button>
+              </div>
+              <div>
+                <div class="detail" data-pane="routes">
+                  <h3>Routes — <code>apps/app/app/</code></h3>
+                  <p>
+                    Expo Router: files are routes, and they stay thin. <code>app/_layout.tsx</code> mounts the providers
+                    (TanStack Query, safe area, keyboard, flash messages); <code>app/app/_layout.tsx</code> guards
+                    everything under <code>/app</code> with the session (else <code>&lt;Redirect href="/login" /&gt;</code>)
+                    and registers the phone for pushes.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/app/app/app/c/[slug]/[plugin]/[view].tsx — the whole file</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export { default } from "../../../../../src/screens/PluginView";</code></pre>
+                  </figure>
+                  <p class="small muted">
+                    Routes: <code>/login</code>, <code>/register</code>, <code>/app</code> (dashboard),
+                    <code>/app/map</code>, <code>/app/account</code>, <code>/app/invites</code>, <code>/app/create</code>,
+                    <code>/app/created</code>, <code>/app/join-code</code>, <code>/app/join-place</code>,
+                    <code>/app/preview</code>, <code>/app/scan</code>, <code>/app/c/[slug]</code> (opens the place on
+                    the dashboard), <code>/app/c/[slug]/manage</code>, <code>/app/c/[slug]/add-plugin</code>,
+                    <code>/app/c/[slug]/build</code>,
+                    <code>/app/c/[slug]/[plugin]/[view]</code>.
+                  </p>
+                </div>
+                <div class="detail" data-pane="screens" hidden>
+                  <h3>Screens — <code>src/screens/</code></h3>
+                  <p>
+                    Screen logic, built from the design-system components in <code>src/components/</code> (which set the
+                    roles and labels E2E selects by) and the tokens in <code>src/theme/</code>. Every text comes from
+                    <code>src/texts.ts</code> (<code>t.key</code>) — the app is Polish only, no i18n. No
+                    <code>Platform.OS</code> here.
+                  </p>
+                  <div class="callout key">
+                    <span class="callout-title">Plugin screens are different</span>
+                    <code>PluginView</code> has no idea what a plugin shows: it fetches a UI tree from the API, draws it
+                    with <code>src/plugins/Renderer.tsx</code> and sends actions back (navigate or call a tool). Dashboard
+                    tiles and plugin maps (<code>src/plugins/PluginMap.tsx</code>) work the same way.
+                    <a href="plugins.html">Server-Driven UI →</a>
+                  </div>
+                </div>
+                <div class="detail" data-pane="data" hidden>
+                  <h3>Data hooks — <code>src/data/</code></h3>
+                  <p>
+                    The only data pattern: TanStack Query. Reads are <code>useQuery</code>; writes are
+                    <code>useMutation</code> that invalidates the affected keys. A tool call invalidates every view of
+                    that plugin.
+                  </p>
+                  <figure class="snippet">
+                    <figcaption><span>apps/app/src/data/communities.ts</span></figcaption>
+                    <pre class="code"><code data-lang="ts">export function useToolCall(slug: string, pluginId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tool, args }: { tool: string; args: Record&lt;string, unknown&gt; }): Promise&lt;ToolResult&gt; =&gt;
+      parseResponse(
+        c[":slug"].plugins[":pluginId"].tools[":tool"].$post({ param: { slug, pluginId, tool }, json: { args } }),
+      ),
+    onSuccess: () =&gt; qc.invalidateQueries({ queryKey: pluginKey(slug, pluginId) }),
+  });
+}</code></pre>
+                  </figure>
+                </div>
+                <div class="detail" data-pane="lib" hidden>
+                  <h3>Platform and API client — <code>src/lib/</code></h3>
+                  <ul>
+                    <li><code>api.ts</code> — <code>hc&lt;AppType&gt;</code> (Hono RPC) and the Better Auth client, both sending the bearer token.</li>
+                    <li><code>config.ts</code> — the only place that knows the API address.</li>
+                    <li><code>storage.ts</code> — the only persistent device storage (secure store on phones, <code>localStorage</code> on the web).</li>
+                    <li><code>upload.ts</code> — the one hand-written <code>fetch</code>: multipart photo upload for plugins.</li>
+                    <li><code>*.web.ts</code> / <code>*.web.tsx</code> — platform variants (pushes, Google sign-in, the map surface).</li>
+                  </ul>
+                  <p class="small muted"><code>Platform.OS</code> branches are allowed only here and in routes.</p>
+                </div>
+                <div class="detail" data-pane="apilayer" hidden>
+                  <h3>The API's types, not copies</h3>
+                  <p>
+                    <code>import type { AppType } from "@app/api"</code>: the client's paths, parameters and response
+                    types are inferred from the Hono routers. Change a route and the app stops type-checking until it
+                    follows. Messages from the API never reach the UI directly; screens show their own <code>t.*</code>
+                    texts (plugin content is the exception: it is the plugin's Polish).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── rules ───────────────────────────── -->
+        <section id="rules" data-toc="Single source of truth">
+          <h2>Rules that keep it one codebase</h2>
+          <p class="section-intro">
+            Each concern has exactly one home (AGENTS.md, "Single source of truth"). When you wonder where something
+            goes, look it up here.
+          </p>
+          <div class="wide">
+            <div class="filter">
+              <label for="rules-filter" class="small muted">Find</label>
+              <input id="rules-filter" type="search" placeholder="e.g. schema, text, API address…" autocomplete="off" />
+              <span class="small muted" data-rules-count aria-live="polite"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="rules">
+                <thead>
+                  <tr><th>Concern</th><th>The only place</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Types and validation</td><td><code>packages/shared</code>, <code>packages/sdk</code></td><td>The app imports API types via Hono RPC (<code>AppType</code>), never by hand.</td></tr>
+                  <tr><td>Database schema</td><td><code>apps/api/src/db/schema.ts</code></td><td>Idempotent SurrealQL, additive only; plugin tables come from the plugins' <code>tables</code>.</td></tr>
+                  <tr><td>Database client</td><td><code>createDb()</code> in <code>apps/api/src/db</code></td><td>Code receives <code>Db</code>; helpers <code>rows</code>, <code>first</code>, <code>ref</code>, <code>keyOf</code>.</td></tr>
+                  <tr><td>SurrealQL</td><td>the <code>surql</code> tag</td><td>Values bound via <code>${}</code>; only the plugin engine splices identifiers (<code>ident()</code>, <code>joinQueries()</code>).</td></tr>
+                  <tr><td>Routers</td><td><code>createApp()</code> in <code>apps/api/src/app.ts</code></td><td>The only place routers are mounted; exports <code>AppType</code>.</td></tr>
+                  <tr><td>Built-in plugins</td><td><code>apps/api/src/plugins/builtin/index.ts</code></td><td>Plus the package in <code>plugins/</code> and the dependency in <code>apps/api/package.json</code>.</td></tr>
+                  <tr><td>AI model on the host</td><td><code>apps/api/src/services/ai/model.ts</code></td><td>Each agent gets a folder <code>services/ai/&lt;agent&gt;/</code>: <code>types.ts</code>, <code>prompt.ts</code>, <code>strands.ts</code>.</td></tr>
+                  <tr><td>App configuration</td><td><code>apps/app/app.config.ts</code></td><td><code>android/</code>, <code>ios/</code> are generated by <code>expo prebuild</code>: never edited or committed.</td></tr>
+                  <tr><td>Routes</td><td><code>apps/app/app/</code></td><td>Thin files; logic in <code>src/screens/</code>.</td></tr>
+                  <tr><td>API address</td><td><code>apps/app/src/lib/config.ts</code></td><td>Build-time <code>EXPO_PUBLIC_API_URL</code>, runtime override for E2E.</td></tr>
+                  <tr><td>Device storage</td><td><code>apps/app/src/lib/storage.ts</code></td><td>Tokens never in AsyncStorage.</td></tr>
+                  <tr><td>Platform branches</td><td><code>src/lib/</code> and routes</td><td>Never <code>Platform.OS</code> in screens.</td></tr>
+                  <tr><td>UI text</td><td><code>apps/app/src/texts.ts</code></td><td>Polish; no literals in components. Plugin texts come from the server.</td></tr>
+                  <tr><td>Look and feel</td><td><code>apps/app/src/theme/</code> + <code>src/components/</code></td><td>Tokens of the "Twoje Miejsce" design system; no hard-coded colours.</td></tr>
+                  <tr><td>Product truth and tone</td><td><code>PRODUCT.md</code></td><td>No made-up numbers or opinions.</td></tr>
+                  <tr><td>Test runners</td><td><code>bun test</code> + Playwright</td><td>No Jest, no Vitest.</td></tr>
+                  <tr><td>Lint and format</td><td>Biome</td><td>Tool versions: <code>flake.nix</code> + <code>bun.lock</code>.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───────────────────────────── quality ───────────────────────────── -->
+        <section id="quality">
+          <h2>Quality gates</h2>
+          <p class="section-intro">
+            A task is done only when <code>bun run verify</code> exits 0 (<code>scripts/verify.ts</code>). The five checks
+            (lint … schema) are independent and run concurrently, each printing its output when it finishes; any failure ends
+            the run with a non-zero exit after the summary. Build, e2e and android are slow, so they are separate commands,
+            run when a change needs them (a screen or flow: its Playwright specs; a native change: android). Pick a stage.
+          </p>
+          <div class="wide" data-group>
+            <div class="pipeline">
+              <button class="box" type="button" data-show="lint" aria-pressed="true"><span class="stage-n">1</span><span class="box-title">lint + format</span><span class="box-sub">concurrent</span></button>
+              <button class="box" type="button" data-show="types"><span class="stage-n">2</span><span class="box-title">typecheck</span><span class="box-sub">concurrent</span></button>
+              <button class="box" type="button" data-layer="sdk" data-show="unit"><span class="stage-n">3</span><span class="box-title">unit</span><span class="box-sub">concurrent</span></button>
+              <button class="box" type="button" data-layer="api" data-show="int"><span class="stage-n">4</span><span class="box-title">integration</span><span class="box-sub">concurrent</span></button>
+              <button class="box" type="button" data-layer="db" data-show="dbcheck"><span class="stage-n">5</span><span class="box-title">schema</span><span class="box-sub">concurrent</span></button>
+              <button class="box" type="button" data-show="build"><span class="stage-n">6</span><span class="box-title">build</span><span class="box-sub">on demand</span></button>
+              <button class="box" type="button" data-layer="app" data-show="e2e"><span class="stage-n">7</span><span class="box-title">e2e</span><span class="box-sub">on demand</span></button>
+              <button class="box" type="button" data-layer="app" data-show="android"><span class="stage-n">8</span><span class="box-title">android</span><span class="box-sub">on demand</span></button>
+            </div>
+            <div class="detail" data-pane="lint">
+              <h3>lint + format <code>bun run lint</code></h3>
+              <p>
+                <code>biome ci --error-on-warnings .</code> — Biome lints and checks formatting of the whole repo (these HTML
+                pages included); warnings fail too. No global rule switches; a local <code>biome-ignore</code> needs a reason.
+              </p>
+              <p>
+                <code>biome.json</code> enforces several AGENTS.md rules mechanically: <code>Platform</code> and DOM globals
+                outside <code>src/lib/</code>, navigation and storage imports, JSX text literals and Polish string literals
+                outside <code>texts.ts</code> in the app, SurrealQL without the <code>surql</code> tag
+                (<code>biome-plugins/*.grit</code>), <code>test-*.ts</code> imports in API code, Node modules and undeclared
+                dependencies in plugins and <code>packages/shared</code>, floating promises.
+              </p>
+            </div>
+            <div class="detail" data-pane="types" hidden>
+              <h3>typecheck <code>bun run typecheck</code></h3>
+              <p>
+                <code>tsc -p .</code> in every workspace, in parallel (<code>bun run --parallel --no-exit-on-error --filter '*'
+                typecheck</code>), each plugin
+                included. This is also where the app learns about a changed API: its client is typed by
+                <code>AppType</code>.
+              </p>
+            </div>
+            <div class="detail" data-pane="unit" hidden>
+              <h3>unit <code>bun scripts/bun-test.ts ./packages ./plugins ./apps/app/src ./apps/api/src</code></h3>
+              <p>
+                Pure logic next to the code. Plugins are tested with <code>testPlugin</code>: the real engine on embedded
+                in-memory SurrealDB, with <code>requires</code>, Zod input parsing and UI schemas applied like in the host —
+                no API, no AI model.
+              </p>
+            </div>
+            <div class="detail" data-pane="int" hidden>
+              <h3>integration <code>bun scripts/bun-test.ts ./apps/api/test</code></h3>
+              <p>
+                Every test calls <code>setup()</code>: a fresh database (schema applied) on the one embedded in-memory
+                engine of the process, and the API through <code>app.request()</code> — no ports. <code>close()</code> in
+                <code>afterEach</code>. AI, push, geocoder and the plugin author are fakes passed to
+                <code>createApp</code>.
+              </p>
+              <div class="callout warn">
+                One engine per process on purpose: with <code>@surrealdb/node</code> 3.0.3, Bun 1.4 crashes on exit after a
+                second embedded engine or <code>REMOVE DATABASE</code>. Never open another <code>mem://</code> connection in
+                tests (<code>docs/testing.md</code>). That makes the crash rare, not impossible, so both test stages run
+                through <code>scripts/bun-test.ts</code>, which counts a SIGSEGV after a summary with "0 fail" as green (with a
+                note) and keeps every other exit code.
+              </div>
+            </div>
+            <div class="detail" data-pane="dbcheck" hidden>
+              <h3>schema <code>bun run db:check</code></h3>
+              <p>
+                On a clean embedded database, in memory and on disk (<code>surrealkv</code>): the schema applies, applying
+                it again is a no-op, every platform table exists, and the built-in plugins' tables sync — a second plan
+                contains only idempotent statements.
+              </p>
+            </div>
+            <div class="detail" data-pane="e2e" hidden>
+              <h3>e2e <code>bun run e2e</code></h3>
+              <p>
+                Playwright on the <em>production</em> static web export (<code>expo export</code>, served by
+                <code>scripts/serve.ts</code> on a random port). Each worker starts its own API
+                (<code>apps/api/src/test-server.ts</code>, <code>mem://</code>, a free port) and every test begins with
+                <code>POST /__test/reset</code>. Tests select by roles and labels, which is why the components set
+                <code>role</code>, <code>aria-level</code>, <code>aria-label</code>. <code>bun run e2e</code> exports first;
+                <code>E2E_PREBUILT=1</code> serves the existing <code>dist/</code> (when only specs changed).
+              </p>
+              <p class="small muted">
+                <code>/__test/*</code> exists only in <code>test-server.ts</code>, which refuses to start outside
+                <code>NODE_ENV=test</code>. Native screens are covered by the Android and iOS builds, not on-device E2E.
+              </p>
+            </div>
+            <div class="detail" data-pane="build" hidden>
+              <h3>build <code>bun run build</code></h3>
+              <p>
+                API: <code>Bun.build</code> of <code>server.js</code> and <code>migrate-cli.js</code>, plus
+                <code>plugin-types.json</code> (the SDK types the plugin type check reads, since the image has no repo); it
+                fails if <code>__test</code> ended up in the bundle. Then the web export of the app.
+              </p>
+            </div>
+            <div class="detail" data-pane="android" hidden>
+              <h3>android <code>bun run android</code></h3>
+              <p>
+                <code>expo prebuild</code> + <code>assembleDebug</code>. Needs <code>JAVA_HOME</code>,
+                <code>ANDROID_HOME</code>, <code>ANDROID_NDK_HOME</code>: run it inside
+                <code>nix develop .#android</code>.
+              </p>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-title">A skip is not green</span>
+            <code>VERIFY_SKIP=unit,schema</code> marks checks <code>SKIP</code> in the summary; a task reported with a
+            skipped check must say which and why.
+          </div>
+          <h3>CI</h3>
+          <p>
+            <code>.github/workflows/ci.yml</code> runs on pushes to <code>master</code>, on <code>v*</code> tags and on pull
+            requests, and must be green without secrets: jobs that need them are skipped with a notice. Several sessions
+            push to <code>master</code>, so a newer push cancels the run of an older one.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Job</th><th>What</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>verify</code></td><td><code>bun run verify</code> in <code>nix develop</code> (the five checks).</td></tr>
+                <tr><td><code>ios</code></td><td><code>expo prebuild</code> + an unsigned simulator build on macOS; a signed archive only on tags with signing secrets.</td></tr>
+                <tr><td><code>android-release</code></td><td>Signed AAB, only when the signing secrets exist.</td></tr>
+                <tr><td><code>images</code></td><td>The API image (<code>apps/api/Dockerfile</code>) to GHCR on tags (its condition still names a <code>main</code> branch).</td></tr>
+                <tr><td><code>release</code></td><td>On tags: a GitHub Release with the mobile artifacts.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">
+            The production image runs <code>bun server.js</code> on Bun's slim image and keeps no state; the schema is
+            applied first with <code>bun migrate-cli.js</code>. Deploys never run from a local machine.
+          </p>
+        </section>
+
+        <!-- ───────────────────────────── next ───────────────────────────── -->
+        <section id="next">
+          <h2>Where to go next</h2>
+          <div class="cards">
+            <a class="card" href="plugins.html">
+              <h3>Plugin runtime →</h3>
+              <p class="small muted">The plugin contract, <code>ctx</code> and permissions, isolation per installation, tables and <code>ctx.db</code>, Server-Driven UI.</p>
+            </a>
+            <a class="card" href="pipeline.html">
+              <h3>Checks &amp; AI builder →</h3>
+              <p class="small muted">The six check stages, uploads, schema evolution without migrations, the AI plugin builder.</p>
+            </a>
+            <a class="card" href="../plugins.md">
+              <h3>docs/plugins.md</h3>
+              <p class="small muted">The reference for plugin authors: every API, every rule, a complete tested example.</p>
+            </a>
+            <a class="card" href="../expo.md">
+              <h3>docs/expo.md</h3>
+              <p class="small muted">Frontend patterns, semantics for accessibility and E2E, forbidden APIs.</p>
+            </a>
+            <a class="card" href="../testing.md">
+              <h3>docs/testing.md</h3>
+              <p class="small muted">Test levels, the shared database engine, E2E fixtures.</p>
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+    <footer class="foot">
+      Written against commit e16f82d (4 October 2026). The code is the source of truth: when this page and the code
+      disagree, the page is wrong — fix it in the same commit.
+    </footer>
+  </body>
+</html>

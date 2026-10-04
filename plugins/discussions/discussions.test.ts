@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { PluginUser } from "@app/plugin-sdk";
-import { ForbiddenError, testPlugin } from "@app/plugin-sdk/testing";
+import type { PluginUser, UINode } from "@app/plugin-sdk";
+import { ForbiddenError, testPlugin, textsOf } from "@app/plugin-sdk/testing";
 import discussions from "./index";
 
 const anna = { id: "anna", name: "Anna", role: "user" } as const;
@@ -91,6 +91,235 @@ describe("discussions", () => {
     await send(t, bartek, discussion, "Hej");
     await t.deleteUser("bartek");
     expect(await t.db.messages!.count()).toBe(0);
+  });
+});
+
+/** Every node of a type in a UI tree, in order. */
+const nodesOf = <T extends UINode["type"]>(node: UINode | null, type: T): Extract<UINode, { type: T }>[] => {
+  if (!node) return [];
+  const own = node.type === type ? [node as Extract<UINode, { type: T }>] : [];
+  const children = "children" in node && node.children ? node.children.flatMap((c) => nodesOf(c, type)) : [];
+  return [...own, ...children];
+};
+const at = (minute: number) => new Date(Date.UTC(2026, 9, 4, 8, minute));
+
+describe("discussions: dashboard widget and views", () => {
+  test("widget without discussions: an invitation to start one; the header opens them all", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const widget = await t.dashboardWidget("recent");
+    expect(widget).toMatchObject({
+      title: "Dyskusje",
+      icon: "chat",
+      link: { label: "Wszystkie", action: { type: "navigate", view: "list" } },
+      onPress: { type: "navigate", view: "list" },
+    });
+    expect(widget).not.toHaveProperty("subtitle");
+    expect(textsOf(widget!)).toEqual(["Dyskusje", "Nikt jeszcze nie zaczął rozmowy.", "Nowa dyskusja"]);
+    expect(nodesOf(widget, "Button")[0]?.action).toEqual({ type: "navigate", view: "new" });
+  });
+
+  test("widget: the 3 latest by activity with the last message, new ones since the last visit", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const create = async (minute: number, title: string, body?: string) => {
+      t.setNow(at(minute));
+      return ((await t.tool("createDiscussion", { title, ...(body ? { body } : {}) })).data as { id: string }).id;
+    };
+    const green = await create(0, "Zieleń przy Rondzie", "Co sadzimy?");
+    t.setNow(at(1));
+    await send(t, anna, green, "Proponuję lipy");
+    await create(2, "Parking pod blokiem");
+    await create(3, "Psy w parku", "Gdzie zrobić wybieg?");
+    await create(4, "Festyn sąsiedzki");
+
+    // Bartek never opened discussions: everything is new; only the 3 latest show.
+    const first = await t.as(bartek).dashboardWidget("recent");
+    expect(first).toMatchObject({ subtitle: "4 z nowymi wpisami" });
+    expect(nodesOf(first, "Activity").map((a) => [a.title, a.text, a.person, a.unread])).toEqual([
+      ["Festyn sąsiedzki", "Nowa dyskusja", "Anna", true],
+      ["Psy w parku", "Gdzie zrobić wybieg?", "Anna", true],
+      ["Parking pod blokiem", "Nowa dyskusja", "Anna", true],
+    ]);
+
+    // Both open discussions; Bartek replies in the oldest one, which moves to the top as his own.
+    t.setNow(at(5));
+    await t.view("list");
+    await t.as(bartek).view("thread", { id: green });
+    t.setNow(at(6));
+    await send(t, bartek, green, "Raczej klony");
+    t.setNow(at(7));
+    await t.as(bartek).view("thread", { id: green }); // the app refreshes the view after a tool call
+
+    const his = await t.as(bartek).dashboardWidget("recent");
+    expect(his).toMatchObject({ subtitle: "4 dyskusje" });
+    expect(nodesOf(his, "Activity")[0]).toEqual({
+      type: "Activity",
+      title: "Zieleń przy Rondzie",
+      text: "Ty: Raczej klony",
+      person: "Bartek",
+      at: at(6).toISOString(),
+      onPress: { type: "navigate", view: "thread", params: { id: green } },
+    });
+    const hers = await t.dashboardWidget("recent");
+    expect(hers).toMatchObject({ subtitle: "1 z nowymi wpisami" });
+    expect(nodesOf(hers, "Activity").map((a) => [a.text, a.unread ?? false])).toEqual([
+      ["Bartek: Raczej klony", true],
+      ["Nowa dyskusja", false],
+      ["Gdzie zrobić wybieg?", false],
+    ]);
+  });
+
+  test("an administrator's message is marked for the accent colour in the chat", async () => {
+    const { t, discussion } = await start();
+    t.setNow(at(1));
+    await send(t, bartek, discussion, "Posadzimy w jesieni");
+    t.setNow(at(2));
+    await t.as(moderator).tool("sendMessage", { discussion, text: "Dziękujemy, sadzonki są zamówione." });
+    const thread = await t.view("thread", { id: discussion });
+    expect(nodesOf(thread, "Chat")[0]?.messages).toEqual([
+      { id: expect.any(String), person: "Bartek", text: "Posadzimy w jesieni", at: at(1).toISOString() },
+      {
+        id: expect.any(String),
+        person: "Urząd",
+        text: "Dziękujemy, sadzonki są zamówione.",
+        at: at(2).toISOString(),
+        admin: true,
+      },
+    ]);
+  });
+
+  test("thread: the opening post, a chat with my messages marked, the message field; locking from the header", async () => {
+    const { t, discussion } = await start();
+    t.setNow(at(1));
+    await send(t, bartek, discussion, "Raczej klony");
+    t.setNow(at(2));
+    const mine = await send(t, anna, discussion, "Lipy dają cień");
+    await t.tool("editMessage", { id: mine!.id, text: "Lipy dają więcej cienia" });
+    const thread = await t.view("thread", { id: discussion });
+    expect(nodesOf(thread, "Activity").map((a) => [a.title, a.text])).toEqual([["Ty", "Co sadzimy?"]]);
+    expect(nodesOf(thread, "Chat")[0]?.messages).toEqual([
+      { id: expect.any(String), person: "Bartek", text: "Raczej klony", at: at(1).toISOString() },
+      {
+        id: mine!.id,
+        person: "Anna",
+        text: "Lipy dają więcej cienia",
+        at: at(2).toISOString(),
+        mine: true,
+        note: "edytowano",
+      },
+    ]);
+    expect(nodesOf(thread, "Composer")[0]).toMatchObject({
+      name: "text",
+      label: "Twoja wiadomość",
+      sendLabel: "Wyślij",
+      submit: { type: "tool", tool: "sendMessage", args: { discussion } },
+    });
+    expect(thread).not.toHaveProperty("actions"); // residents do not moderate
+
+    const moderated = await t.as(moderator).view("thread", { id: discussion });
+    expect(moderated).toMatchObject({
+      actions: [
+        {
+          icon: "lock",
+          variant: "icon",
+          label: "Zamknij dyskusję",
+          action: { type: "tool", tool: "lockDiscussion", args: { id: discussion, locked: true } },
+          confirm: { title: "Zamknąć dyskusję?", confirmLabel: "Zamknij" },
+        },
+      ],
+    });
+
+    await t.as(moderator).tool("lockDiscussion", { id: discussion, locked: true });
+    const locked = await t.as(bartek).view("thread", { id: discussion });
+    expect(textsOf(locked)).toContain("Dyskusja jest zamknięta. Nowe wiadomości piszą tylko moderatorzy.");
+    expect(nodesOf(locked, "Composer")).toEqual([]);
+    expect(nodesOf(await t.dashboardWidget("recent"), "Activity")[0]?.text).toBe(
+      "Zamknięta · Ty: Lipy dają więcej cienia",
+    );
+
+    const reopen = await t.as(moderator).view("thread", { id: discussion });
+    expect(nodesOf(reopen, "Composer")).toHaveLength(1);
+    expect(reopen).toMatchObject({
+      actions: [{ icon: "unlock", label: "Otwórz dyskusję", action: { args: { id: discussion, locked: false } } }],
+    });
+    expect(reopen).not.toHaveProperty("actions.0.confirm");
+  });
+
+  test("thread without a description or messages: no opening post, an invitation to write", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const id = ((await t.tool("createDiscussion", { title: "Parking pod blokiem" })).data as { id: string }).id;
+    const thread = await t.view("thread", { id });
+    expect(nodesOf(thread, "Activity")).toEqual([]);
+    expect(textsOf(thread)).toContain("Nie ma jeszcze wiadomości. Napisz pierwszą.");
+  });
+
+  test("list: a card per discussion with the last message, when, how many people and messages, what is new", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const create = async (minute: number, title: string, body?: string) => {
+      t.setNow(at(minute));
+      return ((await t.tool("createDiscussion", { title, ...(body ? { body } : {}) })).data as { id: string }).id;
+    };
+    const green = await create(0, "Zieleń przy Rondzie", "Co sadzimy?");
+    t.setNow(at(1));
+    await send(t, bartek, green, "Proponuję lipy");
+    const quiet = await create(2, "Psy w parku", "Gdzie zrobić wybieg?");
+    await t.as(moderator).tool("lockDiscussion", { id: quiet, locked: true });
+    t.setNow(at(3));
+    await t.view("list");
+    const reply = async (minute: number, user: PluginUser, text: string) => {
+      t.setNow(at(minute));
+      await send(t, user, green, text);
+    };
+    await reply(4, bartek, "Raczej klony");
+    await reply(5, anna, "Może jedno i drugie");
+    await reply(6, moderator, "Zapiszę na zebranie");
+
+    t.setNow(at(7));
+    const cards = nodesOf(await t.view("list"), "Card");
+    expect(cards).toEqual([
+      {
+        type: "Card",
+        title: "Zieleń przy Rondzie",
+        subtitle: "Urząd: Zapiszę na zebranie",
+        meta: [
+          { at: at(6).toISOString() },
+          { text: "3 osoby", icon: "people" },
+          { text: "4 wiadomości", icon: "chat" },
+        ],
+        unread: true,
+        count: 2,
+        onPress: { type: "navigate", view: "thread", params: { id: green } },
+      },
+      {
+        type: "Card",
+        title: "Psy w parku",
+        subtitle: "Gdzie zrobić wybieg?",
+        tags: [{ text: "Zamknięta", icon: "lock", tone: "neutral" }],
+        meta: [
+          { at: at(2).toISOString() },
+          { text: "1 osoba", icon: "people" },
+          { text: "0 wiadomości", icon: "chat" },
+        ],
+        onPress: { type: "navigate", view: "thread", params: { id: quiet } },
+      },
+    ]);
+    expect(nodesOf(await t.as(bartek).view("list"), "Card")[0]).toMatchObject({
+      subtitle: "Urząd: Zapiszę na zebranie",
+      unread: true,
+    });
+    expect(nodesOf(await t.view("list"), "Card")[0]).not.toHaveProperty("unread");
+  });
+
+  test("starting a discussion from the app: the header's button opens a form that calls createDiscussion", async () => {
+    const t = await testPlugin(discussions, { user: anna });
+    const list = await t.view("list");
+    expect(list).toMatchObject({
+      actions: [{ label: "Nowa dyskusja", icon: "plus", action: { type: "navigate", view: "new" } }],
+    });
+    expect(nodesOf(list, "Fab")).toEqual([]);
+    expect(nodesOf(list, "Empty")).toHaveLength(1);
+    const form = nodesOf(await t.view("new"), "Form")[0];
+    expect(form?.submit).toEqual({ type: "tool", tool: "createDiscussion" });
+    expect(nodesOf(form ?? null, "TextInput").map((i) => i.name)).toEqual(["title", "body"]);
   });
 });
 

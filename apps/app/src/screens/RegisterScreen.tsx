@@ -1,9 +1,8 @@
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft } from "lucide-react-native";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Checkbox, Heading, IconButton, Link, PasswordStrength, Screen, Text, TextField } from "../components";
+import { BackButton, Button, Checkbox, Heading, Link, PasswordStrength, Screen, Text, TextField } from "../components";
 import { useAuthActions } from "../data/session";
 import { goBack } from "../lib/navigation";
 import { MIN_PASSWORD_LENGTH } from "../lib/passwordStrength";
@@ -40,7 +39,7 @@ export default function RegisterScreen() {
         <title>{t.meta_register_title}</title>
       </Head>
       <View style={styles.topRow}>
-        <IconButton icon={ChevronLeft} label={t.auth_back} onPress={() => goBack(router, "/login")} />
+        <BackButton label={t.auth_back} onPress={() => goBack(router, "/login")} />
         <Text variant="label" color="textSecondary">
           {t.auth_step}
         </Text>

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { colors, layout, opacity, radii, sizes, spacing } from "../theme";
+import { AccentGradient } from "./AccentGradient";
 import { Heading } from "./Heading";
 import { Text } from "./Text";
 
@@ -17,7 +18,7 @@ export interface HeroBannerProps {
  */
 export function HeroBanner({ label, title }: HeroBannerProps) {
   return (
-    <View style={styles.banner}>
+    <AccentGradient style={styles.banner}>
       <View pointerEvents="none" aria-hidden style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%" viewBox="0 0 342 172" preserveAspectRatio="xMaxYMid slice">
           <Path
@@ -38,7 +39,7 @@ export function HeroBanner({ label, title }: HeroBannerProps) {
       <Heading level={1} variant="headingM" color="onPrimary">
         {title}
       </Heading>
-    </View>
+    </AccentGradient>
   );
 }
 

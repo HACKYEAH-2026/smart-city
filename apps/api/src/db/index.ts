@@ -4,13 +4,17 @@ export {
   type CommunityRow,
   communityBySlug,
   first,
+  fromGeoPoint,
+  geoPoint,
   keyOf,
   memberRole,
   membershipRef,
+  polishOrder,
   ref,
   rows,
   toCommunity,
   toDate,
+  toPluginCommunity,
   visitRef,
 } from "./query";
 export { SCHEMA, TABLES } from "./schema";

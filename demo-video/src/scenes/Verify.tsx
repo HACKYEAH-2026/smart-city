@@ -24,8 +24,15 @@ export const Verify: React.FC = () => {
           <Card style={{ width: 720, textAlign: "center", padding: 50 }}>
             <div style={{ fontSize: 60 }}>🏙️</div>
             <div style={{ fontSize: 40, fontWeight: 800, marginTop: 10 }}>Dołącz do społeczności Kraków</div>
-            <div style={{ fontSize: 23, color: C.muted, marginTop: 14, lineHeight: 1.4 }}>
-              Ta społeczność jest tylko dla mieszkańców gminy Kraków.
+            <div
+              style={{
+                fontSize: 23,
+                color: C.muted,
+                marginTop: 14,
+                lineHeight: 1.4,
+              }}
+            >
+              Ta społeczność jest tylko dla użytkowników gminy Kraków.
               <br />
               Potwierdź to jednym kliknięciem.
             </div>
@@ -44,11 +51,23 @@ export const Verify: React.FC = () => {
 
         {frame >= CONNECT ? (
           <AbsoluteFill
-            style={{ background: `rgba(15,23,42,${0.45 * modal})`, alignItems: "center", justifyContent: "center" }}
+            style={{
+              background: `rgba(15,23,42,${0.45 * modal})`,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <Card style={{ width: 640, padding: 44, ...fadeUp(modal, 40) }}>
               {frame < CONSENT ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 22, fontSize: 26, fontWeight: 600 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 22,
+                    fontSize: 26,
+                    fontWeight: 600,
+                  }}
+                >
                   <Spinner />
                   Łączenie z mObywatelem…
                 </div>
@@ -66,7 +85,13 @@ export const Verify: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: "center", transform: `scale(${0.8 + 0.2 * done})`, opacity: done }}>
+                <div
+                  style={{
+                    textAlign: "center",
+                    transform: `scale(${0.8 + 0.2 * done})`,
+                    opacity: done,
+                  }}
+                >
                   <div
                     style={{
                       width: 110,
@@ -84,7 +109,14 @@ export const Verify: React.FC = () => {
                     ✓
                   </div>
                   <div style={{ fontSize: 34, fontWeight: 800, marginTop: 20 }}>Witaj, sąsiadko!</div>
-                  <div style={{ fontSize: 23, color: C.green, fontWeight: 600, marginTop: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 23,
+                      color: C.green,
+                      fontWeight: 600,
+                      marginTop: 8,
+                    }}
+                  >
                     Zweryfikowana mieszkanka Krakowa
                   </div>
                 </div>
@@ -100,7 +132,16 @@ export const Verify: React.FC = () => {
 const Row: React.FC<{ text: string; ok?: boolean; delay: number }> = ({ text, ok, delay }) => {
   const p = useIn(delay);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 23, padding: "9px 0", ...fadeUp(p, 10) }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        fontSize: 23,
+        padding: "9px 0",
+        ...fadeUp(p, 10),
+      }}
+    >
       <span
         style={{
           width: 34,

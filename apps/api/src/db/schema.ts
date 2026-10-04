@@ -1,4 +1,5 @@
 import { PLATFORM_SCHEMA } from "@app/plugin-sdk/engine";
+import { surql } from "surrealdb";
 
 /**
  * The only database schema (SurrealQL). Idempotent (`IF NOT EXISTS`): applied on every start and in tests,
@@ -20,9 +21,11 @@ export const TABLES = {
   place: "place",
   location: "user_location",
   pushToken: "push_token",
+  placePlugin: "place_plugin",
+  version: "plugin_version",
 } as const;
 
-export const SCHEMA = `
+export const SCHEMA = surql`
 ${PLATFORM_SCHEMA}
 DEFINE INDEX IF NOT EXISTS user_email ON user FIELDS email UNIQUE;
 
@@ -36,6 +39,9 @@ DEFINE FIELD IF NOT EXISTS kind ON community TYPE "estate" | "building" | "compa
 DEFINE FIELD IF NOT EXISTS address ON community TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS description ON community TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS join_rule ON community TYPE "open" | "approval" | "invite" DEFAULT "approval";
+-- The place's pin, and whether every signed-in user sees it on the map of places (members always do; routes/geo.ts).
+DEFINE FIELD IF NOT EXISTS location ON community TYPE option<geometry<point>>;
+DEFINE FIELD IF NOT EXISTS on_map ON community TYPE bool DEFAULT false;
 -- Invite code for joining by code, link or QR (@app/shared INVITE_CODE_ALPHABET); the API keeps it unique.
 DEFINE FIELD IF NOT EXISTS invite_code ON community TYPE option<string>;
 DEFINE INDEX IF NOT EXISTS community_invite_code ON community FIELDS invite_code;
@@ -49,6 +55,8 @@ DEFINE INDEX IF NOT EXISTS membership_community_user ON membership FIELDS commun
 -- Per-user place state: when the user last opened the place, and whether it is the user's default place.
 DEFINE FIELD IF NOT EXISTS last_visit ON membership TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS is_default ON membership TYPE bool DEFAULT false;
+-- When the user joined the place; optional because memberships created before this field have none.
+DEFINE FIELD IF NOT EXISTS joined_at ON membership TYPE option<datetime> DEFAULT time::now();
 
 -- An invitation to a place: an admin invites a user (by email); the invitee accepts (joins) or declines (removed).
 DEFINE TABLE IF NOT EXISTS invitation SCHEMAFULL;
@@ -77,10 +85,16 @@ DEFINE FIELD IF NOT EXISTS installation ON plugin_visit TYPE record<plugin_insta
 DEFINE FIELD IF NOT EXISTS user ON plugin_visit TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS at ON plugin_visit TYPE datetime;
 
--- Dashboard widget order of a community, set by its admins. id = community key; entries are
--- "<plugin>/<widget>" (widgets missing from it follow in the default order).
+-- Dashboard layout of a community, set by its admins. id = community key; keys are "<plugin>/<widget>".
+-- order: widget order (widgets missing from it follow in the default order); sizes: the size an admin picked per
+-- widget (from the sizes its plugin allows); hidden: widgets an admin removed from the dashboard.
 DEFINE TABLE IF NOT EXISTS dashboard SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS order ON dashboard TYPE array<string>;
+DEFINE FIELD IF NOT EXISTS sizes ON dashboard TYPE array<object> DEFAULT [];
+DEFINE FIELD IF NOT EXISTS sizes.*.key ON dashboard TYPE string;
+DEFINE FIELD IF NOT EXISTS sizes.*.w ON dashboard TYPE int;
+DEFINE FIELD IF NOT EXISTS sizes.*.h ON dashboard TYPE int;
+DEFINE FIELD IF NOT EXISTS hidden ON dashboard TYPE array<string> DEFAULT [];
 DEFINE FIELD IF NOT EXISTS updated_at ON dashboard TYPE datetime DEFAULT time::now();
 
 -- A notification in a resident's inbox (ctx.notify), one row per recipient. \`open\` = view of the plugin to open.
@@ -103,6 +117,8 @@ DEFINE TABLE IF NOT EXISTS place SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user ON place TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS label ON place TYPE string;
 DEFINE FIELD IF NOT EXISTS point ON place TYPE geometry<point>;
+-- The postal address picked with the point, shown in the account ("" = none; places saved before it have NONE).
+DEFINE FIELD IF NOT EXISTS address ON place TYPE string DEFAULT "";
 DEFINE FIELD IF NOT EXISTS created_at ON place TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS place_user ON place FIELDS user;
 
@@ -117,4 +133,28 @@ DEFINE TABLE IF NOT EXISTS push_token SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user ON push_token TYPE record<user> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD IF NOT EXISTS updated_at ON push_token TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS push_token_user ON push_token FIELDS user;
+
+-- A plugin the AI writes for a place, at its admin's request (plugins/builder.ts). id = the generated plugin id (its
+-- plugin_source row once published); published = the version running in the place (NONE: a draft).
+DEFINE TABLE IF NOT EXISTS place_plugin SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS community ON place_plugin TYPE record<community> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS author ON place_plugin TYPE option<record<user>> REFERENCE ON DELETE UNSET;
+DEFINE FIELD IF NOT EXISTS published ON place_plugin TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS created_at ON place_plugin TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS place_plugin_community ON place_plugin FIELDS community;
+
+-- One request of the admin (the description, then each change) and the plugin source the AI wrote for it, checked
+-- like an upload; outline = what the source declares (name, icon, views…).
+DEFINE TABLE IF NOT EXISTS plugin_version SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS plugin ON plugin_version TYPE record<place_plugin> REFERENCE ON DELETE CASCADE;
+DEFINE FIELD IF NOT EXISTS n ON plugin_version TYPE int;
+DEFINE FIELD IF NOT EXISTS request ON plugin_version TYPE string;
+DEFINE FIELD IF NOT EXISTS status ON plugin_version TYPE "working" | "ready" | "failed" DEFAULT "working";
+DEFINE FIELD IF NOT EXISTS attempts ON plugin_version TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS summary ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS source ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS outline ON plugin_version TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS error ON plugin_version TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_at ON plugin_version TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS plugin_version_plugin ON plugin_version FIELDS plugin, n UNIQUE;
 `;

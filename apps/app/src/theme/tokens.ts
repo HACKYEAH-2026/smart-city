@@ -1,15 +1,31 @@
 /**
- * Twoje Miejsce design tokens (direction E · red #E50101).
+ * Twoje Miejsce design tokens (accent: the #D81B60 → #F2545B gradient, see `gradients`).
  * SINGLE SOURCE OF TRUTH for every visual value in the React Native app.
  * Components and screens take values from here (via `../theme`) — never hardcode hex colors,
  * spacing, radii, font sizes or shadows.
  */
 
+/** Accent gradients: from the first colour (top left) to the second (bottom right). */
+export const gradients = {
+  accent: ["#D81B60", "#F2545B"] as const,
+};
+
 export const colors = {
   // Brand
-  primary: "#E50101", // primary CTA, active elements, links, accent icons
-  primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
-  primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
+  // The first colour of the accent gradient: text, icons, lines and dots use it; large fills use `gradients.accent`.
+  primary: "#D81B60", // primary CTA, active elements, links, accent icons
+  primaryPressed: "#A10F50", // pressed state, text on primaryTint (contrast), destructive text
+  primaryTint: "#FBE8F0", // icon/avatar/badge background, success ring
+  primaryTintPressed: "#F6D2E2", // pressed state of an accent button on primaryTint (outside the design)
+  // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
+  neutralTint: "#ECEAE5",
+  neutralText: "#3E3E46",
+  infoTint: "#E8EEF8",
+  infoText: "#1F4E8C",
+  warningTint: "#FFF1D6",
+  warningText: "#7A4F00",
+  successTint: "#E3F1E6",
+  successText: "#1E6B34",
   onPrimary: "#FFFFFF",
 
   // Text
@@ -24,6 +40,7 @@ export const colors = {
   surface: "#FFFFFF", // cards, fields, list rows, tab bar
   surfaceSunken: "#EAE7E0", // segmented control background, close button in sheet
   surfaceMuted: "#F0EEE9", // neutral avatars/badges (member)
+  pluginIcon: "#EDEBE6",
   surfaceDisabled: "#FAF9F7", // empty code cells
   mapBase: "#ECE9E1", // map / photo placeholder
 
@@ -33,6 +50,7 @@ export const colors = {
   borderEmpty: "#E6E3DC", // empty code cells
   divider: "#EEEBE4", // separators inside cards/lists
   dashed: "#D3CEC2", // dashed frames, bottom sheet handle
+  dashedStrong: "#B9B4A9", // dashed "Dodaj widżet" tile on the sunken grid of the layout editor
   dot: "#B5B2AA", // dash in the ABC-DEF code
 
   // Dark mode (QR scanner only)
@@ -41,6 +59,7 @@ export const colors = {
   scannerHint: "#707078",
   onDarkOverlay: "rgba(255,255,255,0.10)", // buttons on dark background
   onPrimaryOverlay: "rgba(255,255,255,0.18)", // icon on a red card
+  photoOverlay: "rgba(27,27,31,0.72)", // a pill over a photo ("+2", "1 / 2")
 
   // Layers
   scrim: "#5F646C", // backdrop under the bottom sheet (RN: rgba(27,27,31,0.55) or this color with opacity)
@@ -52,6 +71,15 @@ export const colors = {
   mapWater: "#E4EAF3",
   mapRoad: "#E6E2D8",
   mapRoadMinor: "#ECE8DF",
+  // Live maps (OpenFreeMap base recoloured to the tokens above, src/lib/map/spec.ts)
+  mapBuilding: "#E3DFD5", // buildings, a shade darker than mapBase
+  mapMe: "#3D6AE0", // the user's own position (blue dot with a halo)
+  // What plugin maps mean by a tone (ui.map: pins, routes, areas). The app's UI shows only danger in colour, but on a
+  // map colour is how layers tell apart; danger is the brand red, and info stays clear of the blue "me" dot.
+  mapNeutral: "#5E5E66",
+  mapInfo: "#1F6FA8",
+  mapSuccess: "#2E7D32",
+  mapWarning: "#C26A00",
 
   // Google "G" on the Google sign-in button: Google's own colors (its branding guidelines forbid changing the logo)
   googleBlue: "#4285F4",
@@ -86,9 +114,11 @@ export const layout = {
   /** Outside the design (390 px mobile): content width on wide web screens. */
   contentMaxWidth: 560,
   /** Login screen: the brand row starts this far from the top edge (design y = 200). */
-  loginContentTop: 200,
+  loginContentTop: 270,
   /** Red hero banner: inner padding (design 22, off the spacing scale). */
   heroPadding: 22,
+  /** A plugin's card in the catalog: inner padding (design 18, off the spacing scale). */
+  pluginCardPadding: 18,
   /** Outside the design: a focused field stays this far above the keyboard, so the form's button below it
    * (gap 14 + buttonLg 54) is visible too. */
   keyboardBottomOffset: 84,
@@ -102,25 +132,56 @@ export const radii = {
   xl: 16, // list rows, small cards
   "2xl": 18, // list groups, SelectableCard
   "3xl": 20, // dashboard cards, dashboard tiles
-  "4xl": 22, // banner/hero, success card
+  "4xl": 22, // banner/hero, success card, the layout editor's grid
+  panel: 24, // top corners of a non-modal panel at the bottom of a screen (layout editor)
+  mini: 8, // tiles of the dashboard layout preview
+  outline: 3, // the outline rectangle of a widget size choice ("3 × 2")
   sheet: 28, // top corners of the bottom sheet
+  message: 22, // the message box: round at one line, a rounded box as it grows
   pill: 999,
 } as const;
 
 export const sizes = {
   iconButton: 44,
   buttonLg: 54,
+  /** A square icon button beside a field or a main button (its height matches the button). */
+  squareButton: 54,
   buttonMd: 50,
   buttonSm: 46,
   buttonXs: 40,
+  /** "Dodaj do miejsca" on a plugin's catalog card (design 44; a `sm` button made lower). */
+  buttonPluginAdd: 44,
+  widgetButton: 44,
+  widgetIcon: 15,
+  widgetRowLine: 32,
+  switchTrack: 52,
+  switchHeight: 32,
+  switchKnob: 26,
+  commentAvatar: 32,
+  compactLocationPreview: 72,
+  cardThumbFeatured: 96,
+  cardThumbCompact: 64,
+  pluginSuccessMark: 72,
+  pluginSuccessRing: 92,
+  pluginSuccessIcon: 34,
+  heroTitleWidth: 240,
   input: 52,
+  /** The message box at most: 5 lines of `typography.input` with its padding and border (it scrolls beyond). */
+  messageInputMax: 132,
+  /** A search field above a list (design "Dodaj rozszerzenie": 50). */
+  inputS: 50,
   otpCell: 64,
   avatarSm: 28,
   avatarMd: 36,
   avatarLg: 40,
   avatarXl: 44,
+  /** Icon boxes: 40 in list rows and choice cards, 44 by default, 48 in empty states, 52 on a plugin's catalog card. */
+  iconBoxSm: 40,
+  /** The signed-in user's initials at the top of the account. */
+  avatarProfile: 64,
   iconBox: 44,
   iconBoxLg: 48,
+  iconBoxXl: 52,
   radioDot: 22,
   stepBarHeight: 4,
   tabIcon: 22,
@@ -132,7 +193,7 @@ export const sizes = {
   /** Red circle with a check on the active row of the place switcher. */
   selectedMark: 24,
   /** The logo mark ("Roofline M") next to the wordmark. */
-  brandMark: 24,
+  brandMark: 28,
   /** Red hero banner (no-places screen): minimum height, text sits at the bottom. */
   heroBanner: 172,
   successMark: 64,
@@ -145,16 +206,51 @@ export const sizes = {
   qrCard: 104,
   /** Choice cards in a two-column grid (kind of place): minimum height. */
   selectableCard: 128,
+  /** A choice chip (categories in a form). */
+  chipHeight: 38,
+  /** A choice button in a form (two options side by side). */
+  choiceButton: 52,
+  /** Plugin forms: a photo tile (square, design "Dodaj") and the remove button on a chosen photo. */
+  photoTile: 84,
+  photoRemove: 26,
+  photoRemoveIcon: 12,
+  /** Text under the success mark of a plugin view: keeps long lines short. */
+  heroTextWidth: 300,
   scannerFrame: 268,
   /** QR scanner frame: corner length and the frame's corner radius (design: 52 and 32). */
   scannerCorner: 52,
   scannerRadius: 32,
   /** Text under the scanner frame: max width. */
   scannerHint: 280,
-  /** Login screen: height of the map illustration at the top. */
-  authMap: 300,
+  /** Login screen: the clip fades into the screen over this height at its lower edge. */
+  authVideoFade: 400,
   /** Dashboard header: height of the map decoration. */
-  dashboardMap: 230,
+  dashboardMap: 370,
+  /** Dashboard: the place's mascot at the top of the content: its width, its centre across the content (a fraction of its width), and how far above its rest its drop starts (dp). */
+  dashboardMascot: 150,
+  dashboardMascotX: 2 / 3,
+  dashboardMascotDrop: 32,
+  /** Dashboard: how far the mascot sits above the top of the content (dp). */
+  dashboardMascotLift: 12,
+  /** Dashboard: the place's name is at most this fraction of the content's width, so it stays left of the mascot. */
+  dashboardNameWidth: 0.45,
+  /** Dashboard: the height of the place's header row: one line of the name (its heading line height). */
+  dashboardHeader: 31,
+  /** Dashboard header: space between the place's header and the widgets, so the backdrop has room. */
+  /** Dashboard header: the map fades into the screen over this height at its lower edge. */
+  dashboardMapFade: 160,
+  /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
+  dashboardMapCrop: 48,
+  /** Dashboard header: the tip of the place's pin, this far below the top of the content (beside the place's name). */
+  dashboardPinTop: 154,
+  /** Dashboard header: the place's pin across the screen, a fraction of its width (between the name and the gear). */
+  dashboardPinX: 0.64,
+  /** Dashboard header: the diameter of the red glow that marks the place (a radial gradient, blurred with the backdrop). */
+  dashboardGlow: 150,
+  /** Dashboard header: the backdrop (map and pin) moves up this much, so the pin lines up with the header. */
+  dashboardMapLift: 16,
+  /** Dashboard header: scrolling this far (dp) blurs the backdrop fully; it starts blurring at the first scroll. */
+  dashboardBlurRange: 200,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
@@ -162,8 +258,56 @@ export const sizes = {
   sheetHandleHeight: 5,
   /** Dot under the active bottom-bar tab. */
   tabDot: 5,
+  /** Dot by an unread notification in the account. */
+  unreadDot: 8,
+  /** The still map with a place's pin in the "new place" wizard. */
+  locationPreview: 140,
+  /** A map in a plugin's view; in a dashboard widget it is a still preview of `locationPreview`. */
+  pluginMap: 260,
+  /** The colour mark of a plugin map's layer or item in its legend and list (a route's mark is a wider line). */
+  mapSwatch: 12,
+  mapSwatchRoute: 18,
+  /** The map of places: the panel under the map (list or a place's card) at most this tall. */
+  mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
-  widgetRow: 112,
+  widgetRow: 96,
+  /** Dashboard layout editor (design "Układ pulpitu"): a grid row. */
+  layoutRow: 64,
+  /** Layout editor: one grid cell in a size choice's outline icon (a 3 × 2 widget draws 21 × 14). */
+  layoutSizeUnit: 7,
+  /** Layout editor: a size choice ("3 × 2"). */
+  layoutSizeOption: 48,
+  /** A small pill button in a list row ("Dodaj" in the "Dodaj widżet" sheet). */
+  pillButton: 38,
+  /** A plugin card's counter pill (votes) at the right of its meta line. */
+  votePill: 32,
+  /** A plugin card's thumbnail: in a list of cards, and in a grouped list's row. */
+  cardThumb: 76,
+  cardThumbSm: 52,
+  /** The "+N" pill over a thumbnail and the "1 / 2" pill over a gallery. */
+  photoMore: 20,
+  photoPill: 28,
+  /** A red number badge at the right of a row (unread, pending; COMPONENTS.md → CountBadge). */
+  countBadge: 22,
+  /** A tile of a plugin's tile tabs ("8" over "Aktywne"). */
+  tabTile: 76,
+  /** The box with an icon over a plugin's empty state, and its icon. */
+  emptyBox: 64,
+  emptyBoxIcon: 30,
+  /** A plugin menu's trigger: a plain text button, or a small outlined pill (a chip). */
+  menuText: 36,
+  menuChip: 28,
+  /** A removable tag (an outlined pill with an "X"), and its remove button. */
+  removableTag: 36,
+  removableTagButton: 28,
+  /** A tag (badge) on a list card: its height, and the dot in a status tag. */
+  tagHeight: 24,
+  tagDot: 6,
+  /** The floating button over a screen. */
+  fab: 56,
+  highlightThumb: 64,
+  /** An action row in a bottom sheet (design "Opcje członka": 56). */
+  sheetAction: 56,
 } as const;
 
 /** Font families (names from the @expo-google-fonts packages — see fonts.ts). One typeface everywhere. */
@@ -173,6 +317,7 @@ export const fontFamily = {
   medium: "SchibstedGrotesk_500Medium",
   semibold: "SchibstedGrotesk_600SemiBold",
   bold: "SchibstedGrotesk_700Bold",
+  condensed: "BarlowCondensed_600SemiBold",
 } as const;
 
 /**
@@ -180,21 +325,69 @@ export const fontFamily = {
  * Values derived from the design (e.g. -0.025em × 30 px = -0.75).
  */
 export const typography = {
+  sectionLabel: {
+    fontFamily: fontFamily.condensed,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: 0.84,
+  },
   // Headings
-  titleXL: { fontFamily: fontFamily.bold, fontSize: 32, lineHeight: 35, letterSpacing: -0.8 }, // login
-  title: { fontFamily: fontFamily.bold, fontSize: 30, lineHeight: 34, letterSpacing: -0.75 }, // screen title
-  heading: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 31, letterSpacing: -0.7 }, // place name, success screen
-  headingM: { fontFamily: fontFamily.bold, fontSize: 26, lineHeight: 30, letterSpacing: -0.52 }, // hero, place preview
-  headingS: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 29, letterSpacing: -0.48 }, // bottom sheet, management
-  brand: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 }, // wordmark
+  titleXL: {
+    fontFamily: fontFamily.bold,
+    fontSize: 32,
+    lineHeight: 35,
+    letterSpacing: -0.8,
+  }, // login
+  title: {
+    fontFamily: fontFamily.bold,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.75,
+  }, // screen title
+  heading: {
+    fontFamily: fontFamily.bold,
+    fontSize: 28,
+    lineHeight: 31,
+    letterSpacing: -0.7,
+  }, // place name, success screen
+  headingM: {
+    fontFamily: fontFamily.bold,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.52,
+  }, // hero, place preview
+  headingS: {
+    fontFamily: fontFamily.bold,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.48,
+  }, // bottom sheet, management
+  brand: {
+    fontFamily: fontFamily.bold,
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.2,
+  }, // wordmark
 
   // Body copy
   bodyL: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 24 }, // lead under a title
   body: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 22 },
   caption: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
-  captionRelaxed: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20.3 }, // descriptions in cards (1.45)
+  captionRelaxed: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    lineHeight: 20.3,
+  }, // descriptions in cards (1.45)
   cardTitle: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20 }, // titles in cards and list rows (16/600)
+  cardTitleL: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 }, // a plugin's name on its catalog card (17/700)
+  rowTitle: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 20 }, // titles in flush rows inside a card (15/600)
   small: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
+  smallStrong: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+  }, // group headers in a sheet (13/600)
+  tileTitle: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 15 }, // a widget's name on a layout tile
   tab: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   tabActive: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
 
@@ -206,24 +399,87 @@ export const typography = {
   link: { fontFamily: fontFamily.medium, fontSize: 14, lineHeight: 20 },
 
   // Labels — always UPPERCASE (textTransform: 'uppercase'), tracked out
-  label: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 }, // 0.06em
-  labelL: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 17, letterSpacing: 0.78 },
-  labelHero: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96 }, // 0.08em on the red banner
-  chip: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 15, letterSpacing: 0.55 }, // 0.05em
-  stepNumber: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 },
-  abbr: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 20, letterSpacing: 0 }, // place abbreviation (e.g. "OS")
-  codeInline: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20, letterSpacing: 1.28 }, // K7M-4QX in a row
+  label: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.72,
+  }, // 0.06em
+  labelL: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: 0.78,
+  },
+  labelHero: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.96,
+  }, // 0.08em on the red banner
+  chip: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.55,
+  }, // 0.05em
+  /** Tags on list cards: sentence case, unlike the uppercase chip. */
+  tag: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
+  stepNumber: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.72,
+  },
+  abbr: {
+    fontFamily: fontFamily.bold,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0,
+  }, // place abbreviation (e.g. "OS")
+  codeInline: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 1.28,
+  }, // K7M-4QX in a row
 
   // Codes
-  codeXL: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 32, letterSpacing: 1.68 }, // "place created" screen
-  codeM: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 26, letterSpacing: 1.32 }, // management
-  codeS: { fontFamily: fontFamily.bold, fontSize: 15, lineHeight: 20, letterSpacing: 0.9 }, // "Code, link or QR" row
+  codeXL: {
+    fontFamily: fontFamily.bold,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: 1.68,
+  }, // "place created" screen
+  codeM: {
+    fontFamily: fontFamily.bold,
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: 1.32,
+  }, // management
+  codeS: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0.9,
+  }, // "Code, link or QR" row
   otp: { fontFamily: fontFamily.semibold, fontSize: 26, lineHeight: 30 }, // code cell
+
+  // Emoji in an icon box (a plugin's icon), the size of the line icon it stands in for
+  emojiM: { fontFamily: fontFamily.regular, fontSize: 20, lineHeight: 26 },
+  emojiL: { fontFamily: fontFamily.regular, fontSize: 26, lineHeight: 32 },
 } as const;
 
 /** Shadows: iOS (shadow*) + Android (elevation). Spread into StyleSheet: `...shadows.card`. */
 export const shadows = {
   none: {},
+  redGlow: {
+    shadowColor: "#D81B60",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
+    elevation: 4,
+  },
   /** Default card / list row (0 1 2 rgba .06) */
   card: {
     shadowColor: "#1B1B1F",
@@ -242,7 +498,7 @@ export const shadows = {
   },
   /** Selected card / row (red glow 0 6 18 .12) */
   selected: {
-    shadowColor: "#E50101",
+    shadowColor: "#D81B60",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 9,
@@ -256,14 +512,45 @@ export const shadows = {
     shadowRadius: 4,
     elevation: 2,
   },
+  /** A panel at the bottom of a screen, over the content (0 -8 28 rgba .10) */
+  panel: {
+    shadowColor: "#1B1B1F",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 8,
+  },
   /** Focus glow of a text field (COMPONENTS.md → TextField: 4 dp, primary at .10) */
   focusRing: {
-    shadowColor: "#E50101",
+    shadowColor: "#D81B60",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 0,
   },
+} as const;
+
+/** Marks drawn on live maps (MapLibre style values in px): place pins with labels, the user's position. */
+export const mapMarks = {
+  pinRadius: 9,
+  pinRadiusSelected: 12,
+  pinStroke: 3,
+  meRadius: 7,
+  meHaloRadius: 16,
+  meStroke: 2.5,
+  labelSize: 12,
+  labelHalo: 1.5,
+  /** The label starts this far below the pin's centre, in ems. */
+  labelOffset: 1.3,
+  /** Plugin routes: the line and the white casing under it. */
+  routeWidth: 4,
+  routeCasing: 7,
+  /** Dashes of a dashed route (in line widths). */
+  routeDash: [2, 1.5],
+  /** Plugin areas: the outline. */
+  areaStroke: 2,
+  /** Room around everything on a plugin map when its first view fits it. */
+  fitPadding: 40,
 } as const;
 
 export const borders = {
@@ -279,11 +566,18 @@ export const opacity = {
   onPrimarySubtitle: 0.9,
   /** Halo around the current-location pin on the login map illustration. */
   routeHalo: 0.18,
+  /** Plugin areas on a map: their fill. */
+  mapArea: 0.16,
   /** Hero banner decoration: white streets and the halo around the white pin. */
   heroRoad: 0.09,
   heroPinHalo: 0.25,
   /** Dimming behind a bottom sheet (COMPONENTS.md → BottomSheet: rgba(27,27,31,0.55)). */
   scrim: 0.55,
+  /** Dashboard header: the red glow's strength at its centre (fades to 0 at its edge). */
+  dashboardGlow: 1.2,
+  pluginScrim: 0.4,
+  /** Login screen: the grey veil over the clip (colors.scrim) that calms its colours. */
+  loginVideoVeil: 0.4,
 } as const;
 
 export const motion = {

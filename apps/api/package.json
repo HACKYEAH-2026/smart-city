@@ -22,8 +22,8 @@
   },
   "private": true,
   "scripts": {
-    "typecheck": "tsc -p .",
-    "dev": "NODE_ENV=test bun --watch \"$PWD/src/test-server.ts\"",
+    "typecheck": "tsc -p . --incremental",
+    "dev": "NODE_ENV=test bun --env-file=../../.env --watch --no-clear-screen \"$PWD/src/test-server.ts\"",
     "build": "bun scripts/build.ts",
     "start": "bun dist/server.js",
     "db:check": "bun scripts/db-check.ts",

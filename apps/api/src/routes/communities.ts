@@ -1,12 +1,25 @@
-import { type DashboardWidgetSize, type Role, type UINode, viewParamsSchema } from "@app/plugin-sdk";
+import {
+  DASHBOARD_COLUMNS,
+  type DashboardWidgetSize,
+  type PluginCommunity,
+  type Context as PluginContext,
+  type PluginUser,
+  type Role,
+  sameSize,
+  type UINode,
+  viewParamsSchema,
+} from "@app/plugin-sdk";
 import {
   type CommunityNavItem,
   type CreatedPlace,
+  type DashboardLayout,
+  dashboardLayoutSchema,
   dashboardOrderSchema,
   INVITE_CODE_ALPHABET,
   INVITE_CODE_LENGTH,
   type JoinRule,
   joinPlaceSchema,
+  type LayoutWidget,
   type MyPlace,
   newPlaceSchema,
   type PlaceDetails,
@@ -17,21 +30,26 @@ import {
 } from "@app/shared";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
-import type { RecordId } from "surrealdb";
+import { type GeometryPoint, type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
 import {
   type CommunityRow,
   communityBySlug,
   type Db,
   first,
+  fromGeoPoint,
+  geoPoint,
   keyOf,
   memberRole,
   membershipRef,
+  polishOrder,
   ref,
   rows,
   toCommunity,
+  toPluginCommunity,
 } from "../db";
-import { requireUser } from "../middleware";
+import { logger } from "../log";
+import { requirePlaceAdmin, requireUser } from "../middleware";
 import { ForbiddenError, type LoadedPlugin, PluginError, type PluginHost, PluginInputError } from "../plugins/host";
 import { FileInputError } from "../services/files/service";
 
@@ -42,6 +60,8 @@ type DashboardWidgetItem = {
   size: DashboardWidgetSize;
   node: UINode;
 };
+
+const log = logger("communities");
 
 /**
  * Places (communities) and their plugins, for the app. A user sees only the places they are a member of;
@@ -67,24 +87,25 @@ export const communitiesRoutes = new Hono<AppEnv>()
       last_visit: Date | null;
     }>(
       c.var.db,
-      `SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
+      surql`SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
               is_default, last_visit
-         FROM membership WHERE user = $u ORDER BY name;`,
-      { u: ref("user", c.var.user.id) },
+         FROM membership WHERE user = ${ref("user", c.var.user.id)};`,
     );
-    const places: MyPlace[] = mine.map((m) => ({
-      id: keyOf(m.id),
-      slug: m.slug,
-      name: m.name,
-      kind: m.kind ?? "other",
-      role: m.role,
-      isDefault: m.is_default,
-      lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
-    }));
+    const places: MyPlace[] = mine
+      .sort((a, b) => polishOrder(a.name, b.name))
+      .map((m) => ({
+        id: keyOf(m.id),
+        slug: m.slug,
+        name: m.name,
+        kind: m.kind ?? "other",
+        role: m.role,
+        isDefault: m.is_default,
+        lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
+      }));
     return c.json(places);
   })
   .post("/", zValidator("json", newPlaceSchema), async (c) => {
-    const { name, kind, address, description, joinRule, makeDefault, plugins } = c.req.valid("json");
+    const { name, kind, address, description, joinRule, location, onMap, makeDefault, plugins } = c.req.valid("json");
     const chosen = builtinPlugins(c.var.plugins, plugins);
     if (!chosen) return c.json({ error: "unknown_plugin", message: "plugins must be ids of built-in plugins" }, 400);
     const slug = await freeSlug(c.var.db, name);
@@ -92,11 +113,17 @@ export const communitiesRoutes = new Hono<AppEnv>()
     const inviteCode = await freeInviteCode(c.var.db);
     const created = await first<CommunityRow>(
       c.var.db,
-      `CREATE community CONTENT {
-         slug: $slug, name: $name, kind: $kind, address: $address, description: $description,
-         join_rule: $joinRule, invite_code: $inviteCode
-       };`,
-      { slug, name, kind, address, description, joinRule, inviteCode },
+      surql`CREATE community CONTENT ${{
+        slug,
+        name,
+        kind,
+        address,
+        description,
+        join_rule: joinRule,
+        invite_code: inviteCode,
+        on_map: onMap,
+        ...(location ? { location: geoPoint(location) } : {}),
+      }};`,
     );
     if (!created) throw new Error("community create returned no row");
     const communityId = keyOf(created.id);
@@ -104,18 +131,16 @@ export const communitiesRoutes = new Hono<AppEnv>()
     // The first place of a user becomes their default place; a later one only when asked (makeDefault).
     const hasDefault = await first<{ id: RecordId }>(
       c.var.db,
-      "SELECT id FROM membership WHERE user = $u AND is_default LIMIT 1;",
-      { u },
+      surql`SELECT id FROM membership WHERE user = ${u} AND is_default LIMIT 1;`,
     );
     if (makeDefault && hasDefault) {
-      await first(c.var.db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+      await first(c.var.db, surql`UPDATE membership SET is_default = false WHERE user = ${u} AND is_default = true;`);
     }
-    await first(c.var.db, "CREATE $m CONTENT { community: $c, user: $u, role: 'admin', is_default: $def };", {
-      m: membershipRef(communityId, c.var.user.id),
-      c: ref("community", communityId),
-      u,
-      def: makeDefault || !hasDefault,
-    });
+    await first(
+      c.var.db,
+      surql`CREATE ${membershipRef(communityId, c.var.user.id)} CONTENT
+              { community: ${ref("community", communityId)}, user: ${u}, role: 'admin', is_default: ${makeDefault || !hasDefault} };`,
+    );
     const community = toCommunity(created);
     // One after another: the place's navigation lists plugins in the order they were enabled.
     for (const plugin of chosen) await c.var.plugins.enable(plugin, community);
@@ -160,7 +185,12 @@ export const communitiesRoutes = new Hono<AppEnv>()
       description: string | null;
       join_rule: JoinRule | null;
       invite_code: string | null;
-    }>(c.var.db, "SELECT kind, address, description, join_rule, invite_code FROM $c;", { c: member.row.id });
+      location: GeometryPoint | null;
+      on_map: boolean | null;
+    }>(
+      c.var.db,
+      surql`SELECT kind, address, description, join_rule, invite_code, location, on_map FROM ${member.row.id};`,
+    );
     // Places created before the wizard have no answers stored: the schema defaults stand in.
     const place: PlaceDetails = {
       ...toCommunity(member.row),
@@ -169,6 +199,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
       address: details?.address ?? "",
       description: details?.description ?? "",
       joinRule: details?.join_rule ?? "approval",
+      location: details?.location ? fromGeoPoint(details.location) : null,
+      onMap: details?.on_map ?? false,
       inviteCode: member.role === "admin" ? (details?.invite_code ?? null) : null,
     };
     return c.json(place, 200);
@@ -177,9 +209,10 @@ export const communitiesRoutes = new Hono<AppEnv>()
   .post("/:slug/visit", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
-    await first(c.var.db, "UPDATE $m SET last_visit = time::now();", {
-      m: membershipRef(keyOf(member.row.id), c.var.user.id),
-    });
+    await first(
+      c.var.db,
+      surql`UPDATE ${membershipRef(keyOf(member.row.id), c.var.user.id)} SET last_visit = time::now();`,
+    );
     return c.json({ ok: true }, 200);
   })
   /** Makes this place the user's default place; the previous default is cleared. */
@@ -188,9 +221,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
     if (!member) return c.json({ error: "not_found" }, 404);
     await first(
       c.var.db,
-      `UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;
-       UPDATE $m SET is_default = true;`,
-      { u: ref("user", c.var.user.id), m: membershipRef(keyOf(member.row.id), c.var.user.id) },
+      surql`UPDATE membership SET is_default = false WHERE user = ${ref("user", c.var.user.id)} AND is_default = true;
+            UPDATE ${membershipRef(keyOf(member.row.id), c.var.user.id)} SET is_default = true;`,
     );
     return c.json({ ok: true }, 200);
   })
@@ -198,8 +230,8 @@ export const communitiesRoutes = new Hono<AppEnv>()
     if (!(await memberOf(c, c.req.param("slug")))) return c.json({ error: "not_found" }, 404);
     const installed = await rows<{ plugin: string }>(
       c.var.db,
-      "SELECT plugin, created_at FROM plugin_installation WHERE community.slug = $slug AND enabled ORDER BY created_at;",
-      { slug: c.req.param("slug") },
+      surql`SELECT plugin, created_at FROM plugin_installation
+            WHERE community.slug = ${c.req.param("slug")} AND enabled ORDER BY created_at;`,
     );
     const nav: CommunityNavItem[] = installed.flatMap(({ plugin: pluginId }) => {
       const plugin = c.var.plugins.get(pluginId);
@@ -209,62 +241,89 @@ export const communitiesRoutes = new Hono<AppEnv>()
     return c.json(nav);
   })
   /**
-   * Dashboard: widgets of the enabled plugins, rendered for this user, in the order set by the community admins
-   * (widgets not in it follow in the default order). A widget that fails or returns null is left out, so one
-   * broken plugin never breaks the dashboard. `canEdit` = the user may reorder it.
+   * Dashboard: the widgets on the community's layout (communityLayout), rendered for this user, in its order and
+   * sizes. Every plugin has one widget and it always renders; one that fails (throws, null or invalid UI) is left
+   * out and logged, so a broken plugin never breaks the dashboard. `canEdit` = the user may rearrange it.
    */
   .get("/:slug/dashboard", async (c) => {
     const member = await memberOf(c, c.req.param("slug"));
     if (!member) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(member.row);
-    const role = member.role;
-    const user = { id: c.var.user.id, name: c.var.user.name, role };
-    const installed = await rows<{ id: RecordId; plugin: string }>(
-      c.var.db,
-      "SELECT id, plugin, created_at FROM plugin_installation WHERE community = $c AND enabled ORDER BY created_at;",
-      { c: ref("community", community.id) },
-    );
-    const perPlugin = await Promise.all(
-      installed.map(async ({ id, plugin: pluginId }) => {
-        const plugin = c.var.plugins.get(pluginId);
-        if (!plugin) return [];
-        const installationId = keyOf(id);
-        const lastVisit = await c.var.plugins.lastVisit(installationId, user.id);
-        const ctx = c.var.plugins.context(plugin, { installationId, community, user, lastVisit });
-        return Promise.all(
-          c.var.plugins.dashboardWidgets(plugin).map(async ({ name, size }) => {
-            const node = await c.var.plugins.renderDashboardWidget(plugin, name, ctx).catch(logWidgetFailure);
-            return node ? [{ key: `${pluginId}/${name}`, pluginId, widget: name, size, node }] : [];
-          }),
+    const community = toPluginCommunity(member.row);
+    const user = { id: c.var.user.id, name: c.var.user.name, role: member.role };
+    const layout = await communityLayout(c.var.db, c.var.plugins, community.id);
+    const widgets = await renderWidgets(c.var.plugins, layout.widgets, community, user);
+    return c.json({ canEdit: member.role === "admin", widgets }, 200);
+  })
+  /** The dashboard layout for its admins: widgets on it (in order, with sizes) and the removed ones. */
+  .get("/:slug/dashboard/layout", requirePlaceAdmin("only admins arrange the dashboard"), async (c) => {
+    const layout = await communityLayout(c.var.db, c.var.plugins, keyOf(c.var.place.id));
+    return c.json(toDashboardLayout(layout), 200);
+  })
+  /**
+   * Community admins save the dashboard layout: the widgets on it in order, each with a size its plugin allows.
+   * Declared widgets left out are hidden. 400 when a key is not a widget of an enabled plugin or a size is not allowed.
+   */
+  .put(
+    "/:slug/dashboard/layout",
+    requirePlaceAdmin("only admins arrange the dashboard"),
+    zValidator("json", dashboardLayoutSchema),
+    async (c) => {
+      const communityId = keyOf(c.var.place.id);
+      const { widgets } = c.req.valid("json");
+      const current = await communityLayout(c.var.db, c.var.plugins, communityId);
+      const declared = [...current.widgets, ...current.available];
+      const invalid = widgets.find(({ key, size }) => !declared.find((d) => d.key === key)?.sizes.some(sameAs(size)));
+      if (invalid) {
+        return c.json(
+          { error: "invalid_layout", message: `"${invalid.key}" is not a widget here or cannot have this size` },
+          400,
         );
-      }),
-    );
-    const order = await dashboardOrder(c.var.db, community.id);
-    const widgets: DashboardWidgetItem[] = sortByOrder(perPlugin.flat(2), order);
-    return c.json({ canEdit: role === "admin", widgets }, 200);
-  })
-  /** Community admins set the dashboard order (keys "<pluginId>/<widget>"). */
-  .patch("/:slug/dashboard", zValidator("json", dashboardOrderSchema), async (c) => {
-    const member = await memberOf(c, c.req.param("slug"));
-    if (!member) return c.json({ error: "not_found" }, 404);
-    const community = toCommunity(member.row);
-    if (member.role !== "admin") {
-      return c.json({ error: "forbidden" }, 403);
-    }
-    const { order } = c.req.valid("json");
-    await c.var.db.query("UPSERT $d SET order = $order, updated_at = time::now();", {
-      d: ref("dashboard", community.id),
-      order,
-    });
-    return c.json({ order }, 200);
-  })
+      }
+      const listed = new Set(widgets.map((w) => w.key));
+      const saved = {
+        order: widgets.map((w) => w.key),
+        sizes: widgets.map(({ key, size }) => ({ key, w: size.w, h: size.h })),
+        hidden: declared.filter((d) => !listed.has(d.key)).map((d) => d.key),
+      };
+      await c.var.db.query(
+        surql`UPSERT ${ref("dashboard", communityId)}
+              SET order = ${saved.order}, sizes = ${saved.sizes}, hidden = ${saved.hidden}, updated_at = time::now();`,
+      );
+      const layout = await communityLayout(c.var.db, c.var.plugins, communityId);
+      return c.json(toDashboardLayout(layout), 200);
+    },
+  )
+  /** Community admins reorder the dashboard in place (keys "<pluginId>/<widget>"); sizes and hidden widgets stay. */
+  .patch(
+    "/:slug/dashboard",
+    requirePlaceAdmin("only admins arrange the dashboard"),
+    zValidator("json", dashboardOrderSchema),
+    async (c) => {
+      const community = toCommunity(c.var.place);
+      const { order } = c.req.valid("json");
+      await c.var.db.query(
+        surql`UPSERT ${ref("dashboard", community.id)} SET order = ${order}, updated_at = time::now();`,
+      );
+      return c.json({ order }, 200);
+    },
+  )
   .get("/:slug/plugins/:pluginId/views/:view", zValidator("query", viewParamsSchema), async (c) => {
     const target = await resolve(c, c.req.param("slug"), c.req.param("pluginId"));
     if (!target) return c.json({ error: "not_found" }, 404);
     const view = c.req.param("view");
     if (typeof target.plugin.definition.views[view] !== "function") return c.json({ error: "not_found" }, 404);
+    // The plugin's page in "Zarządzaj miejscem" is for the place's admins; other admin views check the role themselves.
+    if (view === target.plugin.manifest.adminView && target.ctx.user.role !== "admin") {
+      return c.json({ error: "forbidden" }, 403);
+    }
     try {
-      const node = await c.var.plugins.renderView(target.plugin, view, target.ctx, c.req.valid("query"));
+      const node = await c.var.plugins.renderView(
+        target.plugin,
+        target.installationId,
+        view,
+        target.ctx,
+        c.req.valid("query"),
+      );
       await c.var.plugins.recordVisit(target.installationId, c.var.user.id);
       return c.json(node, 200);
     } catch (err) {
@@ -323,8 +382,7 @@ type PlaceByCode = CommunityRow & {
 function placeByInviteCode(db: Db, code: string): Promise<PlaceByCode | undefined> {
   return first<PlaceByCode>(
     db,
-    "SELECT id, slug, name, kind, address, description, join_rule FROM community WHERE invite_code = $code LIMIT 1;",
-    { code },
+    surql`SELECT id, slug, name, kind, address, description, join_rule FROM community WHERE invite_code = ${code} LIMIT 1;`,
   );
 }
 
@@ -338,23 +396,21 @@ export async function joinAsMember(db: Db, place: CommunityRow, userId: string, 
   const c = ref("community", communityId);
   const existing = await first<{ id: RecordId }>(
     db,
-    "SELECT id FROM membership WHERE user = $u AND community = $c LIMIT 1;",
-    { u, c },
+    surql`SELECT id FROM membership WHERE user = ${u} AND community = ${c} LIMIT 1;`,
   );
   if (!existing) {
-    await first(db, "CREATE $m CONTENT { community: $c, user: $u, role: 'user', is_default: false };", {
-      m: membershipRef(communityId, userId),
-      c,
-      u,
-    });
+    await first(
+      db,
+      surql`CREATE ${membershipRef(communityId, userId)} CONTENT { community: ${c}, user: ${u}, role: 'user', is_default: false };`,
+    );
   }
   if (makeDefault) {
-    await first(db, "UPDATE membership SET is_default = false WHERE user = $u AND is_default = true;", { u });
+    await first(db, surql`UPDATE membership SET is_default = false WHERE user = ${u} AND is_default = true;`);
   }
-  await first(db, "UPDATE $m SET last_visit = time::now(), is_default = $def OR is_default;", {
-    m: membershipRef(communityId, userId),
-    def: makeDefault,
-  });
+  await first(
+    db,
+    surql`UPDATE ${membershipRef(communityId, userId)} SET last_visit = time::now(), is_default = ${makeDefault} OR is_default;`,
+  );
 }
 
 /** Slug from the place name (ASCII, lowercase, hyphens), with a numeric suffix when taken. Null after 50 tries. */
@@ -385,9 +441,10 @@ function builtinPlugins(host: PluginHost, ids: string[]): LoadedPlugin[] | null 
 async function freeInviteCode(db: Db): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const code = randomInviteCode();
-    const taken = await first<{ id: RecordId }>(db, "SELECT id FROM community WHERE invite_code = $code LIMIT 1;", {
-      code,
-    });
+    const taken = await first<{ id: RecordId }>(
+      db,
+      surql`SELECT id FROM community WHERE invite_code = ${code} LIMIT 1;`,
+    );
     if (!taken) return code;
   }
   throw new Error("no free invite code after 20 tries");
@@ -404,13 +461,12 @@ const randomInviteCode = (): string =>
 async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   const row = await first<{ id: RecordId; community: CommunityRow }>(
     c.var.db,
-    `SELECT id, community FROM plugin_installation
-       WHERE community.slug = $slug AND plugin = $plugin AND enabled FETCH community;`,
-    { slug, plugin: pluginId },
+    surql`SELECT id, community FROM plugin_installation
+            WHERE community.slug = ${slug} AND plugin = ${pluginId} AND enabled FETCH community;`,
   );
   const plugin = row ? c.var.plugins.get(pluginId) : undefined;
   if (!row || !plugin) return null;
-  const community = toCommunity(row.community);
+  const community = toPluginCommunity(row.community);
   const role = await memberRole(c.var.db, community.id, c.var.user.id);
   if (!role) return null;
   const installationId = keyOf(row.id);
@@ -424,8 +480,127 @@ async function resolve(c: Context<AppEnv>, slug: string, pluginId: string) {
   return { plugin, ctx, installationId };
 }
 
-const dashboardOrder = async (db: Db, communityId: string): Promise<string[]> =>
-  (await first<{ order: string[] }>(db, "SELECT order FROM $d;", { d: ref("dashboard", communityId) }))?.order ?? [];
+/** A declared widget of an enabled plugin, with the size it has on this community's dashboard. */
+type ResolvedWidget = LayoutWidget & { widget: string; installationId: string; plugin: LoadedPlugin };
+type ResolvedLayout = { widgets: ResolvedWidget[]; available: ResolvedWidget[] };
+
+type SavedDashboard = { order: string[]; sizes: { key: string; w: number; h: number }[]; hidden: string[] };
+
+/**
+ * The community's dashboard layout, the one code path for the dashboard and its editor: the declared widgets of the
+ * enabled plugins (default order: installation, then declaration) resolved against what the admins saved.
+ * `widgets` = not hidden, in the saved order (widgets missing from it follow in the default order), each with its
+ * saved size when the plugin still allows it, else the plugin's default; `available` = the hidden ones.
+ */
+async function communityLayout(db: Db, host: PluginHost, communityId: string): Promise<ResolvedLayout> {
+  const declared = await declaredWidgets(db, host, communityId);
+  const saved = await savedDashboard(db, communityId);
+  const sized = declared.map((w) => ({ ...w, size: savedSize(w, saved) }));
+  const hidden = new Set(saved.hidden);
+  return {
+    widgets: sortByOrder(
+      sized.filter((w) => !hidden.has(w.key)),
+      saved.order,
+    ),
+    available: sized.filter((w) => hidden.has(w.key)),
+  };
+}
+
+async function declaredWidgets(db: Db, host: PluginHost, communityId: string): Promise<ResolvedWidget[]> {
+  const installed = await rows<{ id: RecordId; plugin: string }>(
+    db,
+    surql`SELECT id, plugin, created_at FROM plugin_installation
+          WHERE community = ${ref("community", communityId)} AND enabled ORDER BY created_at;`,
+  );
+  return installed.flatMap(({ id, plugin: pluginId }) => {
+    const plugin = host.get(pluginId);
+    if (!plugin) return [];
+    return host.dashboardWidgets(plugin).map(({ name, title, size, sizes }) => ({
+      key: `${pluginId}/${name}`,
+      pluginId,
+      pluginName: plugin.manifest.name,
+      pluginIcon: plugin.manifest.icon,
+      title,
+      size,
+      sizes,
+      widget: name,
+      installationId: keyOf(id),
+      plugin,
+    }));
+  });
+}
+
+/** What the admins saved; a place whose admins never arranged it (or saved before sizes existed) gets empty lists. */
+async function savedDashboard(db: Db, communityId: string): Promise<SavedDashboard> {
+  const row = await first<Partial<SavedDashboard>>(
+    db,
+    surql`SELECT order, sizes, hidden FROM ${ref("dashboard", communityId)};`,
+  );
+  return { order: row?.order ?? [], sizes: row?.sizes ?? [], hidden: row?.hidden ?? [] };
+}
+
+/** The saved size of a widget when its plugin still allows it, else the plugin's default. */
+function savedSize(widget: ResolvedWidget, saved: SavedDashboard): DashboardWidgetSize {
+  const chosen = saved.sizes.find((s) => s.key === widget.key);
+  return (chosen && widget.sizes.find((s) => s.w === chosen.w && s.h === chosen.h)) ?? widget.size;
+}
+
+const sameAs = (size: DashboardWidgetSize) => (other: DashboardWidgetSize) => sameSize(size, other);
+
+const toLayoutWidget = ({
+  key,
+  pluginId,
+  pluginName,
+  pluginIcon,
+  title,
+  size,
+  sizes,
+}: ResolvedWidget): LayoutWidget => ({
+  key,
+  pluginId,
+  pluginName,
+  pluginIcon,
+  title,
+  size,
+  sizes,
+});
+
+const toDashboardLayout = (layout: ResolvedLayout): DashboardLayout => ({
+  columns: DASHBOARD_COLUMNS,
+  widgets: layout.widgets.map(toLayoutWidget),
+  available: layout.available.map(toLayoutWidget),
+});
+
+/**
+ * Renders the widgets for this user, in their order; one context per installation (its `lastVisit` read once).
+ * A widget that fails (throws, null or invalid UI) is left out and logged.
+ */
+async function renderWidgets(
+  host: PluginHost,
+  widgets: ResolvedWidget[],
+  community: PluginCommunity,
+  user: PluginUser,
+): Promise<DashboardWidgetItem[]> {
+  const installations = widgets.filter((w, i) => widgets.findIndex((o) => o.installationId === w.installationId) === i);
+  const contexts = new Map(
+    installations.map(({ installationId, plugin }): [string, Promise<PluginContext>] => [
+      installationId,
+      host
+        .lastVisit(installationId, user.id)
+        .then((lastVisit) => host.context(plugin, { installationId, community, user, lastVisit })),
+    ]),
+  );
+  const rendered = await Promise.all(
+    widgets.map(async ({ key, pluginId, widget, size, installationId, plugin }) => {
+      const ctx = await contexts.get(installationId);
+      const node = ctx
+        ? await host.renderDashboardWidget(plugin, installationId, widget, ctx, { size }).catch(logWidgetFailure)
+        : null;
+      return node ? [{ key, pluginId, widget, size, node }] : [];
+    }),
+  );
+  return rendered.flat();
+}
 
 /** Saved order first; widgets missing from it keep their default order after those (stable sort). */
 function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[] {
@@ -436,8 +611,9 @@ function sortByOrder<T extends { key: string }>(items: T[], order: string[]): T[
   return items.toSorted((a, b) => rank(a.key) - rank(b.key));
 }
 
+/** A widget that fails is left out of the dashboard; why is only in the log. */
 function logWidgetFailure(err: unknown): null {
-  console.error(err instanceof Error ? err.message : err);
+  log.error("dashboard widget left out", { err });
   return null;
 }
 
@@ -445,7 +621,7 @@ function pluginFailure(c: Context<AppEnv>, err: unknown) {
   if (err instanceof PluginInputError) return c.json({ error: "invalid_input", issues: err.issues }, 400);
   if (err instanceof ForbiddenError) return c.json({ error: "forbidden" }, 403);
   if (err instanceof PluginError) {
-    console.error(err.message);
+    log.error("plugin failed", { err });
     return c.json({ error: "plugin_error" }, 500);
   }
   throw err;

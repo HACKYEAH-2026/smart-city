@@ -1,10 +1,13 @@
 import { testEngine } from "@app/plugin-sdk/testing";
+import { surql } from "surrealdb";
 import { createApp } from "../src/app";
 import { communityBySlug, type DbHandle, first, keyOf, membershipRef, migrate, ref } from "../src/db";
 import { type Env, loadEnv } from "../src/env";
+import type { PluginAuthor } from "../src/services/ai/author/types";
 import type { AIProviders } from "../src/services/ai/types";
 import type { PushMessage, PushSender } from "../src/services/push/types";
 import { TEST_ENV } from "../src/test-env";
+import { TestGeocoder } from "../src/test-geocoder";
 import { TEST_GOOGLE_CLIENT_ID, verifyTestGoogleIdToken } from "../src/test-google";
 import { DEMO_ADMIN, DEMO_COMMUNITY, seedDemo } from "../src/test-routes";
 
@@ -43,17 +46,22 @@ export class RecordingPushSender implements PushSender {
 /**
  * Integration test context: fresh database + app called via app.request() (no ports).
  * Usage: t = await setup(); ...; await t.close() in afterEach. `env` overrides TEST_ENV. Google sign-in is on, with
- * fake ID tokens (src/test-google.ts).
+ * fake ID tokens (src/test-google.ts). `author` is the plugin builder's AI (none by default: tests never call a model).
  */
-export async function setup(env: Partial<Record<keyof Env, string | undefined>> = {}, opts: { ai?: AIProviders } = {}) {
+export async function setup(
+  env: Partial<Record<keyof Env, string | undefined>> = {},
+  opts: { ai?: AIProviders; author?: PluginAuthor } = {},
+) {
   const handle = await freshTestDb();
   const push = new RecordingPushSender();
-  const { app, auth, plugins, notifications } = createApp({
+  const { app, auth, plugins, notifications, builder, files } = createApp({
     db: handle.db,
     env: loadEnv({ ...TEST_ENV, GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID, ...env }),
     push,
     verifyGoogleIdToken: verifyTestGoogleIdToken,
+    geocoder: new TestGeocoder(),
     ...(opts.ai ? { ai: opts.ai } : {}),
+    author: opts.author ?? null,
   });
   let seq = 0;
 
@@ -68,11 +76,11 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
   const join = async (user: TestUser, slug: string = DEMO_COMMUNITY.slug) => {
     const community = await communityBySlug(handle.db, slug);
     if (!community) throw new Error(`join: no place ${slug}`);
-    await first(handle.db, "UPSERT $m MERGE { community: $c, user: $u };", {
-      m: membershipRef(keyOf(community.id), user.id),
-      c: ref("community", keyOf(community.id)),
-      u: ref("user", user.id),
-    });
+    await first(
+      handle.db,
+      surql`UPSERT ${membershipRef(keyOf(community.id), user.id)}
+            MERGE { community: ${community.id}, user: ${ref("user", user.id)} };`,
+    );
   };
 
   /** Data factory: registers a user via the real Better Auth endpoint; member of the demo place unless `place: null`. */
@@ -95,18 +103,35 @@ export async function setup(env: Partial<Record<keyof Env, string | undefined>> 
     return user;
   };
 
+  /** Signs in an existing account (e.g. a seeded one) via the real Better Auth endpoint. */
+  const signIn = async ({ email, password }: { email: string; password: string }) => {
+    const res = await request("/api/auth/sign-in/email", { method: "POST", json: { email, password } });
+    const token = res.headers.get("set-auth-token");
+    if (!token) throw new Error(`signIn ${email}: ${res.status}`);
+    return { headers: { authorization: `Bearer ${token}` } };
+  };
+
   /** Demo data ("Kraków" community, built-in plugins, admin account) + signed-in admin. */
   const seed = async () => {
     await seedDemo({ db: handle.db, auth, plugins });
-    const res = await request("/api/auth/sign-in/email", {
-      method: "POST",
-      json: { email: DEMO_ADMIN.email, password: DEMO_ADMIN.password },
-    });
-    const token = res.headers.get("set-auth-token");
-    if (!token) throw new Error(`seed: admin sign-in ${res.status}`);
-    return { admin: { headers: { authorization: `Bearer ${token}` } } };
+    return { admin: await signIn(DEMO_ADMIN) };
   };
 
-  return { app, db: handle.db, plugins, notifications, push, request, signUp, seed, join, close: handle.close };
+  return {
+    app,
+    db: handle.db,
+    auth,
+    plugins,
+    notifications,
+    builder,
+    files,
+    push,
+    request,
+    signUp,
+    signIn,
+    seed,
+    join,
+    close: handle.close,
+  };
 }
 export type Ctx = Awaited<ReturnType<typeof setup>>;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MAX_CHECK_ISSUES, type PluginCheck } from "@app/plugin-sdk";
 import ts from "typescript";
@@ -65,8 +66,11 @@ describe("plugin check", () => {
       plugin: {
         id: "notes",
         version: "1.0.0",
+        name: "Notatki",
+        icon: "📝",
+        description: "Wspólne notatki członków społeczności.",
         views: ["main"],
-        dashboardWidgets: [],
+        dashboardWidgets: ["main"],
         tools: ["add"],
         streams: [],
         tables: ["notes"],
@@ -74,7 +78,8 @@ describe("plugin check", () => {
     });
     const list = (await (await ctx.request("/api/admin/plugins", { headers: platform })).json()) as { id: string }[];
     expect(list.map((p) => p.id)).not.toContain("notes");
-  });
+    // One full check per plugin in plugins/ and the fixture: 16 s at load ~60, past the default 30 s when it peaks.
+  }, 120_000);
 
   test("syntax: the first syntax error with its position", async () => {
     const ctx = await start();
@@ -130,6 +135,41 @@ describe("plugin check", () => {
     );
   });
 
+  test("safety: escape hatches out of ctx and the SDK, each with its line (the code type-checks)", async () => {
+    const ctx = await start();
+    const escapes = [
+      "const g = globalThis;",
+      "const F = ({}).constructor;",
+      'const key = "prototype";',
+      "JSON.parse = (text: string) => text;",
+      'const f: unknown = ctx.user; if (typeof f === "function") f("return 1");',
+      "const v: any = ctx.db; v.raw();",
+      "// @ts-ignore",
+      'const n: number = "not a number";',
+    ];
+    const source = `declare const secrets: string[];\n${NOTES.replace(
+      "const items =",
+      `${escapes.join("\n        ")}\n        const items =`,
+    )}`;
+    const result = await failed(ctx, source);
+    expect(result.stage).toBe("safety");
+    const expected: [string, string][] = [
+      ["declare const secrets", "Ambient declarations"],
+      ["const g = globalThis", "'globalThis' is not available to plugins"],
+      ["({}).constructor", "'.constructor' is not allowed"],
+      ['"prototype"', 'The string "prototype" is not allowed'],
+      ["JSON.parse =", "Changing 'JSON.parse' is not allowed"],
+      ['f("return 1")', "Calling a value of type 'any' or 'Function'"],
+      ["v.raw()", "Calling a value of type 'any' or 'Function'"],
+      ["// @ts-ignore", "'@ts-ignore' is not allowed"],
+    ];
+    for (const [code, message] of expected) {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining(message), line: at(source, code).line }),
+      );
+    }
+  });
+
   test(`at most ${MAX_CHECK_ISSUES} issues, the rest counted`, async () => {
     const ctx = await start();
     const wrong = Array.from({ length: MAX_CHECK_ISSUES + 2 }, (_, i) => `export const n${i}: number = "x";`);
@@ -176,6 +216,22 @@ describe("plugin check", () => {
     const { line, column } = notez(source);
     expect(body.errors[0]).toMatchObject({ line, column });
     expect(body.message).toStartWith(`types: line ${line}:${column}: Property 'notez' does not exist`);
+  });
+
+  test("checking the same source again leaves its module file alone (a rewrite restarts `bun --watch` mid-build)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "plugin-check-"));
+    try {
+      t = await setup({ PLUGINS_DIR: dir });
+      expect((await check(t, NOTES)).status).toBe("ok");
+      const files = readdirSync(dir).map((hash) => join(dir, hash, "plugin.ts"));
+      expect(files).toHaveLength(1);
+      const written = statSync(files[0] ?? "").mtimeMs;
+      await Bun.sleep(20);
+      expect((await check(t, NOTES)).status).toBe("ok");
+      expect(statSync(files[0] ?? "").mtimeMs).toBe(written);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("type checking works from the recorded snapshot alone, mounted where no repo exists (production image)", async () => {

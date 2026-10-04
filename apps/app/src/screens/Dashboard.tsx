@@ -1,24 +1,33 @@
 import type { MyPlace } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronDown, LayoutDashboard, LogIn, Plus } from "lucide-react-native";
+import { LayoutDashboard, LogIn, Plus, Settings } from "lucide-react-native";
 import { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { BottomSheet, Button, Card, DashboardMap, Heading, Icon, Link, PlaceRow, Screen, Text } from "../components";
-import { useCommunities, useCommunityNav, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
-import { useSession } from "../data/session";
-import { tapFeedback } from "../lib/haptics";
+import { StyleSheet, View } from "react-native";
+import {
+  BottomSheet,
+  Button,
+  Card,
+  Heading,
+  Icon,
+  IconButton,
+  PlaceBackdrop,
+  PlaceRow,
+  Screen,
+  Text,
+} from "../components";
+import { PlaceMascot } from "../components/PlaceMascot";
+import { useCommunities, useCommunity, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { currentPlace } from "../lib/places";
 import { widgetsCount } from "../lib/plural";
 import { Dashboard as DashboardWidgets } from "../plugins/Dashboard";
-import { pluginHref } from "../plugins/href";
 import { t } from "../texts";
 import { colors, radii, sizes, spacing } from "../theme";
 import JoinPlace from "./JoinPlace";
 
 /**
- * Dashboard after sign-in (design E-Dashboard): greeting, the current place, its widgets, the place switcher and the
- * bottom bar. Without places: the ways to join a place and creating one (design E-BrakMiejsc).
+ * Dashboard after sign-in (design E-Dashboard): the current place, its widgets, the place switcher (opened only from
+ * the Places tab) and the bottom bar. Without places: the ways to join a place and creating one (design E-BrakMiejsc).
  */
 export default function Dashboard() {
   const places = useCommunities();
@@ -36,27 +45,16 @@ export default function Dashboard() {
   return current ? <PlaceDashboard place={current} places={list} /> : <JoinPlace />;
 }
 
-/** "Dzień dobry, <name>" — the signed-in user's name from the session. */
-function Greeting() {
-  const session = useSession();
-  return (
-    <Text variant="body" color="textSecondary">
-      {session.data?.name ? `${t.dashboard_greeting}, ${session.data.name}` : t.dashboard_greeting}
-    </Text>
-  );
-}
-
 function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }) {
   const router = useRouter();
   const visit = useVisitPlace();
   const setDefault = useSetDefaultPlace();
-  const nav = useCommunityNav(place.slug);
+  const details = useCommunity(place.slug);
   const widgets = useDashboard(place.slug);
   const { mutate: visitPlace } = visit;
   // The switcher is part of the URL (/app?places=1), so the "Miejsca" tab can open it from any screen.
   const { places: switcherParam } = useLocalSearchParams<{ places?: string }>();
   const switching = switcherParam === "1";
-  const openSwitcher = () => router.setParams({ places: "1" });
   const closeSwitcher = () => router.setParams({ places: undefined });
 
   // Showing a place remembers it as the last visited one; the dashboard opens on it next time.
@@ -70,7 +68,7 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
     <Screen
       chrome={false}
       tabBar
-      backdrop={<DashboardMap />}
+      backdrop={<PlaceBackdrop location={details.data?.location ?? null} />}
       overlay={
         // Design E-PrzelacznikMiejsc: picking a row switches the dashboard behind the sheet; the sheet stays open.
         <BottomSheet visible={switching} title={t.places_sheet_title} onClose={closeSwitcher}>
@@ -101,59 +99,38 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
       <Head>
         <title>{place.name}</title>
       </Head>
-      <Greeting />
+      {/* Keyed by the place: switching places plays the mascot's entrance again. */}
+      <PlaceMascot key={place.id} kind={place.kind} />
 
       <View style={styles.place}>
         <Text variant="label" color="textSecondary">
           {t.place_current_label}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t.place_switch}: ${place.name}`}
-          hitSlop={spacing[6]}
-          onPress={openSwitcher}
-          onPressIn={tapFeedback}
-          style={styles.nameRow}
-        >
-          <Heading level={1} variant="heading">
+        <View style={styles.header}>
+          {/* The name stays left of the mascot and on one line: a long name gets smaller, it is not cut off. */}
+          <Heading
+            level={1}
+            variant="heading"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+            style={styles.placeName}
+          >
             {place.name}
           </Heading>
-          <View style={styles.chevron}>
-            <Icon icon={ChevronDown} size={spacing[8]} color="primary" strokeWidth={2.6} />
-          </View>
-        </Pressable>
+          {place.role === "admin" ? (
+            <IconButton icon={Settings} label={t.manage_title} variant="round" href={`/app/c/${place.slug}/manage`} />
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHead}>
-          <Text variant="label" color="textSecondary">
-            {t.community_dashboard_label}
-          </Text>
           <Text variant="small" color="textSecondary">
             {widgetsCount(widgetList.length)}
           </Text>
         </View>
         {widgets.isPending ? null : widgetList.length ? <DashboardWidgets slug={place.slug} /> : <EmptyDashboard />}
-      </View>
-
-      <View style={styles.section}>
-        <Text variant="label" color="textSecondary">
-          {t.community_features_label}
-        </Text>
-        {nav.isPending ? null : nav.data?.length ? (
-          nav.data.map((n) => (
-            <Card key={`${n.pluginId}/${n.view}`} style={styles.feature}>
-              <Text variant="headingS" aria-hidden>
-                {n.icon}
-              </Text>
-              <Link href={pluginHref(place.slug, n.pluginId, n.view)}>{n.label}</Link>
-            </Card>
-          ))
-        ) : (
-          <Text variant="bodyL" color="textSecondary">
-            {t.community_features_empty}
-          </Text>
-        )}
       </View>
     </Screen>
   );
@@ -179,18 +156,22 @@ function EmptyDashboard() {
 }
 
 const styles = StyleSheet.create({
-  place: { gap: spacing[2] },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
-  chevron: {
-    width: spacing[8] * 2,
-    height: spacing[8] * 2,
-    borderRadius: radii.xl,
-    backgroundColor: colors.primaryTint,
+  place: { gap: spacing[4] },
+  // A fixed height for one line of the name: a long name shrinks to fit it, so the content below never moves.
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: spacing[6],
+    height: sizes.dashboardHeader,
   },
+  placeName: { flexShrink: 1, maxWidth: `${sizes.dashboardNameWidth * 100}%` },
   section: { gap: spacing[6] },
-  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   emptyCard: { flexDirection: "row", alignItems: "center", gap: spacing[8] },
   emptyIcon: {
     width: sizes.iconBoxLg,
@@ -201,7 +182,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyText: { flex: 1, gap: spacing[2] },
-  feature: { flexDirection: "row", alignItems: "center" },
   sheetList: { gap: spacing[4] },
   sheetActions: { flexDirection: "row", gap: spacing[5] },
   sheetAction: { flex: 1 },

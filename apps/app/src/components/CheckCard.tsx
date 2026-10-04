@@ -1,7 +1,7 @@
 import { Check } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
-import { borders, colors, radii, shadows, sizes, spacing } from "../theme";
+import { borders, colors, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -27,7 +27,12 @@ export function CheckCard({ label, description, emoji, checked, onChange }: Chec
       aria-checked={checked}
       onPressIn={tapFeedback}
       onPress={() => onChange(!checked)}
-      style={[styles.card, description ? styles.top : null, checked ? styles.checked : styles.idle]}
+      style={({ pressed }) => [
+        styles.card,
+        description ? styles.top : null,
+        checked ? styles.checked : styles.idle,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={[styles.box, checked && styles.boxChecked]}>
         {checked ? <Icon icon={Check} size={spacing[7]} color="onPrimary" strokeWidth={2.6} /> : null}
@@ -52,6 +57,7 @@ export function CheckCard({ label, description, emoji, checked, onChange }: Chec
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: opacity.pressed },
   card: {
     minHeight: sizes.iconBox,
     flexDirection: "row",

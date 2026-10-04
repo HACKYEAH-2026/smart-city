@@ -1,7 +1,8 @@
+import type { GeoPoint } from "@app/plugin-sdk";
 import type { JoinRule, PlaceKind } from "@app/shared";
 import { useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft, ShieldCheck, X } from "lucide-react-native";
+import { ChevronLeft, MapPin, ShieldCheck, X } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
@@ -9,6 +10,7 @@ import {
   CheckCard,
   Heading,
   Icon,
+  MapView,
   RadioCard,
   Screen,
   SelectableCard,
@@ -19,16 +21,13 @@ import {
 } from "../components";
 import { useCreatePlace, useVisitPlace } from "../data/communities";
 import { usePluginCatalog } from "../data/plugins";
+import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
+import { STREET_ZOOM } from "../lib/map/spec";
 import { goBack } from "../lib/navigation";
-import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
+import { PLACE_KIND_OPTIONS, placeKindIcon } from "../lib/placeKinds";
 import { t } from "../texts";
-import { fontFamily, sizes, spacing } from "../theme";
-
-const JOIN_RULE_OPTIONS: { rule: JoinRule; label: string; hint: string; recommended?: boolean }[] = [
-  { rule: "open", label: t.join_rule_open, hint: t.join_rule_open_hint },
-  { rule: "approval", label: t.join_rule_approval, hint: t.join_rule_approval_hint, recommended: true },
-  { rule: "invite", label: t.join_rule_invite, hint: t.join_rule_invite_hint },
-];
+import { borders, colors, fontFamily, radii, sizes, spacing } from "../theme";
+import LocationPicker from "./LocationPicker";
 
 type WizardStep = 1 | 2 | 3 | 4;
 
@@ -43,8 +42,9 @@ const PREVIOUS_STEP = { 2: 1, 3: 2, 4: 3 } as const;
 
 /**
  * New place in four steps (designs E-NoweMiejsceTyp, E-NoweMiejsceDane, E-NoweMiejsceDostep): the kind, the name
- * with address and description, the features (built-in plugins, all on by default), then who may join. Back keeps
- * the answers; the place opens on "place created".
+ * with address, pin and description, the features (built-in plugins, all on by default), then who may join and
+ * whether the place is on the map of places (only with a pin). The pin is set on the location picker, shown over the
+ * second step; it fills in the address. Back keeps the answers; the place opens on "place created".
  */
 export default function CreatePlaceForm() {
   const router = useRouter();
@@ -56,6 +56,9 @@ export default function CreatePlaceForm() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [location, setLocation] = useState<GeoPoint | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [onMap, setOnMap] = useState(false);
   const [joinRule, setJoinRule] = useState<JoinRule>("approval");
   const [makeDefault, setMakeDefault] = useState(true);
   // Features the creator switched off; every other built-in plugin is on, so the default needs no loaded catalog.
@@ -68,7 +71,17 @@ export default function CreatePlaceForm() {
   const submit = () => {
     setError(null);
     create.mutate(
-      { name, kind: kind ?? "other", address, description, joinRule, makeDefault, plugins },
+      {
+        name,
+        kind: kind ?? "other",
+        address,
+        description,
+        joinRule,
+        location,
+        onMap: Boolean(location) && onMap,
+        makeDefault,
+        plugins,
+      },
       {
         onSuccess: (place) =>
           visit.mutate(place.slug, {
@@ -78,6 +91,21 @@ export default function CreatePlaceForm() {
       },
     );
   };
+
+  if (picking)
+    return (
+      <LocationPicker
+        hint={`${name} · ${t.location_pin_hint}`}
+        icon={placeKindIcon(kind ?? "other")}
+        initial={location}
+        onCancel={() => setPicking(false)}
+        onConfirm={(picked) => {
+          setLocation(picked.location);
+          if (picked.address) setAddress(picked.address);
+          setPicking(false);
+        }}
+      />
+    );
 
   return (
     <Screen chrome={false}>
@@ -124,6 +152,15 @@ export default function CreatePlaceForm() {
             onChangeText={setAddress}
             placeholder={t.create_address_placeholder}
             autoComplete="street-address"
+          />
+          <LocationField
+            name={name}
+            location={location}
+            onPick={() => setPicking(true)}
+            onRemove={() => {
+              setLocation(null);
+              setOnMap(false);
+            }}
           />
           <TextField
             label={t.create_description}
@@ -185,6 +222,14 @@ export default function CreatePlaceForm() {
               />
             ))}
           </View>
+          {location ? (
+            <View style={styles.onMap}>
+              <SwitchRow label={t.create_on_map} value={onMap} onChange={setOnMap} />
+              <Text variant="caption" color="textSecondary">
+                {t.create_on_map_hint}
+              </Text>
+            </View>
+          ) : null}
           <SwitchRow label={t.create_make_default} value={makeDefault} onChange={setMakeDefault} />
         </Step>
       )}
@@ -219,6 +264,63 @@ function Step({
   );
 }
 
+/** The place's pin on the second step: a button to set it, or a still map with the pin and buttons to change it. */
+function LocationField({
+  name,
+  location,
+  onPick,
+  onRemove,
+}: {
+  name: string;
+  location: GeoPoint | null;
+  onPick: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <View style={styles.location}>
+      <Text variant="label" color="textSecondary">
+        {t.create_location_label}
+      </Text>
+      {location ? (
+        <>
+          <MapView
+            // A new pin starts a new preview: the map's first view is its only one.
+            key={`${location.lat},${location.lng}`}
+            label={t.create_location_preview}
+            center={location}
+            zoom={STREET_ZOOM}
+            pins={[{ id: "new", title: name, ...location }]}
+            interactive={false}
+            style={styles.preview}
+          />
+          <View style={styles.locationActions}>
+            <Button
+              label={t.create_location_change}
+              variant="secondary"
+              size="sm"
+              onPress={onPick}
+              style={styles.grow}
+            />
+            <Button label={t.create_location_remove} variant="ghost" size="sm" onPress={onRemove} style={styles.grow} />
+          </View>
+        </>
+      ) : (
+        <>
+          <Button
+            label={t.create_location_pick}
+            variant="secondary"
+            leftIcon={<Icon icon={MapPin} size={sizes.iconS} color="primary" />}
+            onPress={onPick}
+          />
+          <Text variant="caption" color="textSecondary">
+            {t.create_location_hint}
+          </Text>
+        </>
+      )}
+    </View>
+  );
+}
+
 /** "Zostaniesz administratorem tego miejsca…" with a shield (design E-NoweMiejsceDostep). */
 function AdminNote() {
   return (
@@ -245,4 +347,13 @@ const styles = StyleSheet.create({
   note: { flexDirection: "row", alignItems: "flex-start", gap: spacing[5] },
   noteText: { flex: 1 },
   noteRole: { fontFamily: fontFamily.semibold },
+  location: { gap: spacing[3] },
+  preview: {
+    height: sizes.locationPreview,
+    borderRadius: radii.xl,
+    borderWidth: borders.hairline,
+    borderColor: colors.border,
+  },
+  locationActions: { flexDirection: "row", gap: spacing[5] },
+  onMap: { gap: spacing[3] },
 });

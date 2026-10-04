@@ -1,10 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { notificationHref, pluginHref, viewParamsFrom } from "./href";
+import { appHref, notificationHref, pluginHref, pluginRoute, viewParamsFrom } from "./href";
+
+test("app action resolves to the current host plugin page with encoded segments", () => {
+  expect(appHref("krakow", "issues", "pluginPage")).toBe("/app/c/krakow/manage/issues");
+  expect(appHref("a/b", "x y", "pluginPage")).toBe("/app/c/a%2Fb/manage/x%20y");
+  expect(appHref("krakow", "issues", "dashboard")).toBe("/app");
+});
 
 describe("pluginHref", () => {
   test("builds the path and query", () => {
     expect(pluginHref("krakow", "issues", "list")).toBe("/app/c/krakow/issues/list");
     expect(pluginHref("krakow", "issues", "detail", { id: "a b" })).toBe("/app/c/krakow/issues/detail?id=a+b");
+  });
+});
+
+describe("pluginRoute", () => {
+  test("the typed plugin-view route; view params cannot override its segments", () => {
+    expect(pluginRoute("krakow", "issues", "detail", { id: "1", view: "admin" })).toEqual({
+      pathname: "/app/c/[slug]/[plugin]/[view]",
+      params: { id: "1", slug: "krakow", plugin: "issues", view: "detail" },
+    });
   });
 });
 

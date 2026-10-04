@@ -3,13 +3,18 @@ import type { Context, PluginModule } from "@app/plugin-sdk";
 /**
  * Announcements from the community admins (e.g. the city office or the housing estate board) to residents.
  * - Admins publish and remove announcements; everyone reads them.
- * - Dashboard widget: what is new since the resident last opened announcements (`ctx.lastVisit`).
+ * - Dashboard widget: what is new since the resident last opened announcements (`ctx.lastVisit`); before the first
+ *   announcement it says there are none yet.
  * The module imports nothing at runtime (only `import type`) — the host provides the SDK.
  */
 const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
   const tables = {
     announcements: t.table(
-      { title: t.text(), body: t.text().default(""), author: t.ref("user").optional() },
+      {
+        title: t.text(),
+        body: t.text().default(""),
+        author: t.ref("user").optional(),
+      },
       { indexes: [["createdAt"]] },
     ),
   };
@@ -38,22 +43,29 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
   return definePlugin({
     id: "announcements",
     name: "Ogłoszenia",
-    version: "1.0.0",
+    version: "1.1.1",
     icon: "📢",
-    description: "Ogłoszenia administratorów dla mieszkańców, z podglądem nowości na pulpicie.",
+    description: "Ogłoszenia administratorów dla użytkowników, z podglądem nowości na pulpicie.",
     permissions: ["db"],
     nav: [{ view: "list", label: "Ogłoszenia" }],
     tables,
 
     views: {
       list: async (ctx) => {
-        const items = await ctx.db.announcements.findMany({ orderBy: { createdAt: "desc" } });
+        const items = await ctx.db.announcements.findMany({
+          orderBy: { createdAt: "desc" },
+        });
         return ui.screen("Ogłoszenia", [
           ...(isAdmin(ctx) ? [publishForm()] : []),
           ui.list(
             "Lista ogłoszeń",
             items.length
-              ? items.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) }))
+              ? items.map((a) =>
+                  ui.card({
+                    title: a.title,
+                    onPress: ui.navigate("item", { id: a.id }),
+                  }),
+                )
               : [ui.empty("Nie ma jeszcze ogłoszeń.")],
           ),
         ]);
@@ -71,32 +83,59 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
 
     dashboardWidgets: {
       latest: {
-        size: { w: 2, h: 3 },
+        title: "Ogłoszenia",
+        // Two rows fit what it shows (a line, up to 2 new announcements, the button); a taller one stays an option.
+        size: { w: 3, h: 2 },
+        sizes: [{ w: 3, h: 3 }],
         render: async (ctx) => {
-          if (!(await ctx.db.announcements.count())) return null;
+          const any = (await ctx.db.announcements.count()) > 0;
           const since = ctx.lastVisit ? { createdAt: { gt: ctx.lastVisit } } : {};
-          const fresh = await ctx.db.announcements.findMany({ where: since, orderBy: { createdAt: "desc" }, limit: 2 });
+          const fresh = await ctx.db.announcements.findMany({
+            where: since,
+            orderBy: { createdAt: "desc" },
+            limit: 2,
+          });
           const total = fresh.length ? await ctx.db.announcements.count({ where: since }) : 0;
-          return ui.widget("Ogłoszenia", [
-            ui.text(total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty.", "soft"),
-            ...fresh.map((a) => ui.card({ title: a.title, onPress: ui.navigate("item", { id: a.id }) })),
-            ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
-          ]);
+          // What is new is the subtitle under the title: one short line, so the two rows fit two announcements.
+          return ui.widget(
+            "Ogłoszenia",
+            [
+              ...(any ? [] : [ui.empty("Nie ma jeszcze ogłoszeń.")]),
+              ...fresh.map((a) =>
+                ui.card({
+                  title: a.title,
+                  onPress: ui.navigate("item", { id: a.id }),
+                }),
+              ),
+              ui.button("Wszystkie ogłoszenia", ui.navigate("list"), "quiet"),
+            ],
+            {
+              ...(any ? { subtitle: total ? newCount(total) : "Nic nowego od Twojej ostatniej wizyty." } : {}),
+              onPress: ui.navigate("list"),
+            },
+          );
         },
       },
     },
 
     tools: {
       publish: {
-        description: "Opublikuj ogłoszenie dla mieszkańców (tylko administrator).",
+        description: "Opublikuj ogłoszenie dla użytkowników (tylko administrator).",
         input: z.object({
           title: z.string().trim().min(3, "Tytuł jest za krótki").max(120, "Tytuł jest za długi"),
           body: z.string().trim().max(5000, "Treść jest za długa").default(""),
         }),
         requires: "admin",
         handler: async (ctx, input) => {
-          const item = await ctx.db.announcements.insert({ ...input, author: ctx.user.id });
-          return { toast: "Ogłoszenie opublikowane.", refresh: true, data: { id: item.id } };
+          const item = await ctx.db.announcements.insert({
+            ...input,
+            author: ctx.user.id,
+          });
+          return {
+            toast: "Ogłoszenie opublikowane.",
+            refresh: true,
+            data: { id: item.id },
+          };
         },
       },
       remove: {
@@ -105,7 +144,10 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
         requires: "admin",
         handler: async (ctx, input) => {
           if (!(await ctx.db.announcements.delete(input.id))) return { error: "To ogłoszenie nie istnieje." };
-          return { toast: "Ogłoszenie usunięte.", navigate: ui.navigate("list") };
+          return {
+            toast: "Ogłoszenie usunięte.",
+            navigate: ui.navigate("list"),
+          };
         },
       },
       listAnnouncements: {
@@ -113,8 +155,17 @@ const announcements: PluginModule = ({ definePlugin, ui, z, t }) => {
         input: z.object({}),
         readOnly: true,
         handler: async (ctx) => {
-          const items = await ctx.db.announcements.findMany({ orderBy: { createdAt: "desc" } });
-          return { data: items.map((a) => ({ id: a.id, title: a.title, body: a.body, createdAt: a.createdAt })) };
+          const items = await ctx.db.announcements.findMany({
+            orderBy: { createdAt: "desc" },
+          });
+          return {
+            data: items.map((a) => ({
+              id: a.id,
+              title: a.title,
+              body: a.body,
+              createdAt: a.createdAt,
+            })),
+          };
         },
       },
     },

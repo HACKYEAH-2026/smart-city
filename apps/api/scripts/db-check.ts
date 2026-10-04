@@ -14,19 +14,23 @@ async function checkOn(label: string, url: string) {
   const { planSchema, syncSchema } = await import("@app/plugin-sdk/engine");
   const { createDb, migrate, TABLES } = await import("../src/db");
   const { builtinPlugins } = await import("../src/plugins/builtin");
+  const { surql } = await import("surrealdb");
   const EXPECTED = [...Object.values(TABLES), "plugin_schema"];
   const handle = await createDb(url);
   try {
     await migrate(handle.db);
     await migrate(handle.db);
-    const [info] = await handle.db.query<[{ tables: Record<string, string> }]>("INFO FOR DB;");
+    const [info] = await handle.db.query(surql<[{ tables: Record<string, string> }]>`INFO FOR DB;`);
     const missing = EXPECTED.filter((t) => !(t in info.tables));
     if (missing.length) throw new Error(`${label}: tables missing after applying the schema: ${missing.join(", ")}`);
     const plugins = builtinPlugins.map((mod) => loadPlugin(mod));
     for (const { manifest, definition } of plugins) await syncSchema(handle.db, manifest.id, definition.tables ?? {});
     for (const { manifest, definition } of plugins) {
       const { statements } = await planSchema(handle.db, manifest.id, definition.tables ?? {});
-      const changes = statements.filter((s) => !s.includes(" IF NOT EXISTS ") && !s.startsWith("UPSERT $id_schema_"));
+      // Only idempotent DDL and the stored-shape record; anything else (backfill, OVERWRITE, REMOVE) is a change.
+      const changes = statements
+        .map((s) => s.query)
+        .filter((q) => !q.includes(" IF NOT EXISTS ") && !q.startsWith("UPSERT "));
       if (changes.length)
         throw new Error(`${label}: ${manifest.id} tables not stable after sync: ${changes.join(" ")}`);
     }

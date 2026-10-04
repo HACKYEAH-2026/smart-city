@@ -27,20 +27,28 @@ It only adds rules, it never overrides them. On conflict, AGENTS.md wins.
 - Everything else is in English: identifiers (variables, functions, types, files, API routes, DB columns,
   text keys), code comments and JSDoc, test names, log/console output, developer-facing error messages,
   script and CI output, commit messages and developer docs (`AGENTS.md`, `docs/`).
-- Exceptions: `README.md` and `PRODUCT.md` describe the product for the team and the jury and stay in Polish.
+- Exceptions: `README.md`, `PRODUCT.md`, `ROADMAP.md` and `PRESENTATION.md` (the pitch deck) describe the product for the team and the jury and stay in Polish.
 - In tests, Polish strings are allowed only as data or as selectors/assertions that must match the Polish UI.
 
 ## Definition of done (the only one)
 A task is done only when `bun run verify` exits with code 0 and the report contains its real
 output (the summary table). "Should work" is not evidence.
 `VERIFY_SKIP` is not a green verify — report every skipped stage with a reason.
-Run commands in `nix develop` (or via direnv: `.envrc`); the full `verify` (with the Android build)
-in `nix develop .#android`.
+Run commands in `nix develop` (or via direnv: `.envrc`).
+`verify` is the fast gate (lint, types, unit, integration, schema). The slow stages are separate commands, run
+when the change needs them, with their output in the report too: a screen or user flow changed → its Playwright
+specs (`bunx playwright test e2e/<file>.spec.ts` in `apps/app`); a native change (`app.config.ts`, a native
+package) → `bun run android` in `nix develop .#android`.
 
 ## Order of work
 1. E2E tests from the acceptance criteria first (`apps/app/e2e/*.spec.ts`); they must fail.
 2. Then implement bottom-up: schema → contract → API + integration test → screen.
 3. `bun run verify` → commit → push.
+
+While working, run only the checks for what you changed: `bun test` in the touched package or plugin, one
+integration file (`bun scripts/bun-test.ts apps/api/test/<file>.test.ts`), one Playwright spec
+(`bunx playwright test e2e/<file>.spec.ts` in `apps/app`), `bun run typecheck`. `bun run verify` runs once, right
+before the commit — not after every step (many sessions share this machine).
 
 ## New platform resource = copy the "communities" pattern
 | Layer | Pattern file |
@@ -50,7 +58,7 @@ in `nix develop .#android`.
 | API router | `apps/api/src/routes/communities.ts`, mounted in `apps/api/src/app.ts` |
 | Integration test | `apps/api/test/plugins.test.ts` (communities/navigation: 401 without a session, 404) |
 | Frontend data | `apps/app/src/data/communities.ts` (TanStack Query: useQuery + useMutation) |
-| Screen | `apps/app/src/screens/Communities.tsx`, route (thin file) in `apps/app/app/` |
+| Screen | `apps/app/src/screens/Invites.tsx`, route (thin file) in `apps/app/app/` (`app/app/invites.tsx`) |
 | E2E | `apps/app/e2e/plugins.spec.ts` |
 A feature for residents (issue reports, bookings, announcements…) is NOT a new resource but a plugin (below).
 
@@ -72,6 +80,16 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
   Only additive changes; plugin tables come from the plugins' `tables` (engine in `packages/sdk/src/engine`).
 - Database client: only `createDb()` from `apps/api/src/db`. Application code receives `Db` (SurrealDB client)
   and queries with the helpers in `apps/api/src/db/query.ts` (`rows`, `first`, `ref`, `keyOf`).
+- SurrealQL only through the `surql` tag (`import { surql } from "surrealdb"`), never as a plain string:
+  `rows<T>(db, surql\`SELECT … WHERE user = ${ref("user", id)};\`)`. Values always go through `${}` (bound, never
+  spliced). A dynamic table in the API is `${new Table(name)}`; only the plugin engine splices identifiers, via
+  `ident()` and `joinQueries()` from `packages/sdk/src/engine/schema.ts`.
+- AI on the host: the model only from `apps/api/src/services/ai/model.ts`. Each AI agent of a feature has its own folder
+  `apps/api/src/services/ai/<agent>/` (pattern: `author/`): `types.ts` (the swappable interface; tests use a fake),
+  `prompt.ts` (instructions and the per-call message), `strands.ts` (the Strands Agents implementation and its tools).
+- API logs: only `logger(scope)` from `apps/api/src/log.ts` (Biome's `noConsole` holds in `apps/api/src`). Log where it
+  happens what explains a failure: the cause (`err`), the ids involved and what was tried; a background job gets its ids
+  with `withLogFields`. Every request is logged by `requestLog` (`middleware.ts`). `LOG_LEVEL` picks the level.
 - App configuration: only `apps/app/app.config.ts`. `android/` and `ios/` are GENERATED (`expo prebuild`) —
   do not edit or commit them. A native change = a config plugin or a field in `app.config.ts`.
 - Routes: only `apps/app/app/` (Expo Router, thin files). Screen logic: `apps/app/src/screens/`.
@@ -79,10 +97,20 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 - `Platform.OS` branches only in `src/lib/` and in routes, never in screens.
 - UI text: ONLY `apps/app/src/texts.ts` via `import { t } from "../texts"; t.key`. No Polish literals in components.
 - Look and feel: only tokens from `apps/app/src/theme/` (`tokens.ts`, design system "Twoje Miejsce"); build screens from the components in `apps/app/src/components/` (see `apps/app/src/COMPONENTS.md`).
+- Back buttons NEVER have a background (no square, round or floating button for "go back"), on every screen, also over
+  a map or a photo: always `<BackButton />` from `apps/app/src/components/` (a plain chevron).
+- Actions within thumb reach: on a screen shorter than the display, the actions it ends with (a CTA, a field to write in
+  with its button) sit at the bottom edge with the free space above them (a `flex: 1` spacer), and longer content
+  pushes them down. A conversation is messages → free space → the new message's field. Plugin views get this from the
+  renderer (`PluginScreen`); see COMPONENTS.md → Screen.
 - Product truth and tone: `PRODUCT.md`. No made-up numbers or opinions.
 - One test runner: `bun test` (unit + integration) and Playwright (E2E). No Jest/Vitest.
 - One linter/formatter: Biome. Tool versions: `flake.nix` + `bun.lock`. Expo/RN package versions only
   as compatible with the SDK (`bunx expo install --check` in `apps/app`).
+  `biome.json` enforces several rules above mechanically (Platform/DOM globals/navigation/storage imports in the app,
+  JSX text literals, Polish string literals outside `texts.ts` (only strings with Polish letters), SurrealQL without
+  the `surql` tag (`biome-plugins/*.grit`), `test-*.ts` imports in API code, Node modules and undeclared dependencies
+  in plugins and `packages/shared`, floating promises). Warnings fail `bun run lint` too.
 
 ## Code style
 - Declarative code: a function reads as a sequence of `const x = step()` calls. No `let x; try { x = … } catch`
@@ -90,7 +118,7 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
   or throw (pattern: `loadPlugin` in `packages/sdk/src/load.ts`). Prefer `find`/`map`/`filter` over `for` + mutation.
 
 ## Tests
-- Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`).
+- Unit: pure logic, next to the code (`*.test.ts` in `packages/*`, `plugins/*`, `apps/app/src`, `apps/api/src`).
 - Integration: `apps/api/test`, always through `setup()` (a fresh database on the shared in-memory engine +
   `app.request()`), `close()` in `afterEach`.
 - E2E: web (production static export), import `test`/`expect` from `e2e/fixtures.ts`
@@ -100,6 +128,10 @@ docs/plugins.md). Do not add platform tables for a single plugin — it declares
 
 ## Frontend
 Patterns, UI text and forbidden APIs: `docs/expo.md`.
+
+## Architecture docs
+Interactive HTML in `docs/architecture/` (open `index.html` in a browser; no build, no external resources). They
+quote real code paths, messages and limits: a change to what they describe updates them in the same commit.
 
 ## Don'ts
 - No secrets in the repo (`.env` is gitignored). Secrets only in GitHub Secrets.

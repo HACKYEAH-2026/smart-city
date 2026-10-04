@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOG_LEVELS } from "./log";
 
 const csv = z
   .string()
@@ -13,6 +14,8 @@ const csv = z
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().default(3000),
+  /** The least important log level written (log.ts reads it itself; here it is checked at startup). */
+  LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   DATABASE_URL: z.string().min(1),
   /** Public API URL (Better Auth baseURL), e.g. https://api.example.com */
   API_URL: z.url(),
@@ -25,7 +28,10 @@ export const envSchema = z.object({
   PLUGINS_DIR: z.string().optional(),
   /** Directory for plugin files (photos). Defaults to a temp directory. */
   FILES_DIR: z.string().optional(),
-  /** Language model for ctx.ai (Strands, OpenAI-compatible API). Without a key: ctx.ai.call is unavailable. */
+  /**
+   * Language model for ctx.ai (Strands, OpenAI-compatible API). Without a key: ctx.ai.call and ctx.ai.embed are
+   * unavailable (embed needs only the key: its model is EMBEDDING_MODEL in services/ai/model.ts).
+   */
   AI_API_KEY: z.string().min(1).optional(),
   AI_MODEL: z.string().min(1).optional(),
   /** Custom OpenAI-compatible endpoint (e.g. another provider). Unset = api.openai.com. */

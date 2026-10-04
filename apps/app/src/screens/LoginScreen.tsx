@@ -3,8 +3,9 @@ import { useRouter } from "expo-router";
 import Head from "expo-router/head";
 import { useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
-import { Brand, Button, GoogleLogo, Heading, Link, MapDecoration, Screen, Text, TextField } from "../components";
+import { Brand, Button, GoogleLogo, Heading, Link, LoginVideo, Screen, Text, TextField } from "../components";
 import { type GoogleSignInResult, useAuthActions, useGoogleClientIds } from "../data/session";
+import { devLoginAccounts } from "../lib/config";
 import { t } from "../texts";
 import { layout, spacing } from "../theme";
 
@@ -18,27 +19,30 @@ const GOOGLE_ERROR: Record<Exclude<GoogleSignInResult, "ok" | "cancelled">, stri
  * Login (design E-Logowanie): map illustration, brand, welcome copy, email and password, Google, sign-up link.
  * Google signs in and signs up in one step (the account is created at the first sign-in); the button shows only
  * where the native account picker exists (not in Expo Go) and the API has a Google client.
+ * With the dev login flag (src/lib/config.ts), buttons at the very bottom sign in as the demo admin or resident.
  */
 export default function LoginScreen() {
   const router = useRouter();
   const auth = useAuthActions();
   const googleIds = useGoogleClientIds().data;
+  const devAccounts = devLoginAccounts();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async () => {
+  const signIn = async (account: { email: string; password: string }) => {
     // The error shows under the button, where an open keyboard would cover it.
     Keyboard.dismiss();
     setPending(true);
     setError(null);
-    const ok = await auth.signIn(email, password);
+    const ok = await auth.signIn(account.email, account.password);
     setPending(false);
     // Message from our translations, not from Better Auth (which is always in English).
     if (!ok) return setError(t.auth_login_error);
     router.replace("/app");
   };
+  const submit = () => signIn({ email, password });
 
   const continueWithGoogle = async (ids: GoogleClientIds) => {
     setPending(true);
@@ -50,7 +54,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen chrome={false} backdrop={<MapDecoration />}>
+    <Screen chrome={false} backdrop={<LoginVideo />}>
       <Head>
         <title>{t.meta_login_title}</title>
       </Head>
@@ -108,6 +112,21 @@ export default function LoginScreen() {
       <Text variant="body" color="textSecondary" style={styles.center}>
         {t.auth_no_account} <Link href="/register">{t.auth_goto_register}</Link>
       </Text>
+      {devAccounts.length > 0 ? (
+        <View style={styles.dev}>
+          {devAccounts.map((account) => (
+            <Button
+              key={account.email}
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              label={`${t.auth_dev_login} ${account.email}`}
+              onPress={() => signIn(account)}
+              disabled={pending}
+            />
+          ))}
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -120,5 +139,7 @@ const styles = StyleSheet.create({
   // Design: social sign-in buttons sit in a grid with gap 10 under the main button.
   social: { gap: spacing[5] },
   grow: { flex: 1 },
+  // Side by side when they fit, else one under the other.
+  dev: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   center: { textAlign: "center" },
 });

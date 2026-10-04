@@ -1,8 +1,9 @@
 import type { ToolResult, ViewParams } from "@app/plugin-sdk";
-import type { JoinPlace, NewPlace } from "@app/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { DashboardLayoutInput, JoinPlace, MemberRole, NewPlace, PlaceUpdate } from "@app/shared";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { api } from "../lib/api";
+import { mapPlacesKey } from "./geo";
 
 /**
  * Community and plugin data (frontend data pattern: useQuery + useMutation). Plugin views arrive from the API as a UI tree
@@ -13,7 +14,15 @@ const c = api.api.communities;
 export const communitiesKey = ["communities"] as const;
 const communityKey = (slug: string) => ["communities", slug] as const;
 const dashboardKey = (slug: string) => [...communityKey(slug), "dashboard"] as const;
+/** Under the dashboard's key, so whatever refreshes the dashboard (a reorder, a plugin switched on) refreshes it too. */
+const dashboardLayoutKey = (slug: string): readonly string[] => [...dashboardKey(slug), "layout"];
 const pluginKey = (slug: string, pluginId: string) => [...communityKey(slug), "plugin", pluginId] as const;
+const membersKey = (slug: string) => [...communityKey(slug), "members"];
+/**
+ * Reloads the place and everything under it. After a failed member change: another admin may have revoked the
+ * caller's rights (403) or removed them (404), and the screens should show that, not stale admin controls.
+ */
+const refreshPlace = (qc: QueryClient, slug: string) => qc.invalidateQueries({ queryKey: communityKey(slug) });
 
 export function useCommunities() {
   return useQuery({ queryKey: communitiesKey, queryFn: () => parseResponse(c.$get()) });
@@ -21,15 +30,6 @@ export function useCommunities() {
 
 export function useCommunity(slug: string) {
   return useQuery({ queryKey: communityKey(slug), queryFn: () => parseResponse(c[":slug"].$get({ param: { slug } })) });
-}
-
-/** Navigation polled every few seconds: a newly installed plugin appears without a reload. */
-export function useCommunityNav(slug: string) {
-  return useQuery({
-    queryKey: [...communityKey(slug), "nav"],
-    queryFn: () => parseResponse(c[":slug"].nav.$get({ param: { slug } })),
-    refetchInterval: 5000,
-  });
 }
 
 /** Dashboard (widgets rendered for this user, in the community's order); refetched on every visit and periodically. */
@@ -46,6 +46,29 @@ export function useSaveDashboardOrder(slug: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (order: string[]) => parseResponse(c[":slug"].dashboard.$patch({ param: { slug }, json: { order } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
+  });
+}
+
+/**
+ * Community admins: the dashboard layout to arrange (widgets on it with their sizes, and the removed ones). Fetched
+ * again on every mount even when cached: the editor starts its draft only from data fetched after it opened, never
+ * from a copy cached before.
+ */
+export function useDashboardLayout(slug: string) {
+  return useQuery({
+    queryKey: dashboardLayoutKey(slug),
+    queryFn: () => parseResponse(c[":slug"].dashboard.layout.$get({ param: { slug } })),
+    refetchOnMount: "always",
+  });
+}
+
+/** Community admins: save the dashboard layout; the dashboard and the layout (under its key) are refetched. */
+export function useSaveDashboardLayout(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (layout: DashboardLayoutInput) =>
+      parseResponse(c[":slug"].dashboard.layout.$put({ param: { slug }, json: layout })),
     onSuccess: () => qc.invalidateQueries({ queryKey: dashboardKey(slug) }),
   });
 }
@@ -119,7 +142,11 @@ export function useCreatePlace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (place: NewPlace) => parseResponse(c.$post({ json: place })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: communitiesKey }),
+        qc.invalidateQueries({ queryKey: mapPlacesKey }),
+      ]),
   });
 }
 
@@ -137,8 +164,8 @@ export function useAcceptInvitation() {
   return useMutation({
     mutationFn: (id: string) => parseResponse(invitations[":id"].accept.$post({ param: { id } })),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: invitationsKey });
-      qc.invalidateQueries({ queryKey: communitiesKey });
+      void qc.invalidateQueries({ queryKey: invitationsKey });
+      void qc.invalidateQueries({ queryKey: communitiesKey });
     },
   });
 }
@@ -149,5 +176,88 @@ export function useDeclineInvitation() {
   return useMutation({
     mutationFn: (id: string) => parseResponse(invitations[":id"].$delete({ param: { id } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: invitationsKey }),
+  });
+}
+
+/** Managing a place, for its admins ("Zarządzaj miejscem"): members, plugins on and off, settings, deleting it. */
+export function usePlaceMembers(slug: string) {
+  return useQuery({
+    queryKey: membersKey(slug),
+    queryFn: () => parseResponse(c[":slug"].members.$get({ param: { slug } })),
+  });
+}
+
+/** Makes another member an admin or a plain member again. */
+export function useSetMemberRole(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string } & MemberRole) =>
+      parseResponse(c[":slug"].members[":userId"].$patch({ param: { slug, userId }, json: { role } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(slug) }),
+    onError: () => refreshPlace(qc, slug),
+  });
+}
+
+/** Removes another member from the place. */
+export function useRemoveMember(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => parseResponse(c[":slug"].members[":userId"].$delete({ param: { slug, userId } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(slug) }),
+    onError: () => refreshPlace(qc, slug),
+  });
+}
+
+/** The built-in plugins and whether each is on in the place. */
+export function usePlacePlugins(slug: string) {
+  return useQuery({
+    queryKey: [...communityKey(slug), "plugins"],
+    queryFn: () => parseResponse(c[":slug"].plugins.$get({ param: { slug } })),
+  });
+}
+
+/**
+ * Switches one of the place's plugins on or off: a built-in one or a published AI one (a draft goes on by publishing);
+ * the place's navigation, dashboard and views follow. `onSwitched` runs once the API has switched it, before that
+ * refetch: a screen that is about the plugin (its page) leaves before it shows the plugin gone. It is part of the
+ * mutation, so it runs even when the refetch unmounts the component that asked.
+ */
+export function useSwitchPlugin(slug: string, options: { onSwitched?: () => void } = {}) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }) =>
+      parseResponse(c[":slug"].plugins[":pluginId"].$put({ param: { slug, pluginId }, json: { enabled } })),
+    onSuccess: () => {
+      options.onSwitched?.();
+      return qc.invalidateQueries({ queryKey: communityKey(slug) });
+    },
+  });
+}
+
+/** Changes the place's settings (its name shows in every list of places, so all place data is refetched). */
+export function useUpdatePlace(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (update: PlaceUpdate) => parseResponse(c[":slug"].$patch({ param: { slug }, json: update })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: communitiesKey }),
+  });
+}
+
+/** Deletes the place for everyone. */
+export function useDeletePlace(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => parseResponse(c[":slug"].$delete({ param: { slug } })),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: communityKey(slug) });
+      return qc.invalidateQueries({ queryKey: communitiesKey });
+    },
+  });
+}
+
+/** An admin invites a user to the place by the email of their account. */
+export function useInvite(slug: string) {
+  return useMutation({
+    mutationFn: (email: string) => parseResponse(invitations.$post({ json: { slug, email } })),
   });
 }

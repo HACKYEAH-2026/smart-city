@@ -23,14 +23,15 @@ Use the components from `src/components/` (design system); they set these for yo
 ## Routing (Expo Router)
 - Files in `app/` = routes. Keep them thin (`export { default } from "../src/screens/X"`).
 - Session-guarded layout: `app/app/_layout.tsx` (`<Redirect href="/login" />`, then a `<Stack>` of the /app screens).
-- Navigation in code: `const router = useRouter(); router.replace("/app")`. Links: `<Link>`.
+- Navigation in code: `const router = useRouter(); router.push("/app/create")`, back with `goBack(router, "/app")`
+  (`replace` only where the flow must not stack; see Transitions). Links: `<Link>`.
 - 404: `app/+not-found.tsx` (becomes `404.html` in the web build).
 - `<Head>` from `expo-router/head` on every screen: `<title>` ends up in the static HTML.
 
 ## Transitions (screens and sections)
 - Screens move through the Expo Router `<Stack>`: the root (`app/_layout.tsx`) and `/app` (`app/app/_layout.tsx`).
-  Default `animation: "slide_from_right"`; the bottom bar's sections (`index`, `account`) use `fade`; the QR scanner
-  (`scan`) uses `slide_from_bottom`. `animationDuration: 250` is iOS only (Android keeps the system duration).
+  Default `animation: "slide_from_right"`; the bottom bar's sections (`index`, `map`, `account`) use `fade`; the QR
+  scanner (`scan`) uses `slide_from_bottom`. `animationDuration: 250` is iOS only (Android keeps the system duration).
 - A new screen needs no entry: it slides in from the right. A different animation goes into the layout as
   `<Stack.Screen name="..." options={{ animation: "..." }} />`.
 - Going forward: `router.push` or `<Link href>` (the stack grows, back works). Going back: `goBack(router, fallback)`
@@ -74,7 +75,16 @@ export const useCommunities = () =>
 - Android phone over USB (USB debugging on) or emulator: `just dev`. Its `usb` proc (`scripts/adb-reverse.ts`) runs
   `adb reverse` for :4000 and :8081 and Expo starts with `--localhost`, so the device's `localhost` is this machine
   and the default API URL works; press `a` in the `app` pane (installs a matching Expo Go if needed).
-  Phone over Wi-Fi instead: `bunx expo start --lan` in `apps/app` with `EXPO_PUBLIC_API_URL=http://<LAN IP>:4000`.
+  iPhone (no adb reverse on iOS): `just dev-ios` (`mprocs.ios.yaml`). It picks an address the phone can reach: the
+  USB cable when the iPhone is plugged in with Personal Hotspot on ("iPhone USB" network port, works on any Wi-Fi),
+  else the Mac's Wi-Fi (`en0`, else `en1`; phone on the same network), or `just dev-ios <ip>`. It starts the API with
+  `API_URL` on that address (signed photo URLs) and Expo with `--lan` and `EXPO_PUBLIC_API_URL` on it; scan the QR
+  code with the iPhone camera. Guest/hackathon Wi-Fi usually isolates devices: use the cable.
+- Dev login: `EXPO_PUBLIC_DEV_LOGIN=true` in the repo-root `.env` (the app's dev script loads it with `--env-file`;
+  restart the `app` proc) adds buttons at the bottom of the login screen that sign in as the demo admin
+  (`admin@krakow.test`), the demo resident (`anna@krakow.test`), the Tauron Arena's admin (`admin@arena.test`) or
+  another resident with reports of his own (`piotr@krakow.test`), all seeded by the dev API. Off by default; read
+  only in `src/lib/config.ts` (`devLoginAccounts`).
 - Native modules only from the Expo SDK or with a config plugin; after adding one run `bunx expo install --check`.
 - Keyboard: `Screen` scrolls with `KeyboardAwareScrollView` (react-native-keyboard-controller, also in Expo Go), so a
   focused field and the button below it stay above the keyboard. Forms inside `Screen` need nothing more; do not add
@@ -94,7 +104,7 @@ export const useCommunities = () =>
   `google.web.ts`, none): the native account picker (`@react-native-google-signin/google-signin`) returns an ID token
   issued to the web client ID, `authClient.signIn.social({ idToken })` turns it into our bearer session, and the first
   sign-in creates the account. The client IDs come from the API (`GET /api/auth-providers`, from `GOOGLE_CLIENT_ID`
-  and `GOOGLE_IOS_CLIENT_ID` in its env; locally `apps/api/.env`, read by `just dev`). Expo Go does not ship the
+  and `GOOGLE_IOS_CLIENT_ID` in its env; locally the repo-root `.env`, read by `just dev`; see `.env.example`). Expo Go does not ship the
   native module, so the button is hidden there: use the dev build (`android:debug`). Google Cloud project, three
   OAuth clients: "Web application" (its ID is `GOOGLE_CLIENT_ID`; no secret, origins or redirect URIs needed),
   "Android" (package `pl.twojemiejsce.app` + SHA-1 of the signing key; dev builds use the `debug.keystore` that

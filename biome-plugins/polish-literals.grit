@@ -1,0 +1,11 @@
+language js
+
+or {
+  JsStringLiteralExpression(),
+  JsxText(),
+  JsTemplateChunkElement(),
+  JsxString()
+} as $s where {
+  $s <: r"[\s\S]*[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ][\s\S]*",
+  register_diagnostic(span=$s, message="UI text only in apps/app/src/texts.ts (AGENTS.md); this check sees only strings with Polish letters")
+}

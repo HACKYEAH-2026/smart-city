@@ -1,19 +1,27 @@
 import { afterEach } from "bun:test";
 import { createNodeEngines } from "@surrealdb/node";
-import { RecordId, Surreal, type SurrealSession } from "surrealdb";
+import { RecordId, Surreal, type SurrealSession, surql } from "surrealdb";
 import type { z } from "zod";
 import { deniedService } from "./denied";
 import { createDatabase } from "./engine/client";
 import { PLATFORM_SCHEMA } from "./engine/platform";
 import { HOST, syncSchema } from "./engine/schema";
 import { loadPlugin } from "./load";
-import type { Context, Permission, PluginCommunity, PluginUser } from "./plugin";
-import type { AI, AICall, SimilarMatch } from "./services/ai";
+import {
+  type Context,
+  type DashboardWidgetSize,
+  type Permission,
+  type PluginCommunity,
+  type PluginUser,
+  sameSize,
+} from "./plugin";
+import { type AI, type AICall, AITimeoutError, type SimilarMatch, withAITimeout } from "./services/ai";
 import type { Database, Tables } from "./services/db";
 import type { FileId, Files } from "./services/files";
 import { type Notification, type Notify, parseNotification } from "./services/notify";
 import {
   dashboardWidgetSchema,
+  type MetaItem,
   screenSchema,
   type ToolResult,
   toolResultSchema,
@@ -29,6 +37,7 @@ import {
  *
  *   const t = await testPlugin(issues, { user: alice });
  *   t.ai.mockSimilar(() => []);
+ *   t.ai.mockTimeout(); // ctx.ai.call with timeoutMs rejects as timed out
  *   const photo = await t.files.fake();
  *   await t.tool("report", { title: "Latarnia", photo });
  *   const live = await t.stream("messages", { discussion: id }); // snapshot, then changes
@@ -84,27 +93,43 @@ export async function testDatabase(): Promise<SurrealSession> {
 async function platform(): Promise<SurrealSession> {
   const surreal = await testDatabase();
   await surreal.query(PLATFORM_SCHEMA);
-  await surreal.query("CREATE $i;", { i: new RecordId(HOST.installation, INSTALLATION) });
+  await surreal.query(surql`CREATE ${new RecordId(HOST.installation, INSTALLATION)};`);
   return surreal;
 }
 
 type CallMock = (req: AICall<z.ZodType | undefined>) => unknown;
 type SimilarMock = (query: { text: string; image?: FileId | null }, candidates: unknown[]) => SimilarMatch<unknown>[];
+type EmbedMock = (text: string) => number[];
+
+/** A mocked model that never answers: a call with `timeoutMs` times out at once, one without would hang forever. */
+const hangs = (req: AICall<z.ZodType | undefined>): Promise<never> =>
+  req.timeoutMs === undefined
+    ? Promise.reject(
+        new Error("ctx.ai.call: the model does not answer (t.ai.mockTimeout) and the call has no timeoutMs"),
+      )
+    : Promise.reject(new AITimeoutError(req.timeoutMs));
 
 function mockAI() {
-  const mocks: { call: CallMock; similar: SimilarMock } = {
+  const mocks: { call: CallMock; similar: SimilarMock; embed: EmbedMock } = {
     call: () => {
       throw new Error("ctx.ai.call: no mock — use t.ai.mockCall(...)");
     },
     similar: () => [],
+    embed: () => {
+      throw new Error("ctx.ai.embed: no mock — use t.ai.mockEmbed(...)");
+    },
   };
   const api: AI = {
+    // Like the host: `timeoutMs` is enforced (a mock may answer later, with a promise).
     async call(req) {
-      const out = mocks.call(req as AICall<z.ZodType | undefined>);
+      const out = await withAITimeout(req.timeoutMs, async () => mocks.call(req as AICall<z.ZodType | undefined>));
       return (req.schema ? req.schema.parse(out) : String(out)) as never;
     },
     async findSimilar(query, candidates) {
       return mocks.similar(query, candidates) as never;
+    },
+    async embed(text) {
+      return mocks.embed(text);
     },
   };
   return {
@@ -112,16 +137,29 @@ function mockAI() {
     mockCall: (fn: CallMock) => {
       mocks.call = fn;
     },
+    /** The model stops answering: a ctx.ai.call with `timeoutMs` rejects as timed out right away (no waiting). */
+    mockTimeout: () => {
+      mocks.call = hangs;
+    },
     mockSimilar: (fn: SimilarMock) => {
       mocks.similar = fn;
+    },
+    mockEmbed: (fn: EmbedMock) => {
+      mocks.embed = fn;
     },
   };
 }
 
-export async function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: PluginCommunity } = {}) {
+export async function testPlugin(mod: unknown, opts: { user?: PluginUser; community?: Partial<PluginCommunity> } = {}) {
   const { manifest, definition } = loadPlugin(mod);
   const tables: Tables = definition.tables ?? {};
-  const community = opts.community ?? { id: "c-test", slug: "test", name: "Test Community" };
+  const community: PluginCommunity = {
+    id: "c-test",
+    slug: "test",
+    name: "Test Community",
+    location: null,
+    ...opts.community,
+  };
   const clock = { now: new Date(Date.UTC(2026, 0, 1)) };
   const now = () => new Date(clock.now);
   const surreal = await platform();
@@ -130,7 +168,7 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
 
   const ensureUser = async (user: PluginUser) => {
     if (user.id === SYSTEM.id) return;
-    await surreal.query("UPSERT $u SET name = $name;", { u: new RecordId(HOST.user, user.id), name: user.name });
+    await surreal.query(surql`UPSERT ${new RecordId(HOST.user, user.id)} SET name = ${user.name};`);
   };
   const dbFor = (user: PluginUser): Database =>
     createDatabase({
@@ -142,9 +180,10 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       now,
     });
   const fileRow = async (id: string) => {
-    const [rows] = await surreal.query<[{ mime: string; size: number; status: string }[]]>(
-      "SELECT mime, size, status FROM $f;",
-      { f: new RecordId(HOST.file, id) },
+    const [rows] = await surreal.query(
+      surql<
+        [{ mime: string; size: number; status: string; uploaded_by?: RecordId }[]]
+      >`SELECT mime, size, status, uploaded_by FROM ${new RecordId(HOST.file, id)};`,
     );
     return rows[0];
   };
@@ -152,25 +191,28 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     async info(id) {
       const row = await fileRow(id);
       if (!row) throw new Error(`Unknown file ${id}`);
-      return { mime: row.mime, size: row.size };
+      return {
+        mime: row.mime,
+        size: row.size,
+        uploadedBy: row.uploaded_by ? String(row.uploaded_by.id) : null,
+        kept: row.status === "kept",
+      };
     },
     async remove(id) {
-      await surreal.query("DELETE $f;", { f: new RecordId(HOST.file, id) });
+      await surreal.query(surql`DELETE ${new RecordId(HOST.file, id)};`);
     },
   };
   /** A pending upload by `user`, like POST …/files in the app. */
   const fakeFile = async (user: PluginUser, mime = "image/jpeg"): Promise<FileId> => {
     await ensureUser(user);
     const id = `file_${crypto.randomUUID()}` as FileId;
-    await surreal.query("CREATE $f CONTENT $data;", {
-      f: new RecordId(HOST.file, id),
-      data: {
-        installation: new RecordId(HOST.installation, INSTALLATION),
-        uploaded_by: new RecordId(HOST.user, user.id),
-        mime,
-        size: 1024,
-      },
-    });
+    const data = {
+      installation: new RecordId(HOST.installation, INSTALLATION),
+      uploaded_by: new RecordId(HOST.user, user.id),
+      mime,
+      size: 1024,
+    };
+    await surreal.query(surql`CREATE ${new RecordId(HOST.file, id)} CONTENT ${data};`);
     return id;
   };
   const can = (permission: Permission) => manifest.permissions.includes(permission);
@@ -209,11 +251,18 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
       visits.set(user.id, now());
       return node;
     },
-    /** Dashboard widget (validated like in the host); null = the widget shows nothing. */
-    async dashboardWidget(name: string): Promise<UINode | null> {
-      const fn = definition.dashboardWidgets?.[name];
-      if (!fn) throw new Error(`no dashboard widget ${name}`);
-      return dashboardWidgetSchema.nullable().parse(await fn.render(await ctxFor(user)));
+    /**
+     * The dashboard widget (validated like in the host), drawn at `options.size`: its declared `size` by default; a
+     * size it does not offer (`size` or `sizes`) throws, as an admin could not pick it.
+     */
+    async dashboardWidget(name: string, options: { size?: DashboardWidgetSize } = {}): Promise<UINode> {
+      const widget = definition.dashboardWidgets?.[name];
+      if (!widget) throw new Error(`no dashboard widget ${name}`);
+      const size = options.size ?? widget.size;
+      if (![widget.size, ...(widget.sizes ?? [])].some((offered) => sameSize(offered, size))) {
+        throw new Error(`dashboard widget ${name} does not offer the size ${size.w}x${size.h}`);
+      }
+      return dashboardWidgetSchema.parse(await widget.render(await ctxFor(user), { size }));
     },
     async tool(name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
       const tool = definition.tools?.[name];
@@ -251,13 +300,13 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
     db: dbFor(SYSTEM),
     /** Deletes a platform user (e.g. to check reference cascades). */
     deleteUser: async (id: string) => {
-      await surreal.query("DELETE $u;", { u: new RecordId(HOST.user, id) });
+      await surreal.query(surql`DELETE ${new RecordId(HOST.user, id)};`);
     },
     files: {
       fake: (mime?: string) => fakeFile(main, mime),
       isKept: async (id: FileId) => (await fileRow(id))?.status === "kept",
     },
-    ai: { mockCall: ai.mockCall, mockSimilar: ai.mockSimilar },
+    ai: { mockCall: ai.mockCall, mockTimeout: ai.mockTimeout, mockSimilar: ai.mockSimilar, mockEmbed: ai.mockEmbed },
     /** Notifications sent with ctx.notify, oldest first (`from` = the acting user's id). */
     notifications: () => [...sent],
     setNow: (date: Date) => {
@@ -268,10 +317,44 @@ export async function testPlugin(mod: unknown, opts: { user?: PluginUser; commun
 
 /** All texts in a UI tree (titles, labels, values) — for layout-independent assertions. */
 export function textsOf(node: UINode): string[] {
-  const own = (["title", "subtitle", "text", "label", "value", "alt"] as const).flatMap((k) => {
+  const own = (["eyebrow", "title", "subtitle", "text", "label", "value", "alt"] as const).flatMap((k) => {
     const v = (node as Record<string, unknown>)[k];
     return typeof v === "string" ? [v] : [];
   });
   const children = "children" in node && node.children ? node.children.flatMap(textsOf) : [];
-  return [...own, ...children];
+  return [...own, ...children, ...mapTexts(node), ...itemTexts(node)];
 }
+
+const metaTexts = (items: MetaItem[] | undefined): string[] =>
+  (items ?? []).flatMap((item) => ("text" in item ? [item.text] : []));
+
+/** Texts a node keeps outside the common keys: its items, options, meta line and header actions. */
+function itemTexts(node: UINode): string[] {
+  switch (node.type) {
+    case "Tags":
+      return node.items.map((tag) => tag.text);
+    case "Timeline":
+      return node.items.flatMap((step) => [step.title, ...(step.text ? [step.text] : [])]);
+    case "Meta":
+      return metaTexts(node.items);
+    case "Card":
+      return metaTexts(node.meta);
+    case "Menu":
+      return node.options.map((option) => option.label);
+    case "Gallery":
+      return node.items.map((item) => item.alt);
+    case "Screen":
+      return (node.actions ?? []).map((action) => action.label);
+    default:
+      return [];
+  }
+}
+
+/** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
+const mapTexts = (node: UINode): string[] =>
+  node.type === "Map"
+    ? node.layers.flatMap((layer) => [
+        layer.title,
+        ...layer.items.flatMap((item) => [item.title, ...(item.subtitle ? [item.subtitle] : [])]),
+      ])
+    : [];
