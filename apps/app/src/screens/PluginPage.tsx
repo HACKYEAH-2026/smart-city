@@ -9,7 +9,6 @@ import { useCommunity, useDashboardLayout, usePlacePlugins, usePluginView, useSw
 import { confirmDestructive } from "../lib/confirm";
 import { useFlash } from "../lib/flash";
 import { sizeLabel } from "../lib/layoutDraft";
-import { goBack } from "../lib/navigation";
 import { uploadPluginImage } from "../lib/upload";
 import { type SheetTarget, usePluginActions } from "../plugins/actions";
 import { usePluginOverlays } from "../plugins/overlays";
@@ -28,7 +27,7 @@ export default function PluginPage() {
   const router = useRouter();
   const place = useCommunity(slug);
   const plugins = usePlacePlugins(slug);
-  const back = () => goBack(router, `/app/c/${slug}/manage`);
+  const back = () => router.dismissTo({ pathname: "/app/c/[slug]/manage", params: { slug } });
   const plugin = plugins.data?.find((p) => p.id === pluginId && p.enabled && !p.draft);
   const header = <PageHeader plugin={plugin} onBack={back} />;
 

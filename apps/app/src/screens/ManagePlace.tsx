@@ -67,7 +67,7 @@ export default function ManagePlace() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const place = useCommunity(slug);
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/app"));
+  const back = () => router.dismissTo("/app");
   const header = <TitleHeader eyebrow={place.data?.name ?? ""} title={t.manage_title} onBack={back} />;
 
   if (place.isPending) return <NoticeScreen header={header} text={t.loading} />;
