@@ -375,8 +375,6 @@ Ostatnie zdanie wraca do slajdu 3: to przykład rozszerzenia, nie cały produkt.
 
 <!-- _class: statement phone -->
 
-> Zrzut: panel administratora zgłoszeń z kategorią i odpowiedzią urzędu
-
 ## Dla urzędu
 
 # Jedno zgłoszenie zamiast wielu takich samych
@@ -386,6 +384,8 @@ Ostatnie zdanie wraca do slajdu 3: to przykład rozszerzenia, nie cały produkt.
 - **Odpowiedź dociera** do każdego, kto zgłosił
 
 ### Urząd widzi, ilu mieszkańców dotyczy sprawa.
+
+![Zgłoszenia Krakowa: najpopularniejsze z liczbą głosów mieszkańców](docs/presentation/issues.png)
 
 <!--
 Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi
