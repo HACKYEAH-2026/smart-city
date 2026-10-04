@@ -28,6 +28,7 @@ import {
   mergeView,
   PluginScreen,
   PreviewScreen,
+  REPORTERS,
   ScannerScreen,
 } from "../shared/screens";
 import { Center, ClipVideo, Counter, Flash, Light, NIGHT, PhoneAt, Pop, Pushed, WhiteIcon } from "../shared/stage";
@@ -171,7 +172,7 @@ const PLACES = [
     label: "Miasto",
     icon: Landmark,
     x: 520,
-    widgets: [budgetWidget(), issuesWidget(3)],
+    widgets: [budgetWidget(), issuesWidget(REPORTERS)],
   },
   {
     key: "campus",
@@ -187,7 +188,7 @@ const PLACES = [
     label: "Spółdzielnia",
     icon: Building2,
     x: 1400,
-    widgets: [issuesWidget(3), announcementsWidget("Przegląd instalacji gazowej w czwartek")],
+    widgets: [issuesWidget(REPORTERS), announcementsWidget("Przegląd instalacji gazowej w czwartek")],
   },
 ] as const;
 
@@ -331,7 +332,7 @@ export const CityScene = () => {
         <Pushed
           screens={[
             { at: 0, node: <PluginScreen node={frame >= vote + 4 ? budgetVotedView() : budgetView()} /> },
-            { at: board, node: <DashboardScreen widgets={[budgetWidget(), issuesWidget(3)]} /> },
+            { at: board, node: <DashboardScreen widgets={[budgetWidget(), issuesWidget(REPORTERS)]} /> },
           ]}
         />
         <Tap x={195} y={399} at={vote} />
@@ -436,7 +437,7 @@ export const CoopScene = () => {
           <WhiteIcon icon={Sparkles} />
           AI łączy te same zgłoszenia
         </Pop>
-        {frame >= joined + 8 ? <Counter at={joined + 8} /> : null}
+        {frame >= joined + 8 ? <Counter at={joined + 8} to={REPORTERS + 1} /> : null}
       </Column>
       <PhoneAt pose={PHONE}>
         <Pushed
@@ -460,7 +461,11 @@ export const CoopScene = () => {
               at: joined + 6,
               node: (
                 <PluginScreen
-                  node={detailView({ support: frame >= joined + 10 ? 4 : 3, status: "open", admin: false })}
+                  node={detailView({
+                    support: frame >= joined + 10 ? REPORTERS + 1 : REPORTERS,
+                    status: "open",
+                    admin: false,
+                  })}
                 />
               ),
             },
