@@ -8,6 +8,7 @@
     "typecheck": "tsc -p . --incremental",
     "render:problems": "remotion render AdProblems out/ad-problems.mp4",
     "render:needs": "remotion render AdNeeds out/ad-needs.mp4",
+    "render:needs-2": "remotion render AdNeeds2 out/ad-needs-2.mp4",
     "render:login": "bun scripts/login-loop.ts",
     "vo": "bun --env-file=../.env scripts/voiceover.ts",
     "media": "bun --env-file=../.env scripts/media.ts"

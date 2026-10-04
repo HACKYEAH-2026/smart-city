@@ -2,6 +2,8 @@ import type React from "react";
 import { Composition } from "remotion";
 import { AdNeeds } from "./ads/needs/Ad";
 import { DURATION as NEEDS_DURATION } from "./ads/needs/timing";
+import { AdNeeds2 } from "./ads/needs-2/Ad";
+import { DURATION as NEEDS2_DURATION } from "./ads/needs-2/timing";
 import { AdProblems } from "./ads/problems/Ad";
 import { DURATION as PROBLEMS_DURATION } from "./ads/problems/timing";
 import { FPS } from "./ads/shared/timing";
@@ -29,6 +31,13 @@ export const Root: React.FC = () => (
       component={AdNeeds}
       durationInFrames={NEEDS_DURATION}
       defaultProps={{ captions: false }}
+      {...AD}
+    />
+    <Composition
+      id="AdNeeds2"
+      component={AdNeeds2}
+      durationInFrames={NEEDS2_DURATION}
+      defaultProps={{ captions: true }}
       {...AD}
     />
     <Composition

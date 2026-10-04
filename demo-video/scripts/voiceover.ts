@@ -4,7 +4,7 @@
  * time the video), then transcribes the take back (Scribe) and lists the words the narrator dropped or added.
  * Skips the API when the script and the voice are unchanged. Paid per character: run it on purpose.
  * Needs ELEVEN_LABS_API_KEY (repo .env).
- *   bun run vo <ad>                   the take (--force: a new one even if nothing changed); ad: problems, needs
+ *   bun run vo <ad>                   the take (--force: a new one even if nothing changed); ad: problems, needs, needs-2
  *   bun run vo <ad> --cast id1,id2    the ad's first beats in other voices → out/casting/<id>.mp3, to compare
  */
 import { mkdir } from "node:fs/promises";
@@ -22,7 +22,7 @@ type Beat = { start: number; end: number; words: Word[] };
 
 const API = "https://api.elevenlabs.io/v1";
 const ROOT = join(import.meta.dir, "..");
-const ADS = ["problems", "needs"] as const;
+const ADS = ["problems", "needs", "needs-2"] as const;
 type AdName = (typeof ADS)[number];
 const mp3Of = (ad: AdName) => join(ROOT, `public/ad/voice/${ad}.mp3`);
 const timingOf = (ad: AdName) => join(ROOT, `src/ads/${ad}/vo.json`);
