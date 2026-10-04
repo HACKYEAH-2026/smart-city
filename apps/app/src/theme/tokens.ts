@@ -251,9 +251,8 @@ export const sizes = {
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 96,
-  /** Dashboard layout (design "Układ pulpitu"): a grid row in the editor and in the preview on "Zarządzaj miejscem". */
+  /** Dashboard layout editor (design "Układ pulpitu"): a grid row. */
   layoutRow: 64,
-  layoutPreviewRow: 22,
   /** Layout editor: one grid cell in a size choice's outline icon (a 3 × 2 widget draws 21 × 14). */
   layoutSizeUnit: 7,
   /** Layout editor: a size choice ("3 × 2"). */

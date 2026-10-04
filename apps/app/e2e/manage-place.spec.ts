@@ -5,9 +5,9 @@ import { adminHeaders, DEMO_ADMIN_NAME, expect, joinKrakow, loginAdmin, register
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
- * by email), the plugins that are on and the catalog to add more, the dashboard order, the members with their roles,
- * the place's settings, and deleting the place. Each section is a card that opens in place. Place and plugin names are
- * data, not app texts.
+ * by email), the plugins that are on and the catalog to add more, the members with their roles, the place's settings,
+ * and deleting the place. Each section is a card that opens in place. The dashboard layout editor opens from a plugin's
+ * page. Place and plugin names are data, not app texts.
  */
 const openManage = async (page: Page) => {
   await page.getByRole("link", { name: t.manage_title }).click();
@@ -21,13 +21,7 @@ const openSection = async (page: Page, title: string) => {
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 };
 
-const SECTIONS = [
-  t.manage_invites_title,
-  t.manage_plugins_title,
-  t.manage_layout_title,
-  t.manage_members_title,
-  t.manage_settings_title,
-];
+const SECTIONS = [t.manage_invites_title, t.manage_plugins_title, t.manage_members_title, t.manage_settings_title];
 
 test("only admins manage a place; the screen shows its sections, closed", async ({ page, api }) => {
   await register(page, "resident@example.test");
@@ -49,6 +43,7 @@ test("only admins manage a place; the screen shows its sections, closed", async 
   for (const title of SECTIONS) {
     await expect(page.getByRole("button", { name: title, exact: true })).toHaveAttribute("aria-expanded", "false");
   }
+  await expect(page.getByRole("button", { name: t.manage_layout_title })).toHaveCount(0);
   await expect(page.getByRole("button", { name: t.manage_delete })).toBeVisible();
   await page.getByRole("button", { name: t.back }).click();
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
@@ -129,6 +124,25 @@ test("settings: renaming the place and changing who may join", async ({ page }) 
   await expect(page.getByRole("radio", { name: t.join_rule_open })).toBeChecked();
 });
 
+test("sections open one at a time; a closed one folds away and drops what was typed", async ({ page }) => {
+  await loginAdmin(page);
+  await openManage(page);
+  await openSection(page, t.manage_settings_title);
+  const name = page.getByLabel(t.create_name);
+  await name.fill("Nie zapisano");
+  await openSection(page, t.manage_members_title);
+  const settings = page.getByRole("button", { name: t.manage_settings_title, exact: true });
+  await expect(settings).toHaveAttribute("aria-expanded", "false");
+  // Gone once folded, not just out of sight.
+  await expect(name).toHaveCount(0);
+  await openSection(page, t.manage_settings_title);
+  await expect(name).toHaveValue("Kraków");
+  await expect(page.getByRole("button", { name: t.manage_members_title, exact: true })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+});
+
 test("members: a preview with roles, the admin first; the link opens all members", async ({ page, api }) => {
   await register(page, "member@example.test");
   await joinKrakow(api.url, "member@example.test");
@@ -170,12 +184,15 @@ test("invitations: the code with its QR; inviting someone by the email of their 
 test("dashboard layout: the editor changes sizes, order and widgets; saving changes the dashboard", async ({
   page,
 }) => {
+  const pluginHeading = page.getByRole("heading", { name: "Ogłoszenia", level: 1 });
   await loginAdmin(page);
   await openManage(page);
-  await openSection(page, t.manage_layout_title);
-  await expect(
-    page.getByText(`${widgetsCount(3)} · ${t.manage_layout_grid} 3 ${t.manage_layout_columns}`),
-  ).toBeVisible();
+  await openSection(page, t.manage_plugins_title);
+  await page
+    .getByRole("list", { name: t.manage_plugins_title })
+    .getByRole("link", { name: /Ogłoszenia/ })
+    .click();
+  await expect(pluginHeading).toBeVisible();
   await page.getByRole("link", { name: t.manage_layout_edit }).click();
   await expect(page.getByRole("heading", { name: t.manage_layout_title, level: 1 })).toBeVisible();
   await expect(page.getByText(t.manage_layout_hint)).toBeVisible();
@@ -226,8 +243,12 @@ test("dashboard layout: the editor changes sizes, order and widgets; saving chan
   await sheet.getByRole("button", { name: t.close }).click();
   await expect(sheet).toHaveCount(0);
 
+  // Saved, the editor goes back to the plugin's page; from there back to the manage screen and the dashboard.
   await page.getByRole("button", { name: t.manage_layout_save, exact: true }).click();
-  await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
+  await expect(page.getByText(t.manage_layout_hint)).toHaveCount(0);
+  await expect(pluginHeading).toBeVisible();
+  await page.getByRole("button", { name: t.back }).last().click();
+  await expect(pluginHeading).toHaveCount(0);
   await page.getByRole("button", { name: t.back }).click();
   const regions = page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");

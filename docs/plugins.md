@@ -746,8 +746,8 @@ Content beyond the size is clipped, so `render` must fit the size it gets in `fr
 `navigate` action, usually the plugin's main list) the whole tile is tappable and shows a chevron (or its `link`,
 when it has one); cards, buttons and links inside it keep their own actions.
 
-Default order: plugin installation, each widget at its `size`. Community admins arrange the dashboard in Zarządzaj
-miejscem → Układ pulpitu: the order, each widget's size (one of the sizes its plugin allows), and which widgets are on
+Default order: plugin installation, each widget at its `size`. Community admins arrange the dashboard in the layout
+editor (a plugin's page in Zarządzaj miejscem → "Edytuj układ pulpitu"): the order, each widget's size (one of the sizes its plugin allows), and which widgets are on
 it (a removed widget can be added back). Removing a widget only hides its tile: the plugin stays enabled, but residents
 cannot open it from the dashboard until an admin adds the widget back (links and notifications still open it). Admins can also long-press a tile on the dashboard to reorder it (drag, or earlier/later
 buttons). The layout is saved per community; widgets of newly enabled plugins go last, at their default size. A saved

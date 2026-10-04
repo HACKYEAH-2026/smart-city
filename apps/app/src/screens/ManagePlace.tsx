@@ -1,15 +1,7 @@
-import { DASHBOARD_COLUMNS } from "@app/plugin-sdk";
-import {
-  formatInviteCode,
-  type JoinRule,
-  type LayoutWidget,
-  type PlaceDetails,
-  type PlaceKind,
-  type PlacePlugin,
-} from "@app/shared";
+import { formatInviteCode, type JoinRule, type PlaceDetails, type PlaceKind, type PlacePlugin } from "@app/shared";
 import { Link as RouterLink, useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronRight, LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
+import { ChevronRight, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import {
@@ -32,7 +24,6 @@ import {
 } from "../components";
 import {
   useCommunity,
-  useDashboardLayout,
   useDeletePlace,
   useInvite,
   usePlaceMembers,
@@ -40,19 +31,18 @@ import {
   useUpdatePlace,
 } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
-import { gridRects } from "../lib/grid";
 import { tapFeedback } from "../lib/haptics";
 import { inviteLink, shareInvite } from "../lib/invite";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
 import { memberCounts, memberName, orderMembers } from "../lib/members";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
 import { enabledPlugins, pluginSubtitle } from "../lib/placePlugins";
-import { countOf, widgetsCount } from "../lib/plural";
+import { countOf } from "../lib/plural";
 import { usePressed } from "../lib/pressed";
 import { t } from "../texts";
-import { borders, colors, opacity, radii, sizes, spacing } from "../theme";
+import { borders, colors, opacity, sizes, spacing } from "../theme";
 
-type Section = "invites" | "plugins" | "layout" | "members" | "settings";
+type Section = "invites" | "plugins" | "members" | "settings";
 
 /** HTTP status of a failed API call (hono's DetailedError), to tell the user what went wrong. */
 const statusOf = (err: unknown): number | undefined => (err as { statusCode?: number } | null)?.statusCode;
@@ -60,8 +50,8 @@ const statusOf = (err: unknown): number | undefined => (err as { statusCode?: nu
 /**
  * Managing a place, for its admins (design E-ZarzadzanieMiejscem): sections that open in place, one at a time —
  * invitations (the code with its QR, inviting by email), the plugins that are on (and the way to add more), the
- * dashboard layout, the members, the place's settings — and deleting the place. Members who are not admins get a
- * message instead.
+ * members, the place's settings — and deleting the place. Members who are not admins get a message instead. The
+ * dashboard is arranged on the dashboard itself (long-press a widget) and in the layout editor on a plugin's page.
  */
 export default function ManagePlace() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -88,7 +78,6 @@ function Manage({ header, place, onDeleted }: { header: ReactNode; place: PlaceD
       <View style={styles.sections}>
         <InvitesSection place={place} open={open === "invites"} onToggle={toggle("invites")} />
         <PluginsSection slug={place.slug} open={open === "plugins"} onToggle={toggle("plugins")} />
-        <LayoutSection slug={place.slug} open={open === "layout"} onToggle={toggle("layout")} />
         <MembersSection slug={place.slug} open={open === "members"} onToggle={toggle("members")} />
         <SettingsSection place={place} open={open === "settings"} onToggle={toggle("settings")} />
       </View>
@@ -211,52 +200,6 @@ function PluginRow({ slug, plugin }: { slug: string; plugin: PlacePlugin }) {
         <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" strokeWidth={2} />
       </Pressable>
     </RouterLink>
-  );
-}
-
-/**
- * The dashboard layout (design: card "Układ pulpitu"): how many widgets are on it and the grid's width, a preview of
- * the grid, and the way to the layout editor.
- */
-function LayoutSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
-  const layout = useDashboardLayout(slug);
-  const widgets = layout.data?.widgets ?? [];
-  const columns = layout.data?.columns ?? DASHBOARD_COLUMNS;
-  const summary = `${widgetsCount(widgets.length)} · ${t.manage_layout_grid} ${columns} ${t.manage_layout_columns}`;
-  return (
-    <DisclosureCard
-      icon={LayoutDashboard}
-      title={t.manage_layout_title}
-      summary={summary}
-      open={open}
-      onToggle={onToggle}
-    >
-      {widgets.length ? (
-        <LayoutPreview widgets={widgets} columns={columns} />
-      ) : (
-        <Text variant="bodyL" color="textSecondary">
-          {t.manage_layout_empty}
-        </Text>
-      )}
-      <Button label={t.manage_layout_edit} variant="dark" size="sm" href={`/app/c/${slug}/layout`} />
-    </DisclosureCard>
-  );
-}
-
-/** A small picture of the dashboard grid (decoration: the summary and the editor tell the same in words). */
-function LayoutPreview({ widgets, columns }: { widgets: LayoutWidget[]; columns: number }) {
-  const [width, setWidth] = useState(0);
-  const grid = gridRects(widgets, { width, columns, rowHeight: sizes.layoutPreviewRow, gap: spacing[3] });
-  return (
-    <View aria-hidden style={styles.preview}>
-      <View style={{ height: grid.height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        {width
-          ? grid.tiles.map(({ item, rect }, index) => (
-              <View key={item.key} style={[styles.previewTile, index === 0 && styles.previewTileFirst, rect]} />
-            ))
-          : null}
-      </View>
-    </View>
   );
 }
 
@@ -403,15 +346,6 @@ const styles = StyleSheet.create({
   pluginAdd: { paddingTop: spacing[6], paddingHorizontal: spacing[8], paddingBottom: spacing[8] },
   // The rows above end with a divider, so the link needs no line of its own (design: centred, 48 high).
   membersAll: { alignItems: "center", paddingVertical: spacing[7] },
-  preview: { padding: spacing[5], borderRadius: radii.lg, backgroundColor: colors.background },
-  previewTile: {
-    position: "absolute",
-    borderRadius: radii.mini,
-    borderWidth: borders.hairline,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-  },
-  previewTileFirst: { borderColor: colors.primary, backgroundColor: colors.primary },
   grow: { flex: 1 },
   delete: { alignItems: "center", gap: spacing[4] },
 });
