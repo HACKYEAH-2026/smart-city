@@ -34,20 +34,28 @@ style: |
     font-size: 24px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #E50101;
+    background: linear-gradient(135deg, #D81B60 0%, #F2545B 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     margin: 0 0 8px;
   }
   h3 {
     font-size: 32px;
     font-weight: 600;
-    color: #E50101;
+    background: linear-gradient(135deg, #D81B60 0%, #F2545B 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     margin: 28px 0 0;
   }
   strong { color: #1B1B1F; font-weight: 600; }
   em { color: #5E5E66; }
   ul, ol { padding-left: 1.1em; margin: 0; }
   li { margin: 0.35em 0; }
-  li::marker { color: #E50101; font-weight: 600; }
+  li::marker { color: #D81B60; font-weight: 600; }
   code {
     background: #EAE7E0;
     color: #1B1B1F;
@@ -126,21 +134,25 @@ style: |
   }
   section.flow ol li::before {
     content: counter(step);
-    display: block;
+    display: table;
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 600;
     font-size: 22px;
-    color: #E50101;
+    background: linear-gradient(135deg, #D81B60 0%, #F2545B 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     margin-bottom: 4px;
   }
   section.flow ol li strong { display: block; font-size: 21px; margin-bottom: 2px; }
   section.flow ul { font-size: 23px; }
-  /* Title and closing slides: the brand red. */
+  /* Title and closing slides: the accent gradient, from the first colour to the second. */
   section.lead {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: #E50101;
+    background: linear-gradient(135deg, #D81B60 0%, #F2545B 100%);
     color: #FFFFFF;
   }
   section.lead h1 { color: #FFFFFF; font-size: 72px; margin: 18px 0 10px; }
@@ -150,6 +162,8 @@ style: |
     letter-spacing: 0;
     font-weight: 500;
     font-size: 36px;
+    background: none;
+    -webkit-text-fill-color: #FFFFFF;
     color: #FFFFFF;
     margin: 0 0 28px;
   }
@@ -162,7 +176,7 @@ style: |
 <!-- _paginate: false -->
 <!-- _footer: "" -->
 
-![w:120](apps/app/assets/icon.png)
+![w:120](apps/app/assets/brand-tile.svg)
 
 # Twoje Miejsce
 
@@ -336,7 +350,7 @@ na Worker/WASM i to jest v2 (ROADMAP.md).
 <!-- _paginate: false -->
 <!-- _footer: "" -->
 
-![w:96](apps/app/assets/icon.png)
+![w:96](apps/app/assets/brand-tile.svg)
 
 # Twoje Miejsce. Rośnie razem z Twoimi potrzebami.
 
