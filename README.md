@@ -9,10 +9,10 @@ Lokalne grupy na Facebooku są pełne botów, anonimów i chaosu, a oficjalne sy
 ## Jak to działa
 
 1. **Tworzysz społeczność** dla miasta, uczelni albo osiedla.
-2. **Mieszkańcy dołączają po weryfikacji** tożsamości (np. przez mObywatela), więc wiadomo, że rozmawiasz z prawdziwym mieszkańcem, a nie z botem.
+2. **Mieszkańcy dołączają** kodem, linkiem albo kodem QR. W v2 dołączą po weryfikacji tożsamości (np. przez mObywatela), więc będzie wiadomo, że rozmawiasz z prawdziwym mieszkańcem, a nie z botem.
 3. **Dodajesz funkcje wtyczkami**: zgłaszanie usterek, rezerwacja sal, ogłoszenia, głosowania. Każda społeczność włącza tylko to, czego potrzebuje.
    Brakuje funkcji? Administrator miejsca opisuje ją własnymi słowami, a AI pisze wtyczkę i sprawdza ją jak każdą inną. Do publikacji wtyczka jest szkicem widocznym tylko dla administratorów, a zmieniać ją przez AI („dodaj zdjęcie”) można zawsze, także po publikacji.
-4. **Asystenci AI mogą z tego korzystać**: wtyczki wystawiają narzędzia przez [MCP](https://modelcontextprotocol.io), więc zgłoszenie „zepsutej latarni" możesz zrobić jednym zdaniem do swojego asystenta.
+4. **Asystenci AI (v2)**: wtyczki wystawią narzędzia przez [MCP](https://modelcontextprotocol.io), więc zgłoszenie „zepsutej latarni" zrobisz jednym zdaniem do swojego asystenta.
 
 ## Przykładowe zastosowania
 
@@ -24,9 +24,9 @@ Lokalne grupy na Facebooku są pełne botów, anonimów i chaosu, a oficjalne sy
 
 ## Najważniejsze cechy
 
-- **Zweryfikowani członkowie.** Przechowujemy tylko informację „mieszkaniec gminy X", bez danych osobowych typu PESEL.
+- **Zweryfikowani członkowie (v2).** Będziemy przechowywać tylko informację „mieszkaniec gminy X", bez danych osobowych typu PESEL.
 - **Wtyczki bez ograniczeń domenowych.** Ta sama wtyczka działa w setkach społeczności, a każda ma własny, odizolowany stan.
-- **Gotowe pod AI.** Funkcje wtyczek są dostępne dla agentów przez MCP.
+- **Gotowe pod AI.** Narzędzia wtyczek mają opisy i schematy wejścia dla AI; w v2 udostępnimy je agentom przez MCP.
 - **Bezpieczna rozszerzalność.** Wtyczki nie mają dostępu do bazy danych ani plików, tylko do wąskiego API platformy.
 - **Wtyczki pisane przez AI.** Agent (Strands Agents) pisze wtyczkę i poprawia ją, aż przejdzie wszystkie etapy sprawdzania: składnię, importy, typy, blokadę furtek do serwera (`safety`), wczytanie i zgodność tabel.
 
@@ -77,10 +77,9 @@ Projekt zgłaszamy do zadania otwartego **SMART CITY** na HackYeah 2026. Prace h
 
 ## Status
 
-Projekt hackathonowy. W demo weryfikacja tożsamości działa na mocku dostawcy, a mObywatel jest planowanym adapterem.
+Projekt hackathonowy. W demo nie ma weryfikacji tożsamości: do miejsca dołącza się kodem, linkiem, kodem QR albo z zaproszenia.
 
 ## Roadmapa
 
-- Integracja z mObywatelem i innymi dostawcami tożsamości
-- Wtyczki od zewnętrznych developerów, uruchamiane w izolowanym sandboxie (WebAssembly)
-- Marketplace wtyczek
+[ROADMAP.md](ROADMAP.md): co działa w demo (v1), a co planujemy po hackathonie (v2): asystenci AI przez MCP, sandbox
+dla wtyczek, weryfikacja mieszkańców przez mObywatela, wtyczki zewnętrznych twórców i marketplace.
