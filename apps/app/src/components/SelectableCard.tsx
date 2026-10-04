@@ -32,7 +32,7 @@ export function SelectableCard({ icon, title, hint, selected, onPress }: Selecta
         pressed && styles.pressed,
       ]}
     >
-      {icon ? <IconBox icon={icon} size={sizes.avatarLg} selected={selected} /> : null}
+      {icon ? <IconBox icon={icon} size="sm" selected={selected} /> : null}
       <View style={styles.text}>
         <Text variant="buttonM">{title}</Text>
         {hint ? (

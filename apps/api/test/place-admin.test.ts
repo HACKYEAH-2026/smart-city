@@ -84,10 +84,11 @@ describe("plugins", () => {
     const admin = await start();
     const member = await t.signUp();
     const list = async () => json<PlacePlugin[]>(await t.request(`${base}/plugins`, { headers: admin }));
-    expect((await list()).map(({ id, enabled }) => ({ id, enabled }))).toEqual([
-      { id: "issues", enabled: true },
-      { id: "announcements", enabled: true },
-      { id: "discussions", enabled: true },
+    // `widgets`: the dashboard widgets each plugin declares (discussions has none).
+    expect((await list()).map(({ id, enabled, widgets }) => ({ id, enabled, widgets }))).toEqual([
+      { id: "issues", enabled: true, widgets: 1 },
+      { id: "announcements", enabled: true, widgets: 1 },
+      { id: "discussions", enabled: true, widgets: 0 },
     ]);
     const put = (pluginId: string, enabled: boolean) =>
       t.request(`${base}/plugins/${pluginId}`, { method: "PUT", headers: admin, json: { enabled } });

@@ -16,6 +16,8 @@ export interface DisclosureCardProps {
   onToggle: () => void;
   /** The section's content, shown under the header while open. */
   children: ReactNode;
+  /** Content without the body's padding and gap: rows that reach the card's edges, each with its own padding. */
+  flush?: boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface DisclosureCardProps {
  * summary and a chevron. Open, the icon box turns `primary`, the chevron sits in a circle and the content shows
  * under a hairline. The header is the button (named by the title, `aria-expanded`), so not only color tells.
  */
-export function DisclosureCard({ icon, title, summary, open, onToggle, children }: DisclosureCardProps) {
+export function DisclosureCard({ icon, title, summary, open, onToggle, children, flush = false }: DisclosureCardProps) {
   return (
     <View style={[styles.card, open && styles.open]}>
       <Pressable
@@ -45,7 +47,7 @@ export function DisclosureCard({ icon, title, summary, open, onToggle, children 
           <Icon icon={open ? ChevronUp : ChevronDown} size={sizes.iconS} color={open ? "text" : "textSecondary"} />
         </View>
       </Pressable>
-      {open ? <View style={styles.body}>{children}</View> : null}
+      {open ? <View style={[styles.body, !flush && styles.padded]}>{children}</View> : null}
     </View>
   );
 }
@@ -63,10 +65,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chevronOpen: { backgroundColor: colors.surfaceSunken },
-  body: {
-    gap: spacing[7],
-    padding: spacing[8],
-    borderTopWidth: borders.hairline,
-    borderTopColor: colors.borderSubtle,
-  },
+  body: { borderTopWidth: borders.hairline, borderTopColor: colors.borderSubtle },
+  padded: { gap: spacing[7], padding: spacing[8] },
 });

@@ -164,13 +164,12 @@ test("issues on the map: a report placed on the map shows up on the map of repor
 /** A test-only plugin (not one of plugins/: those are all built in). */
 const NOTES = readFileSync(join(import.meta.dirname, "../../api/test/fixtures/notes-plugin.ts"), "utf8");
 
-test("plugin uploaded by an admin shows up in the open community without a reload", async ({ page, api }) => {
+// The dashboard lists widgets only (no list of the plugins' views since 488aa5a), and the notes plugin has none: its
+// view is opened by its address.
+test("plugin uploaded and installed by an admin works in the community", async ({ page, api }) => {
   await register(page, "admin-demo@example.test", api.url);
-  await page.goto("/app");
-  await expect(
-    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Notatki" })).toHaveCount(0);
+  await page.goto("/app/c/krakow/notes/main");
+  await expect(page.getByRole("alert")).toContainText(t.plugin_load_error); // not in the place yet
 
   const headers = {
     authorization: `Bearer ${TEST_ADMIN_TOKEN}`,
@@ -189,7 +188,7 @@ test("plugin uploaded by an admin shows up in the open community without a reloa
   });
   expect(inst.status).toBe(201);
 
-  await page.getByRole("link", { name: "Notatki" }).click({ timeout: 15_000 });
+  await page.reload();
   await expect(page.getByRole("heading", { name: "Tablica notatek" })).toBeVisible();
   await expect(page.getByText("Nie ma jeszcze notatek.")).toBeVisible();
 
@@ -240,7 +239,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await publishAnnouncement(page, "Zebranie użytkowników");
   await page.goto("/app");
   await expect(dashboardRegions(page)).toHaveCount(2);
-  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
 
   await holdTile(page, "Ogłoszenia");
   await expect(page).toHaveURL(/\/app$/);
@@ -256,7 +255,7 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await signOut(page);
   await register(page, "sasiad@example.test", api.url);
   await expect(dashboardRegions(page).nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");
-  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia");
+  await expect(dashboardRegions(page).nth(1)).toHaveAttribute("aria-label", "Zgłoszenia i sugestie");
   await holdTile(page, "Zgłoszenia");
   await expect(page.getByRole("heading", { name: "Zgłoszenia", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: t.dashboard_done })).toHaveCount(0);

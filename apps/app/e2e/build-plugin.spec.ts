@@ -3,10 +3,10 @@ import { t } from "../src/texts";
 import { expect, loginAdmin, test } from "./fixtures";
 
 /**
- * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin,
- * the AI writes and checks it (in E2E a fake author: a board named after the quoted text, no model); it is a draft
- * until the admin publishes it into the place; a change after that is a new version, published again. Plugin names
- * are data.
+ * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" → "Stwórz rozszerzenie z AI"), for a
+ * place's admins: describe a plugin, the AI writes and checks it (in E2E a fake author: a board named after the quoted
+ * text, no model); it is a draft until the admin publishes it into the place; a change after that is a new version,
+ * published again. Plugin names are data.
  */
 /**
  * How long a revision may take: the fake author answers at once, but every revision type-checks a whole plugin and
@@ -17,6 +17,7 @@ const AI = { timeout: 60_000 };
 const openBuilder = async (page: Page) => {
   await page.getByRole("link", { name: t.manage_title }).click();
   await page.getByRole("button", { name: t.manage_plugins_title, exact: true }).click();
+  await page.getByRole("link", { name: t.add_plugin_title }).click();
   await page.getByRole("link", { name: new RegExp(t.build_entry_title) }).click();
   await expect(page.getByRole("heading", { name: t.build_title, level: 1 })).toBeVisible();
 };

@@ -2,7 +2,7 @@ import { Search, X } from "lucide-react-native";
 import { Pressable, StyleSheet, TextInput, type TextInputProps, View } from "react-native";
 import { tapFeedback } from "../lib/haptics";
 import { t } from "../texts";
-import { colors, radii, shadows, sizes, spacing, typography } from "../theme";
+import { borders, colors, radii, shadows, sizes, spacing, typography } from "../theme";
 import { Icon } from "./Icon";
 
 export interface SearchFieldProps extends Omit<TextInputProps, "onChangeText" | "value"> {
@@ -10,17 +10,22 @@ export interface SearchFieldProps extends Omit<TextInputProps, "onChangeText" | 
   label: string;
   value: string;
   onChangeText: (text: string) => void;
-  /** Enter / the keyboard's search key, with the field's text as submitted (not a state that may lag behind). */
-  onSubmit: (text: string) => void;
+  /**
+   * Enter / the keyboard's search key, with the field's text as submitted (not a state that may lag behind). Without
+   * it the field filters as the user types (`onChangeText`).
+   */
+  onSubmit?: (text: string) => void;
+  /** floating: over a map, in a row next to the back button (default) · outlined: a bordered field above a list. */
+  variant?: "floating" | "outlined";
 }
 
 /**
- * Search field over a map (COMPONENTS.md → SearchField): white, rounded, magnifier on the left, a clear button once
- * there is text. Searches on Enter (no request per keystroke).
+ * Search field (COMPONENTS.md → SearchField): white, rounded, magnifier on the left, a clear button once there is
+ * text. Over a map it floats and searches on Enter (no request per keystroke); above a list it has a border.
  */
-export function SearchField({ label, value, onChangeText, onSubmit, ...rest }: SearchFieldProps) {
+export function SearchField({ label, value, onChangeText, onSubmit, variant = "floating", ...rest }: SearchFieldProps) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, styles[variant]]}>
       <Icon icon={Search} size={sizes.iconS} color="textSecondary" />
       <TextInput
         aria-label={label}
@@ -28,7 +33,7 @@ export function SearchField({ label, value, onChangeText, onSubmit, ...rest }: S
         placeholderTextColor={colors.placeholder}
         value={value}
         onChangeText={onChangeText}
-        onSubmitEditing={(e) => onSubmit(e.nativeEvent.text)}
+        onSubmitEditing={onSubmit ? (e) => onSubmit(e.nativeEvent.text) : undefined}
         returnKeyType="search"
         autoCorrect={false}
         style={styles.input}
@@ -51,15 +56,14 @@ export function SearchField({ label, value, onChangeText, onSubmit, ...rest }: S
 
 const styles = StyleSheet.create({
   field: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing[5],
-    height: sizes.input,
     paddingHorizontal: spacing[8],
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
-    ...shadows.floating,
   },
+  floating: { flex: 1, height: sizes.input, ...shadows.floating },
+  outlined: { height: sizes.inputS, borderWidth: borders.hairline, borderColor: colors.border },
   input: { ...typography.input, flex: 1, height: "100%", color: colors.text },
 });

@@ -1,5 +1,5 @@
 > **Note:** this file is the design spec; the implemented components are the exports of `src/components/index.ts`.
-> Built under another name: ScreenHeader (step variant) → `StepHeader`, StepProgress → `SegmentedProgress`,
+> Built under another name: ScreenHeader (step variant) → `StepHeader`, ScreenHeader (title variant) → `TitleHeader`, StepProgress → `SegmentedProgress`,
 > Checkbox / Switch → `Checkbox` + `SwitchRow`, RoleBadge → `Badge`, Label → `Text variant="label"`,
 > QR / kod miejsca → `InviteCodeCard` + `QrCode`, WidgetGrid → `src/plugins/Dashboard.tsx`. Drawn inline in screens
 > (no component): Avatar / PlaceAvatar, InviteCard, DashboardHeader, EmptyStateCard, GroupedList / ListRow,
@@ -36,6 +36,7 @@ Logo „Roofline M": dwa dachy rysują literę M (Miejsce), kropka między domam
 | `primary`          | `primary` (wciśnięty `primaryPressed`) | `onPrimary`      | główne CTA („Zaloguj się", „Dalej")                   |
 | `secondary`        | `surface` + border `border` 1 px       | `text`           | „Odrzuć", Google/Apple, „Ustaw wybrane jako domyślne" |
 | `tint`             | `background`                           | `text`           | „Pokaż kod QR" wewnątrz białej karty                  |
+| `accent`           | `primaryTint`                          | `primaryPressed` | „Dodaj do miejsca" na karcie rozszerzenia (katalog)   |
 | `dark`             | `text`                                 | `surface`        | okrągłe przyciski ikonowe admina (patrz IconButton)   |
 | `onDark`           | `surface`                              | `text`           | skaner: „Symuluj rozpoznanie kodu"                    |
 | `ghost`            | transparent                            | `text`           | „Przejdź do pulpitu"                                  |
@@ -44,7 +45,8 @@ Logo „Roofline M": dwa dachy rysują literę M (Miejsce), kropka między domam
 Rozmiary: `lg` 54 dp / `typography.button` (CTA na dole ekranu) · `md` 50 dp (Google/Apple, `buttonM`) · `sm` 46 dp radius 12 (Odrzuć/Akceptuj, w karcie) · `xs` 40 dp radius 12 (`buttonS`, „Wygeneruj nowy").
 Radius: lg/md → `radii.lg` (14), sm/xs → `radii.md` (12). Minimalny cel dotyku 44 dp (xs ma 40 — używać tylko z `hitSlop`).
 Przycisk CTA zawsze przy dolnej krawędzi ekranu (spacer `flex:1` nad nim). Dwa przyciski obok siebie: grid 2 kolumny, gap 10.
-Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `primaryPressed`, secondary/onDark/ghost → `surfaceSunken`, tint → `surfaceMuted`, dark → `textBody`, ghostOnDark → `onPrimaryOverlay`, destructiveGhost → `primaryTint`), disabled (`opacity.disabled`).
+Z `href` przycisk jest linkiem (`role="link"`, na webie `<a href>`) o tym samym wyglądzie, np. „Dodaj rozszerzenie" (`primary sm` z ikoną `Plus`).
+Stany: pressed (każdy wariant ma tło `pressedBg` z tokenów: primary → `primaryPressed`, secondary/onDark/ghost → `surfaceSunken`, tint → `surfaceMuted`, accent → `primaryTintPressed`, dark → `textBody`, ghostOnDark → `onPrimaryOverlay`, destructiveGhost → `primaryTint`), disabled (`opacity.disabled`).
 
 ### IconButton
 
@@ -99,6 +101,12 @@ Kontener: tło `surfaceSunken`, radius 14, padding 4, 2 kolumny. Segment: wysoko
 
 ---
 
+### Feedback ✅ (`src/components/Feedback.tsx`)
+
+Komunikat po akcji pod formularzem lub nad listą: błąd `bodyL` `primaryPressed` (`role="alert"`) albo potwierdzenie `bodyL` `textSecondary` (`role="status"`); bez żadnego — nic.
+
+---
+
 ## Listy i karty
 
 ### Card
@@ -112,6 +120,7 @@ Białe tło `surface`, radius 20 (`3xl`), padding 20 (lub 16 w kartach zaprosze�
 ### IconBox
 
 Kwadrat z zaokrągleniem (`radii.md` 12 / `lg` 14 dla 48 dp), tło `primaryTint`, ikona `primary`. Wariant `selected`: tło `primary`, ikona `onPrimary`. Wariant `onPrimary`: tło `onPrimaryOverlay`, ikona biała (na czerwonej karcie).
+W kodzie (`src/components/IconBox.tsx`): rozmiary `sm` 40 (wiersze list, SelectableCard) · `md` 44 (domyślny) · `xl` 52 radius 16 (karta rozszerzenia w katalogu); wariant `neutral` (tło `surfaceSunken`, ikona `text`); zamiast ikony może być emoji rozszerzenia (`emojiM` 20 / `emojiL` 26, dekoracja ukryta przed czytnikiem ekranu). Wariant `onPrimary` nie jest zaimplementowany.
 
 ### Avatar
 
@@ -146,7 +155,7 @@ Jak RadioCard, ale każdą opcję włącza się osobno: po lewej kwadrat 22 (rad
 
 ### DisclosureCard (sekcje „Zarządzaj miejscem")
 
-Biała karta radius 20, `shadows.card` (otwarta: `cardRaised`). Nagłówek (cały jest przyciskiem, `aria-expanded`): padding 16, gap 14, `IconBox` 44 (zamknięta: wariant `neutral` — tło `surfaceSunken`, ikona `text`; otwarta: `selected`), tytuł `cardTitle` + podsumowanie `small` `textSecondary`, po prawej chevron 18 (otwarta: `ChevronUp` w kole 44 `surfaceSunken`). Treść pod linią 1 px `borderSubtle`, padding 16, gap 14. Otwarta jest jedna sekcja naraz.
+Biała karta radius 20, `shadows.card` (otwarta: `cardRaised`). Nagłówek (cały jest przyciskiem, `aria-expanded`): padding 16, gap 14, `IconBox` 44 (zamknięta: wariant `neutral` — tło `surfaceSunken`, ikona `text`; otwarta: `selected`), tytuł `cardTitle` + podsumowanie `small` `textSecondary`, po prawej chevron 18 (otwarta: `ChevronUp` w kole 44 `surfaceSunken`). Treść pod linią 1 px `borderSubtle`, padding 16, gap 14; wariant `flush` bez paddingu i odstępów (wiersze do krawędzi karty, np. lista rozszerzeń). Otwarta jest jedna sekcja naraz.
 
 ### PlaceRow (przełącznik miejsc)
 
@@ -163,6 +172,10 @@ W białej grupie: wiersz `space-between`, padding 14/16, tekst 15; etykieta `tex
 ### Screen
 
 `backgroundColor: colors.background`, `paddingHorizontal: 24`, `paddingTop: insets.top + 12`, `paddingBottom: 32` (lub insets.bottom + 8), kolumna z `gap` 24–28, spacer `flex:1` przed dolnym CTA. Używaj `react-native-safe-area-context`, `ScrollView` dla ekranów dłuższych niż ekran (np. Zarządzaj miejscem, min. wysokość 1100 dp w makiecie). Nie rysuj atrap paska statusu.
+
+### NoticeScreen ✅ (`src/components/NoticeScreen.tsx`)
+
+Ekran z nagłówkiem i jednym komunikatem zamiast treści (wczytywanie, błąd wczytania, brak uprawnień — np. ekrany administratora otwarte przez członka): `Screen` bez chrome, nagłówek, tekst `bodyL` `textSecondary` (`role="alert"` przy błędzie).
 
 ### ScreenHeader
 
@@ -227,6 +240,7 @@ Pinezka ustawianego miejsca nad środkiem mapy (wybór lokalizacji): koło 48 dp
 ### SearchField ✅ (`src/components/SearchField.tsx`)
 
 Pole wyszukiwania nad mapą: wysokość 52 (`sizes.input`), radius `lg`, tło `surface`, cień `floating`, padding 16, lupa 18 `textSecondary`, placeholder = etykieta dostępności; po wpisaniu tekstu przycisk „Wyczyść" (`X`). Szuka po Enter (bez zapytania na każdy znak). Obok przycisk wstecz `IconButton floating`.
+Wariant `outlined` (nad listą, np. „Szukaj rozszerzeń"): wysokość 50 (`sizes.inputS`), ramka 1 px `border` zamiast cienia; bez `onSubmit` filtruje przy każdym znaku.
 
 ### Ekran „Lokalizacja miejsca" (kreator, krok 2)
 
@@ -254,10 +268,11 @@ Mapa na cały ekran z `PlacePin` w środku; u góry wstecz + `SearchField`, pod 
 | E-NoweMiejsceGotowe   | Miejsce utworzone                                         | SuccessMark, StatusPill, karta kodu+QR, Button primary + ghost                                                       |
 | E-ZaprosOsoby         | Zaproś osoby                                              | TextField + dodaj, GroupedList osób, ActionRow z kodem, Button primary                                               |
 | E-DashboardAdmin      | Pulpit (administrator)                                    | jak Dashboard + StatusPill, IconButton roundDark z CountBadge, CtaCard                                               |
-| E-ZarzadzanieMiejscem | Zarządzaj miejscem                                        | sekcje: prośby, zapraszanie (karta), członkowie (RoleBadge), ustawienia (GroupedList), Button destructiveGhost       |
+| E-ZarzadzanieMiejscem | Zarządzaj miejscem                                        | TitleHeader, DisclosureCard: zapraszanie (karta), rozszerzenia (`flush`: włączone rozszerzenia — IconBox `sm` z emoji, nazwa `rowTitle` + „N widżetów · opis" `small`, linia `divider`; Button `primary sm` z `href` „Dodaj rozszerzenie"), układ pulpitu („N widżetów · siatka 3 kolumn"; podgląd siatki `aria-hidden`: tło `background`, radius 14, padding 10, wiersze `layoutPreviewRow` 22, gap 6, kafelki radius `mini` 8 — pierwszy `primary`, reszta `surface` z ramką `borderSubtle`; Button `dark sm` z `href` „Edytuj układ pulpitu"), członkowie (RoleBadge), ustawienia; Button destructiveGhost |
+| E-KatalogWidzetow     | Dodaj rozszerzenie (katalog rozszerzeń miejsca)           | TitleHeader, SearchField `outlined`, `label` „Rozszerzenia", karty rozszerzeń (radius 20, padding 18, `cardRaised`: IconBox `xl` z emoji + nazwa `cardTitleL` + podtytuł `small`, Button `accent` „Dodaj do miejsca" 44 dp), na dole ActionRow „Stwórz rozszerzenie z AI" |
 | E-WydrukQR            | Wydruk A4 z QR                                            | szablon wydruku (poza główną nawigacją; niezaimplementowany)                                                         |
 
-Przepływy: Logowanie ⇄ Rejestracja → Brak miejsc → (QR / Kod·Link / Zaproszenia) → Podgląd miejsca → Pulpit ⇄ Przełącznik miejsc → Nowe miejsce (3 kroki) → Miejsce utworzone → Zaproś osoby / Pulpit admina → Zarządzaj miejscem.
+Przepływy: Logowanie ⇄ Rejestracja → Brak miejsc → (QR / Kod·Link / Zaproszenia) → Podgląd miejsca → Pulpit ⇄ Przełącznik miejsc → Nowe miejsce (3 kroki) → Miejsce utworzone → Zaproś osoby / Pulpit admina → Zarządzaj miejscem → Dodaj rozszerzenie → Rozszerzenie z AI.
 
 ---
 

@@ -64,9 +64,15 @@ export type PlaceMember = { id: string; name: string; email: string; role: "admi
  * A plugin of the place and whether it is on (GET /api/communities/:slug/plugins), for its admins: a built-in one, or
  * one the AI wrote for this place (`madeByAi`, the plugin builder). A `draft` was never published: it cannot be
  * switched on, and its name and icon are those of its latest ready version (the first request while none is ready).
- * `working`: the AI is writing a version of it right now.
+ * `working`: the AI is writing a version of it right now. `widgets`: how many dashboard widgets the plugin declares.
  */
-export type PlacePlugin = PluginCatalogItem & { enabled: boolean; madeByAi: boolean; draft: boolean; working: boolean };
+export type PlacePlugin = PluginCatalogItem & {
+  enabled: boolean;
+  madeByAi: boolean;
+  draft: boolean;
+  working: boolean;
+  widgets: number;
+};
 /** A place's admin switches one of its plugins on or off (PUT /api/communities/:slug/plugins/:pluginId). */
 export const pluginSwitchSchema = z.object({ enabled: z.boolean() });
 

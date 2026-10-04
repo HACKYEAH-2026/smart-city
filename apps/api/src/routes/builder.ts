@@ -6,9 +6,9 @@ import type { AppEnv } from "../context";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 
 /**
- * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin and
- * the AI writes it in the background (a draft: poll the plugin), ask for changes (new versions), publish the latest
- * ready version into the place — again after changes. The place's plugin list and switching are in placeAdmin.ts.
+ * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" → "Stwórz rozszerzenie z AI"), for a
+ * place's admins: describe a plugin and the AI writes it in the background (a draft: poll the plugin), ask for
+ * changes (new versions), publish the latest ready version into the place — again after changes. The place's plugin list and switching are in placeAdmin.ts.
  * Without a model on the server, requests to the AI get 503 `ai_unavailable`; a place gets REQUESTS_PER_DAY of them
  * a day (429 `rate_limited`). See plugins/builder.ts.
  */

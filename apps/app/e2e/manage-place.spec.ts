@@ -1,11 +1,13 @@
 import type { Page } from "@playwright/test";
+import { widgetsCount } from "../src/lib/plural";
 import { t } from "../src/texts";
-import { DEMO_ADMIN, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
+import { adminHeaders, DEMO_ADMIN, expect, joinKrakow, loginAdmin, register, signOut, test } from "./fixtures";
 
 /**
  * Managing a place (design E-ZarzadzanieMiejscem), for its admins only: invitations (the code with its QR, inviting
- * by email), plugins on and off, the dashboard order, the members with their roles, the place's settings, and
- * deleting the place. Each section is a card that opens in place. Place and plugin names are data, not app texts.
+ * by email), the plugins that are on and the catalog to add more, the dashboard order, the members with their roles,
+ * the place's settings, and deleting the place. Each section is a card that opens in place. Place and plugin names are
+ * data, not app texts.
  */
 const openManage = async (page: Page) => {
   await page.getByRole("link", { name: t.manage_title }).click();
@@ -49,26 +51,62 @@ test("only admins manage a place; the screen shows its sections, closed", async 
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 });
 
-test("plugins: switching one off takes it out of the place, switching it on brings it back", async ({ page }) => {
+test("plugins: the section lists the place's plugins that are on and leads to adding more", async ({ page }) => {
   await loginAdmin(page);
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
-  const discussions = page.getByRole("checkbox", { name: "Dyskusje" });
-  await expect(discussions).toBeChecked();
-  await discussions.click();
-  await expect(discussions).not.toBeChecked();
-  await page.getByRole("button", { name: t.back }).click();
-  await expect(
-    page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
+  const plugins = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
+  await expect(plugins).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
+  // The line under a name counts the plugin's widgets; discussions has none, so no count.
+  await expect(plugins.filter({ hasText: "Zgłoszenia" })).toContainText(widgetsCount(1));
+  await expect(plugins.filter({ hasText: "Dyskusje" })).not.toContainText(t.count_widgets[0]);
+  await expect(page.getByRole("link", { name: t.add_plugin_title })).toBeVisible();
+});
 
+test("plugins: the catalog lists the ones that are off; adding one puts it in the place", async ({ page, api }) => {
+  // Switching a plugin off has no screen for now: the admin does it through the API.
+  const admin = await adminHeaders(api.url);
+  for (const plugin of ["issues", "discussions"]) {
+    const res = await fetch(`${api.url}/api/communities/krakow/plugins/${plugin}`, {
+      method: "PUT",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(res.ok, `switch ${plugin} off`).toBe(true);
+  }
+  // The issues plugin's dashboard tile ("Otwórz: Zgłoszenia…"); discussions has no widget.
+  const issuesTile = page.getByRole("link", { name: new RegExp(`^${t.dashboard_open}: Zgłoszenia`) });
+
+  await loginAdmin(page);
+  await expect(issuesTile).toHaveCount(0);
   await openManage(page);
   await openSection(page, t.manage_plugins_title);
-  await page.getByRole("checkbox", { name: "Dyskusje" }).click();
+  await page.getByRole("link", { name: t.add_plugin_title }).click();
+  await expect(page.getByRole("heading", { name: t.add_plugin_title, level: 1 })).toBeVisible();
+
+  // The manage screen stays mounted behind the catalog (screen animations): the catalog's list is the newest one.
+  const catalog = page.getByRole("list", { name: t.manage_plugins_title }).last();
+  await expect(catalog.getByRole("listitem")).toHaveText([/Zgłoszenia/, /Dyskusje/]);
+  const search = page.getByLabel(t.add_plugin_search);
+  await search.fill("nic takiego");
+  await expect(page.getByText(t.add_plugin_no_results)).toBeVisible();
+  await search.fill("USTEREK"); // in the description of Zgłoszenia only
+  await expect(catalog.getByRole("listitem")).toHaveText([/Zgłoszenia/]);
+
+  await page.getByRole("button", { name: `${t.add_plugin_add}: Zgłoszenia` }).click();
+  await expect(page.getByRole("status")).toHaveText(`${t.add_plugin_added}: Zgłoszenia`);
+  await expect(page.getByText(t.add_plugin_no_results)).toBeVisible();
+  await search.fill("");
+  await expect(catalog.getByRole("listitem")).toHaveText([/Dyskusje/]);
+
+  await page.getByRole("button", { name: t.back }).last().click();
+  // The catalog is gone, so the only list of plugins left is the manage screen's.
+  await expect(page.getByRole("heading", { name: t.add_plugin_title, level: 1 })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: t.manage_title, level: 1 })).toBeVisible();
+  const enabled = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
+  await expect(enabled).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
   await page.getByRole("button", { name: t.back }).click();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toBeVisible();
+  await expect(issuesTile).toBeVisible();
 });
 
 test("settings: renaming the place and changing who may join", async ({ page }) => {

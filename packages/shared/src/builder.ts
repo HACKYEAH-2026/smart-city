@@ -1,11 +1,12 @@
 import { z } from "zod";
 
 /**
- * Plugins the AI writes for a place (the plugin builder: Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"). The AI
- * makes a plugin from the admin's description, and every later request of the admin changes it: each request is a
- * version the AI writes in the background and checks like an upload. Until its first publication the plugin is a
- * draft that only the place's admins see; publishing installs its latest ready version in the place. A published
- * plugin can still be changed: the next version runs in the place once it is published, and the data stays.
+ * Plugins the AI writes for a place (the plugin builder: Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" →
+ * "Stwórz rozszerzenie z AI"). The AI makes a plugin from the admin's description, and every later request of the
+ * admin changes it: each request is a version the AI writes in the background and checks like an upload. Until its
+ * first publication the plugin is a draft that only the place's admins see; publishing installs its latest ready
+ * version in the place. A published plugin can still be changed: the next version runs in the place once it is
+ * published, and the data stays.
  */
 export const pluginRequestSchema = z.object({
   /** What the plugin should do (the first version) or what to change (later ones), in the admin's words. */

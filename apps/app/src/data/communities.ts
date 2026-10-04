@@ -173,7 +173,10 @@ export function usePlacePlugins(slug: string) {
   });
 }
 
-/** Switches a built-in plugin on or off; the place's navigation, dashboard and views follow. */
+/**
+ * Switches one of the place's plugins on or off: a built-in one or a published AI one (a draft goes on by publishing);
+ * the place's navigation, dashboard and views follow.
+ */
 export function useSwitchPlugin(slug: string) {
   const qc = useQueryClient();
   return useMutation({

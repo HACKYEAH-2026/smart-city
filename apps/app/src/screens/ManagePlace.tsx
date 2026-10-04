@@ -2,33 +2,25 @@ import type { UINode } from "@app/plugin-sdk";
 import { formatInviteCode, type JoinRule, type PlaceDetails, type PlaceKind } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronUp,
-  LayoutDashboard,
-  Link2,
-  Puzzle,
-  Settings,
-  Sparkles,
-  Users,
-} from "lucide-react-native";
+import { ChevronDown, ChevronUp, LayoutDashboard, Link2, Plus, Puzzle, Settings, Users } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import {
-  ActionRow,
   Badge,
   Button,
-  CheckCard,
   DisclosureCard,
-  Heading,
+  Feedback,
+  Icon,
+  IconBox,
   IconButton,
   InviteCodeCard,
+  NoticeScreen,
   RadioCard,
   Screen,
   SelectableCard,
   Text,
   TextField,
+  TitleHeader,
 } from "../components";
 import {
   useCommunity,
@@ -38,7 +30,6 @@ import {
   usePlaceMembers,
   usePlacePlugins,
   useSaveDashboardOrder,
-  useSwitchPlugin,
   useUpdatePlace,
 } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
@@ -46,10 +37,11 @@ import { inviteLink } from "../lib/invite";
 import { JOIN_RULE_OPTIONS } from "../lib/joinRules";
 import { moveTo } from "../lib/order";
 import { PLACE_KIND_OPTIONS } from "../lib/placeKinds";
+import { enabledPlugins, pluginSubtitle } from "../lib/placePlugins";
 import { initials } from "../lib/places";
 import { countOf, widgetsCount } from "../lib/plural";
 import { t } from "../texts";
-import { colors, radii, sizes, spacing } from "../theme";
+import { borders, colors, radii, sizes, spacing } from "../theme";
 
 type Section = "invites" | "plugins" | "layout" | "members" | "settings";
 
@@ -59,19 +51,20 @@ const titleOf = (node: UINode) => ("title" in node ? node.title : "");
 
 /**
  * Managing a place, for its admins (design E-ZarzadzanieMiejscem): sections that open in place, one at a time —
- * invitations (the code with its QR, inviting by email), plugins on and off, the dashboard order, the members, the
- * place's settings — and deleting the place. Members who are not admins get a message instead.
+ * invitations (the code with its QR, inviting by email), the plugins that are on (and the way to add more), the
+ * dashboard order, the members, the place's settings — and deleting the place. Members who are not admins get a
+ * message instead.
  */
 export default function ManagePlace() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const place = useCommunity(slug);
   const back = () => (router.canGoBack() ? router.back() : router.replace("/app"));
-  const header = <Header eyebrow={place.data?.name ?? ""} onBack={back} />;
+  const header = <TitleHeader eyebrow={place.data?.name ?? ""} title={t.manage_title} onBack={back} />;
 
-  if (place.isPending) return <Notice header={header} text={t.loading} />;
-  if (!place.data) return <Notice header={header} text={t.manage_load_error} alert />;
-  if (place.data.role !== "admin") return <Notice header={header} text={t.manage_admins_only} />;
+  if (place.isPending) return <NoticeScreen header={header} text={t.loading} />;
+  if (!place.data) return <NoticeScreen header={header} text={t.manage_load_error} alert />;
+  if (place.data.role !== "admin") return <NoticeScreen header={header} text={t.manage_admins_only} />;
   return <Manage header={header} place={place.data} onDeleted={() => router.replace("/app")} />;
 }
 
@@ -97,51 +90,7 @@ function Manage({ header, place, onDeleted }: { header: ReactNode; place: PlaceD
   );
 }
 
-/** Back button, the place's name above "Zarządzaj miejscem". */
-function Header({ eyebrow, onBack }: { eyebrow: string; onBack: () => void }) {
-  return (
-    <View style={styles.header}>
-      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={onBack} />
-      <View style={styles.headerText}>
-        <Text variant="label" color="textSecondary" numberOfLines={1}>
-          {eyebrow}
-        </Text>
-        <Heading level={1} variant="headingS">
-          {t.manage_title}
-        </Heading>
-      </View>
-    </View>
-  );
-}
-
-function Notice({ header, text, alert = false }: { header: ReactNode; text: string; alert?: boolean }) {
-  return (
-    <Screen chrome={false}>
-      {header}
-      <Text variant="bodyL" color="textSecondary" role={alert ? "alert" : undefined}>
-        {text}
-      </Text>
-    </Screen>
-  );
-}
-
 type SectionProps = { open: boolean; onToggle: () => void };
-
-/** Feedback under a form: what happened (status) or what went wrong (alert). */
-function Feedback({ ok, error }: { ok?: string | null; error?: string | null }) {
-  if (error) {
-    return (
-      <Text variant="bodyL" color="primaryPressed" role="alert">
-        {error}
-      </Text>
-    );
-  }
-  return ok ? (
-    <Text variant="bodyL" color="textSecondary" role="status">
-      {ok}
-    </Text>
-  ) : null;
-}
 
 function InvitesSection({ place, open, onToggle }: SectionProps & { place: PlaceDetails }) {
   const invite = useInvite(place.slug);
@@ -197,39 +146,48 @@ function InvitesSection({ place, open, onToggle }: SectionProps & { place: Place
   );
 }
 
+/**
+ * The plugins that are on in the place (design: rows under the header, not tappable until a plugin has its own page),
+ * then "Dodaj rozszerzenie", the catalog of the rest.
+ */
 function PluginsSection({ slug, open, onToggle }: SectionProps & { slug: string }) {
   const plugins = usePlacePlugins(slug);
-  const sw = useSwitchPlugin(slug);
-  // Drafts of AI plugins are switched on by publishing them (the plugin builder), not here.
-  const list = (plugins.data ?? []).filter((plugin) => !plugin.draft);
-  const on = list.filter((plugin) => plugin.enabled);
+  const on = enabledPlugins(plugins.data ?? []);
   const summary = on.length
     ? `${countOf(on.length, t.count_plugins)} · ${on.map((plugin) => plugin.name).join(", ")}`
     : t.manage_plugins_none;
   return (
-    <DisclosureCard icon={Puzzle} title={t.manage_plugins_title} summary={summary} open={open} onToggle={onToggle}>
-      <Text variant="bodyL" color="textSecondary">
-        {t.manage_plugins_lead}
-      </Text>
-      <View role="group" aria-label={t.manage_plugins_title} style={styles.options}>
-        {list.map((plugin) => (
-          <CheckCard
-            key={plugin.id}
-            label={plugin.name}
-            description={plugin.madeByAi ? `${t.build_made_by_ai} · ${plugin.description}` : plugin.description}
-            emoji={plugin.icon}
-            checked={plugin.enabled}
-            onChange={(enabled) => sw.mutate({ pluginId: plugin.id, enabled })}
-          />
+    <DisclosureCard
+      icon={Puzzle}
+      title={t.manage_plugins_title}
+      summary={summary}
+      open={open}
+      onToggle={onToggle}
+      flush
+    >
+      <View role="list" aria-label={t.manage_plugins_title}>
+        {on.map((plugin) => (
+          <View key={plugin.id} role="listitem" style={styles.pluginRow}>
+            <IconBox icon={plugin.icon} size="sm" neutral />
+            <View style={styles.rowText}>
+              <Text variant="rowTitle" numberOfLines={1}>
+                {plugin.name}
+              </Text>
+              <Text variant="small" color="textSecondary" numberOfLines={1}>
+                {pluginSubtitle(plugin)}
+              </Text>
+            </View>
+          </View>
         ))}
       </View>
-      <Feedback error={sw.isError ? t.manage_plugins_error : null} />
-      <ActionRow
-        icon={Sparkles}
-        title={t.build_entry_title}
-        subtitle={t.build_entry_subtitle}
-        href={`/app/c/${slug}/build`}
-      />
+      <View style={styles.pluginAdd}>
+        <Button
+          label={t.add_plugin_title}
+          size="sm"
+          leftIcon={<Icon icon={Plus} size={sizes.iconS} color="onPrimary" strokeWidth={2.4} />}
+          href={`/app/c/${slug}/add-plugin`}
+        />
+      </View>
     </DisclosureCard>
   );
 }
@@ -402,14 +360,22 @@ function DeletePlace({ place, onDeleted }: { place: PlaceDetails; onDeleted: () 
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: spacing[7] },
-  headerText: { flex: 1, gap: spacing[1] },
   sections: { gap: spacing[7] },
   options: { gap: spacing[5] },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: spacing[5] },
   rows: { gap: spacing[5] },
   row: { flexDirection: "row", alignItems: "center", gap: spacing[6] },
   rowText: { flex: 1, gap: spacing[1] },
+  pluginRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[6],
+    paddingVertical: spacing[6],
+    paddingHorizontal: spacing[8],
+    borderBottomWidth: borders.hairline,
+    borderBottomColor: colors.divider,
+  },
+  pluginAdd: { paddingTop: spacing[6], paddingHorizontal: spacing[8], paddingBottom: spacing[8] },
   avatar: {
     width: sizes.iconBox,
     height: sizes.iconBox,

@@ -1,8 +1,8 @@
 import type { AiPlugin, PlacePlugin, PluginOutline, PluginVersion, VersionError } from "@app/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
-import { ChevronLeft, Sparkles } from "lucide-react-native";
-import { type ReactNode, useState } from "react";
+import { Sparkles } from "lucide-react-native";
+import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import {
   ActionRow,
@@ -11,11 +11,12 @@ import {
   Card,
   Heading,
   Icon,
-  IconButton,
   Link,
+  NoticeScreen,
   Screen,
   Text,
   TextField,
+  TitleHeader,
 } from "../components";
 import { useAiPlugin, useChangePlugin, useCreatePlugin, usePublishPlugin } from "../data/builder";
 import { useCommunity, usePlacePlugins } from "../data/communities";
@@ -46,21 +47,21 @@ const FAILURES: Record<VersionError, string> = {
 };
 
 /**
- * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Stwórz rozszerzenie z AI"), for a place's admins: describe a plugin and
- * the AI writes and checks it; until it is published it is a draft. Every later request is a new version, also after
- * publishing; publishing installs the latest ready version in the place. With `?plugin=` it shows that plugin's
- * versions; without, it starts a new plugin and lists the place's AI plugins.
+ * The plugin builder (Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" → "Stwórz rozszerzenie z AI"), for a
+ * place's admins: describe a plugin and the AI writes and checks it; until it is published it is a draft. Every later
+ * request is a new version, also after publishing; publishing installs the latest ready version in the place. With
+ * `?plugin=` it shows that plugin's versions; without, it starts a new plugin and lists the place's AI plugins.
  */
 export default function BuildPlugin() {
   const { slug, plugin } = useLocalSearchParams<{ slug: string; plugin?: string }>();
   const router = useRouter();
   const place = useCommunity(slug);
-  const back = () => goBack(router, plugin ? `/app/c/${slug}/build` : `/app/c/${slug}/manage`);
-  const header = <Header eyebrow={place.data?.name ?? ""} onBack={back} />;
+  const back = () => goBack(router, plugin ? `/app/c/${slug}/build` : `/app/c/${slug}/add-plugin`);
+  const header = <TitleHeader eyebrow={place.data?.name ?? ""} title={t.build_title} onBack={back} />;
 
-  if (place.isPending) return <Notice header={header} text={t.loading} />;
-  if (!place.data) return <Notice header={header} text={t.manage_load_error} alert />;
-  if (place.data.role !== "admin") return <Notice header={header} text={t.manage_admins_only} />;
+  if (place.isPending) return <NoticeScreen header={header} text={t.loading} />;
+  if (!place.data) return <NoticeScreen header={header} text={t.manage_load_error} alert />;
+  if (place.data.role !== "admin") return <NoticeScreen header={header} text={t.manage_admins_only} />;
   return (
     <Screen chrome={false}>
       <Head>
@@ -72,34 +73,6 @@ export default function BuildPlugin() {
       ) : (
         <NewPlugin slug={slug} onCreated={(id) => router.push(`/app/c/${slug}/build?plugin=${id}`)} />
       )}
-    </Screen>
-  );
-}
-
-/** Back button, the place's name above "Rozszerzenie z AI". */
-function Header({ eyebrow, onBack }: { eyebrow: string; onBack: () => void }) {
-  return (
-    <View style={styles.header}>
-      <IconButton variant="plain" icon={ChevronLeft} label={t.back} onPress={onBack} />
-      <View style={styles.headerText}>
-        <Text variant="label" color="textSecondary" numberOfLines={1}>
-          {eyebrow}
-        </Text>
-        <Heading level={1} variant="headingS">
-          {t.build_title}
-        </Heading>
-      </View>
-    </View>
-  );
-}
-
-function Notice({ header, text, alert = false }: { header: ReactNode; text: string; alert?: boolean }) {
-  return (
-    <Screen chrome={false}>
-      {header}
-      <Text variant="bodyL" color="textSecondary" role={alert ? "alert" : undefined}>
-        {text}
-      </Text>
     </Screen>
   );
 }
@@ -308,8 +281,6 @@ function Change({ slug, plugin }: { slug: string; plugin: AiPlugin }) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: spacing[7] },
-  headerText: { flex: 1, gap: spacing[1] },
   list: { gap: spacing[6] },
   version: { gap: spacing[5] },
   request: {

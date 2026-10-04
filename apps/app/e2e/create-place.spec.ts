@@ -1,3 +1,4 @@
+import { countOf } from "../src/lib/plural";
 import { t } from "../src/texts";
 import { expect, register, test } from "./fixtures";
 
@@ -49,10 +50,15 @@ test("creating a place: kind, details, who may join; the place is ready with its
   await expect(
     page.getByRole("link", { name: `${t.dashboard_open}: Zgłoszenia i sugestie`, exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: `${t.dashboard_open}: Ogłoszenia`, exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: `${t.dashboard_open}: Dyskusje`, exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Kamienica Lipowa 12" }).click();
   await expect(page.getByRole("dialog").getByText(t.place_kind_building)).toBeVisible();
+
+  // Ogłoszenia has no dashboard tile until something is announced: the place's plugins are listed in its management.
+  await page.goto("/app/c/kamienica-lipowa-12/manage");
+  await expect(page.getByRole("button", { name: t.manage_plugins_title, exact: true })).toContainText(
+    `${countOf(2, t.count_plugins)} · Zgłoszenia, Ogłoszenia`,
+  );
 });
 
 test("the place's location: found by address, confirmed on the map, then shown on the map of places", async ({

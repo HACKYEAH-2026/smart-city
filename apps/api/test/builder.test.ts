@@ -177,6 +177,7 @@ describe("writing", () => {
       madeByAi: true,
       draft: true,
       working: false,
+      widgets: 0,
     });
     // A draft: residents do not see it, and it cannot be switched on without publishing.
     expect((await nav(admin)).map((n) => n.pluginId)).not.toContain(created.id);

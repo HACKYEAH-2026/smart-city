@@ -943,8 +943,9 @@ through the async `ctx` — so moving plugins to a Worker/WASM sandbox changes t
 
 ### Plugin builder (AI)
 
-The AI writes plugins for a place at its admin's request (Zarządzaj miejscem → Pluginy → "Stwórz plugin z AI";
-`apps/api/src/plugins/builder.ts`). The admin's description makes a plugin; every later request changes it:
+The AI writes plugins for a place at its admin's request (Zarządzaj miejscem → Rozszerzenia → "Dodaj rozszerzenie" →
+"Stwórz rozszerzenie z AI"; `apps/api/src/plugins/builder.ts`). The admin's description makes a plugin; every later
+request changes it:
 
 - **Author** (`PluginAuthor`, `apps/api/src/services/ai/author/`): in the host a Strands Agents agent on the env's
   model (`StrandsPluginAuthor` in `author/strands.ts`; `AI_API_KEY` + `AI_MODEL`, see `.env.example`) with one tool,

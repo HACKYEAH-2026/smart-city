@@ -10,6 +10,7 @@ export const colors = {
   primary: "#E50101", // primary CTA, active elements, links, accent icons
   primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
   primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
+  primaryTintPressed: "#FAD9D9", // pressed state of an accent button on primaryTint (outside the design)
   onPrimary: "#FFFFFF",
 
   // Text
@@ -98,6 +99,8 @@ export const layout = {
   loginContentTop: 200,
   /** Red hero banner: inner padding (design 22, off the spacing scale). */
   heroPadding: 22,
+  /** A plugin's card in the catalog: inner padding (design 18, off the spacing scale). */
+  pluginCardPadding: 18,
   /** Outside the design: a focused field stays this far above the keyboard, so the form's button below it
    * (gap 14 + buttonLg 54) is visible too. */
   keyboardBottomOffset: 84,
@@ -122,14 +125,21 @@ export const sizes = {
   buttonMd: 50,
   buttonSm: 46,
   buttonXs: 40,
+  /** "Dodaj do miejsca" on a plugin's catalog card (design 44; a `sm` button made lower). */
+  buttonPluginAdd: 44,
   input: 52,
+  /** A search field above a list (design "Dodaj rozszerzenie": 50). */
+  inputS: 50,
   otpCell: 64,
   avatarSm: 28,
   avatarMd: 36,
   avatarLg: 40,
   avatarXl: 44,
+  /** Icon boxes: 40 in list rows and choice cards, 44 by default, 48 in empty states, 52 on a plugin's catalog card. */
+  iconBoxSm: 40,
   iconBox: 44,
   iconBoxLg: 48,
+  iconBoxXl: 52,
   radioDot: 22,
   stepBarHeight: 4,
   tabIcon: 22,
@@ -227,6 +237,8 @@ export const typography = {
   caption: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
   captionRelaxed: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20.3 }, // descriptions in cards (1.45)
   cardTitle: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20 }, // titles in cards and list rows (16/600)
+  cardTitleL: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 }, // a plugin's name on its catalog card (17/700)
+  rowTitle: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 20 }, // titles in flush rows inside a card (15/600)
   small: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 18 },
   tab: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
   tabActive: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
@@ -252,6 +264,10 @@ export const typography = {
   codeM: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 26, letterSpacing: 1.32 }, // management
   codeS: { fontFamily: fontFamily.bold, fontSize: 15, lineHeight: 20, letterSpacing: 0.9 }, // "Code, link or QR" row
   otp: { fontFamily: fontFamily.semibold, fontSize: 26, lineHeight: 30 }, // code cell
+
+  // Emoji in an icon box (a plugin's icon), the size of the line icon it stands in for
+  emojiM: { fontFamily: fontFamily.regular, fontSize: 20, lineHeight: 26 },
+  emojiL: { fontFamily: fontFamily.regular, fontSize: 26, lineHeight: 32 },
 } as const;
 
 /** Shadows: iOS (shadow*) + Android (elevation). Spread into StyleSheet: `...shadows.card`. */

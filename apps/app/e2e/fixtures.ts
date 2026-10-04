@@ -140,6 +140,21 @@ export const loginAdmin = async (page: Page) => {
   await expect(page.getByRole("heading", { name: "Kraków", level: 1 })).toBeVisible();
 };
 
+/**
+ * The demo admin's session for calling the API directly (`authorization: Bearer …`), for what has no screen in the
+ * app; signs in through the real Better Auth endpoint.
+ */
+export const adminHeaders = async (apiUrl: string) => {
+  const res = await fetch(`${apiUrl}/api/auth/sign-in/email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(DEMO_ADMIN),
+  });
+  const token = res.headers.get("set-auth-token");
+  if (!token) throw new Error(`adminHeaders: sign-in ${res.status}`);
+  return { authorization: `Bearer ${token}` };
+};
+
 /** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
 export const signOut = async (page: Page) => {
   await page.goto("/app/account");

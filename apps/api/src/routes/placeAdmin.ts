@@ -64,7 +64,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     const builtin: PlacePlugin[] = c.var.plugins
       .list()
       .filter((plugin) => plugin.origin === "builtin")
-      .map(({ manifest: { id, name, icon, description } }) => ({
+      .map(({ manifest: { id, name, icon, description }, definition }) => ({
         id,
         name,
         icon,
@@ -73,6 +73,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
         madeByAi: false,
         draft: false,
         working: false,
+        widgets: Object.keys(definition.dashboardWidgets ?? {}).length,
       }));
     const ai: PlacePlugin[] = (await c.var.builder.owned(place)).map(
       ({ id, published, outline, request, working }) => ({
@@ -84,6 +85,7 @@ export const placeAdminRoutes = new Hono<AppEnv>()
         madeByAi: true,
         draft: published === null,
         working,
+        widgets: outline?.dashboardWidgets.length ?? 0,
       }),
     );
     return c.json([...builtin, ...ai], 200);
