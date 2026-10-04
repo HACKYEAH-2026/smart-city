@@ -29,6 +29,7 @@ import {
   keyOf,
   memberRole,
   membershipRef,
+  polishOrder,
   ref,
   rows,
   toCommunity,
@@ -72,17 +73,19 @@ export const communitiesRoutes = new Hono<AppEnv>()
       c.var.db,
       surql`SELECT community.id AS id, community.slug AS slug, community.name AS name, community.kind AS kind, role,
               is_default, last_visit
-         FROM membership WHERE user = ${ref("user", c.var.user.id)} ORDER BY name;`,
+         FROM membership WHERE user = ${ref("user", c.var.user.id)};`,
     );
-    const places: MyPlace[] = mine.map((m) => ({
-      id: keyOf(m.id),
-      slug: m.slug,
-      name: m.name,
-      kind: m.kind ?? "other",
-      role: m.role,
-      isDefault: m.is_default,
-      lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
-    }));
+    const places: MyPlace[] = mine
+      .sort((a, b) => polishOrder(a.name, b.name))
+      .map((m) => ({
+        id: keyOf(m.id),
+        slug: m.slug,
+        name: m.name,
+        kind: m.kind ?? "other",
+        role: m.role,
+        isDefault: m.is_default,
+        lastVisitAt: m.last_visit ? m.last_visit.toISOString() : null,
+      }));
     return c.json(places);
   })
   .post("/", zValidator("json", newPlaceSchema), async (c) => {

@@ -16,7 +16,8 @@ That makes the crash rare, not impossible: now and then Bun still segfaults whil
 `test:unit` and `test:int` therefore run through `scripts/bun-test.ts`, which counts a SIGSEGV after a summary with
 "0 fail" and no "N errors" as green (with a note) and keeps every other exit code. The API is called through
 `app.request()` (no ports), `close()` after each test. `t.seed()` adds the demo community, the built-in plugins
-and a signed-in community admin. Inject a fake AI model with `setup({}, { ai: { language } })`.
+and a signed-in community admin; `t.signIn({ email, password })` signs in another seeded account. Inject a fake AI
+model with `setup({}, { ai: { language } })`.
 
 ## E2E
 - Fixture `apps/app/e2e/fixtures.ts`: a worker-scoped API process (`apps/api/src/test-server.ts`) on a free port the

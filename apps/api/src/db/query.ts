@@ -23,6 +23,12 @@ export const geoPoint = ({ lat, lng }: GeoPoint) => new GeometryPoint([lng, lat]
 /** A point read from SurrealDB, as the app and plugins use it. */
 export const fromGeoPoint = ({ coordinates: [lng, lat] }: GeometryPoint): GeoPoint => ({ lat, lng });
 
+/**
+ * Compares names in Polish alphabetical order (L before Ł before M). Rows sorted by a field of a linked record are
+ * sorted with it in code: SurrealDB 3 ignores `ORDER BY` on such a field (`community.name AS name … ORDER BY name`).
+ */
+export const polishOrder = new Intl.Collator("pl").compare;
+
 /** SurrealDB returns its own DateTime type; the app and plugins get a plain Date. */
 export const toDate = (at: Date | { toDate(): Date }) => (at instanceof Date ? at : at.toDate());
 
