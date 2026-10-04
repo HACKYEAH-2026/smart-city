@@ -114,7 +114,7 @@ export const layout = {
   /** Outside the design (390 px mobile): content width on wide web screens. */
   contentMaxWidth: 560,
   /** Login screen: the brand row starts this far from the top edge (design y = 200). */
-  loginContentTop: 300,
+  loginContentTop: 270,
   /** Red hero banner: inner padding (design 22, off the spacing scale). */
   heroPadding: 22,
   /** A plugin's card in the catalog: inner padding (design 18, off the spacing scale). */
@@ -193,7 +193,7 @@ export const sizes = {
   /** Red circle with a check on the active row of the place switcher. */
   selectedMark: 24,
   /** The logo mark ("Roofline M") next to the wordmark. */
-  brandMark: 24,
+  brandMark: 28,
   /** Red hero banner (no-places screen): minimum height, text sits at the bottom. */
   heroBanner: 172,
   successMark: 64,
@@ -223,7 +223,7 @@ export const sizes = {
   /** Text under the scanner frame: max width. */
   scannerHint: 280,
   /** Login screen: the clip fades into the screen over this height at its lower edge. */
-  authVideoFade: 300,
+  authVideoFade: 400,
   /** Dashboard header: height of the map decoration. */
   dashboardMap: 330,
   /** Dashboard header: the map fades into the screen over this height at its lower edge. */
@@ -353,9 +353,9 @@ export const typography = {
   }, // bottom sheet, management
   brand: {
     fontFamily: fontFamily.bold,
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: -0.17,
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.2,
   }, // wordmark
 
   // Body copy
@@ -565,6 +565,8 @@ export const opacity = {
   /** Dashboard header: the red glow's strength at its centre (fades to 0 at its edge). */
   dashboardGlow: 1.2,
   pluginScrim: 0.4,
+  /** Login screen: the grey veil over the clip (colors.scrim) that calms its colours. */
+  loginVideoVeil: 0.4,
 } as const;
 
 export const motion = {
