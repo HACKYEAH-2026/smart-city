@@ -1,14 +1,16 @@
 /**
- * Voice-over for the ad (src/ad/script.ts) from ElevenLabs: the whole script in one take with character
- * timestamps, split into beats. Writes public/ad/vo.mp3 and src/ad/vo.json (beat and word times that time the
- * video), then transcribes the take back (Scribe) and lists the words the narrator dropped or added.
- * Skips the API when the script and the voice are unchanged. Needs ELEVEN_LABS_API_KEY (repo .env).
- *   bun run vo                    the take (--force: a new one even if nothing changed)
- *   bun run vo --cast id1,id2     the first beats in other voices → out/casting/<id>.mp3, to compare by ear
+ * Voice-over for an ad (src/ads/<ad>/script.ts) from ElevenLabs: the whole script in one take with character
+ * timestamps, split into beats. Writes public/ads/<ad>/vo.mp3 and src/ads/<ad>/vo.json (beat and word times that
+ * time the video), then transcribes the take back (Scribe) and lists the words the narrator dropped or added.
+ * Skips the API when the script and the voice are unchanged. Paid per character: run it on purpose.
+ * Needs ELEVEN_LABS_API_KEY (repo .env).
+ *   bun run vo <ad>                   the take (--force: a new one even if nothing changed); ad: problems, needs
+ *   bun run vo <ad> --cast id1,id2    the ad's first beats in other voices → out/casting/<id>.mp3, to compare
  */
 import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
-import { BEATS, VOICE } from "../src/ad/script";
+import { dirname, join } from "node:path";
+import type { Beat as ScriptBeat } from "../src/ads/shared/timing";
+import { VOICE } from "../src/ads/shared/voice";
 
 type Alignment = {
   characters: string[];
@@ -20,8 +22,12 @@ type Beat = { start: number; end: number; words: Word[] };
 
 const API = "https://api.elevenlabs.io/v1";
 const ROOT = join(import.meta.dir, "..");
-const MP3 = join(ROOT, "public/ad/vo.mp3");
-const TIMING = join(ROOT, "src/ad/vo.json");
+const ADS = ["problems", "needs"] as const;
+type AdName = (typeof ADS)[number];
+const mp3Of = (ad: AdName) => join(ROOT, `public/ads/${ad}/vo.mp3`);
+const timingOf = (ad: AdName) => join(ROOT, `src/ads/${ad}/vo.json`);
+const beatsOf = async (ad: AdName) =>
+  ((await import(`../src/ads/${ad}/script.ts`)) as { BEATS: readonly ScriptBeat[] }).BEATS;
 // An audio tag, not read aloud: a clear silence between beats to cut the take at.
 const BREAK = " [pause] ";
 const CAST_BEATS = 4;
@@ -61,13 +67,16 @@ const transcribe = async (audio: Buffer) => {
 const offsets = (texts: readonly string[]) =>
   texts.map((_, i) => texts.slice(0, i).reduce((sum, t) => sum + t.length + BREAK.length, 0));
 
-/** Word times from the character timestamps; a word starts at its first letter and ends at its last. */
+/** Word times from the character timestamps; a word starts at its first letter and ends at its last. Audio tags
+ * ("[pause]") are matched too, so that their letters are not taken for words, and then left out. */
 const words = (text: string, offset: number, a: Alignment): Word[] =>
-  [...text.matchAll(/[\p{L}\p{N}][^\s]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu)].map((m) => ({
-    text: m[0],
-    start: a.character_start_times_seconds[offset + (m.index ?? 0)] ?? 0,
-    end: a.character_end_times_seconds[offset + (m.index ?? 0) + m[0].length - 1] ?? 0,
-  }));
+  [...text.matchAll(/\[[^\]]*\]|[\p{L}\p{N}][^\s]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu)]
+    .filter((m) => !m[0].startsWith("["))
+    .map((m) => ({
+      text: m[0],
+      start: a.character_start_times_seconds[offset + (m.index ?? 0)] ?? 0,
+      end: a.character_end_times_seconds[offset + (m.index ?? 0) + m[0].length - 1] ?? 0,
+    }));
 
 const beat = (text: string, offset: number, a: Alignment): Beat => {
   const ws = words(text, offset, a);
@@ -116,27 +125,29 @@ const report = (label: string, script: string, heard: string) => {
   );
 };
 
-const take = async (force: boolean) => {
-  const texts = BEATS.map((b) => b.text);
+const take = async (ad: AdName, force: boolean) => {
+  const texts = (await beatsOf(ad)).map((b) => b.text);
+  const [mp3, timing] = [mp3Of(ad), timingOf(ad)];
   const key = new Bun.CryptoHasher("sha256").update(JSON.stringify({ texts, VOICE, BREAK })).digest("hex");
-  const previous = (await Bun.file(TIMING).exists()) ? ((await Bun.file(TIMING).json()) as { key?: string }) : {};
-  if (!force && previous.key === key && (await Bun.file(MP3).exists()))
-    return console.log("vo: script and voice unchanged, keeping the take (--force for a new one)");
+  const previous = (await Bun.file(timing).exists()) ? ((await Bun.file(timing).json()) as { key?: string }) : {};
+  if (!force && previous.key === key && (await Bun.file(mp3).exists()))
+    return console.log(`vo: ${ad}: script and voice unchanged, keeping the take (--force for a new one)`);
   const script = texts.join(BREAK);
   const { audio, alignment } = await synthesize(script, VOICE.voiceId);
   const at = offsets(texts);
-  const beats = Object.fromEntries(BEATS.map((b, i) => [b.id, beat(b.text, at[i] ?? 0, alignment)]));
+  const beats = Object.fromEntries((await beatsOf(ad)).map((b, i) => [b.id, beat(b.text, at[i] ?? 0, alignment)]));
   const duration = alignment.character_end_times_seconds.at(-1) ?? 0;
   const heard = await transcribe(audio);
-  await mkdir(join(ROOT, "public/ad"), { recursive: true });
-  await Bun.write(MP3, audio);
-  await Bun.write(TIMING, `${JSON.stringify({ key, voiceId: VOICE.voiceId, duration, beats, heard }, null, 2)}\n`);
-  console.log(`vo: ${duration.toFixed(1)} s → public/ad/vo.mp3, src/ad/vo.json`);
+  await mkdir(dirname(mp3), { recursive: true });
+  await Bun.write(mp3, audio);
+  await Bun.write(timing, `${JSON.stringify({ key, voiceId: VOICE.voiceId, duration, beats, heard }, null, 2)}\n`);
+  console.log(`vo: ${ad}: ${duration.toFixed(1)} s → public/ads/${ad}/vo.mp3, src/ads/${ad}/vo.json`);
   report("transcript check", script, heard);
 };
 
-const cast = async (voiceIds: string[]) => {
-  const script = BEATS.slice(0, CAST_BEATS)
+const cast = async (ad: AdName, voiceIds: string[]) => {
+  const script = (await beatsOf(ad))
+    .slice(0, CAST_BEATS)
     .map((b) => b.text)
     .join(BREAK);
   await mkdir(join(ROOT, "out/casting"), { recursive: true });
@@ -149,5 +160,9 @@ const cast = async (voiceIds: string[]) => {
 };
 
 const args = process.argv.slice(2);
+const ad = args[0] as AdName;
+if (!ADS.includes(ad)) throw new Error(`Which ad? bun run vo <${ADS.join("|")}> [--force | --cast id1,id2]`);
 const castAt = args.indexOf("--cast");
-await (castAt >= 0 ? cast((args[castAt + 1] ?? "").split(",").filter(Boolean)) : take(args.includes("--force")));
+await (castAt >= 0
+  ? cast(ad, (args[castAt + 1] ?? "").split(",").filter(Boolean))
+  : take(ad, args.includes("--force")));

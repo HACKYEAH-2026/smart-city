@@ -113,6 +113,20 @@ export const inviteToKrakow = async (apiUrl: string, email: string) => {
   if (!res.ok) throw new Error(`inviteToKrakow ${res.status}`);
 };
 
+/** Puts a notification from a plugin of Kraków in a user's inbox, as ctx.notify would; the test API exposes this route. */
+export const notify = async (
+  apiUrl: string,
+  email: string,
+  notification: { pluginId: string; title: string; body: string; open?: { type: "navigate"; view: string } },
+) => {
+  const res = await fetch(`${apiUrl}/__test/notification`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, slug: "krakow", ...notification }),
+  });
+  if (!res.ok) throw new Error(`notify ${res.status}`);
+};
+
 /** The password of every user a test registers (register). */
 export const PASSWORD = "password123";
 /**

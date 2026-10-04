@@ -11,6 +11,15 @@ export const colors = {
   primaryPressed: "#B30000", // pressed state, text on primaryTint (contrast), destructive text
   primaryTint: "#FDECEC", // icon/avatar/badge background, success ring
   primaryTintPressed: "#FAD9D9", // pressed state of an accent button on primaryTint (outside the design)
+  // Status tags on list cards: a tint for the background and a deep tone for the text (contrast on the tint).
+  neutralTint: "#ECEAE5",
+  neutralText: "#3E3E46",
+  infoTint: "#E8EEF8",
+  infoText: "#1F4E8C",
+  warningTint: "#FFF1D6",
+  warningText: "#7A4F00",
+  successTint: "#E3F1E6",
+  successText: "#1E6B34",
   onPrimary: "#FFFFFF",
 
   // Text
@@ -137,6 +146,8 @@ export const sizes = {
   avatarXl: 44,
   /** Icon boxes: 40 in list rows and choice cards, 44 by default, 48 in empty states, 52 on a plugin's catalog card. */
   iconBoxSm: 40,
+  /** The signed-in user's initials at the top of the account. */
+  avatarProfile: 64,
   iconBox: 44,
   iconBoxLg: 48,
   iconBoxXl: 52,
@@ -188,6 +199,10 @@ export const sizes = {
   dashboardMapFade: 120,
   /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */
   dashboardMapCrop: 48,
+  /** Dashboard header: the tip of the place's pin, this far below the top of the content (beside the place's name). */
+  dashboardPinTop: 104,
+  /** Dashboard header: the place's pin across the screen, a fraction of its width (between the name and the gear). */
+  dashboardPinX: 0.64,
   /** Icon inside the dashboard's empty-state card (48 dp box). */
   emptyIcon: 24,
   /** Bottom sheet handle (40 × 5). */
@@ -195,6 +210,8 @@ export const sizes = {
   sheetHandleHeight: 5,
   /** Dot under the active bottom-bar tab. */
   tabDot: 5,
+  /** Dot by an unread notification in the account. */
+  unreadDot: 8,
   /** The still map with a place's pin in the "new place" wizard. */
   locationPreview: 140,
   /** A map in a plugin's view; in a dashboard widget it is a still preview of `locationPreview`. */
@@ -206,6 +223,14 @@ export const sizes = {
   mapPanel: 340,
   /** Dashboard: height of one grid row; a plugin widget spans 1-3 rows (WidgetSize.h). */
   widgetRow: 112,
+  /** A list card's counter (votes): its width and minimum height. */
+  voteWidth: 48,
+  voteHeight: 64,
+  /** A tag (badge) on a list card: its height, and the dot in a status tag. */
+  tagHeight: 24,
+  tagDot: 6,
+  /** The floating button over a screen. */
+  fab: 56,
   highlightThumb: 64,
 } as const;
 
@@ -255,6 +280,8 @@ export const typography = {
   labelL: { fontFamily: fontFamily.semibold, fontSize: 13, lineHeight: 17, letterSpacing: 0.78 },
   labelHero: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96 }, // 0.08em on the red banner
   chip: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 15, letterSpacing: 0.55 }, // 0.05em
+  /** Tags on list cards: sentence case, unlike the uppercase chip. */
+  tag: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
   stepNumber: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.72 },
   abbr: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 20, letterSpacing: 0 }, // place abbreviation (e.g. "OS")
   codeInline: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 20, letterSpacing: 1.28 }, // K7M-4QX in a row

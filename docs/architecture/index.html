@@ -707,7 +707,7 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                     <code>Widget</code> root, read-only: no forms, inputs or tool calls — and signs image URLs.
                   </p>
                   <div class="callout tip">
-                    A widget that throws or returns invalid UI is logged and left out; <code>null</code> hides it. One
+                    A widget that throws or returns invalid UI (<code>null</code> included) is logged and left out. One
                     broken plugin never breaks the dashboard.
                   </div>
                 </div>
@@ -1072,8 +1072,9 @@ const ctx = c.var.plugins.context(plugin, { installationId, community, user, las
                     Routes: <code>/login</code>, <code>/register</code>, <code>/app</code> (dashboard),
                     <code>/app/map</code>, <code>/app/account</code>, <code>/app/invites</code>, <code>/app/create</code>,
                     <code>/app/created</code>, <code>/app/join-code</code>, <code>/app/join-place</code>,
-                    <code>/app/preview</code>, <code>/app/scan</code>, <code>/app/c/[slug]/manage</code>,
-                    <code>/app/c/[slug]/add-plugin</code>, <code>/app/c/[slug]/build</code>,
+                    <code>/app/preview</code>, <code>/app/scan</code>, <code>/app/c/[slug]</code> (opens the place on
+                    the dashboard), <code>/app/c/[slug]/manage</code>, <code>/app/c/[slug]/add-plugin</code>,
+                    <code>/app/c/[slug]/build</code>,
                     <code>/app/c/[slug]/[plugin]/[view]</code>.
                   </p>
                 </div>

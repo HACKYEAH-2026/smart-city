@@ -13,16 +13,19 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
 - Administrator społeczności (np. urząd miasta): zarządza treściami wtyczek (np. zmienia status zgłoszeń).
   Demo: `admin@krakow.test` / `password`.
+- Mieszkanka (lokalne API): `anna@krakow.test` / `password`, członkini trzech miejsc: Kraków (domyślne),
+  Kampus Główny (uczelnia) i Spółdzielnia Słoneczna (spółdzielnia mieszkaniowa).
 - Administrator platformy: wgrywa i instaluje wtyczki przez API administracyjne.
 
 ## Powierzchnie
 
-| Powierzchnia                      | Tryb    | Cel                                                |
-| --------------------------------- | ------- | -------------------------------------------------- |
-| `/login`, `/register`             | Operate | Wejście do aplikacji (`/` przekierowuje do `/app`) |
-| `/app`                            | Operate | Lista społeczności użytkownika, wylogowanie        |
-| `/app/c/<slug>`                   | Operate | Funkcje (wtyczki) włączone w społeczności          |
-| `/app/c/<slug>/<wtyczka>/<widok>` | Operate | Widok wtyczki (Server-Driven UI z API)             |
+| Powierzchnia                      | Tryb    | Cel                                                                                 |
+| --------------------------------- | ------- | ----------------------------------------------------------------------------------- |
+| `/login`, `/register`             | Operate | Wejście do aplikacji (`/` przekierowuje do `/app`)                                  |
+| `/app`                            | Operate | Pulpit bieżącego miejsca: widżety, funkcje (wtyczki), przełącznik miejsc            |
+| `/app/account`                    | Operate | Konto: powiadomienia, adresy do powiadomień w okolicy, miejsca z rolą, wylogowanie  |
+| `/app/c/<slug>`                   | Operate | Otwiera miejsce na pulpicie (z konta i z powiadomienia bez widoku)                  |
+| `/app/c/<slug>/<wtyczka>/<widok>` | Operate | Widok wtyczki (Server-Driven UI z API)                                              |
 
 ## Status demo
 

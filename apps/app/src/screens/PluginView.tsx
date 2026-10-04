@@ -9,7 +9,7 @@ import { usePluginView, useToolCall } from "../data/communities";
 import { useFlash } from "../lib/flash";
 import { uploadPluginImage } from "../lib/upload";
 import { pluginHref, viewParamsFrom } from "../plugins/href";
-import { PluginRenderer } from "../plugins/Renderer";
+import { isFloating, PluginRenderer } from "../plugins/Renderer";
 import { t } from "../texts";
 import { colors, radii, spacing } from "../theme";
 
@@ -34,7 +34,15 @@ export default function PluginView() {
     setToolError(null);
     if (action.type === "navigate") {
       flash.show(null);
-      router.push(pluginHref(slug, plugin, action.view, action.params) as never);
+      // A tab or filter of the same view only changes its params: no screen transition (a slide), and going back
+      // leaves the list rather than each tab press.
+      if (action.replace && action.view === view) {
+        router.setParams(action.params ?? {});
+        return;
+      }
+      const href = pluginHref(slug, plugin, action.view, action.params) as never;
+      if (action.replace) router.replace(href);
+      else router.push(href);
       return;
     }
     call.mutate(
@@ -59,8 +67,17 @@ export default function PluginView() {
     );
   };
 
+  // Floating buttons of the screen (outside its scroll), drawn over the whole screen.
+  const floating = screen.data?.type === "Screen" ? screen.data.children.filter(isFloating) : [];
+
   return (
-    <Screen chrome={false}>
+    <Screen
+      chrome={false}
+      overlay={floating.map((node, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the floating nodes keep their place in the tree.
+        <PluginRenderer key={i} node={node} onAction={onAction} busy={call.isPending} upload={upload} />
+      ))}
+    >
       <Head>
         <title>{screen.data?.type === "Screen" ? screen.data.title : t.app_name}</title>
       </Head>

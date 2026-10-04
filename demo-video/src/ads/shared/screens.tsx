@@ -1,16 +1,32 @@
 import { PluginRenderer } from "@app/app/src/plugins/Renderer";
 import { t } from "@app/app/src/texts";
 import { type UINode, ui } from "@app/plugin-sdk";
-import { ChevronDown, ChevronLeft, Flashlight, Puzzle, Settings, Sparkles, X } from "lucide-react-native";
+import {
+  AlertTriangle,
+  Camera,
+  ChevronDown,
+  ChevronLeft,
+  Flashlight,
+  Image as GalleryIcon,
+  Lightbulb,
+  MapPin,
+  Puzzle,
+  Settings,
+  Sparkles,
+  X,
+} from "lucide-react-native";
 import { Image, StyleSheet, View } from "react-native";
-import { continueRender, delayRender } from "remotion";
+import { continueRender, delayRender, staticFile } from "remotion";
 import {
   ActionRow,
   Badge,
   Button,
+  borders,
   Card,
   Checkbox,
   CheckCard,
+  Chip,
+  ChoiceButton,
   colors,
   DashboardMap,
   DisclosureCard,
@@ -18,15 +34,16 @@ import {
   Icon,
   IconButton,
   QrCode,
-  RadioCard,
   radii,
   ScannerFrame,
+  SwitchRow,
   sizes,
   spacing,
   Text,
   TextField,
-} from "../app-ui";
+} from "../../app-ui";
 import { Spinner } from "./kit";
+import { MEDIA } from "./media";
 import { AppScreen } from "./Phone";
 
 /**
@@ -55,9 +72,12 @@ export const LAMP_PHOTO = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://
 <path d="M232 52h44l-7 13h-30z" fill="#0D1121"/><rect x="240" y="65" width="28" height="4" rx="2" fill="#3C4158"/>
 </svg>`)}`;
 
+/** The seminar room on the room booking plugin's list (a generated still, src/ads/shared/media.ts). */
+const SALA_PHOTO = staticFile(MEDIA.sala.file);
+
 // The app's <Image> shows a photo only once it has loaded; loaded before rendering, it shows in the first frame.
 const photoReady = delayRender("Loading the sample photo");
-Image.prefetch(LAMP_PHOTO).then(() => continueRender(photoReady));
+void Promise.all([Image.prefetch(LAMP_PHOTO), Image.prefetch(SALA_PHOTO)]).then(() => continueRender(photoReady));
 
 const STATUS = {
   open: { text: "Nowe", tone: "info" },
@@ -97,31 +117,37 @@ export const IssueCard = ({ support }: { support: number }) => (
   />
 );
 
-/** Widget of the issues plugin: the most reported open issues and „Zgłoś problem”. */
+/**
+ * Widget of the issues plugin (plugins/issues): the open issue most residents back, „Zgłoś problem” and
+ * „Sugestia”, the counts in the header. With the lamp fixed, the pothole leads.
+ */
 export const issuesWidget = (support: number, status: Status = "open") =>
   ui.widget(
-    "Zgłoszenia",
+    "Zgłoszenia i sugestie",
     [
-      ui.list("Najczęściej zgłaszane", [
-        ui.card({
-          title: ISSUE.title,
-          subtitle: supporters(support),
-          badge: STATUS[status],
-        }),
-        ui.card({
-          title: "Dziura w chodniku przy szkole",
-          subtitle: supporters(2),
-          badge: STATUS.open,
-        }),
-        ui.card({
-          title: "Przepełniony kosz na skwerze",
-          subtitle: supporters(1),
-          badge: STATUS.accepted,
-        }),
-      ]),
-      ui.button("Zgłoś problem", ui.navigate("new")),
+      status === "fixed"
+        ? ui.highlight({ eyebrow: "Najczęściej podbijane", title: "Dziura w chodniku przy szkole", votes: 2 })
+        : ui.highlight({
+            eyebrow: "Najczęściej podbijane",
+            title: ISSUE.title,
+            votes: support,
+            image: { file: "lamp", alt: `Zdjęcie: ${ISSUE.title}`, url: LAMP_PHOTO },
+          }),
+      ui.row(
+        [
+          ui.button("Zgłoś problem", ui.navigate("new"), "primary", "camera"),
+          ui.button("Sugestia", ui.navigate("new", { kind: "suggestion" }), "quiet", "idea"),
+        ],
+        { grow: true },
+      ),
     ],
-    { onPress: ui.navigate("list") },
+    {
+      icon: "megaphone",
+      subtitle:
+        status === "fixed" ? "2 otwarte · 1 w realizacji" : `3 otwarte · ${status === "accepted" ? 2 : 1} w realizacji`,
+      link: { label: "Wszystkie", action: ui.navigate("list") },
+      onPress: ui.navigate("list"),
+    },
   );
 
 /** Widget of the announcements plugin with one announcement since the last visit. */
@@ -168,9 +194,7 @@ export const detailView = ({ support, status, admin }: { support: number; status
 /** Plugin view as the app shows it: „Wróć” over the plugin's screen. */
 export const PluginScreen = ({ node, scroll = 0 }: { node: UINode; scroll?: number }) => (
   <AppScreen scroll={scroll}>
-    <Text variant="link" color="primary">
-      {t.back}
-    </Text>
+    <IconButton icon={ChevronLeft} label={t.back} variant="square" onPress={nothing} />
     <Plugin node={node} />
   </AppScreen>
 );
@@ -270,25 +294,35 @@ export const ScannerScreen = ({ seen, line }: { seen: number; line: number }) =>
 );
 
 /** Podgląd miejsca after the scan: the place, its code and „Dołącz do miejsca”. */
-export const PreviewScreen = () => (
+export const PreviewScreen = ({
+  place = "Kraków",
+  address = "pl. Wszystkich Świętych 3-4, 31-004 Kraków",
+  code = "KRK-MST",
+}: {
+  place?: string;
+  address?: string;
+  code?: string;
+}) => (
   <AppScreen>
     <View style={styles.map}>
       <DashboardMap />
     </View>
     <View style={styles.details}>
       <Heading level={1} variant="heading">
-        Kraków
+        {place}
       </Heading>
-      <Text variant="body" color="textSecondary">
-        pl. Wszystkich Świętych 3-4, 31-004 Kraków
-      </Text>
+      {address ? (
+        <Text variant="body" color="textSecondary">
+          {address}
+        </Text>
+      ) : null}
     </View>
     <Card>
       <View style={styles.codeRow}>
         <Text variant="body" color="textSecondary">
           {t.place_preview_code}
         </Text>
-        <Text variant="codeM">KRK-MST</Text>
+        <Text variant="codeM">{code}</Text>
       </View>
     </Card>
     <Checkbox checked={false} onChange={nothing} label={t.place_preview_default} />
@@ -298,10 +332,25 @@ export const PreviewScreen = () => (
 );
 
 const CATEGORIES = ["Oświetlenie", "Drogi i chodniki", "Zieleń", "Czystość", "Inne"];
+const KINDS = [
+  { label: "Problem", icon: AlertTriangle },
+  { label: "Sugestia", icon: Lightbulb },
+];
+
+/** An empty photo slot of the form's picker (the renderer's AddPhotoTile). */
+const AddPhotoTile = ({ icon, label }: { icon: typeof Camera; label: string }) => (
+  <View style={styles.addTile}>
+    <Icon icon={icon} size={sizes.iconS} color="primary" strokeWidth={2} />
+    <Text variant="small" color="textSecondary">
+      {label}
+    </Text>
+  </View>
+);
 
 /**
- * „Nowe zgłoszenie”, laid out exactly as the renderer draws the issues plugin's form (Renderer.tsx: PluginForm),
- * so the ad can show a picked photo (the renderer keeps the picker's preview in its own state).
+ * „Nowe zgłoszenie”, laid out as the renderer draws the issues plugin's form (Renderer.tsx: PluginForm and its
+ * fields): the photo first, kind, category chips, title, description, location, anonymity. Built here so the ad
+ * can show a taken photo (the renderer keeps the picker's preview in its own state).
  */
 export const IssueFormScreen = ({
   title,
@@ -315,39 +364,72 @@ export const IssueFormScreen = ({
   scroll: number;
 }) => (
   <AppScreen scroll={scroll}>
-    <Text variant="link" color="primary">
-      {t.back}
-    </Text>
+    <IconButton icon={ChevronLeft} label={t.back} variant="square" onPress={nothing} />
     <View style={styles.stack}>
       <Heading level={1}>Nowe zgłoszenie</Heading>
       <View style={styles.stack}>
-        <TextField label="Co się stało?" value={title} onChangeText={nothing} />
-        <View style={styles.stackTight}>
-          <Text variant="label" color="textSecondary">
-            Kategoria
-          </Text>
-          <View style={styles.stackTight}>
-            {CATEGORIES.map((c) => (
-              <RadioCard key={c} label={c} selected={c === category} onPress={nothing} />
-            ))}
-          </View>
-        </View>
-        <TextField label="Szczegóły i miejsce" multiline value="" onChangeText={nothing} />
         <View style={styles.stackTight}>
           <Text variant="label" color="textSecondary">
             Zdjęcie (opcjonalnie)
           </Text>
-          {withPhoto ? <Image source={{ uri: LAMP_PHOTO }} style={styles.photo} resizeMode="cover" /> : null}
-          <View style={styles.row}>
-            <Button
-              label={withPhoto ? t.plugin_photo_remove : t.plugin_photo_gallery}
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-              onPress={nothing}
-            />
+          <View style={styles.photoRow}>
+            {withPhoto ? (
+              <View style={styles.photoTile}>
+                <Image source={{ uri: LAMP_PHOTO }} style={styles.photoImage} resizeMode="cover" />
+                <View style={styles.photoRemove}>
+                  <Icon icon={X} size={sizes.photoRemoveIcon} color="onPrimary" strokeWidth={2.6} />
+                </View>
+              </View>
+            ) : null}
+            <AddPhotoTile icon={Camera} label={t.plugin_photo_camera} />
+            <AddPhotoTile icon={GalleryIcon} label={t.plugin_photo_gallery} />
           </View>
         </View>
+        <View style={styles.stackTight}>
+          <Text variant="label" color="textSecondary">
+            Rodzaj
+          </Text>
+          <View style={styles.cards}>
+            {KINDS.map((k) => (
+              <ChoiceButton
+                key={k.label}
+                icon={k.icon}
+                label={k.label}
+                selected={k.label === "Problem"}
+                onPress={nothing}
+              />
+            ))}
+          </View>
+        </View>
+        <View style={styles.stackTight}>
+          <Text variant="label" color="textSecondary">
+            Kategoria
+          </Text>
+          <View style={styles.chips}>
+            {CATEGORIES.map((c) => (
+              <Chip key={c} label={c} selected={c === category} onPress={nothing} />
+            ))}
+          </View>
+        </View>
+        <TextField label="Tytuł" value={title} onChangeText={nothing} />
+        <TextField label="Opis" multiline value="" onChangeText={nothing} />
+        <View style={styles.stackTight}>
+          <Text variant="label" color="textSecondary">
+            Lokalizacja (opcjonalnie)
+          </Text>
+          <Button
+            label={t.plugin_location_pick}
+            variant="secondary"
+            leftIcon={<Icon icon={MapPin} size={sizes.iconS} color="primary" />}
+            onPress={nothing}
+          />
+        </View>
+        <SwitchRow
+          label="Zgłoś anonimowo"
+          hint="Członkowie nie zobaczą Twojego imienia"
+          value={false}
+          onChange={nothing}
+        />
         <Button label="Wyślij zgłoszenie" onPress={nothing} />
       </View>
     </View>
@@ -468,6 +550,100 @@ export const budgetView = () =>
     ui.button("Zagłosuj", ui.tool("vote")),
   ]);
 
+/** The civic budget after the resident's vote: one more for the street lamps, and the plugin's thank-you toast. */
+export const budgetVotedView = () =>
+  ui.screen("Budżet obywatelski", [
+    ui.text("Dziękujemy za głos!", "soft"),
+    ui.progress({ label: "Nowe latarnie przy przystankach", value: 63, max: 100 }),
+    ui.progress({ label: "Zieleń na skwerze przy szkole", value: 38, max: 100 }),
+    ui.progress({ label: "Stojaki na rowery przy bibliotece", value: 24, max: 100 }),
+    ui.badge("Twój głos: Nowe latarnie przy przystankach", "success"),
+  ]);
+
+const ROOMS = [
+  { title: "Sala 2.14", subtitle: "30 miejsc · rzutnik · tablica" },
+  { title: "Sala 3.05", subtitle: "12 miejsc · ekran do wideorozmów" },
+  { title: "Aula A", subtitle: "120 miejsc · nagłośnienie" },
+];
+
+/** Rezerwacja sal (a campus's plugin): the rooms, each free or not right now. */
+export const bookingListView = () =>
+  ui.screen("Rezerwacja sal", [
+    { ...ui.image("sala", "Sala 2.14"), url: SALA_PHOTO },
+    ui.text("Wybierz salę, dzień i godzinę.", "soft"),
+    ui.list(
+      "Sale",
+      ROOMS.map((r, i) =>
+        ui.card({
+          ...r,
+          badge: i === 2 ? { text: "Zajęta", tone: "neutral" } : { text: "Wolna", tone: "success" },
+          onPress: ui.navigate("room"),
+        }),
+      ),
+    ),
+  ]);
+
+const TIMES = ["8:00", "10:00", "12:00", "14:00", "16:00"];
+
+/** Booking one room: the day and the hour as chips; `time` is the picked hour (none yet: ""). */
+export const bookingFormView = (time: string) =>
+  ui.screen("Sala 2.14", [
+    ui.text("30 miejsc · rzutnik · tablica", "soft"),
+    ui.form({
+      submitLabel: "Zarezerwuj",
+      submit: ui.tool("book"),
+      children: [
+        ui.select({
+          name: "day",
+          label: "Dzień",
+          variant: "chips",
+          options: [
+            { value: "today", label: "Dziś" },
+            { value: "tomorrow", label: "Jutro" },
+            { value: "friday", label: "Piątek" },
+          ],
+          value: "tomorrow",
+        }),
+        ui.select({
+          name: "time",
+          label: "Godzina",
+          variant: "chips",
+          options: TIMES.map((t) => ({ value: t, label: t })),
+          ...(time ? { value: time } : {}),
+        }),
+      ],
+    }),
+  ]);
+
+/** The dean's office's view: tomorrow's bookings, the new one on top. */
+export const bookingScheduleView = () =>
+  ui.screen("Grafik sal", [
+    ui.text("Jutro", "soft"),
+    ui.list("Rezerwacje", [
+      ui.card({ title: "12:00 · Sala 2.14", subtitle: "Anna Nowak", badge: { text: "Nowa", tone: "info" } }),
+      ui.card({ title: "10:00 · Aula A", subtitle: "Wykład: Systemy rozproszone" }),
+      ui.card({ title: "14:00 · Sala 3.05", subtitle: "Koło naukowe robotyki" }),
+    ]),
+  ]);
+
+/** Widget of the room booking plugin: tomorrow at a glance. */
+export const bookingWidget = () =>
+  ui.widget(
+    "Rezerwacja sal",
+    [
+      ui.list("Jutro", [
+        ui.card({
+          title: "Sala 2.14 · 12:00",
+          subtitle: "Twoja rezerwacja",
+          badge: { text: "Potwierdzona", tone: "success" },
+        }),
+        ui.card({ title: "Aula A · 10:00", subtitle: "Wykład: Systemy rozproszone" }),
+      ]),
+      ui.button("Zarezerwuj salę", ui.navigate("list")),
+    ],
+    { onPress: ui.navigate("list") },
+  );
+
 /** Widget of a plugin the AI wrote in the ad: residents vote on ideas for the city's budget. */
 export const budgetWidget = () =>
   ui.widget(
@@ -546,11 +722,20 @@ export const ManageScreen = () => (
 );
 
 /** What the AI built, as the builder's outline card shows it. */
-export const BUILT = {
+export type Built = { icon: string; name: string; holds: string; description: string };
+
+export const BUILT_BUDGET: Built = {
   icon: "🗳️",
   name: "Budżet obywatelski",
   holds: "2 widoki · 2 akcje · 2 tabele · 1 widżet",
   description: "Mieszkańcy głosują na pomysły dla okolicy, a wyniki widać na pulpicie miejsca.",
+};
+
+export const BUILT_BOOKING: Built = {
+  icon: "📅",
+  name: "Rezerwacja sal",
+  holds: "3 widoki · 2 akcje · 2 tabele · 1 widżet",
+  description: "Studenci rezerwują salę na wybrany dzień i godzinę, a dziekanat widzi grafik wszystkich sal.",
 };
 
 export type BuildStage = "typing" | "working" | "ready" | "published";
@@ -563,10 +748,12 @@ export const BuildScreen = ({
   request,
   stage,
   attempt = 0,
+  built = BUILT_BUDGET,
 }: {
   request: string;
   stage: BuildStage;
   attempt?: number;
+  built?: Built;
 }) => (
   <AppScreen>
     <AdminHeader title={t.build_title} />
@@ -610,18 +797,18 @@ export const BuildScreen = ({
         ) : (
           <Card style={styles.buildCard}>
             <View style={styles.buildRow}>
-              <Text variant="heading">{BUILT.icon}</Text>
+              <Text variant="heading">{built.icon}</Text>
               <View style={styles.grow}>
                 <Heading level={3} variant="headingS">
-                  {BUILT.name}
+                  {built.name}
                 </Heading>
                 <Text variant="small" color="textSecondary">
-                  {BUILT.holds}
+                  {built.holds}
                 </Text>
               </View>
               <Badge text={t.build_made_by_ai} tone="accent" />
             </View>
-            <Text variant="body">{BUILT.description}</Text>
+            <Text variant="body">{built.description}</Text>
           </Card>
         )}
         {stage === "ready" ? (
@@ -646,6 +833,35 @@ export const BuildScreen = ({
 );
 
 const styles = StyleSheet.create({
+  photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
+  photoTile: { width: sizes.photoTile, height: sizes.photoTile },
+  photoImage: { width: "100%", height: "100%", borderRadius: radii.xl, overflow: "hidden" },
+  photoRemove: {
+    position: "absolute",
+    top: -spacing[2],
+    right: -spacing[2],
+    width: sizes.photoRemove,
+    height: sizes.photoRemove,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.text,
+    borderWidth: borders.selected,
+    borderColor: colors.background,
+  },
+  addTile: {
+    width: sizes.photoTile,
+    height: sizes.photoTile,
+    borderRadius: radii.xl,
+    borderWidth: borders.row,
+    borderStyle: "dashed",
+    borderColor: colors.dashed,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing[2],
+  },
+  cards: { flexDirection: "row", gap: spacing[4] },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing[4] },
   adminHeader: { flexDirection: "row", alignItems: "center", gap: spacing[7] },
   adminHeaderText: { flex: 1, gap: spacing[1] },
   request: {

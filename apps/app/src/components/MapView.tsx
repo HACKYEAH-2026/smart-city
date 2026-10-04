@@ -3,6 +3,7 @@ import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "reac
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { MapSurface, type MapSurfaceHandle } from "../lib/map/MapSurface";
 import {
+  type Anchor,
   boundsOf,
   flyTo,
   type MapArea,
@@ -25,6 +26,8 @@ export interface MapViewProps {
   label: string;
   center: GeoPoint;
   zoom: number;
+  /** Where `center` sits in the view, as fractions of its width and height (default the middle). */
+  anchor?: Anchor;
   /** The first view fits everything on the map instead (when it shows anything): `center` and `zoom` are fallbacks. */
   fit?: boolean;
   pins?: MapPin[];
@@ -61,6 +64,7 @@ export function MapView({
   label,
   center,
   zoom,
+  anchor,
   fit = false,
   pins = [],
   routes = NO_ROUTES,
@@ -83,6 +87,7 @@ export function MapView({
       {
         center,
         zoom,
+        anchor,
         fit: fit ? boundsOf({ pins, routes, areas }) : null,
         interactive,
         labels,

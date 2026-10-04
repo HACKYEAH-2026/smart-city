@@ -1,9 +1,10 @@
 /**
- * The ad's voice-over: one beat per scene, read in one take (scripts/voiceover.ts). The take's timestamps
- * (vo.json) time the video, so a changed line only needs `bun run vo` and the scenes follow.
- * Only what the app really does (PRODUCT.md: no invented numbers). The plugin builder (Zarządzaj miejscem →
- * „Stwórz plugin z AI”) is the hero: a place that misses a feature adds it from inside the app.
- * `text` is what the narrator reads: spell a word the way it should sound if the voice gets it wrong.
+ * The "problems" ad's voice-over: it opens on what goes wrong in a city today. One beat per scene, read in one
+ * take (scripts/voiceover.ts); the take's timestamps time the video, so a changed line only needs `bun run vo
+ * problems` and the scenes follow. Only what the app really does (PRODUCT.md: no invented numbers). The plugin
+ * builder (Zarządzaj miejscem → „Stwórz rozszerzenie z AI”) is the hero: a place that misses a feature adds it
+ * from inside the app. `text` is what the narrator reads: spell a word the way it should sound if the voice gets
+ * it wrong. An audio tag such as `[pause]` is not read aloud; the voice pauses there, and so does the estimate.
  */
 export const BEATS = [
   {
@@ -30,16 +31,8 @@ export const BEATS = [
   },
   {
     id: "outro",
-    text: "Twój dom. Twoje osiedle. Twoje miasto. Twoje Miejsce.",
+    text: "Twój dom. [pause] Twoje osiedle. [pause] Twoje miasto. [pause] Twoje Miejsce.",
   },
 ] as const;
 
 export type BeatId = (typeof BEATS)[number]["id"];
-
-/** ElevenLabs voice for the take (a shared-library voice works by its id, without adding it to the account). */
-export const VOICE = {
-  voiceId: "o2xdfKUpc1Bwq7RchZuW", // Piotr: warm, low, native Polish ("Engaging, Reassuring Storyteller")
-  modelId: "eleven_v4",
-  settings: { stability: 0.5, similarity_boost: 0.8, speed: 1 },
-  seed: 7,
-};

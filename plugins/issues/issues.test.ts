@@ -26,6 +26,12 @@ const findNode = (node: UINode, match: (n: UINode) => boolean): UINode | undefin
   return children.map((c) => findNode(c, match)).find(Boolean);
 };
 
+/** Every node in the tree (depth first) that matches. */
+const findAll = (node: UINode, match: (n: UINode) => boolean): UINode[] => [
+  ...(match(node) ? [node] : []),
+  ...("children" in node && node.children ? node.children : []).flatMap((c) => findAll(c, match)),
+];
+
 describe("issues: reporting", () => {
   test("empty list → report with photo → details", async () => {
     const t = await testPlugin(issues, { user: alice });
@@ -154,7 +160,7 @@ describe("issues: on the map", () => {
     const [map] = mapsOf(await t.view("list"));
     expect(map?.label).toBe("Mapa zgłoszeń");
     expect(map?.layers.map((l) => [l.title, l.tone, l.items.map((i) => i.title)])).toEqual([
-      ["Nowe", "info", ["Dziura w chodniku"]],
+      ["Nowe", "neutral", ["Dziura w chodniku"]],
       ["Przyjęte", "warning", ["Złamana ławka"]],
     ]);
     expect(map?.layers[0]?.items[0]?.onPress).toEqual({
@@ -321,7 +327,7 @@ describe("issues: dashboard", () => {
 
   test("summary widget: the open issue most residents support, with its photo and a way to report", async () => {
     const t = await testPlugin(issues, { user: alice });
-    const empty = (await t.dashboardWidget("summary"))!;
+    const empty = await t.dashboardWidget("summary");
     expect(textsOf(empty)).toEqual([
       "Zgłoszenia i sugestie",
       "0 otwartych · 0 w realizacji",
@@ -349,7 +355,7 @@ describe("issues: dashboard", () => {
     await support(bench, bob, carol, dave);
     await t.as(admin).tool("setStatus", { id: bench, status: "fixed" });
 
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(textsOf(widget)).toEqual([
       "Zgłoszenia i sugestie",
       "4 otwarte · 0 w realizacji",
@@ -369,7 +375,7 @@ describe("issues: dashboard", () => {
 
   test('summary widget: "Sugestia" opens the form with the suggestion kind picked', async () => {
     const t = await testPlugin(issues, { user: alice });
-    const widget = (await t.dashboardWidget("summary"))!;
+    const widget = await t.dashboardWidget("summary");
     expect(JSON.stringify(widget)).toContain(
       JSON.stringify({
         type: "navigate",
@@ -381,5 +387,79 @@ describe("issues: dashboard", () => {
     expect(findNode(form, (n) => n.type === "Select" && n.name === "kind")).toMatchObject({
       value: "suggestion",
     });
+  });
+});
+
+describe("issues: list", () => {
+  const carol = { id: "carol", name: "Carol", role: "user" } as const;
+  const cardsOf = (view: UINode) => findAll(view, (n) => n.type === "Card") as Extract<UINode, { type: "Card" }>[];
+  const titles = (view: UINode) => cardsOf(view).map((c) => c.title);
+  const tabsOf = (view: UINode, label: string) =>
+    findAll(view, (n) => n.type === "Tabs" && n.label === label)[0] as Extract<UINode, { type: "Tabs" }> | undefined;
+
+  test("residents see every report: most supported first, with a vote counter, tags and a floating report button", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const hole = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    const rack = (await t.as(bob).tool("report", { title: "Stojaki na rowery", category: "other", kind: "suggestion" }))
+      .navigate!.params!.id!;
+    await t.as(bob).tool("support", { id: hole });
+    await t.as(carol).tool("support", { id: hole });
+
+    const view = await t.view("list");
+    const [first, second] = cardsOf(view);
+    expect(titles(view)).toEqual(["Dziura w jezdni", "Stojaki na rowery"]);
+    expect(first).toMatchObject({
+      counter: { value: 3, pressed: true }, // alice reported it, so she has confirmed it
+      tags: [
+        { text: "Problem", tone: "danger", icon: "alert" },
+        { text: "Nowe", tone: "neutral", dot: true },
+      ],
+      onPress: { type: "navigate", view: "detail", params: { id: hole } },
+    });
+    expect(second).toMatchObject({
+      counter: { value: 1, pressed: false, action: { type: "tool", tool: "support", args: { id: rack } } },
+      tags: [
+        { text: "Sugestia", tone: "info", icon: "idea" },
+        { text: "Nowe", tone: "neutral", dot: true },
+      ],
+    });
+    expect(findAll(view, (n) => n.type === "Fab")).toEqual([
+      { type: "Fab", label: "Zgłoś", icon: "camera", action: { type: "navigate", view: "new" } },
+    ]);
+  });
+
+  test("tabs sort by popularity, newest or mine; the second row narrows to problems or suggestions", async () => {
+    const t = await testPlugin(issues, { user: alice });
+    const hole = (await t.tool("report", { title: "Dziura w jezdni", category: "roads" })).navigate!.params!.id!;
+    // The second report comes a day later, so "newest" has a clear order.
+    t.setNow(new Date(Date.UTC(2026, 0, 2)));
+    await t.as(bob).tool("report", { title: "Stojaki na rowery", category: "other", kind: "suggestion" });
+    await t.as(bob).tool("support", { id: hole });
+    await t.as(carol).tool("support", { id: hole });
+
+    const popular = await t.view("list");
+    expect(tabsOf(popular, "Sortowanie")).toMatchObject({
+      variant: "segmented",
+      options: [
+        {
+          label: "Popularne",
+          selected: true,
+          action: { type: "navigate", view: "list", params: { sort: "popular", kind: "all" }, replace: true },
+        },
+        { label: "Najnowsze", selected: false },
+        { label: "Moje", selected: false },
+      ],
+    });
+    expect(titles(popular)).toEqual(["Dziura w jezdni", "Stojaki na rowery"]);
+    expect(titles(await t.view("list", { sort: "newest" }))).toEqual(["Stojaki na rowery", "Dziura w jezdni"]);
+    // Carol confirmed only the hole; Bob reported the rack and confirmed the hole.
+    expect(titles(await t.as(carol).view("list", { sort: "mine" }))).toEqual(["Dziura w jezdni"]);
+    expect(titles(await t.as(bob).view("list", { sort: "mine" }))).toEqual(["Stojaki na rowery", "Dziura w jezdni"]);
+    expect(titles(await t.view("list", { kind: "suggestion" }))).toEqual(["Stojaki na rowery"]);
+    expect(tabsOf(await t.view("list", { kind: "suggestion" }), "Rodzaj")?.options.map((o) => o.selected)).toEqual([
+      false,
+      false,
+      true,
+    ]);
   });
 });

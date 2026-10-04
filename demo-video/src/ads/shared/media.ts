@@ -1,12 +1,16 @@
 import { getStaticFiles, staticFile } from "remotion";
 
 /**
- * The ad's generated media, kept in public/ad and made by scripts/media.ts with the Gemini API: stills with the
+ * The ads' generated media (shared by every variant), kept in public/ad and made by scripts/media.ts with the Gemini API: stills with the
  * Gemini image model, clips with Veo. The prompts live here, so each file can be made again and the README can
  * disclose how. While a file is missing, its scene shows a stand-in.
  */
 type Still = { kind: "image"; file: string; prompt: string; edit?: string };
-type Clip = { kind: "video"; file: string; prompt: string };
+/** `start`: the clip opens on this frame of another clip (Veo image-to-video), so one shot continues the other. */
+type Clip = { kind: "video"; file: string; prompt: string; start?: { clip: string; second: number } };
+
+/** Every generated clip is this long (Veo); a shot longer than what is left of its clip slows the clip down. */
+export const CLIP_SECONDS = 8;
 
 const LOOK = "Cinematic, realistic, natural light, 16:9, no people's faces in focus, no text, no captions, no logos.";
 
@@ -50,6 +54,30 @@ export const MEDIA = {
     file: "ad/clips/miasto.mp4",
     prompt:
       "Cinematic aerial drone shot at dusk, slowly flying over a European city with an old town, red roofs, a river and bridges, city lights turning on. Smooth forward motion, realistic, warm light, no text, no logos.",
+  },
+  kampus: {
+    kind: "video",
+    file: "ad/clips/kampus.mp4",
+    prompt:
+      "Cinematic 16:9 shot, a modern Polish university campus on a sunny autumn morning: students with backpacks walk between faculty buildings, one student stops and checks her smartphone. Slow tracking shot, phone screen not visible. Realistic, warm light, no text, no logos.",
+  },
+  spoldzielnia: {
+    kind: "video",
+    file: "ad/clips/spoldzielnia.mp4",
+    prompt:
+      "Cinematic 16:9 shot, a renovated 1970s block of flats of a Polish housing cooperative with a colourful facade and a green courtyard with benches, late afternoon. An older man stands by the entrance and looks at his smartphone. Static camera with a slight push-in, phone screen not visible. Realistic, natural light, no text, no logos.",
+  },
+  "kampus-qr": {
+    kind: "video",
+    file: "ad/clips/kampus-qr.mp4",
+    start: { clip: "kampus", second: 6.5 },
+    prompt:
+      "Continue this shot without a cut: the young woman in the beige coat with the green backpack lowers her phone, walks a few steps to the glass entrance of the faculty building where a printed poster with a large QR code hangs at eye level, raises her smartphone and scans the QR code. The camera follows her and ends in an over-the-shoulder close-up of her phone held up to the QR code on the poster, the phone screen not readable. Sunny autumn campus, realistic, natural light, no readable text, no logos.",
+  },
+  sala: {
+    kind: "image",
+    file: "ad/images/sala.jpg",
+    prompt: `An empty modern seminar room at a Polish university: rows of desks, a whiteboard, a projector screen, large windows with daylight. ${LOOK}`,
   },
 } as const satisfies Record<string, Still | Clip>;
 

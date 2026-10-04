@@ -18,6 +18,8 @@ export const navigateActionSchema = z.object({
   type: z.literal("navigate"),
   view: z.string().min(1),
   params: params.optional(),
+  /** Replaces the current view instead of stacking a new one (sorting and filters). */
+  replace: z.boolean().optional(),
 });
 export const toolActionSchema = z.object({
   type: z.literal("tool"),
@@ -97,7 +99,7 @@ export type MapAreaItem = z.infer<typeof mapAreaSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 
 /** Icons a node can show (a Select card, a Button, a widget header); the app draws them (apps/app/src/plugins/Renderer.tsx). */
-export const UI_ICONS = ["alert", "idea", "camera", "megaphone"] as const;
+export const UI_ICONS = ["alert", "idea", "camera", "megaphone", "chat", "plus"] as const;
 export const uiIconSchema = z.enum(UI_ICONS);
 export type UIIcon = z.infer<typeof uiIconSchema>;
 
@@ -180,6 +182,43 @@ const leafSchemas = [
     votes: z.number().int().min(0).optional(),
     onPress: actionSchema.optional(),
   }),
+  /** A row of options that only navigate (sorting, filters); one option is selected. */
+  z.object({
+    type: z.literal("Tabs"),
+    label: z.string().min(1).max(80),
+    variant: z.enum(["segmented", "chips"]).optional(),
+    options: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(40),
+          selected: z.boolean().optional(),
+          action: navigateActionSchema,
+        }),
+      )
+      .min(2)
+      .max(6),
+  }),
+  /** A floating button over the screen (it stays in place while the content scrolls), e.g. "Zgłoś". Navigates. */
+  z.object({
+    type: z.literal("Fab"),
+    label: z.string().min(1).max(40),
+    icon: uiIconSchema.optional(),
+    action: navigateActionSchema,
+  }),
+  /**
+   * Something a person did, and when: their avatar (initials of `person`), the title, a line of text (e.g. the last
+   * message of a discussion) and `at` (an ISO date; the app shows "5 min temu"). `unread` marks it as new for this
+   * user. In a widget it is one compact row; on a screen the text is shown in full (e.g. a message in a thread).
+   */
+  z.object({
+    type: z.literal("Activity"),
+    title: z.string(),
+    text: z.string().optional(),
+    person: z.string().optional(),
+    at: z.iso.datetime({ offset: true }).optional(),
+    unread: z.boolean().optional(),
+    onPress: actionSchema.optional(),
+  }),
   /**
    * A map (see MAP_LIMITS). The first view fits everything on it; `center` (and `zoom`, 1–19) set it instead, e.g.
    * `ctx.community.location` for a map that may be empty. In a dashboard widget it is a still preview.
@@ -210,6 +249,27 @@ const leafSchemas = [
 
 type Leaf = z.infer<(typeof leafSchemas)[number]>;
 
+/** A small label on a card: a tone colour, an optional icon and a dot (a status). */
+const cardTagSchema = z.object({
+  text: z.string().min(1).max(40),
+  tone: tone.optional(),
+  icon: uiIconSchema.optional(),
+  dot: z.boolean().optional(),
+});
+export type CardTag = z.infer<typeof cardTagSchema>;
+
+/**
+ * A counter button at the left of a card (e.g. votes): the number and whether the viewer already counted. `action` is a
+ * tool; without it the button is shown as it is and cannot be pressed (e.g. already confirmed).
+ */
+const cardCounterSchema = z.object({
+  label: z.string().min(1).max(60),
+  value: z.number().int().min(0),
+  pressed: z.boolean(),
+  action: toolActionSchema.optional(),
+});
+export type CardCounter = z.infer<typeof cardCounterSchema>;
+
 /** A text link in a widget's header (e.g. "Wszystkie"): it only navigates. */
 const widgetLinkSchema = z.object({ label: z.string().min(1).max(40), action: navigateActionSchema });
 export type WidgetLink = z.infer<typeof widgetLinkSchema>;
@@ -217,7 +277,7 @@ export type WidgetLink = z.infer<typeof widgetLinkSchema>;
 /** Nodes with children. Type written by hand because the schema is recursive (z.lazy). */
 export type UINode =
   | Leaf
-  | { type: "Screen"; title: string; children: UINode[] }
+  | { type: "Screen"; title: string; eyebrow?: string; children: UINode[] }
   | {
       type: "Widget";
       title: string;
@@ -237,6 +297,8 @@ export type UINode =
       title: string;
       subtitle?: string;
       badge?: { text: string; tone?: Tone };
+      tags?: CardTag[];
+      counter?: CardCounter;
       onPress?: Action;
       children?: UINode[];
     }
@@ -247,7 +309,12 @@ export type UINodeType = UINode["type"];
 export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
   z.discriminatedUnion("type", [
     ...leafSchemas,
-    z.object({ type: z.literal("Screen"), title: z.string(), children: z.array(uiNodeSchema) }),
+    z.object({
+      type: z.literal("Screen"),
+      title: z.string(),
+      eyebrow: z.string().max(80).optional(),
+      children: z.array(uiNodeSchema),
+    }),
     z.object({
       type: z.literal("Widget"),
       title: z.string(),
@@ -265,6 +332,8 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
       title: z.string(),
       subtitle: z.string().optional(),
       badge: z.object({ text: z.string(), tone: tone.optional() }).optional(),
+      tags: z.array(cardTagSchema).max(4).optional(),
+      counter: cardCounterSchema.optional(),
       onPress: actionSchema.optional(),
       children: z.array(uiNodeSchema).optional(),
     }),
@@ -287,7 +356,8 @@ function isReadOnly(node: UINode): boolean {
   if (INPUT_NODES.includes(node.type)) return false;
   if (node.type === "Button" && node.action.type === "tool") return false;
   if (node.type === "Card" && node.onPress?.type === "tool") return false;
-  if (node.type === "Highlight" && node.onPress?.type === "tool") return false;
+  if (node.type === "Card" && node.counter?.action) return false;
+  if ((node.type === "Highlight" || node.type === "Activity") && node.onPress?.type === "tool") return false;
   if (node.type === "Map") {
     const items = node.layers.flatMap((layer): { onPress?: Action }[] => layer.items);
     if (items.some((item) => item.onPress?.type === "tool")) return false;
@@ -308,7 +378,13 @@ type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 
 /** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
-  screen: (title: string, children: UINode[]): Of<"Screen"> => ({ type: "Screen", title, children }),
+  /** `options.eyebrow`: a small line above the title (e.g. the place's name). */
+  screen: (title: string, children: UINode[], options: { eyebrow?: string } = {}): Of<"Screen"> => ({
+    type: "Screen",
+    title,
+    children,
+    ...options,
+  }),
   /** `options.onPress`: where tapping the tile leads; `icon`, `subtitle` and `link` make the header (see Widget). */
   widget: (
     title: string,
@@ -344,7 +420,10 @@ export const ui = {
   select: (props: Props<"Select">): Of<"Select"> => ({ type: "Select", ...props }),
   switch: (props: Props<"Switch">): Of<"Switch"> => ({ type: "Switch", ...props }),
   hero: (props: Props<"Hero">): Of<"Hero"> => ({ type: "Hero", ...props }),
+  tabs: (props: Props<"Tabs">): Of<"Tabs"> => ({ type: "Tabs", ...props }),
+  fab: (props: Props<"Fab">): Of<"Fab"> => ({ type: "Fab", ...props }),
   highlight: (props: Props<"Highlight">): Of<"Highlight"> => ({ type: "Highlight", ...props }),
+  activity: (props: Props<"Activity">): Of<"Activity"> => ({ type: "Activity", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */
   map: Object.assign((props: Props<"Map">): Of<"Map"> => ({ type: "Map", ...props }), {
     /** Points: places, reports, alerts. `tone` colours the whole layer (an item's own tone wins). */
@@ -371,10 +450,12 @@ export const ui = {
   }),
   locationInput: (props: Props<"LocationInput">): Of<"LocationInput"> => ({ type: "LocationInput", ...props }),
 
-  navigate: (view: string, params?: ViewParams): NavigateAction => ({
+  /** `options.replace`: replace the current view instead of stacking a new one. */
+  navigate: (view: string, params?: ViewParams, options: { replace?: boolean } = {}): NavigateAction => ({
     type: "navigate",
     view,
     ...(params ? { params } : {}),
+    ...(options.replace ? { replace: true } : {}),
   }),
   tool: (tool: string, args?: Record<string, unknown>): ToolAction => ({
     type: "tool",

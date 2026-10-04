@@ -12,12 +12,17 @@ export interface ActionRowProps {
   icon: LucideIcon;
   title: string;
   subtitle: string;
-  /** Route the row opens; without one the row is shown disabled (its screen does not exist yet). */
+  /** Route the row opens; without it or `onPress` the row is shown disabled (its screen does not exist yet). */
   href?: string;
+  /** An action instead of a route (e.g. opening the system settings): the row is a button. */
+  onPress?: () => void;
 }
 
-/** Row that opens a screen (COMPONENTS.md → ActionRow): icon box, title over subtitle, chevron. A link on the web. */
-export function ActionRow({ icon, title, subtitle, href }: ActionRowProps) {
+/**
+ * Row that opens a screen (COMPONENTS.md → ActionRow): icon box, title over subtitle, chevron. A link on the web, or a
+ * button with `onPress`.
+ */
+export function ActionRow({ icon, title, subtitle, href, onPress }: ActionRowProps) {
   const press = usePressed(tapFeedback);
   const content = (
     <>
@@ -31,6 +36,19 @@ export function ActionRow({ icon, title, subtitle, href }: ActionRowProps) {
       <Icon icon={ChevronRight} size={sizes.iconS} color="iconMuted" strokeWidth={2} />
     </>
   );
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={[styles.row, press.pressed && styles.pressed]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
   if (!href) {
     return (
       <View accessibilityState={{ disabled: true }} style={[styles.row, styles.disabled]}>

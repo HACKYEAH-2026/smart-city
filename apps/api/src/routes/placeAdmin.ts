@@ -9,7 +9,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { type RecordId, surql } from "surrealdb";
 import type { AppEnv } from "../context";
-import { first, geoPoint, keyOf, ref, rows, toCommunity } from "../db";
+import { first, geoPoint, keyOf, polishOrder, ref, rows, toCommunity } from "../db";
 import { requirePlaceAdmin, requireUser } from "../middleware";
 
 /**
@@ -37,14 +37,20 @@ export const placeAdminRoutes = new Hono<AppEnv>()
     const found = await rows<{ id: RecordId; name: string | null; email: string; role: PlaceMember["role"] }>(
       c.var.db,
       surql`SELECT user.id AS id, user.name AS name, user.email AS email, role
-         FROM membership WHERE community = ${place.id} ORDER BY role, name, email;`,
+         FROM membership WHERE community = ${place.id};`,
     );
-    const members: PlaceMember[] = found.map((m) => ({
-      id: keyOf(m.id),
-      name: m.name ?? "",
-      email: m.email,
-      role: m.role,
-    }));
+    const adminsFirst = (m: { role: PlaceMember["role"] }) => (m.role === "admin" ? 0 : 1);
+    const members: PlaceMember[] = found
+      .sort(
+        (a, b) =>
+          adminsFirst(a) - adminsFirst(b) || polishOrder(a.name ?? "", b.name ?? "") || polishOrder(a.email, b.email),
+      )
+      .map((m) => ({
+        id: keyOf(m.id),
+        name: m.name ?? "",
+        email: m.email,
+        role: m.role,
+      }));
     return c.json(members, 200);
   })
   /**

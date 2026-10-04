@@ -57,9 +57,8 @@ test("plugins: the section lists the place's plugins that are on and leads to ad
   await openSection(page, t.manage_plugins_title);
   const plugins = page.getByRole("list", { name: t.manage_plugins_title }).getByRole("listitem");
   await expect(plugins).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
-  // The line under a name counts the plugin's widgets; discussions has none, so no count.
+  // The line under a name counts the plugin's widgets.
   await expect(plugins.filter({ hasText: "Zgłoszenia" })).toContainText(widgetsCount(1));
-  await expect(plugins.filter({ hasText: "Dyskusje" })).not.toContainText(t.count_widgets[0]);
   await expect(page.getByRole("link", { name: t.add_plugin_title })).toBeVisible();
 });
 
@@ -74,7 +73,7 @@ test("plugins: the catalog lists the ones that are off; adding one puts it in th
     });
     expect(res.ok, `switch ${plugin} off`).toBe(true);
   }
-  // The issues plugin's dashboard tile ("Otwórz: Zgłoszenia…"); discussions has no widget.
+  // The issues plugin's dashboard tile ("Otwórz: Zgłoszenia…").
   const issuesTile = page.getByRole("link", { name: new RegExp(`^${t.dashboard_open}: Zgłoszenia`) });
 
   await loginAdmin(page);
@@ -171,9 +170,9 @@ test("dashboard layout: the widgets in order; moving one changes the dashboard",
   await openManage(page);
   await openSection(page, t.manage_layout_title);
   const widgets = page.getByRole("list", { name: t.manage_layout_title }).getByRole("listitem");
-  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/]);
+  await expect(widgets).toHaveText([/Zgłoszenia/, /Ogłoszenia/, /Dyskusje/]);
   await page.getByRole("button", { name: `${t.dashboard_move_earlier}: Ogłoszenia` }).click();
-  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/]);
+  await expect(widgets).toHaveText([/Ogłoszenia/, /Zgłoszenia/, /Dyskusje/]);
   await page.getByRole("button", { name: t.back }).click();
   const regions = page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
   await expect(regions.nth(0)).toHaveAttribute("aria-label", "Ogłoszenia");

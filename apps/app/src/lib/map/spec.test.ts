@@ -64,4 +64,11 @@ describe("plugin maps on the map page", () => {
     expect(spec.fitOptions.padding.bottom).toBeGreaterThan(spec.fitOptions.padding.top);
     expect(spec.pressable).toContain("areas");
   });
+
+  test("the centre sits in the middle of the view unless anchored elsewhere (under an off-centre pin)", () => {
+    const options = { center: rynek, zoom: STREET_ZOOM, interactive: false, tapToCenter: false, bottomInset: 0 };
+    const data = { pins: [], selectedId: null, me: null };
+    expect(mapSpec(options, data).anchor).toEqual({ x: 0.5, y: 0.5 });
+    expect(mapSpec({ ...options, anchor: { x: 0.72, y: 0.4 } }, data).anchor).toEqual({ x: 0.72, y: 0.4 });
+  });
 });

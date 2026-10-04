@@ -23,11 +23,17 @@ export const NOTIFICATIONS_PAGE = 50;
 /** Marks the given notifications as read; without `ids` — all of them. */
 export const notificationsReadSchema = z.object({ ids: z.array(z.string().min(1)).max(100).optional() });
 
-/** A saved place ("Moje miejsca"); "near" notifications reach the user there. */
+/**
+ * A saved place ("Moje miejsca"; in the account: addresses for nearby notifications); "near" notifications reach the
+ * user there. `address` = the postal address picked on the map ("" = none).
+ */
 export const PLACES_MAX = 10;
-export const placeCreateSchema = geoPointSchema.extend({ label: z.string().trim().min(1).max(40) });
+export const placeCreateSchema = geoPointSchema.extend({
+  label: z.string().trim().min(1).max(40),
+  address: z.string().trim().max(200).default(""),
+});
 export type PlaceCreate = z.input<typeof placeCreateSchema>;
-export type Place = { id: string; label: string; lat: number; lng: number };
+export type Place = { id: string; label: string; address: string; lat: number; lng: number };
 
 /** The current position, shared while the app is open; counts for "near" for LOCATION_FRESH_MINUTES. */
 export const locationSchema = geoPointSchema;

@@ -224,7 +224,6 @@
         size: { w: 2, h: 1 },
         render: async (ctx) =&gt; {
           const count = await ctx.db.notes.count();
-          if (!count) return null;
           return ui.widget(
             "Notatki",
             [ui.stat("Wszystkie", String(count))],
@@ -342,8 +341,10 @@
               <div data-note-body="widget">
                 <h4>Dashboard widgets</h4>
                 <p>
-                  A fixed <code>size</code> on a two-column grid (<code>w</code> 1–2, <code>h</code> 1–3) and a
-                  <code>render(ctx)</code> returning <code>ui.widget(…)</code> or <code>null</code> to hide it.
+                  Every plugin has exactly one (checked on load): its tile is how residents open the plugin. A fixed
+                  <code>size</code> on a two-column grid (<code>w</code> 1–2, <code>h</code> 1–3) and a
+                  <code>render(ctx)</code> that always returns <code>ui.widget(…)</code> (an empty state when there is
+                  no data yet).
                 </p>
                 <p>
                   Widgets must be <strong>read-only</strong> (<code>dashboardWidgetSchema</code>): no forms, inputs or
@@ -995,7 +996,7 @@ RETURN $result;</code></pre>
                 </tr>
                 <tr>
                   <td>Content</td>
-                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.badge</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty</code>, <code>ui.image(fileId, alt)</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code></td>
+                  <td><code>ui.heading</code>, <code>ui.text</code>, <code>ui.badge</code>, <code>ui.progress</code>, <code>ui.stat</code>, <code>ui.empty</code>, <code>ui.image(fileId, alt)</code>, <code>ui.highlight</code>, <code>ui.activity({ title, text?, person?, at?, unread? })</code>, <code>ui.map({ label, layers, center?, zoom? })</code> with <code>ui.map.pins / routes / areas</code></td>
                 </tr>
                 <tr>
                   <td>Actions</td>
