@@ -67,6 +67,9 @@ export default function PluginView() {
     );
   };
 
+  // Where back leads: the view's own choice (e.g. a report goes back to the list); the dashboard when it names none.
+  const back = screen.data?.type === "Screen" ? screen.data.back : undefined;
+  const backHref = back ? pluginHref(slug, plugin, back.view, back.params) : "/app";
   // Floating buttons of the screen (outside its scroll), drawn over the whole screen.
   const floating = screen.data?.type === "Screen" ? screen.data.children.filter(isFloating) : [];
 
@@ -81,7 +84,7 @@ export default function PluginView() {
       <Head>
         <title>{screen.data?.type === "Screen" ? screen.data.title : t.app_name}</title>
       </Head>
-      <IconButton icon={ChevronLeft} label={t.back} variant="square" href="/app" />
+      <IconButton icon={ChevronLeft} label={t.back} variant="square" href={backHref} />
       {toast ? (
         <View role="status" style={styles.toast}>
           <Text variant="bodyL" color="primaryPressed">

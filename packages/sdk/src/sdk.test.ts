@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { geoLocation } from "./geo";
 import { sdk } from "./load";
 import { pluginManifestSchema } from "./plugin";
-import { dashboardWidgetSchema, MAP_LIMITS, screenSchema, ui, uiNodeSchema } from "./ui";
+import { dashboardWidgetSchema, MAP_LIMITS, screenSchema, UI_ICONS, ui, uiNodeSchema } from "./ui";
 
 describe("UI catalog", () => {
   test("tree built from builders passes validation", () => {
@@ -178,6 +178,15 @@ describe("list screen", () => {
     expect(screenSchema.parse(screen)).toEqual(screen);
   });
 
+  test("a screen may say where its back button leads (default: the dashboard)", () => {
+    const screen = ui.screen("Dziura", [], { back: ui.navigate("list") });
+    expect(screenSchema.parse(screen)).toEqual(screen);
+    expect(
+      screenSchema.safeParse({ type: "Screen", title: "Dziura", children: [], back: { type: "tool", tool: "remove" } })
+        .success,
+    ).toBe(false);
+  });
+
   test("a card may show tags and a vote counter; the counter's action is a tool, so widgets reject it", () => {
     const card = ui.card({
       title: "Dziura w jezdni",
@@ -214,5 +223,57 @@ describe("list screen", () => {
     const fab = ui.fab({ label: "Zgłoś", icon: "camera", action: ui.navigate("new") });
     expect(uiNodeSchema.parse(fab)).toEqual(fab);
     expect(uiNodeSchema.safeParse({ ...fab, action: ui.tool("report") }).success).toBe(false);
+  });
+});
+
+describe("issue details", () => {
+  test("a timeline: steps in order, each with a date, an optional note and a tone for its dot", () => {
+    const timeline = ui.timeline([
+      { title: "Zgłoszone", at: "30 wrz, 18:40", tone: "neutral" },
+      { title: "W realizacji", at: "2 paź", text: "Zgłosiliśmy sprawę zarządcy drogi.", tone: "warning" },
+    ]);
+    expect(uiNodeSchema.parse(timeline)).toEqual(timeline);
+    expect(uiNodeSchema.safeParse({ type: "Timeline", items: [] }).success).toBe(false);
+  });
+
+  test("share: a button that shares an app link (a path inside the app)", () => {
+    const share = ui.share("Udostępnij", "/app/c/krakow/issues/detail?id=1");
+    expect(uiNodeSchema.parse(share)).toEqual(share);
+    expect(uiNodeSchema.safeParse({ ...share, path: "https://example.test" }).success).toBe(false);
+  });
+});
+
+describe("square controls", () => {
+  test("a form may be inline: its submit is a square send button beside the field", () => {
+    const composer = ui.form({
+      submitLabel: "Wyślij",
+      submit: ui.tool("comment", { id: "1" }),
+      inline: true,
+      children: [ui.textInput({ name: "text", label: "Dodaj komentarz" })],
+    });
+    expect(uiNodeSchema.parse(composer)).toEqual(composer);
+  });
+
+  test("a square icon set includes send and share", () => {
+    expect(UI_ICONS).toEqual(expect.arrayContaining(["send", "share"]));
+  });
+});
+
+describe("tags row", () => {
+  test("a row of tags with tones, icons and dots", () => {
+    const tags = ui.tags([
+      { text: "Problem", tone: "danger", icon: "alert" },
+      { text: "W realizacji", tone: "warning", dot: true },
+    ]);
+    expect(uiNodeSchema.parse(tags)).toEqual(tags);
+    expect(uiNodeSchema.safeParse({ type: "Tags", items: [] }).success).toBe(false);
+  });
+});
+
+describe("place row", () => {
+  test("a place: a row with a pin and the address", () => {
+    const place = ui.place("ul. Słoneczna 5");
+    expect(uiNodeSchema.parse(place)).toEqual(place);
+    expect(uiNodeSchema.safeParse({ type: "Place", text: "" }).success).toBe(false);
   });
 });

@@ -99,9 +99,30 @@ export type MapAreaItem = z.infer<typeof mapAreaSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 
 /** Icons a node can show (a Select card, a Button, a widget header); the app draws them (apps/app/src/plugins/Renderer.tsx). */
-export const UI_ICONS = ["alert", "idea", "camera", "megaphone"] as const;
+export const UI_ICONS = ["alert", "idea", "camera", "megaphone", "share", "send", "pin"] as const;
 export const uiIconSchema = z.enum(UI_ICONS);
 export type UIIcon = z.infer<typeof uiIconSchema>;
+
+/** A small label on a card: a tone colour, an optional icon and a dot (a status). */
+const cardTagSchema = z.object({
+  text: z.string().min(1).max(40),
+  tone: tone.optional(),
+  icon: uiIconSchema.optional(),
+  dot: z.boolean().optional(),
+});
+export type CardTag = z.infer<typeof cardTagSchema>;
+
+/**
+ * A counter button at the left of a card (e.g. votes): the number and whether the viewer already counted. `action` is a
+ * tool; without it the button is shown as it is and cannot be pressed (e.g. already confirmed).
+ */
+const cardCounterSchema = z.object({
+  label: z.string().min(1).max(60),
+  value: z.number().int().min(0),
+  pressed: z.boolean(),
+  action: toolActionSchema.optional(),
+});
+export type CardCounter = z.infer<typeof cardCounterSchema>;
 
 /** Leaf nodes (no children). */
 const leafSchemas = [
@@ -198,6 +219,31 @@ const leafSchemas = [
       .min(2)
       .max(6),
   }),
+  /** A place as a row with a pin: an address, or a note that there is none. */
+  z.object({ type: z.literal("Place"), text: z.string().min(1).max(200) }),
+  /** A row of tags (a report's kind and status): tones, an optional icon and a dot. */
+  z.object({ type: z.literal("Tags"), items: z.array(cardTagSchema).min(1).max(4) }),
+  /** The steps of something that moves on (a report's progress): a dot per step, with its date and an optional note. */
+  z.object({
+    type: z.literal("Timeline"),
+    items: z
+      .array(
+        z.object({
+          title: z.string().min(1).max(80),
+          at: z.string().max(40).optional(),
+          text: z.string().max(500).optional(),
+          tone: tone.optional(),
+        }),
+      )
+      .min(1)
+      .max(50),
+  }),
+  /** A button that shares a link to a place inside the app (`path` starts with /app/); the app builds the full address. */
+  z.object({
+    type: z.literal("Share"),
+    label: z.string().min(1).max(40),
+    path: z.string().regex(/^\/app\//, "a path inside the app"),
+  }),
   /** A floating button over the screen (it stays in place while the content scrolls), e.g. "Zgłoś". Navigates. */
   z.object({
     type: z.literal("Fab"),
@@ -235,27 +281,6 @@ const leafSchemas = [
 
 type Leaf = z.infer<(typeof leafSchemas)[number]>;
 
-/** A small label on a card: a tone colour, an optional icon and a dot (a status). */
-const cardTagSchema = z.object({
-  text: z.string().min(1).max(40),
-  tone: tone.optional(),
-  icon: uiIconSchema.optional(),
-  dot: z.boolean().optional(),
-});
-export type CardTag = z.infer<typeof cardTagSchema>;
-
-/**
- * A counter button at the left of a card (e.g. votes): the number and whether the viewer already counted. `action` is a
- * tool; without it the button is shown as it is and cannot be pressed (e.g. already confirmed).
- */
-const cardCounterSchema = z.object({
-  label: z.string().min(1).max(60),
-  value: z.number().int().min(0),
-  pressed: z.boolean(),
-  action: toolActionSchema.optional(),
-});
-export type CardCounter = z.infer<typeof cardCounterSchema>;
-
 /** A text link in a widget's header (e.g. "Wszystkie"): it only navigates. */
 const widgetLinkSchema = z.object({ label: z.string().min(1).max(40), action: navigateActionSchema });
 export type WidgetLink = z.infer<typeof widgetLinkSchema>;
@@ -263,7 +288,7 @@ export type WidgetLink = z.infer<typeof widgetLinkSchema>;
 /** Nodes with children. Type written by hand because the schema is recursive (z.lazy). */
 export type UINode =
   | Leaf
-  | { type: "Screen"; title: string; eyebrow?: string; children: UINode[] }
+  | { type: "Screen"; title: string; eyebrow?: string; back?: NavigateAction; children: UINode[] }
   | {
       type: "Widget";
       title: string;
@@ -288,7 +313,8 @@ export type UINode =
       onPress?: Action;
       children?: UINode[];
     }
-  | { type: "Form"; submitLabel: string; submit: ToolAction; children: UINode[] };
+  /** `inline`: the submit is a square send button beside the fields (a comment box), not a full-width button. */
+  | { type: "Form"; submitLabel: string; submit: ToolAction; inline?: boolean; children: UINode[] };
 
 export type UINodeType = UINode["type"];
 
@@ -299,6 +325,8 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
       type: z.literal("Screen"),
       title: z.string(),
       eyebrow: z.string().max(80).optional(),
+      /** Where the back button leads; without it, the dashboard. */
+      back: navigateActionSchema.optional(),
       children: z.array(uiNodeSchema),
     }),
     z.object({
@@ -327,6 +355,7 @@ export const uiNodeSchema: z.ZodType<UINode> = z.lazy(() =>
       type: z.literal("Form"),
       submitLabel: z.string(),
       submit: toolActionSchema,
+      inline: z.boolean().optional(),
       children: z.array(uiNodeSchema),
     }),
   ]),
@@ -364,8 +393,12 @@ type Props<T extends UINodeType> = Omit<Of<T>, "type">;
 
 /** Node builders — a plugin composes its view from them. They return plain JSON objects. */
 export const ui = {
-  /** `options.eyebrow`: a small line above the title (e.g. the place's name). */
-  screen: (title: string, children: UINode[], options: { eyebrow?: string } = {}): Of<"Screen"> => ({
+  /** `options.eyebrow`: a small line above the title (e.g. the place's name); `options.back`: where back leads. */
+  screen: (
+    title: string,
+    children: UINode[],
+    options: { eyebrow?: string; back?: NavigateAction } = {},
+  ): Of<"Screen"> => ({
     type: "Screen",
     title,
     children,
@@ -407,6 +440,10 @@ export const ui = {
   switch: (props: Props<"Switch">): Of<"Switch"> => ({ type: "Switch", ...props }),
   hero: (props: Props<"Hero">): Of<"Hero"> => ({ type: "Hero", ...props }),
   tabs: (props: Props<"Tabs">): Of<"Tabs"> => ({ type: "Tabs", ...props }),
+  tags: (items: Props<"Tags">["items"]): Of<"Tags"> => ({ type: "Tags", items }),
+  place: (text: string): Of<"Place"> => ({ type: "Place", text }),
+  timeline: (items: Props<"Timeline">["items"]): Of<"Timeline"> => ({ type: "Timeline", items }),
+  share: (label: string, path: string): Of<"Share"> => ({ type: "Share", label, path }),
   fab: (props: Props<"Fab">): Of<"Fab"> => ({ type: "Fab", ...props }),
   highlight: (props: Props<"Highlight">): Of<"Highlight"> => ({ type: "Highlight", ...props }),
   /** `ui.map({ label, layers: [ui.map.pins(...), ui.map.routes(...), ui.map.areas(...)], center?, zoom? })`. */

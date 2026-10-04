@@ -288,10 +288,17 @@ export function textsOf(node: UINode): string[] {
     return typeof v === "string" ? [v] : [];
   });
   const children = "children" in node && node.children ? node.children.flatMap(textsOf) : [];
-  return [...own, ...children, ...mapTexts(node)];
+  return [...own, ...children, ...mapTexts(node), ...itemTexts(node)];
 }
 
 /** A map's layer titles and its items' titles and subtitles (what the app lists next to the map). */
+const itemTexts = (node: UINode): string[] =>
+  node.type === "Tags"
+    ? node.items.map((tag) => tag.text)
+    : node.type === "Timeline"
+      ? node.items.flatMap((step) => [step.title, ...(step.text ? [step.text] : [])])
+      : [];
+
 const mapTexts = (node: UINode): string[] =>
   node.type === "Map"
     ? node.layers.flatMap((layer) => [

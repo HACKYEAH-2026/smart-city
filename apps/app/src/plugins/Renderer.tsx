@@ -10,6 +10,8 @@ import {
   type LucideIcon,
   MapPin,
   Megaphone,
+  Send,
+  Share2,
   X,
 } from "lucide-react-native";
 import { createContext, type ReactNode, useContext, useState } from "react";
@@ -34,9 +36,10 @@ import {
 } from "../components";
 import { tapFeedback } from "../lib/haptics";
 import { STREET_ZOOM } from "../lib/map/spec";
+import { shareLink } from "../lib/share";
 import LocationPicker from "../screens/LocationPicker";
 import { t } from "../texts";
-import { borders, colors, layout, opacity, radii, shadows, sizes, spacing } from "../theme";
+import { borders, type ColorToken, colors, layout, opacity, radii, shadows, sizes, spacing } from "../theme";
 import { PluginMap } from "./PluginMap";
 
 /**
@@ -298,6 +301,28 @@ function PluginNode({ node }: { node: UINode }): ReactNode {
       return <HighlightTile node={node} />;
     case "Tabs":
       return <PluginTabs node={node} />;
+    case "Timeline":
+      return <PluginTimeline node={node} />;
+    case "Place":
+      return (
+        <View style={styles.placeRow}>
+          <Icon icon={MapPin} size={sizes.iconS} color="primary" strokeWidth={2} />
+          <Text variant="body" style={styles.placeText}>
+            {node.text}
+          </Text>
+        </View>
+      );
+    case "Tags":
+      return (
+        <View style={styles.tags}>
+          {node.items.map((tag, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: tags keep their order.
+            <TagBadge key={`${tag.text}-${i}`} tag={tag} />
+          ))}
+        </View>
+      );
+    case "Share":
+      return <ShareButton node={node} />;
     case "Fab":
       return <FloatingAction node={node} />;
     case "Map":
@@ -456,6 +481,58 @@ function PluginTabs({ node }: { node: Extract<UINode, { type: "Tabs" }> }) {
   );
 }
 
+/** The tone of a timeline step's dot, from the same palette as the tags. */
+const TIMELINE_DOT: Record<Tone, ColorToken> = {
+  neutral: "dot",
+  info: "infoText",
+  warning: "warningText",
+  success: "successText",
+  danger: "primary",
+};
+
+/**
+ * The steps of something that moves on (a report's progress): a dot per step, joined by a line, with the step's title,
+ * its date and an optional note in a box.
+ */
+function PluginTimeline({ node }: { node: Extract<UINode, { type: "Timeline" }> }) {
+  return (
+    <View role="list" aria-label={t.plugin_progress} style={styles.timelineCard}>
+      {node.items.map((item, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the steps keep their order; they are the history.
+        <View key={i} role="listitem" style={styles.step}>
+          <View style={styles.stepRail}>
+            <View style={[styles.stepDot, { backgroundColor: colors[TIMELINE_DOT[item.tone ?? "neutral"]] }]} />
+            {i < node.items.length - 1 ? <View style={styles.stepLine} /> : null}
+          </View>
+          <View style={styles.stepBody}>
+            <Text variant="cardTitle">{item.at ? `${item.title} · ${item.at}` : item.title}</Text>
+            {item.text ? (
+              <Text variant="body" color="textBody" style={styles.stepNote}>
+                {item.text}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Shares a link to a place in the app through the system share sheet (design: "Udostępnij"). */
+function ShareButton({ node }: { node: Extract<UINode, { type: "Share" }> }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={node.label}
+      onPressIn={tapFeedback}
+      onPress={() => shareLink(node.path)}
+      style={({ pressed }) => [styles.squareButton, styles.squareOutline, pressed && styles.pressedTile]}
+    >
+      <Icon icon={Share2} size={sizes.iconS} color="text" strokeWidth={1.9} />
+    </Pressable>
+  );
+}
+
 /** The floating button of a screen (design: "Zgłoś" with a camera): bottom right, above the scrolling content. */
 function FloatingAction({ node }: { node: Extract<UINode, { type: "Fab" }> }) {
   const { onAction } = useContext(ActionsContext);
@@ -546,7 +623,7 @@ function GrowRow({ nodes }: { nodes: UINode[] }) {
     <View style={styles.rowGrow}>
       {nodes.map((n, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: as in Children, the order is the identity.
-        <View key={`${n.type}-${i}`} style={styles.growCell}>
+        <View key={`${n.type}-${i}`} style={n.type === "Share" ? undefined : styles.growCell}>
           <PluginNode node={n} />
         </View>
       ))}
@@ -586,10 +663,34 @@ function PluginForm({ node }: { node: Extract<UINode, { type: "Form" }> }) {
           }),
       }}
     >
-      <View style={styles.stack}>
-        <Children nodes={node.children} />
-        <Button label={node.submitLabel} disabled={busy} onPress={() => onAction(submit)} />
-      </View>
+      {node.inline ? (
+        <View style={styles.composer}>
+          <View style={styles.composerField}>
+            <Children nodes={node.children} />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={node.submitLabel}
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPressIn={tapFeedback}
+            onPress={() => onAction(submit)}
+            style={({ pressed }) => [
+              styles.squareButton,
+              styles.squarePrimary,
+              pressed && styles.pressedTile,
+              busy && styles.disabledTile,
+            ]}
+          >
+            <Icon icon={Send} size={sizes.iconS} color="onPrimary" strokeWidth={2} />
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.stack}>
+          <Children nodes={node.children} />
+          <Button label={node.submitLabel} disabled={busy} onPress={() => onAction(submit)} />
+        </View>
+      )}
     </FormContext.Provider>
   );
 }
@@ -865,6 +966,9 @@ const UI_ICON: Record<UIIcon, LucideIcon> = {
   idea: Lightbulb,
   camera: Camera,
   megaphone: Megaphone,
+  share: Share2,
+  send: Send,
+  pin: MapPin,
 };
 
 const styles = StyleSheet.create({
@@ -908,6 +1012,35 @@ const styles = StyleSheet.create({
   widget: { flex: 1, overflow: "hidden" },
   widgetBody: { gap: spacing[6] },
   widgetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[4] },
+  placeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[4],
+    padding: spacing[5],
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  placeText: { flex: 1, minWidth: 0 },
+  timeline: { gap: spacing[2] },
+  timelineCard: {
+    gap: spacing[2],
+    padding: spacing[8],
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  step: { flexDirection: "row", gap: spacing[6] },
+  stepRail: { alignItems: "center", width: spacing[6] },
+  stepDot: {
+    width: sizes.tagDot + spacing[1],
+    height: sizes.tagDot + spacing[1],
+    borderRadius: radii.pill,
+    marginTop: spacing[2],
+  },
+  stepLine: { flex: 1, width: borders.hairline, backgroundColor: colors.divider, marginVertical: spacing[1] },
+  stepBody: { flex: 1, minWidth: 0, gap: spacing[2], paddingBottom: spacing[6] },
+  stepNote: { backgroundColor: colors.background, borderRadius: radii.lg, padding: spacing[4] },
   widgetIcon: {
     width: sizes.avatarLg,
     height: sizes.avatarLg,
@@ -955,6 +1088,18 @@ const styles = StyleSheet.create({
     ...shadows.floating,
   },
   rowGrow: { flexDirection: "row", gap: spacing[4] },
+  /** A square icon button beside a field or a button, the height of a main button. */
+  squareButton: {
+    width: sizes.squareButton,
+    height: sizes.squareButton,
+    borderRadius: radii.lg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  squareOutline: { backgroundColor: colors.surface, borderWidth: borders.hairline, borderColor: colors.border },
+  squarePrimary: { backgroundColor: colors.primary },
+  composer: { flexDirection: "row", alignItems: "flex-end", gap: spacing[4] },
+  composerField: { flex: 1, minWidth: 0 },
   growCell: { flex: 1, minWidth: 0 },
   highlight: {
     flexDirection: "row",
