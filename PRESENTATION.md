@@ -473,7 +473,9 @@ na Worker/WASM i to jest v2 (ROADMAP.md).
 
 # Twoje Miejsce. Rośnie razem z Twoimi potrzebami.
 
-**Twój Team · [członkowie zespołu]**
+**Twój Team**
+
+Karol Jażdrzyk · Marcin Niemczyk · Dawid Danieluk
 
 github.com/HACKYEAH-2026/smart-city
 
