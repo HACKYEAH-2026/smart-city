@@ -90,27 +90,27 @@ export function Screen({
     </KeyboardAwareScrollView>
   );
   return (
-    <View style={styles.root}>
-      {backdrop ? (
-        <ScrollYContext.Provider value={scrollY}>
+    <ScrollYContext.Provider value={scrollY}>
+      <View style={styles.root}>
+        {backdrop ? (
           <View pointerEvents="none" style={styles.backdrop}>
             {backdrop}
           </View>
-        </ScrollYContext.Provider>
-      ) : null}
-      {footer ? (
-        <KeyboardAvoidingView behavior="padding" style={styles.fill}>
-          {content}
-          <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[4] }]}>
-            <View style={styles.footerFrame}>{footer}</View>
-          </View>
-        </KeyboardAvoidingView>
-      ) : (
-        content
-      )}
-      {tabBar ? <BottomTabBar /> : null}
-      {overlay}
-    </View>
+        ) : null}
+        {footer ? (
+          <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+            {content}
+            <View style={[styles.footer, { paddingBottom: insets.bottom + spacing[4] }]}>
+              <View style={styles.footerFrame}>{footer}</View>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          content
+        )}
+        {tabBar ? <BottomTabBar /> : null}
+        {overlay}
+      </View>
+    </ScrollYContext.Provider>
   );
 }
 

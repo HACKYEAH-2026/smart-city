@@ -25,7 +25,8 @@ export interface PlaceBackdropProps {
 export function PlaceBackdrop({ location }: PlaceBackdropProps) {
   const insets = useSafeAreaInsets();
   // The content starts below the status bar (Screen): so does the pin, whatever the device.
-  const pinTop = insets.top + layout.screenTopOffset + sizes.dashboardPinTop;
+  const contentTop = insets.top + layout.screenTopOffset;
+  const pinTop = contentTop + sizes.dashboardPinTop;
   const scrollY = useScrollY();
   // Blurs in as the content scrolls under the header (the screen's scroll position, read on the UI thread).
   const blur = useAnimatedStyle(() => ({
@@ -108,6 +109,7 @@ const styles = StyleSheet.create({
   map: { height: MAP_HEIGHT },
   fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   glow: { alignSelf: "center" },
+  // On the right of the header, below its top: the free side next to the name, above the marker.
   // The box ends at the marker's centre: its width puts that centre at the pin's x, its height at twice pinTop.
   pin: {
     position: "absolute",

@@ -225,7 +225,18 @@ export const sizes = {
   /** Login screen: the clip fades into the screen over this height at its lower edge. */
   authVideoFade: 400,
   /** Dashboard header: height of the map decoration. */
-  dashboardMap: 330,
+  dashboardMap: 370,
+  /** Dashboard: the place's mascot at the top of the content: its width, its centre across the content (a fraction of its width), and how far above its rest its drop starts (dp). */
+  dashboardMascot: 150,
+  dashboardMascotX: 2 / 3,
+  dashboardMascotDrop: 32,
+  /** Dashboard: how far the mascot sits above the top of the content (dp). */
+  dashboardMascotLift: 12,
+  /** Dashboard: the place's name is at most this fraction of the content's width, so it stays left of the mascot. */
+  dashboardNameWidth: 0.45,
+  /** Dashboard: the height of the place's header row: one line of the name (its heading line height). */
+  dashboardHeader: 31,
+  /** Dashboard header: space between the place's header and the widgets, so the backdrop has room. */
   /** Dashboard header: the map fades into the screen over this height at its lower edge. */
   dashboardMapFade: 160,
   /** Dashboard header: the map is this much taller than its frame, so its bottom strip (the attribution icon) is cut off. */

@@ -16,6 +16,7 @@ import {
   Screen,
   Text,
 } from "../components";
+import { PlaceMascot } from "../components/PlaceMascot";
 import { useCommunities, useCommunity, useDashboard, useSetDefaultPlace, useVisitPlace } from "../data/communities";
 import { currentPlace } from "../lib/places";
 import { widgetsCount } from "../lib/plural";
@@ -98,12 +99,23 @@ function PlaceDashboard({ place, places }: { place: MyPlace; places: MyPlace[] }
       <Head>
         <title>{place.name}</title>
       </Head>
+      {/* Keyed by the place: switching places plays the mascot's entrance again. */}
+      <PlaceMascot key={place.id} kind={place.kind} />
+
       <View style={styles.place}>
         <Text variant="label" color="textSecondary">
           {t.place_current_label}
         </Text>
         <View style={styles.header}>
-          <Heading level={1} variant="heading">
+          {/* The name stays left of the mascot and on one line: a long name gets smaller, it is not cut off. */}
+          <Heading
+            level={1}
+            variant="heading"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+            style={styles.placeName}
+          >
             {place.name}
           </Heading>
           {place.role === "admin" ? (
@@ -145,7 +157,15 @@ function EmptyDashboard() {
 
 const styles = StyleSheet.create({
   place: { gap: spacing[4] },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing[6] },
+  // A fixed height for one line of the name: a long name shrinks to fit it, so the content below never moves.
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing[6],
+    height: sizes.dashboardHeader,
+  },
+  placeName: { flexShrink: 1, maxWidth: `${sizes.dashboardNameWidth * 100}%` },
   section: { gap: spacing[6] },
   sectionHead: {
     flexDirection: "row",
