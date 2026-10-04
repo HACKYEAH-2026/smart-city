@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Users,
 } from "lucide-react-native";
 
 /** The icons a node can show, keyed by the names in packages/sdk (UI_ICONS). */
@@ -31,6 +32,7 @@ export const UI_ICON: Record<UIIcon, LucideIcon> = {
   send: Send,
   pin: MapPin,
   chat: MessagesSquare,
+  people: Users,
   plus: Plus,
   lock: Lock,
   shield: ShieldCheck,

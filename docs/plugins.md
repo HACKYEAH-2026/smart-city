@@ -613,8 +613,8 @@ nodes from a closed catalog (`packages/sdk/src/ui.ts`); the root must be `ui.scr
 | tool | `ui.tool(name, args?)` — call a tool; its result says what happens next ([ToolResult](#tools)) |
 | app | `ui.app("dashboard")` — the dashboard; `ui.app("pluginPage")` — this installation's host page at `/app/c/<slug>/manage/<pluginId>`; read-only, allowed in widgets |
 
-Icons (`icon` props, `UIIcon`): `alert`, `idea`, `camera`, `megaphone`, `share`, `send`, `pin`, `chat`, `plus`, `lock`,
-`shield`, `settings`, `sliders`, `check`, `refresh`, `info`, `arrowUp`, `sparkles`.
+Icons (`icon` props, `UIIcon`): `alert`, `idea`, `camera`, `megaphone`, `share`, `send`, `pin`, `chat`, `people`, `plus`,
+`lock`, `shield`, `settings`, `sliders`, `check`, `refresh`, `info`, `arrowUp`, `sparkles`.
 
 | Node | Builder |
 |---|---|

@@ -42,6 +42,12 @@ in `nix develop .#android`.
 2. Then implement bottom-up: schema → contract → API + integration test → screen.
 3. `bun run verify` → commit → push.
 
+While working, run only the checks for what you changed: `bun test` in the touched package or plugin, one
+integration file (`bun scripts/bun-test.ts apps/api/test/<file>.test.ts`), one Playwright spec
+(`bunx playwright test e2e/<file>.spec.ts` in `apps/app`), `bun run typecheck`. The full `bun run verify` (~10 min,
+most of it the Android build; many sessions share this machine) runs once, right before the commit — not after
+every step.
+
 ## New platform resource = copy the "communities" pattern
 | Layer | Pattern file |
 |---|---|
