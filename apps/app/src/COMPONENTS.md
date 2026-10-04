@@ -127,6 +127,10 @@ Kontener: tło `surfaceSunken`, radius 14, padding 4, 2 kolumny. Segment: wysoko
 
 Komunikat po akcji pod formularzem lub nad listą: błąd `bodyL` `primaryPressed` (`role="alert"`) albo potwierdzenie `bodyL` `textSecondary` (`role="status"`); bez żadnego — nic.
 
+### Toast ✅ (`src/components/Toast.tsx`)
+
+Potwierdzenie akcji wtyczki (`toast` z narzędzia, np. „Dziękujemy za głos!”) unoszące się nad dołem ekranu, w `overlay` ekranu: nic pod nim się nie przesuwa. Ciemny dymek: tło `text`, `radii.pill`, wysokość min. `sizes.fab`, padding 10/20, `shadows.floating`, ikona `CircleCheck` + tekst `button` w `onPrimary`. Wyśrodkowany, `insets.bottom + 32` od dołu; `lift` podnosi go nad przycisk pływający (`Fab`). Wjeżdża z dołu (`motion.sheet`), znika sam po 4 s (`motion.base`); to samo potwierdzenie drugi raz (nowe `n`) pokazuje się znowu. `role="status"`, bez dotyku. Błędy zostają w treści (`Feedback`, `role="alert"`).
+
 ---
 
 ## Listy i karty

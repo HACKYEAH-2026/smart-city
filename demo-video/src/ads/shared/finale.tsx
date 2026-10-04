@@ -132,6 +132,7 @@ export const Finale = ({ tagline }: { tagline: string }) => {
             <Headline
               text={tagline}
               at={name + 14}
+              spoken
               stagger={3}
               size={60}
               align="center"

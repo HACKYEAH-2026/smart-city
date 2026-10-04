@@ -1,6 +1,6 @@
 /**
  * Voice-over for an ad (src/ads/<ad>/script.ts) from ElevenLabs: the whole script in one take with character
- * timestamps, split into beats. Writes public/ads/<ad>/vo.mp3 and src/ads/<ad>/vo.json (beat and word times that
+ * timestamps, split into beats. Writes public/ad/voice/<ad>.mp3 and src/ads/<ad>/vo.json (beat and word times that
  * time the video), then transcribes the take back (Scribe) and lists the words the narrator dropped or added.
  * Skips the API when the script and the voice are unchanged. Paid per character: run it on purpose.
  * Needs ELEVEN_LABS_API_KEY (repo .env).
@@ -24,7 +24,7 @@ const API = "https://api.elevenlabs.io/v1";
 const ROOT = join(import.meta.dir, "..");
 const ADS = ["problems", "needs"] as const;
 type AdName = (typeof ADS)[number];
-const mp3Of = (ad: AdName) => join(ROOT, `public/ads/${ad}/vo.mp3`);
+const mp3Of = (ad: AdName) => join(ROOT, `public/ad/voice/${ad}.mp3`);
 const timingOf = (ad: AdName) => join(ROOT, `src/ads/${ad}/vo.json`);
 const beatsOf = async (ad: AdName) =>
   ((await import(`../src/ads/${ad}/script.ts`)) as { BEATS: readonly ScriptBeat[] }).BEATS;
@@ -63,23 +63,31 @@ const transcribe = async (audio: Buffer) => {
   return ((await res.json()) as { text: string }).text;
 };
 
+/** A beat as the narrator reads it: each word respelled the way it is said (VOICE.say), one word for one. */
+const spoken = (text: string) => text.replace(/[\p{L}\p{N}]+/gu, (word) => VOICE.say[word] ?? word);
+
 /** Each beat's offset in the joined take text. */
 const offsets = (texts: readonly string[]) =>
   texts.map((_, i) => texts.slice(0, i).reduce((sum, t) => sum + t.length + BREAK.length, 0));
 
-/** Word times from the character timestamps; a word starts at its first letter and ends at its last. Audio tags
- * ("[pause]") are matched too, so that their letters are not taken for words, and then left out. */
-const words = (text: string, offset: number, a: Alignment): Word[] =>
-  [...text.matchAll(/\[[^\]]*\]|[\p{L}\p{N}][^\s]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu)]
-    .filter((m) => !m[0].startsWith("["))
-    .map((m) => ({
-      text: m[0],
-      start: a.character_start_times_seconds[offset + (m.index ?? 0)] ?? 0,
-      end: a.character_end_times_seconds[offset + (m.index ?? 0) + m[0].length - 1] ?? 0,
-    }));
+/** The words of a text and where each starts in it. Audio tags ("[pause]") are matched too, so that their
+ * letters are not taken for words, and then left out. */
+const tokens = (text: string) =>
+  [...text.matchAll(/\[[^\]]*\]|[\p{L}\p{N}][^\s]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu)].filter((m) => !m[0].startsWith("["));
+
+/** Word times from the character timestamps of the read text; a word starts at its first letter and ends at its
+ * last, and keeps the script's spelling (`text`, word for word with `said`). */
+const words = (text: string, said: string, offset: number, a: Alignment): Word[] => {
+  const written = tokens(text).map((m) => m[0]);
+  return tokens(said).map((m, i) => ({
+    text: written[i] ?? m[0],
+    start: a.character_start_times_seconds[offset + (m.index ?? 0)] ?? 0,
+    end: a.character_end_times_seconds[offset + (m.index ?? 0) + m[0].length - 1] ?? 0,
+  }));
+};
 
 const beat = (text: string, offset: number, a: Alignment): Beat => {
-  const ws = words(text, offset, a);
+  const ws = words(text, spoken(text), offset, a);
   return { start: ws[0]?.start ?? 0, end: ws.at(-1)?.end ?? 0, words: ws };
 };
 
@@ -132,23 +140,23 @@ const take = async (ad: AdName, force: boolean) => {
   const previous = (await Bun.file(timing).exists()) ? ((await Bun.file(timing).json()) as { key?: string }) : {};
   if (!force && previous.key === key && (await Bun.file(mp3).exists()))
     return console.log(`vo: ${ad}: script and voice unchanged, keeping the take (--force for a new one)`);
-  const script = texts.join(BREAK);
+  const script = texts.map(spoken).join(BREAK);
   const { audio, alignment } = await synthesize(script, VOICE.voiceId);
-  const at = offsets(texts);
+  const at = offsets(texts.map(spoken));
   const beats = Object.fromEntries((await beatsOf(ad)).map((b, i) => [b.id, beat(b.text, at[i] ?? 0, alignment)]));
   const duration = alignment.character_end_times_seconds.at(-1) ?? 0;
   const heard = await transcribe(audio);
   await mkdir(dirname(mp3), { recursive: true });
   await Bun.write(mp3, audio);
   await Bun.write(timing, `${JSON.stringify({ key, voiceId: VOICE.voiceId, duration, beats, heard }, null, 2)}\n`);
-  console.log(`vo: ${ad}: ${duration.toFixed(1)} s → public/ads/${ad}/vo.mp3, src/ads/${ad}/vo.json`);
+  console.log(`vo: ${ad}: ${duration.toFixed(1)} s → public/ad/voice/${ad}.mp3, src/ads/${ad}/vo.json`);
   report("transcript check", script, heard);
 };
 
 const cast = async (ad: AdName, voiceIds: string[]) => {
   const script = (await beatsOf(ad))
     .slice(0, CAST_BEATS)
-    .map((b) => b.text)
+    .map((b) => spoken(b.text))
     .join(BREAK);
   await mkdir(join(ROOT, "out/casting"), { recursive: true });
   const one = async (voiceId: string) => {

@@ -6,29 +6,14 @@
  * An audio tag such as `[pause]` is not read aloud; the voice pauses there, and so does the timing estimate.
  */
 export const BEATS = [
+  { id: "intro", text: "Miasto, uczelnia, spółdzielnia mieszkaniowa. Każda społeczność ma swoje potrzeby." },
+  { id: "promise", text: "Twoje Miejsce to jedna aplikacja, która dopasowuje się do każdej z nich." },
+  { id: "city", text: "Miasto może prowadzić budżet obywatelski, a mieszkańcy głosują w aplikacji." },
+  { id: "campus", text: "Uczelnia może udostępnić rezerwację sal, a dziekanat widzi grafik." },
+  { id: "coop", text: "Spółdzielnia zbiera zgłoszenia usterek, a AI łączy duplikaty." },
+  { id: "builder", text: "Czegoś brakuje? Administrator opisuje funkcję, a AI pisze rozszerzenie." },
   {
-    id: "intro",
-    text: "Miasto, uczelnia, spółdzielnia mieszkaniowa. Każda społeczność ma inne sprawy i potrzebuje innych narzędzi.",
+    id: "outro",
+    text: "Twój dom. [pause] Twoje osiedle. [pause] Twoje miasto. [pause] Twoje Miejsce. Rośnie razem z Twoimi potrzebami.",
   },
-  {
-    id: "promise",
-    text: "Twoje Miejsce to jedna aplikacja, która dopasowuje się do miejsca. Każde włącza tylko to, czego potrzebuje.",
-  },
-  {
-    id: "city",
-    text: "Miasto może prowadzić budżet obywatelski: mieszkańcy głosują w aplikacji, a wyniki widać na pulpicie.",
-  },
-  {
-    id: "campus",
-    text: "Uczelnia może udostępnić rezerwację sal: student wybiera salę i godzinę, a dziekanat widzi grafik.",
-  },
-  {
-    id: "coop",
-    text: "Spółdzielnia zbiera zgłoszenia usterek ze zdjęciem, a AI łączy zgłoszenia tego samego problemu.",
-  },
-  {
-    id: "builder",
-    text: "A gdy czegoś brakuje, administrator opisuje funkcję własnymi słowami, a AI pisze rozszerzenie i je sprawdza.",
-  },
-  { id: "outro", text: "Twój dom. [pause] Twoje osiedle. [pause] Twoje miasto. [pause] Twoje Miejsce." },
 ] as const;

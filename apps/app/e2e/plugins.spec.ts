@@ -354,6 +354,24 @@ test("home screen widget: announcements show what is new since the last visit", 
   await expect(widget.getByRole("button", { name: "Zamknięcie ulicy Długiej" })).toHaveCount(0);
 });
 
+test("a tool's confirmation floats over the bottom of the screen; nothing under it moves", async ({ page }) => {
+  await login(page, "admin@krakow.test");
+  await page.goto("/app/c/krakow/announcements/list");
+  const title = page.getByLabel("Tytuł");
+  await expect(title).toBeVisible();
+  const before = await title.boundingBox();
+  await title.fill("Zamknięcie ulicy Długiej");
+  await page.getByRole("button", { name: "Opublikuj ogłoszenie" }).click();
+
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Ogłoszenie opublikowane");
+  const box = await toast.boundingBox();
+  expect(box?.y ?? 0).toBeGreaterThan((page.viewportSize()?.height ?? 0) / 2);
+  expect(await title.boundingBox()).toEqual(before);
+  // It goes away on its own.
+  await expect(toast).toBeHidden({ timeout: 10_000 });
+});
+
 const dashboardRegions = (page: Page) =>
   page.getByRole("list", { name: t.community_dashboard_label }).getByRole("region");
 

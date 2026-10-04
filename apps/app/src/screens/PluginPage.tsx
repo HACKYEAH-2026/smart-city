@@ -3,7 +3,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { BackButton, Badge, Button, Feedback, Heading, IconBox, NoticeScreen, Screen, Text } from "../components";
+import {
+  BackButton,
+  Badge,
+  Button,
+  Feedback,
+  Heading,
+  IconBox,
+  NoticeScreen,
+  Screen,
+  Text,
+  Toast,
+} from "../components";
 import { useCommunity, useDashboardLayout, usePlacePlugins, usePluginView, useSwitchPlugin } from "../data/communities";
 import { confirmDestructive } from "../lib/confirm";
 import { useFlash } from "../lib/flash";
@@ -72,11 +83,13 @@ function Page({
   // A view as a sheet and a node's overlay (a Menu's options), dropped when the page is left.
   const overlays = usePluginOverlays(here);
   const upload = (asset: Parameters<typeof uploadPluginImage>[2]) => uploadPluginImage(slug, plugin.id, asset);
+  const toast = useFlash().messageFor(here);
   return (
     <Screen
       chrome={false}
       overlay={
         <>
+          <Toast message={toast} />
           {overlays.overlay}
           {overlays.sheet ? (
             <PluginSheet
@@ -136,7 +149,6 @@ function AdminPart({
   showOverlay: (overlay: ReactNode | null) => void;
 }) {
   const screen = usePluginView(slug, plugin, view, {});
-  const toast = useFlash().messageFor(here);
   const actions = usePluginActions(slug, plugin, { here, openSheet });
   const error = actions.toolError ?? (actions.failed ? t.plugin_action_error : null);
   if (screen.isPending) {
@@ -155,7 +167,7 @@ function AdminPart({
   }
   return (
     <>
-      <Feedback ok={toast} error={error} />
+      <Feedback error={error} />
       <PluginRenderer
         key={`${here}/${view}`}
         node={screen.data}
