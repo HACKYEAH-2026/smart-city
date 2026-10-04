@@ -275,7 +275,7 @@ Mapy rozszerzeń (`ui.map`, `src/plugins/PluginMap.tsx`): pinezki, trasy (`route
 
 ### PlacePin ✅ (`src/components/PlacePin.tsx`)
 
-Pinezka miejsca na mapie: ustawianego nad środkiem mapy (wybór lokalizacji) i bieżącego w tle pulpitu (`PlaceBackdrop`: na prawo od nazwy miejsca, w `sizes.dashboardPinX` szerokości i `sizes.dashboardPinTop` pod górą treści; mapa ma tam swój środek, `anchor`; miejsce bez lokalizacji ma ją w tym samym punkcie ilustracji; całe tło jest podniesione o `sizes.dashboardMapLift`; przy przewijaniu treści rozmywa się (`expo-blur`, pełne po `sizes.dashboardBlurRange` dp)). Koło 48 dp (`sizes.iconBoxLg`) `primary`, obramowanie 3 dp `surface`, cień `selected`, ikona rodzaju miejsca 20 dp `onPrimary`; nóżka 3×14 `primary`; pod nią cień-elipsa 16×6 `dot`. Koniec nóżki wypada dokładnie w środku rodzica. Nieinteraktywna.
+Znacznik miejsca na tle pulpitu (`PlaceBackdrop`): czerwona poświata (gradient radialny `colors.primary`, średnica `sizes.dashboardGlow`, siła `opacity.dashboardGlow` w środku, zanikająca do brzegu), na prawo od nazwy miejsca, w `sizes.dashboardPinX` szerokości i `sizes.dashboardPinTop` pod górą treści; mapa ma tam swój środek (`anchor`); miejsce bez lokalizacji ma poświatę w tym samym punkcie ilustracji. Całe tło jest podniesione o `sizes.dashboardMapLift`, a przy przewijaniu rozmywa się (`expo-blur`, pełne po `sizes.dashboardBlurRange` dp). Nieinteraktywne.
 
 ### SearchField ✅ (`src/components/SearchField.tsx`)
 
