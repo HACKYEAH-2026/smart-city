@@ -471,7 +471,7 @@ const n: number = "x";</code></pre>
               during every check, including each attempt of the AI author, before a person has read it.
               <code>safety</code> rejects the escape hatches it knows; a determined author may find one it does not. The
               contract was built for isolation (no runtime imports, everything through the async <code>ctx</code>), so
-              moving plugins into a Worker/WASM sandbox — on the README roadmap — changes the host, not plugin code.
+              moving plugins into a Worker/WASM sandbox — on the <a href="../../ROADMAP.md">roadmap</a> (v2) — changes the host, not plugin code.
             </p>
           </div>
         </section>
@@ -1010,7 +1010,7 @@ answer                →  "Plugin „Tablica ogłoszeń” to tablica, na któr
             <div class="card">
               <h4>A static guard, not a sandbox</h4>
               <p><code>safety</code> knows the escape hatches it knows. AI-written plugins run with the same trust as uploads.</p>
-              <p class="small"><span class="chip info">fix</span> Plugins in a Worker/WASM sandbox (README roadmap).</p>
+              <p class="small"><span class="chip info">fix</span> Plugins in a Worker/WASM sandbox (<a href="../../ROADMAP.md">roadmap</a>, v2).</p>
             </div>
             <div class="card">
               <h4>Checks block the API</h4>

@@ -8,6 +8,8 @@ Twoje Miejsce: cyfrowe społeczności dla prawdziwych miejsc (miasto, uczelnia, 
 włącza tylko potrzebne funkcje, a każda funkcja to wtyczka z własnym, odizolowanym stanem.
 Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 
+Hasło (prezentacja, reklamy, README): **„Twoje Miejsce. Rośnie razem z Twoimi potrzebami.”**
+
 ## Odbiorcy
 
 - Członek społeczności: korzysta z funkcji wtyczek (np. zgłasza usterkę).
@@ -29,7 +31,8 @@ Jedna baza kodu działa w przeglądarce, na Androidzie i iOS.
 
 ## Status demo
 
-Weryfikacja tożsamości działa na mocku dostawcy; mObywatel jest planowanym adapterem. Społeczność demo: „Kraków”.
+W demo nie ma weryfikacji tożsamości (dołączanie kodem, linkiem, kodem QR albo z zaproszenia); mObywatel jest w v2.
+Co jest w demo, a co po hackathonie: `ROADMAP.md`. Społeczność demo: „Kraków”.
 
 ## Język
 

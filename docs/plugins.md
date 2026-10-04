@@ -1068,7 +1068,7 @@ request changes it:
 
 - The `safety` stage is a static guard over the source, not a sandbox: a determined author may still find a way out
   of `ctx` that it does not know. Plugins written by AI for a place
-  run with the same trust as uploads until plugins move to a Worker/WASM sandbox (roadmap in README).
+  run with the same trust as uploads until plugins move to a Worker/WASM sandbox (v2 in [ROADMAP.md](../ROADMAP.md)).
 
 - The system user in `onInstall` has no account: seeded rows get `createdBy: null`, it cannot be stored in a
   `t.ref("user")` column and cannot attach pending uploads. Use optional user refs for seeded rows.
