@@ -18,7 +18,14 @@
         "@hono/zod-validator": "^0.9.1",
         "@plugins/announcements": "workspace:*",
         "@plugins/discussions": "workspace:*",
+        "@plugins/disruptions": "workspace:*",
+        "@plugins/events": "workspace:*",
+        "@plugins/faq": "workspace:*",
+        "@plugins/groups": "workspace:*",
+        "@plugins/help": "workspace:*",
         "@plugins/issues": "workspace:*",
+        "@plugins/market": "workspace:*",
+        "@plugins/questions": "workspace:*",
         "@strands-agents/sdk": "^1.19.0",
         "@surrealdb/node": "3.0.3",
         "better-auth": "^1.7.5",
@@ -134,8 +141,50 @@
         "@app/plugin-sdk": "workspace:*",
       },
     },
+    "plugins/disruptions": {
+      "name": "@plugins/disruptions",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/events": {
+      "name": "@plugins/events",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/faq": {
+      "name": "@plugins/faq",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/groups": {
+      "name": "@plugins/groups",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/help": {
+      "name": "@plugins/help",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
     "plugins/issues": {
       "name": "@plugins/issues",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/market": {
+      "name": "@plugins/market",
+      "dependencies": {
+        "@app/plugin-sdk": "workspace:*",
+      },
+    },
+    "plugins/questions": {
+      "name": "@plugins/questions",
       "dependencies": {
         "@app/plugin-sdk": "workspace:*",
       },
@@ -564,7 +613,21 @@
 
     "@plugins/discussions": ["@plugins/discussions@workspace:plugins/discussions"],
 
+    "@plugins/disruptions": ["@plugins/disruptions@workspace:plugins/disruptions"],
+
+    "@plugins/events": ["@plugins/events@workspace:plugins/events"],
+
+    "@plugins/faq": ["@plugins/faq@workspace:plugins/faq"],
+
+    "@plugins/groups": ["@plugins/groups@workspace:plugins/groups"],
+
+    "@plugins/help": ["@plugins/help@workspace:plugins/help"],
+
     "@plugins/issues": ["@plugins/issues@workspace:plugins/issues"],
+
+    "@plugins/market": ["@plugins/market@workspace:plugins/market"],
+
+    "@plugins/questions": ["@plugins/questions@workspace:plugins/questions"],
 
     "@radix-ui/primitive": ["@radix-ui/primitive@1.1.7", "", {}, "sha512-rqWnm76nYT8HoNNqEjpgJ7Pw/DrBj5iBTrmEPo6HTX5+VJyBNOqTdv4g89G63HuR5g0AaENoAcH7Is5fF2kZ8Q=="],
 

@@ -8,7 +8,9 @@ import {
   expect,
   joinKrakow,
   loginAdmin,
+  OTHER_BUILTIN_PLUGINS,
   seedDemoContent,
+  switchPluginsOff,
   TEST_ADMIN_TOKEN,
   test,
 } from "./fixtures";
@@ -387,6 +389,7 @@ const publishAnnouncement = async (page: Page, title: string) => {
 };
 
 test("admin reorders the dashboard; residents see the new order and cannot edit", async ({ page, api }) => {
+  await switchPluginsOff(api.url, OTHER_BUILTIN_PLUGINS);
   await login(page, "admin@krakow.test");
   await publishAnnouncement(page, "Zebranie użytkowników");
   await page.goto("/app");
@@ -413,7 +416,8 @@ test("admin reorders the dashboard; residents see the new order and cannot edit"
   await expect(page.getByRole("button", { name: t.dashboard_done })).toHaveCount(0);
 });
 
-test("admin drags a widget to a new place on the dashboard", async ({ page }) => {
+test("admin drags a widget to a new place on the dashboard", async ({ page, api }) => {
+  await switchPluginsOff(api.url, OTHER_BUILTIN_PLUGINS);
   // The whole dashboard must fit in the viewport: the mouse cannot drag to points outside it.
   await page.setViewportSize({ width: 1280, height: 1800 });
   await login(page, "admin@krakow.test");

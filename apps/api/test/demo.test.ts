@@ -69,7 +69,7 @@ describe("dev demo content", () => {
     ]);
   });
 
-  test("both places render for a member and for their admin: the 3 widgets, every list and the admin panel", async () => {
+  test("both places render for a member and for their admin: the widgets, every list and the admin panel", async () => {
     t = await setup();
     const { admin } = await seedAll();
     const anna = await t.signIn(DEMO_RESIDENT);
@@ -102,6 +102,7 @@ describe("dev demo content", () => {
         return ((await res.json()) as { widgets: unknown[] }).widgets.length;
       }),
     );
-    expect(widgets).toEqual([3, 3, 3, 3]);
+    // Kraków (every built-in plugin) and the Tauron Arena (three plugins), each for a member and for its admin.
+    expect(widgets).toEqual([10, 3, 10, 3]);
   });
 });
