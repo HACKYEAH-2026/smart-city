@@ -43,6 +43,35 @@ const tool = async (headers: Record<string, string>, path: string, args: Record<
   return { res, result: res.status === 200 ? ((await res.json()) as ToolResult) : undefined };
 };
 const flat = (n: UINode): UINode[] => [n, ...("children" in n && n.children ? n.children.flatMap(flat) : [])];
+/** The widgets of the new built-in plugins, in catalog order (after the first three). */
+const NEW_WIDGETS = [
+  "disruptions/now",
+  "events/upcoming",
+  "faq/top",
+  "groups/feed",
+  "help/open",
+  "market/latest",
+  "questions/pending",
+];
+
+/** The navigation of every built-in plugin, in order: a plugin with two sections has two entries. */
+const NAV_IDS = [
+  "issues",
+  "announcements",
+  "discussions",
+  "disruptions",
+  "disruptions",
+  "events",
+  "events",
+  "faq",
+  "groups",
+  "help",
+  "help",
+  "market",
+  "market",
+  "questions",
+];
+
 const upload = (headers: Record<string, string>, file: File, plugin = "issues") => {
   const form = new FormData();
   form.set("file", file);
@@ -62,11 +91,13 @@ describe("communities, navigation, roles", () => {
     expect((await t.request(`${base}/nav`)).status).toBe(401);
     const u = await t.signUp();
     const nav = (await (await t.request(`${base}/nav`, { headers: u.headers })).json()) as CommunityNavItem[];
-    expect(nav).toEqual([
-      { pluginId: "issues", icon: "🛠️", view: "list", label: "Zgłoszenia" },
-      { pluginId: "announcements", icon: "📢", view: "list", label: "Ogłoszenia" },
-      { pluginId: "discussions", icon: "💬", view: "list", label: "Dyskusje" },
-    ]);
+    expect(nav.map((n) => n.pluginId)).toEqual(NAV_IDS);
+    expect(nav.find((n) => n.pluginId === "disruptions")).toEqual({
+      pluginId: "disruptions",
+      icon: "🚧",
+      view: "map",
+      label: "Mapa utrudnień",
+    });
     expect((await t.request("/api/communities/nie-ma", { headers: u.headers })).status).toBe(404);
     expect((await view(u.headers, "nie-ma/views/list")).res.status).toBe(404);
     expect((await view(u.headers, "issues/views/nie-ma")).res.status).toBe(404);
@@ -170,6 +201,13 @@ describe("plugin catalog", () => {
       { id: "issues", name: "Zgłoszenia", icon: "🛠️" },
       { id: "announcements", name: "Ogłoszenia", icon: "📢" },
       { id: "discussions", name: "Dyskusje", icon: "💬" },
+      { id: "disruptions", name: "Utrudnienia", icon: "🚧" },
+      { id: "events", name: "Wydarzenia", icon: "📅" },
+      { id: "faq", name: "FAQ", icon: "💡" },
+      { id: "groups", name: "Grupy", icon: "👥" },
+      { id: "help", name: "Pomoc sąsiedzka", icon: "🤝" },
+      { id: "market", name: "Giełda sąsiedzka", icon: "🏷️" },
+      { id: "questions", name: "Pytania i odpowiedzi", icon: "❓" },
     ]);
     expect(catalog.every((plugin) => plugin.description.length > 0)).toBe(true);
   });
@@ -295,7 +333,7 @@ describe("isolation and plugins uploaded on the fly", () => {
     expect((await install("notes")).status).toBe(201);
 
     const nav = (await (await t.request(`${base}/nav`, { headers: u.headers })).json()) as CommunityNavItem[];
-    expect(nav.map((n) => n.pluginId)).toEqual(["issues", "announcements", "discussions", "notes"]);
+    expect(nav.map((n) => n.pluginId)).toEqual([...NAV_IDS, "notes"]);
     expect((await tool(u.headers, "notes/tools/add", { title: "Klucz do piwnicy" })).res.status).toBe(200);
     expect(textsOf((await view(u.headers, "notes/views/main")).node!)).toContain("Klucz do piwnicy");
 
@@ -435,7 +473,18 @@ describe("dashboard", () => {
     const u = await t.signUp();
     expect((await t.request("/api/communities/nie-ma/dashboard", { headers: u.headers })).status).toBe(404);
     const d = await dashboard(u.headers);
-    expect(d.keys).toEqual(["issues/summary", "announcements/latest", "discussions/recent"]);
+    expect(d.keys).toEqual([
+      "issues/summary",
+      "announcements/latest",
+      "discussions/recent",
+      "disruptions/now",
+      "events/upcoming",
+      "faq/top",
+      "groups/feed",
+      "help/open",
+      "market/latest",
+      "questions/pending",
+    ]);
     expect(d.canEdit).toBe(false);
     expect((await dashboard(cityAdmin.headers)).canEdit).toBe(true);
   });
@@ -450,6 +499,13 @@ describe("dashboard", () => {
       { key: "issues/summary", size: { w: 3, h: 2 } },
       { key: "announcements/latest", size: { w: 3, h: 2 } },
       { key: "discussions/recent", size: { w: 3, h: 3 } },
+      { key: "disruptions/now", size: { w: 3, h: 3 } },
+      { key: "events/upcoming", size: { w: 3, h: 3 } },
+      { key: "faq/top", size: { w: 3, h: 3 } },
+      { key: "groups/feed", size: { w: 3, h: 3 } },
+      { key: "help/open", size: { w: 3, h: 3 } },
+      { key: "market/latest", size: { w: 3, h: 3 } },
+      { key: "questions/pending", size: { w: 3, h: 2 } },
     ]);
     // Tapping a tile opens the plugin view its widget names.
     expect(nodeOf(before, "issues/summary")).toMatchObject({ onPress: { type: "navigate", view: "list" } });
@@ -471,7 +527,18 @@ describe("dashboard", () => {
     expect((await setOrder(u.headers, ["announcements/latest", "issues/summary"])).status).toBe(403);
     expect((await setOrder(cityAdmin.headers, "nie-lista")).status).toBe(400);
     expect((await setOrder(cityAdmin.headers, ["announcements/latest", "issues/summary"])).status).toBe(200);
-    expect((await dashboard(u.headers)).keys).toEqual(["announcements/latest", "issues/summary", "discussions/recent"]);
+    expect((await dashboard(u.headers)).keys).toEqual([
+      "announcements/latest",
+      "issues/summary",
+      "discussions/recent",
+      "disruptions/now",
+      "events/upcoming",
+      "faq/top",
+      "groups/feed",
+      "help/open",
+      "market/latest",
+      "questions/pending",
+    ]);
 
     await uploadAndInstall(
       withWidget("tiles", "{ size: { w: 1, h: 1 }, render: () => ui.widget('Notatki', []) }"),
@@ -481,6 +548,13 @@ describe("dashboard", () => {
       "announcements/latest",
       "issues/summary",
       "discussions/recent",
+      "disruptions/now",
+      "events/upcoming",
+      "faq/top",
+      "groups/feed",
+      "help/open",
+      "market/latest",
+      "questions/pending",
       "tiles/w",
     ]);
     const res = await t.request("/api/communities/nie-ma/dashboard", {
@@ -507,7 +581,18 @@ describe("dashboard", () => {
     );
     const d = await dashboard(u.headers);
     expect(d.res.status).toBe(200);
-    expect(d.keys).toEqual(["issues/summary", "announcements/latest", "discussions/recent"]);
+    expect(d.keys).toEqual([
+      "issues/summary",
+      "announcements/latest",
+      "discussions/recent",
+      "disruptions/now",
+      "events/upcoming",
+      "faq/top",
+      "groups/feed",
+      "help/open",
+      "market/latest",
+      "questions/pending",
+    ]);
   });
 
   test("a widget without a valid size is rejected on upload", async () => {
@@ -592,6 +677,69 @@ describe("dashboard", () => {
             size: tall,
             sizes: [tall, short],
           },
+          {
+            key: "disruptions/now",
+            pluginId: "disruptions",
+            pluginName: "Utrudnienia",
+            pluginIcon: "🚧",
+            title: "Utrudnienia",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "events/upcoming",
+            pluginId: "events",
+            pluginName: "Wydarzenia",
+            pluginIcon: "📅",
+            title: "Wydarzenia",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "faq/top",
+            pluginId: "faq",
+            pluginName: "FAQ",
+            pluginIcon: "💡",
+            title: "FAQ",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "groups/feed",
+            pluginId: "groups",
+            pluginName: "Grupy",
+            pluginIcon: "👥",
+            title: "Grupy",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "help/open",
+            pluginId: "help",
+            pluginName: "Pomoc sąsiedzka",
+            pluginIcon: "🤝",
+            title: "Pomoc sąsiedzka",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "market/latest",
+            pluginId: "market",
+            pluginName: "Giełda sąsiedzka",
+            pluginIcon: "🏷️",
+            title: "Giełda sąsiedzka",
+            size: { w: 3, h: 3 },
+            sizes: [{ w: 3, h: 3 }],
+          },
+          {
+            key: "questions/pending",
+            pluginId: "questions",
+            pluginName: "Pytania i odpowiedzi",
+            pluginIcon: "❓",
+            title: "Pytania i odpowiedzi",
+            size: { w: 3, h: 2 },
+            sizes: [{ w: 3, h: 2 }],
+          },
         ],
         available: [],
       });
@@ -625,7 +773,17 @@ describe("dashboard", () => {
       expect(saved.widgets.map(({ key, size }) => ({ key, size }))).toEqual([
         { key: "announcements/latest", size: tall },
       ]);
-      expect(saved.available.map((w) => w.key)).toEqual(["issues/summary", "discussions/recent"]);
+      expect(saved.available.map((w) => w.key)).toEqual([
+        "issues/summary",
+        "discussions/recent",
+        "disruptions/now",
+        "events/upcoming",
+        "faq/top",
+        "groups/feed",
+        "help/open",
+        "market/latest",
+        "questions/pending",
+      ]);
       expect(await getLayout(cityAdmin.headers)).toEqual(saved);
 
       const d = await dashboard(u.headers);
@@ -642,7 +800,7 @@ describe("dashboard", () => {
         { key: "announcements/latest", size: tall },
         { key: "discussions/recent", size: tall },
       ]);
-      expect((await getLayout(cityAdmin.headers)).available).toEqual([]);
+      expect((await getLayout(cityAdmin.headers)).available.map((w) => w.key)).toEqual(NEW_WIDGETS);
     });
 
     test("reordering on the dashboard (PATCH) keeps the chosen sizes and removed widgets", async () => {
@@ -665,7 +823,17 @@ describe("dashboard", () => {
         { key: "tiles/w", size: { w: 2, h: 1 } },
         { key: "issues/summary", size: short },
       ]);
-      expect(layout.available.map((w) => w.key)).toEqual(["announcements/latest", "discussions/recent"]);
+      expect(layout.available.map((w) => w.key)).toEqual([
+        "announcements/latest",
+        "discussions/recent",
+        "disruptions/now",
+        "events/upcoming",
+        "faq/top",
+        "groups/feed",
+        "help/open",
+        "market/latest",
+        "questions/pending",
+      ]);
       expect((await dashboard(u.headers)).keys).toEqual(["tiles/w", "issues/summary"]);
     });
 
@@ -685,7 +853,16 @@ describe("dashboard", () => {
         { key: "issues/summary", title: "Zgłoszenia", size: tall },
         { key: "tiles/w", title: "Kafelek", size: { w: 1, h: 1 } },
       ]);
-      expect(layout.available.map((w) => w.key)).toEqual(["discussions/recent"]);
+      expect(layout.available.map((w) => w.key)).toEqual([
+        "discussions/recent",
+        "disruptions/now",
+        "events/upcoming",
+        "faq/top",
+        "groups/feed",
+        "help/open",
+        "market/latest",
+        "questions/pending",
+      ]);
       expect((await dashboard(cityAdmin.headers)).keys).toEqual(["announcements/latest", "issues/summary", "tiles/w"]);
     });
   });

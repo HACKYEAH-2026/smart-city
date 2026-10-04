@@ -55,8 +55,6 @@ style: |
     padding: 0.05em 0.35em;
     font-size: 0.85em;
   }
-  /* Slides with a screenshot (class "shot"): the text keeps left of a phone-sized frame on the right. */
-  section.shot { padding-right: 420px; }
   /* A screenshot slot. Replace it with ![bg right:34%](zrzut.png) once the screenshot exists. */
   blockquote {
     position: absolute;
@@ -78,29 +76,6 @@ style: |
     text-align: center;
   }
   blockquote p { margin: 0; }
-  /* The theme's tabular-nums gives commas and colons a digit's width in this font. */
-  table { display: table; border-collapse: collapse; width: 100%; font-size: 21px; font-variant: normal; margin: 6px 0 24px; }
-  table tr, table tr:nth-child(2n) { background: transparent; }
-  table th {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #5E5E66;
-    text-align: left;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid #DDD9CF;
-    padding: 8px 14px;
-  }
-  table td {
-    background: #FFFFFF;
-    border: none;
-    border-bottom: 1px solid #EEEBE4;
-    padding: 11px 14px;
-    color: #1B1B1F;
-    vertical-align: top;
-  }
   footer { color: #8A8A92; font-size: 15px; left: 72px; }
   section::after { color: #8A8A92; font-size: 16px; right: 72px; }
   /* A process drawn as a row of numbered steps (the ordered list of the slide). */
@@ -135,6 +110,26 @@ style: |
   }
   section.flow ol li strong { display: block; font-size: 21px; margin-bottom: 2px; }
   section.flow ul { font-size: 23px; }
+  /* Places side by side (class "places"): each top-level item is a card, its nested list the place's functions. */
+  section.places > ul {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 28px;
+  }
+  section.places > ul > li {
+    margin: 0;
+    padding: 18px 18px 20px;
+    background: #FFFFFF;
+    border: 1px solid #E3E0D8;
+    border-radius: 18px;
+  }
+  section.places > ul > li > strong { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
+  section.places ul ul { padding-left: 1em; font-size: 19px; line-height: 1.3; color: #5E5E66; }
+  section.places ul ul li { margin: 0.35em 0; }
+  section.places p { font-size: 23px; }
   /* A slide with one claim and a few short points: larger text, more air. */
   section.statement ul { font-size: 32px; margin-top: 12px; }
   section.statement li { margin: 0.55em 0; }
@@ -143,27 +138,6 @@ style: |
   section.statement.phones h1, section.statement.phone h1 { font-size: 42px; }
   section.statement.phones ul, section.statement.phone ul { font-size: 26px; }
   section.statement.phones h3, section.statement.phone h3 { font-size: 28px; margin-top: 32px; }
-  /* Title and closing slides: the brand red. */
-  section.lead {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: #E50101;
-    color: #FFFFFF;
-  }
-  section.lead h1 { color: #FFFFFF; font-size: 72px; margin: 18px 0 10px; }
-  section.lead h2 {
-    font-family: 'Schibsted Grotesk', sans-serif;
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 500;
-    font-size: 36px;
-    color: #FFFFFF;
-    margin: 0 0 28px;
-  }
-  section.lead p { color: #FFFFFF; font-size: 24px; margin: 6px 0; }
-  section.lead strong { color: #FFFFFF; }
-  section.lead img { border-radius: 24px; }
   /* Two phones with real app screens on the right (class "phones"): the slide's first image is the back phone,
      the second the front one. Both images go on one line, so they share a paragraph. */
   section.phones {
@@ -260,7 +234,7 @@ HackYeah 2026 · SMART CITY
 
 <!--
 Notatki: jedno zdanie o tym, czym jest Twoje Miejsce (cyfrowe społeczności dla prawdziwych miejsc: miasta, uczelni,
-osiedla), i od razu przejście do problemu. Hasło pada tu i na końcu. Na telefonach: ekran logowania i pulpit Krakowa
+osiedla), i od razu przejście do problemu. Hasło pada tu. Na telefonach: ekran logowania i pulpit Krakowa
 z konta anna@krakow.test.
 -->
 
@@ -399,22 +373,28 @@ Ostatnie zdanie wraca do slajdu 3: to przykład rozszerzenia, nie cały produkt.
 
 ---
 
-<!-- _class: shot -->
+<!-- _class: statement phone -->
 
-> 📸 Zrzut: panel administratora zgłoszeń z kategorią i odpowiedzią urzędu
+> Zrzut: panel administratora zgłoszeń z kategorią i odpowiedzią urzędu
 
 ## Dla urzędu
 
 # Jedno zgłoszenie zamiast wielu takich samych
 
-- **Powtórzone zgłoszenia łączą się w jedno,** a urząd widzi, ilu mieszkańców dotyczy sprawa.
-- **AI przypisuje kategorię** (drogi i chodniki, oświetlenie, czystość, zieleń). Urząd może ją zmienić.
-- **Odpowiedź dla mieszkańców i notatka wewnętrzna.** Zamknięcie zgłoszenia powiadamia autora i osoby, które dołączyły.
-- **Ogłoszenia i dyskusje** w tym samym miejscu.
-- **Ustawienia miejsca:** głosowanie, komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
+- **Takie same zgłoszenia** łączą się w jedno
+- **AI nadaje kategorię,** urząd może ją zmienić
+- **Odpowiedź dociera** do każdego, kto zgłosił
+
+### Urząd widzi, ilu mieszkańców dotyczy sprawa.
 
 <!--
-Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi odpowiedź zamiast ciszy.
+Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplikatów to mniej pracy urzędu; mieszkaniec widzi
+odpowiedź zamiast ciszy. Rozwinięcie na głos:
+- Kategorie: drogi i chodniki, oświetlenie, czystość, zieleń.
+- Urząd pisze odpowiedź dla mieszkańców i notatkę wewnętrzną. Zamknięcie zgłoszenia powiadamia autora i osoby, które
+  dołączyły.
+- W tym samym miejscu ogłoszenia i dyskusje.
+- Ustawienia miejsca: głosowanie, komentarze, widoczność, zgłoszenia anonimowe, wymagane zdjęcie.
 -->
 
 ---
@@ -425,67 +405,79 @@ Notatki: to jest kryterium „związek z kategorią SMART CITY”. Mniej duplika
 
 # Nowa potrzeba to nowa funkcja, nie nowa aplikacja
 
-1. **Dziś** Mieszkańcy zgłaszają usterki, czytają ogłoszenia administracji i rozmawiają w dyskusjach.
-2. **Nowa potrzeba** Na osiedle przychodzą dziki. Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął.
-3. **Administrator opisuje** dwie funkcje własnymi słowami: „Uwaga, dzik!” i „Oddam za darmo”.
-4. **Mieszkańcy dostają** ostrzeżenie, gdy dzik jest w pobliżu, i tablicę rzeczy do oddania.
+1. **Dziś** Usterki, ogłoszenia, dyskusje.
+2. **Nowa potrzeba** Dziki na osiedlu. Dobre meble przy śmietniku.
+3. **Administrator opisuje** „Uwaga, dzik!” i „Oddam za darmo”.
+4. **Mieszkańcy dostają** ostrzeżenie o dziku w pobliżu i tablicę rzeczy do oddania.
 
-- **Nic nowego do instalowania i uczenia się.** To samo konto, te same powiadomienia, ten sam pulpit.
-- **Bez programisty i bez zamówienia.** AI pisze wtyczkę, a administrator ją sprawdza i publikuje.
+- **Bez programisty i bez zamówienia.** AI pisze rozszerzenie, administrator je publikuje.
 
 <!--
 Notatki: to jest hasło „Rośnie razem z Twoimi potrzebami” w praktyce; jak to działa, pokazał slajd „Innowacja”.
+Sprawne meble lądują przy śmietniku, choć sąsiad chętnie by je wziął. Administrator opisuje obie funkcje własnymi
+słowami. Nic nowego do instalowania i uczenia się: to samo konto, te same powiadomienia, ten sam pulpit.
 Ostrzeżenie dostają tylko mieszkańcy w promieniu np. 500 m (zapisane miejsce albo pozycja z otwartej aplikacji z ostatnich
-30 minut), a wtyczka nie zna niczyjej lokalizacji: dopasowuje ją serwer. To samo działa w skali miasta: Kraków może
-włączyć „Uwaga, dzik!” dla wszystkich mieszkańców. Bez liczb, których nie zmierzyliśmy.
+30 minut), a rozszerzenie nie zna niczyjej lokalizacji: dopasowuje ją serwer. Następny slajd: to samo w skali miasta.
+Bez liczb, których nie zmierzyliśmy.
 -->
 
 ---
 
-<!-- _footer: "Bun · Hono · SurrealDB · Expo (React Native) · Strands Agents · TypeScript" -->
+<!-- _class: flow -->
 
-## Technologia
+## Przykład: Kraków
 
-# Wtyczki + Server-Driven UI
+# Komunikat trafia tylko do tych, których dotyczy
 
-| Wtyczka na serwerze | Aplikacja na telefonie |
-| --- | --- |
-| Jeden plik TypeScript, zależny tylko od SDK | Rysuje ekrany, które opisuje serwer |
-| Własne tabele, osobne dla każdego miejsca | Katalog 34 elementów UI: formularze, mapa, galeria… |
-| Widoki, widżety i akcje z walidacją (Zod) | Nowa funkcja bez nowej wersji aplikacji |
+1. **Dziś** Zgłoszenia usterek, ogłoszenia urzędu, dyskusje.
+2. **Nowa potrzeba** Remont, objazd, brak wody.
+3. **Urząd opisuje** „Utrudnienia w okolicy”.
+4. **Mieszkańcy dostają** mapę utrudnień i powiadomienie tylko o tych w swojej okolicy.
 
-Serwer przysyła opis ekranu, a aplikacja go rysuje. Dlatego wtyczka napisana przez AI działa od razu na iOS, Androidzie i w przeglądarce.
-
-### Kod od AI przechodzi te same bramki co każda wtyczka, więc działa.
-
-*Składnia → importy → typy → safety → wczytanie → schemat bazy*
+- **Rozszerzenie nie zna niczyjego adresu.** Okolicę dopasowuje serwer.
 
 <!--
-Notatki: samo połączenie wtyczek i Server-Driven UI jest znane (np. aplikacje Slacka). Nowe jest to, że na tym fundamencie
-AI pisze funkcje bezpiecznie: pisze tylko kod serwera przeciw wąskiemu SDK, nigdy kod aplikacji.
-Bramki: wtyczka widzi tylko `ctx` (bez dostępu do bazy aplikacji, dysku, sieci i lokalizacji mieszkańców); dane każdej
-instalacji są odizolowane; błędy wracają do agenta AI, który poprawia kod (najwyżej 3 sprawdzenia na wersję); niezgodna
-zmiana tabel odrzuca nową wersję, a poprzednia działa dalej.
-Pytanie jury „a jeśli AI napisze coś złośliwego?”: safety to statyczny strażnik, nie sandbox; kontrakt wtyczki jest gotowy
-na Worker/WASM i to jest v2 (ROADMAP.md).
+Notatki: ta sama droga co w spółdzielni, tylko skala inna. W spółdzielni ostrzeżenie dotyczy prawie wszystkich, w mieście
+powiadomienie dla wszystkich byłoby spamem, więc dostaje je tylko okolica utrudnienia.
+Urząd zaznacza na mapie obszar (np. ulicę w remoncie albo rejon bez wody), a powiadomienie dostają mieszkańcy z zapisanym
+adresem albo niedawną pozycją w tym promieniu. Adresy mieszkańcy dodają sami w koncie („adresy do powiadomień w okolicy”).
+SDK ma do tego gotowe elementy: obszary na mapie (`ui.map.areas`) i powiadomienia „w pobliżu” (promień do 50 km).
+Tego rozszerzenia nie przygotowaliśmy na demo: to przykład opisu dla generatora, nie gotowa funkcja.
 -->
 
 ---
 
-<!-- _class: lead -->
-<!-- _paginate: false -->
-<!-- _footer: "" -->
+<!-- _class: places -->
 
-![w:96](apps/app/assets/icon.png)
+## Od miasta po dom
 
-# Twoje Miejsce. Rośnie razem z Twoimi potrzebami.
+# Każde miejsce włącza swoje funkcje
 
-**Twój Team**
+- **Miasto**
+  - Zgłoszenia usterek
+  - Utrudnienia w okolicy
+  - Budżet obywatelski
+  - Konsultacje społeczne
+- **Uczelnia**
+  - Rezerwacja sal
+  - Ogłoszenia dziekanatu
+  - Zmiany w planie zajęć
+  - Rzeczy znalezione
+- **Spółdzielnia mieszkaniowa**
+  - Uwaga, dzik!
+  - Oddam za darmo
+  - Odczyty liczników
+  - Usterki w bloku
+- **Dom**
+  - Lista zakupów
+  - Grafik sprzątania
+  - Wspólne wydatki
+  - Kalendarz rodziny
 
-Karol Jażdrzyk · Marcin Niemczyk · Dawid Danieluk
-
-github.com/HACKYEAH-2026/smart-city
+**Zgłoszenia, ogłoszenia i dyskusje działają w demo.** Resztę administrator opisuje, a AI pisze.
 
 <!--
-Notatki: zakończyć hasłem. Link do repozytorium tylko, jeśli będzie publiczne na czas oceny.
+Notatki: ta sama aplikacja i ten sam generator od całego miasta po jedno mieszkanie; zmienia się tylko zestaw rozszerzeń.
+Wbudowane rozszerzenia to zgłoszenia usterek, ogłoszenia i dyskusje. Pozostałe funkcje to przykłady opisów dla
+generatora: nie przygotowaliśmy ich na demo (ROADMAP.md). Budżet obywatelski wymaga weryfikacji mieszkańców (mObywatel, v2).
 -->

@@ -338,7 +338,7 @@ function itemTexts(node: UINode): string[] {
     case "Meta":
       return metaTexts(node.items);
     case "Card":
-      return metaTexts(node.meta);
+      return [...(node.badge ? [node.badge.text] : []), ...metaTexts(node.meta)];
     case "Menu":
       return node.options.map((option) => option.label);
     case "Gallery":

@@ -1,0 +1,481 @@
+{
+  "key": "0188031cb49b81ec6deda9557cacccc7620ba88d97d53b02d34198b7ba656f25",
+  "voiceId": "o2xdfKUpc1Bwq7RchZuW",
+  "duration": 48.32,
+  "beats": {
+    "intro": {
+      "start": 0,
+      "end": 6.56,
+      "words": [
+        {
+          "text": "Miasto",
+          "start": 0,
+          "end": 0.56
+        },
+        {
+          "text": "uczelnia",
+          "start": 0.84,
+          "end": 1.36
+        },
+        {
+          "text": "spółdzielnia",
+          "start": 1.6,
+          "end": 2.08
+        },
+        {
+          "text": "mieszkaniowa",
+          "start": 2.12,
+          "end": 2.8
+        },
+        {
+          "text": "i",
+          "start": 2.96,
+          "end": 3.12
+        },
+        {
+          "text": "wiele",
+          "start": 3.2,
+          "end": 3.44
+        },
+        {
+          "text": "więcej",
+          "start": 3.52,
+          "end": 4
+        },
+        {
+          "text": "Każda",
+          "start": 4.4,
+          "end": 4.72
+        },
+        {
+          "text": "społeczność",
+          "start": 4.84,
+          "end": 5.44
+        },
+        {
+          "text": "ma",
+          "start": 5.52,
+          "end": 5.68
+        },
+        {
+          "text": "swoje",
+          "start": 5.76,
+          "end": 6
+        },
+        {
+          "text": "potrzeby",
+          "start": 6.08,
+          "end": 6.56
+        }
+      ]
+    },
+    "promise": {
+      "start": 7.68,
+      "end": 12.16,
+      "words": [
+        {
+          "text": "Twoje",
+          "start": 7.68,
+          "end": 7.92
+        },
+        {
+          "text": "Miejsce",
+          "start": 8,
+          "end": 8.48
+        },
+        {
+          "text": "to",
+          "start": 8.56,
+          "end": 8.72
+        },
+        {
+          "text": "jedna",
+          "start": 8.88,
+          "end": 9.2
+        },
+        {
+          "text": "aplikacja",
+          "start": 9.28,
+          "end": 9.92
+        },
+        {
+          "text": "która",
+          "start": 10,
+          "end": 10.24
+        },
+        {
+          "text": "dopasowuje",
+          "start": 10.28,
+          "end": 10.88
+        },
+        {
+          "text": "się",
+          "start": 10.96,
+          "end": 11.08
+        },
+        {
+          "text": "do",
+          "start": 11.12,
+          "end": 11.28
+        },
+        {
+          "text": "każdej",
+          "start": 11.36,
+          "end": 11.72
+        },
+        {
+          "text": "z",
+          "start": 11.76,
+          "end": 11.84
+        },
+        {
+          "text": "nich",
+          "start": 11.88,
+          "end": 12.16
+        }
+      ]
+    },
+    "city": {
+      "start": 13.104,
+      "end": 21.44,
+      "words": [
+        {
+          "text": "Miasto",
+          "start": 13.104,
+          "end": 13.52
+        },
+        {
+          "text": "Budżet",
+          "start": 13.92,
+          "end": 14.24
+        },
+        {
+          "text": "obywatelski",
+          "start": 14.32,
+          "end": 14.96
+        },
+        {
+          "text": "Mamy",
+          "start": 15.68,
+          "end": 15.92
+        },
+        {
+          "text": "to",
+          "start": 16,
+          "end": 16.24
+        },
+        {
+          "text": "Lokalne",
+          "start": 16.64,
+          "end": 17.04
+        },
+        {
+          "text": "ogłoszenia",
+          "start": 17.12,
+          "end": 17.68
+        },
+        {
+          "text": "Się",
+          "start": 18.24,
+          "end": 18.4
+        },
+        {
+          "text": "robi",
+          "start": 18.52,
+          "end": 18.8
+        },
+        {
+          "text": "Zgłoszenia",
+          "start": 19.28,
+          "end": 19.68
+        },
+        {
+          "text": "zagrożeń",
+          "start": 19.76,
+          "end": 20.24
+        },
+        {
+          "text": "Nie",
+          "start": 20.72,
+          "end": 20.8
+        },
+        {
+          "text": "ma",
+          "start": 20.88,
+          "end": 20.96
+        },
+        {
+          "text": "sprawy",
+          "start": 21.08,
+          "end": 21.44
+        }
+      ]
+    },
+    "campus": {
+      "start": 22.208,
+      "end": 26.24,
+      "words": [
+        {
+          "text": "Uczelnia",
+          "start": 22.208,
+          "end": 22.56
+        },
+        {
+          "text": "może",
+          "start": 22.64,
+          "end": 22.88
+        },
+        {
+          "text": "udostępnić",
+          "start": 22.96,
+          "end": 23.6
+        },
+        {
+          "text": "rezerwację",
+          "start": 23.68,
+          "end": 24.24
+        },
+        {
+          "text": "sal",
+          "start": 24.32,
+          "end": 24.56
+        },
+        {
+          "text": "a",
+          "start": 24.8,
+          "end": 24.88
+        },
+        {
+          "text": "dziekanat",
+          "start": 24.96,
+          "end": 25.44
+        },
+        {
+          "text": "widzi",
+          "start": 25.52,
+          "end": 25.68
+        },
+        {
+          "text": "grafik",
+          "start": 25.76,
+          "end": 26.24
+        }
+      ]
+    },
+    "coop": {
+      "start": 26.768,
+      "end": 30.8,
+      "words": [
+        {
+          "text": "Spółdzielnia",
+          "start": 26.768,
+          "end": 27.36
+        },
+        {
+          "text": "zbiera",
+          "start": 27.44,
+          "end": 27.68
+        },
+        {
+          "text": "zgłoszenia",
+          "start": 27.76,
+          "end": 28.16
+        },
+        {
+          "text": "usterek",
+          "start": 28.24,
+          "end": 28.8
+        },
+        {
+          "text": "a",
+          "start": 29,
+          "end": 29.04
+        },
+        {
+          "text": "AI",
+          "start": 29.2,
+          "end": 29.76
+        },
+        {
+          "text": "łączy",
+          "start": 29.84,
+          "end": 30.16
+        },
+        {
+          "text": "duplikaty",
+          "start": 30.24,
+          "end": 30.8
+        }
+      ]
+    },
+    "builder": {
+      "start": 31.36,
+      "end": 36.16,
+      "words": [
+        {
+          "text": "Czegoś",
+          "start": 31.36,
+          "end": 31.6
+        },
+        {
+          "text": "brakuje",
+          "start": 31.64,
+          "end": 32.08
+        },
+        {
+          "text": "Administrator",
+          "start": 32.48,
+          "end": 33.12
+        },
+        {
+          "text": "opisuje",
+          "start": 33.2,
+          "end": 33.6
+        },
+        {
+          "text": "funkcję",
+          "start": 33.68,
+          "end": 34.16
+        },
+        {
+          "text": "a",
+          "start": 34.36,
+          "end": 34.4
+        },
+        {
+          "text": "AI",
+          "start": 34.56,
+          "end": 35.04
+        },
+        {
+          "text": "pisze",
+          "start": 35.2,
+          "end": 35.44
+        },
+        {
+          "text": "rozszerzenie",
+          "start": 35.52,
+          "end": 36.16
+        }
+      ]
+    },
+    "publish": {
+      "start": 36.72,
+      "end": 40,
+      "words": [
+        {
+          "text": "Jedno",
+          "start": 36.72,
+          "end": 36.96
+        },
+        {
+          "text": "kliknięcie",
+          "start": 37.04,
+          "end": 37.68
+        },
+        {
+          "text": "i",
+          "start": 37.84,
+          "end": 37.92
+        },
+        {
+          "text": "działa",
+          "start": 38,
+          "end": 38.24
+        },
+        {
+          "text": "u",
+          "start": 38.32,
+          "end": 38.36
+        },
+        {
+          "text": "wszystkich",
+          "start": 38.4,
+          "end": 39.04
+        },
+        {
+          "text": "Na",
+          "start": 39.44,
+          "end": 39.52
+        },
+        {
+          "text": "żywo",
+          "start": 39.6,
+          "end": 40
+        }
+      ]
+    },
+    "outro": {
+      "start": 40.688,
+      "end": 48.08,
+      "words": [
+        {
+          "text": "Twój",
+          "start": 40.688,
+          "end": 40.88
+        },
+        {
+          "text": "dom",
+          "start": 40.96,
+          "end": 41.28
+        },
+        {
+          "text": "Twoje",
+          "start": 41.872,
+          "end": 42
+        },
+        {
+          "text": "osiedle",
+          "start": 42.08,
+          "end": 42.64
+        },
+        {
+          "text": "Twoje",
+          "start": 43.04,
+          "end": 43.36
+        },
+        {
+          "text": "miasto",
+          "start": 43.44,
+          "end": 44
+        },
+        {
+          "text": "Twoje",
+          "start": 44.4,
+          "end": 44.72
+        },
+        {
+          "text": "Miejsce",
+          "start": 44.88,
+          "end": 45.44
+        },
+        {
+          "text": "Rośnie",
+          "start": 45.92,
+          "end": 46.32
+        },
+        {
+          "text": "razem",
+          "start": 46.56,
+          "end": 46.88
+        },
+        {
+          "text": "z",
+          "start": 46.96,
+          "end": 47
+        },
+        {
+          "text": "Twoimi",
+          "start": 47.04,
+          "end": 47.36
+        },
+        {
+          "text": "potrzebami",
+          "start": 47.44,
+          "end": 48.08
+        }
+      ]
+    }
+  },
+  "heard": "Miasto, uczelnia, spółdzielnia mieszkaniowa i wiele więcej. Każda społeczność ma swoje potrzeby. Twoje miejsce to jedna aplikacja, która dopasowuje się do każdej z nich. Miasto. Budżet obywatelski? Mamy to! Lokalne ogłoszenia? Się robi! Zgłoszenia zagrożeń? Nie ma sprawy. Uczelnia może udostępnić rezerwację sal, a dziekanat widzi grafik. Spółdzielnia zbiera zgłoszenia usterek, a AI łączy duplikaty. Czegoś brakuje? Administrator opisuje funkcję, a AI pisze rozszerzenie. Jedno kliknięcie i działa u wszystkich. Na żywo. Twój dom. Twoje osiedle. Twoje miasto. Twoje miejsce rośnie razem z Twoimi potrzebami"
+}

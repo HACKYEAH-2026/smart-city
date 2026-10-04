@@ -135,7 +135,9 @@ test("a place needs at least one feature", async ({ page }) => {
   await next.click();
   await page.getByLabel(t.create_name).fill("Osiedle Słoneczne");
   await next.click();
-  for (const name of FEATURES) await page.getByRole("checkbox", { name }).click();
+  // Every built-in plugin is on by default: switch them all off, then one back on.
+  const features = page.getByRole("group", { name: t.create_features_label }).getByRole("checkbox");
+  for (const box of await features.all()) await box.click();
   await expect(next).toBeDisabled();
   await page.getByRole("checkbox", { name: "Ogłoszenia" }).click();
   await expect(next).toBeEnabled();

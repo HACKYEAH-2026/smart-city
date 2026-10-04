@@ -192,6 +192,25 @@ export const adminHeaders = async (apiUrl: string) => {
   return { authorization: `Bearer ${token}` };
 };
 
+/**
+ * Switches built-in plugins off in Kraków through the API (there is no screen for it yet): the tests that count
+ * the dashboard's tiles keep the plugins they count.
+ */
+export const switchPluginsOff = async (apiUrl: string, plugins: readonly string[]) => {
+  const admin = await adminHeaders(apiUrl);
+  for (const plugin of plugins) {
+    const res = await fetch(`${apiUrl}/api/communities/krakow/plugins/${plugin}`, {
+      method: "PUT",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    if (!res.ok) throw new Error(`switchPluginsOff ${plugin}: ${res.status}`);
+  }
+};
+
+/** The built-in plugins the dashboard layout tests do not use (they keep the three original tiles). */
+export const OTHER_BUILTIN_PLUGINS = ["disruptions", "events", "faq", "groups", "help", "market", "questions"] as const;
+
 /** Signs out from the account screen (opened by URL: how it is reached differs with and without places). */
 export const signOut = async (page: Page) => {
   await page.goto("/app/account");

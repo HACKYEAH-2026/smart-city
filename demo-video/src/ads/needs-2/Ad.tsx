@@ -9,7 +9,7 @@ import {
   PromiseScene,
   PublishScene,
 } from "./scenes";
-import { SCENES } from "./timing";
+import { SCENES, VOICE_FILE } from "./timing";
 
 /**
  * The "needs" ad, second cut: a city, a campus, a housing cooperative and more need different things; one app fits
@@ -19,6 +19,7 @@ export const AdNeeds2 = ({ captions }: AdProps) => (
   <AdSequence
     scenes={SCENES}
     captions={captions}
+    voice={VOICE_FILE}
     components={{
       intro: IntroScene,
       promise: PromiseScene,

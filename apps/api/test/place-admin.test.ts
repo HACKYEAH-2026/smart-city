@@ -165,6 +165,13 @@ describe("plugins", () => {
       { id: "issues", enabled: true, widgets: 1 },
       { id: "announcements", enabled: true, widgets: 1 },
       { id: "discussions", enabled: true, widgets: 1 },
+      { id: "disruptions", enabled: true, widgets: 1 },
+      { id: "events", enabled: true, widgets: 1 },
+      { id: "faq", enabled: true, widgets: 1 },
+      { id: "groups", enabled: true, widgets: 1 },
+      { id: "help", enabled: true, widgets: 1 },
+      { id: "market", enabled: true, widgets: 1 },
+      { id: "questions", enabled: true, widgets: 1 },
     ]);
     // The plugin's page: its admin view and the sizes its widget may have.
     expect((await list()).find((p) => p.id === "issues")).toMatchObject({
@@ -185,7 +192,21 @@ describe("plugins", () => {
     });
     expect((await put("announcements", false)).status).toBe(200);
     expect((await list()).find((p) => p.id === "announcements")?.enabled).toBe(false);
-    expect(await nav(member.headers)).toEqual(["issues", "discussions"]);
+    expect(await nav(member.headers)).toEqual([
+      "issues",
+      "discussions",
+      "disruptions",
+      "disruptions",
+      "events",
+      "events",
+      "faq",
+      "groups",
+      "help",
+      "help",
+      "market",
+      "market",
+      "questions",
+    ]);
     expect((await t.request(`${base}/plugins/announcements/views/list`, { headers: member.headers })).status).toBe(404);
 
     expect((await put("announcements", true)).status).toBe(200);

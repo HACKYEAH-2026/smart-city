@@ -172,7 +172,22 @@ describe("the map of places", () => {
     });
     expect(joined.status).toBe(200);
     const pin = (await joined.json()) as { slug: string };
-    expect(await nav(stranger, pin.slug)).toEqual(["issues", "announcements", "discussions"]);
+    expect(await nav(stranger, pin.slug)).toEqual([
+      "issues",
+      "announcements",
+      "discussions",
+      "disruptions",
+      "disruptions",
+      "events",
+      "events",
+      "faq",
+      "groups",
+      "help",
+      "help",
+      "market",
+      "market",
+      "questions",
+    ]);
     expect(await nav(owner, "wawel")).toEqual([]);
   });
 });
